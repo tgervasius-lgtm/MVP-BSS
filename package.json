@@ -1,0 +1,11 @@
+{
+  "name": "bss-smart-systems-demo",
+  "version": "3.0.0",
+  "private": true,
+  "scripts": {
+    "test": "node --test tests/app.test.cjs"
+  },
+  "devDependencies": {
+    "jsdom": "26.1.0"
+  }
+}

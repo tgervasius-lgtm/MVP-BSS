@@ -1,43 +1,36 @@
-BSS Smart Systems - Realistični MVP+ app demo
+BSS Smart Systems – Demo 2.0
 
-Kako objaviti na Netlify:
-1. Otvori Netlify Drop.
-2. Povuci cijeli ZIP ili folder BSS_MVP_PLUS_FINAL_APP_DEMO.
-3. Nakon deploya otvori dobiveni HTTPS link na iPhoneu u Safariju.
-4. Share -> Add to Home Screen.
+Objavljena aplikacija:
+https://bespoke-cascaron-e4aab9.netlify.app/
 
-Opseg demo aplikacije:
-- Login
-- Dashboard
-- RFID/NFC prijava i odjava
-- Moja evidencija
-- Radnici i RFID kartice
-- Smjene i osnovna pravila
-- Zahtjevi za godišnji
-- Godišnji kalendar za cijelu godinu
-- Ručne korekcije vremena
-- Izvještaji CSV/XLSX
-- Terminal status
-- Kako radi terminal
-- Postavke firme
-- Prava pristupa
-- Audit log
+Kako se objavljuje:
+- GitHub repozitorij je povezan s Netlifyjem.
+- Svaki novi commit na grani main pokreće novu Netlify objavu.
+- Nije potrebno ručno povlačiti mapu u Netlify Drop.
 
-Demo uloge:
-- Administrator: vidi cijelu firmu, sve radnike i godišnje odmore
-- Voditelj: vidi samo svoje odjele i njihove zahtjeve
-- Radnik: vidi samo vlastite sate, zahtjeve, korekcije i godišnji kalendar
-- Knjigovođa: vidi izvještaje i odobrene odsutnosti bez prava izmjene
+Što demo stvarno radi:
+- odvojeni prikazi administratora, voditelja, radnika i knjigovođe
+- responzivni desktop administratorski prikaz i mobilna navigacija
+- filtriranje evidencije po mjesecu, odjelu, statusu i radniku
+- dodavanje i uređivanje radnika, jedinstveni email i RFID UID
+- aktiviranje/deaktiviranje radnika i blokiranje kartice
+- dodavanje i uređivanje smjena te dodjela smjene radniku
+- godišnji kalendar: administrator vidi cijelu firmu i cijelu godinu
+- radnik vidi isključivo vlastite odsutnosti
+- računanje radnih dana bez vikenda i hrvatskih blagdana u 2026.
+- kontrola vlastitih preklapanja i upozorenje na preklapanja u odjelu
+- zahtjevi za godišnji i korekcije s odobravanjem i audit tragom
+- funkcionalni CSV i stvarni XLSX izvoz prema aktivnim filtrima
+- status terminala i offline red
+- izolirani RFID simulator koji ne mijenja službenu evidenciju
+- prodajni demo način koji se može isključiti
+- lokalno spremanje demo-podataka u preglednik
 
-Uloga se bira na prijavi ili mijenja kroz izbornik aplikacije.
+Važna granica:
+Ovo je statičan demonstrator. Nema stvarnu prijavu korisnika, centralnu bazu,
+backend API ni vezu s fizičkim terminalom. Plan za pilot backend nalazi se u
+datoteci BACKEND_MVP_PLAN.md.
 
-Namjerno nije uključeno:
-- skladište
-- ERP
-- GPS/geofencing
-- AI modul
-- otvaranje vrata
-- payroll obračun plaće
-- inventar/CRM
-
-Ovo je prodajni klikabilni demo, ne prava aplikacija s bazom i backendom.
+Lokalno pokretanje:
+Poslužiti mapu bilo kojim statičnim HTTP serverom. Otvaranje index.html izravno
+kao file:// nije preporučeno zbog service workera.
