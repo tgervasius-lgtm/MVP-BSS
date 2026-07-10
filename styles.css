@@ -155,6 +155,23 @@ td{font-size:12px;font-weight:650;padding:12px;border-bottom:1px solid #edf3ef;v
 tbody tr:hover{background:#fbfdfc}
 .table-summary{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:12px 14px;border-top:1px solid var(--line);font-size:11px;color:var(--muted)}
 
+/* Demo 3.0 · Sprint 2 evidencija radnog vremena */
+.positive{color:var(--green)!important}.negative{color:var(--red)!important}.neutral{color:var(--muted)!important}
+.stat .trend.danger{color:var(--red)}.stat .trend.neutral{color:var(--muted)}
+.attendance-summary-card{display:grid;gap:16px;background:linear-gradient(135deg,#0c4f49,#0f766e 58%,#16895b);color:#fff;border:0;padding:20px}
+.attendance-summary-card .eyebrow{color:rgba(255,255,255,.68)}
+.attendance-summary-card h2{font-size:22px;margin-bottom:7px}.attendance-summary-card p{max-width:680px;margin:0;color:rgba(255,255,255,.78);font-size:12px;line-height:1.5}
+.attendance-summary-values{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.attendance-summary-values div{padding:12px;border:1px solid rgba(255,255,255,.15);border-radius:14px;background:rgba(255,255,255,.1)}
+.attendance-summary-values span,.attendance-summary-values b{display:block}.attendance-summary-values span{font-size:9px;color:rgba(255,255,255,.7)}.attendance-summary-values b{font-size:14px;margin-top:5px}.attendance-summary-values .positive{color:#bbf7d0!important}.attendance-summary-values .negative{color:#fecaca!important}
+.attendance-tabs{display:flex;gap:7px;overflow:auto;padding:2px 0 11px;margin-top:-2px}
+.attendance-tabs::-webkit-scrollbar{display:none}.attendance-tabs button{white-space:nowrap;padding:10px 12px;border:1px solid var(--line);border-radius:999px;background:#fff;color:var(--muted);font-size:11px;font-weight:900}.attendance-tabs button.active{background:var(--teal);border-color:var(--teal);color:#fff}.attendance-tabs span{display:inline-grid;place-items:center;min-width:20px;height:20px;padding:0 5px;margin-left:5px;border-radius:999px;background:var(--surface-2);color:var(--text);font-size:9px}.attendance-tabs button.active span{background:rgba(255,255,255,.18);color:#fff}
+.attendance-live{padding:15px}.live-count{padding:6px 8px;border-radius:999px;background:var(--green-soft);color:var(--green);font-size:9px;font-weight:950;white-space:nowrap}
+.attendance-live-grid{display:grid;gap:8px}.attendance-live-item{display:grid;grid-template-columns:38px minmax(0,1fr) auto auto;gap:9px;align-items:center;text-align:left;padding:10px;border:1px solid var(--line);border-radius:15px;background:var(--surface-2);color:var(--text)}.attendance-live-item:hover{border-color:#afd6c2;background:#f2faf5}.live-avatar{width:36px;height:36px;border-radius:11px;display:grid;place-items:center;background:var(--teal-soft);color:var(--teal);font-size:10px;font-weight:950}.attendance-live-item b,.attendance-live-item small{display:block}.attendance-live-item>div>b{font-size:11px}.attendance-live-item small{font-size:9px;color:var(--muted);margin-top:3px}.live-time{text-align:right}.live-time>b{font-size:12px!important}.live-time small{white-space:nowrap}
+.table-card-heading{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding:15px 15px 8px}.table-card-heading h2{margin:0}.table-card-heading p{margin:4px 0 0;color:var(--muted);font-size:10px;line-height:1.4}.attendance-table{min-width:1130px}.record-review{background:#fffdf6}.record-balance{font-size:10px;font-weight:900;white-space:nowrap}.pending-note{display:inline-block;margin-top:5px;font-size:8px;font-weight:900;color:var(--amber)}.table-detail-btn{padding:8px 10px;border:1px solid #b9d8c6;border-radius:10px;background:#f1faf5;color:var(--teal);font-size:10px;font-weight:900}.table-detail-btn:hover{background:var(--teal);color:#fff}
+.record-detail-status{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px}.record-detail-status>span:last-child{font-size:11px;color:var(--muted);text-align:right}.record-detail-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:12px}.record-detail-grid div{padding:12px;border:1px solid var(--line);border-radius:14px;background:var(--surface-2)}.record-detail-grid span,.record-detail-grid b{display:block}.record-detail-grid span{font-size:9px;color:var(--muted)}.record-detail-grid b{font-size:14px;margin-top:5px}.record-source{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:11px 0;margin-bottom:12px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);font-size:11px}.record-source span{color:var(--muted)}
+.worker-time-hero{display:grid;gap:16px;background:linear-gradient(135deg,#ecfdf5,#eff6ff);border-color:#cfe4d7}.worker-time-hero h2{font-size:22px;margin-bottom:6px}.worker-time-hero p{font-size:11px;color:var(--muted);margin:0}.worker-shift{padding:13px;border:1px solid rgba(15,118,110,.15);border-radius:15px;background:rgba(255,255,255,.72)}.worker-shift span,.worker-shift b,.worker-shift small{display:block}.worker-shift span{font-size:9px;color:var(--muted)}.worker-shift b{font-size:14px;margin-top:5px}.worker-shift small{font-size:10px;color:var(--muted);margin-top:4px}.mytime-toolbar{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap}.mytime-toolbar label{display:grid;gap:6px;font-size:10px;font-weight:900;color:var(--muted)}.mytime-toolbar input{border:1px solid var(--line);border-radius:12px;background:#fff;color:var(--text);padding:10px 11px}.mytime-toolbar>span{font-size:11px;color:var(--muted)}.correction-preview{margin-top:11px}.correction-form-card .notice{margin-top:2px}
+
 /* Demo 3.0 · operativni dashboard */
 .dashboard-hero{display:grid;gap:17px;padding:19px}
 .dashboard-hero .eyebrow{color:rgba(255,255,255,.68)}
@@ -258,6 +275,11 @@ button.day:hover{outline:2px solid var(--teal);outline-offset:1px}
   .quick{grid-template-columns:1fr}
   .role-badge{display:none}
 }
+@media(max-width:520px){
+  .attendance-summary-values{grid-template-columns:1fr}.attendance-summary-values div{display:flex;justify-content:space-between;align-items:center}.attendance-summary-values b{margin:0}
+  .attendance-live-item{grid-template-columns:36px minmax(0,1fr) auto}.attendance-live-item>.pill{grid-column:2/4;justify-self:start}.live-time{grid-column:3;grid-row:1}
+  .table-card-heading{display:block}.table-card-heading .pill{margin-top:9px}.table-summary{display:block}.table-summary span{display:block}.table-summary span+span{margin-top:4px}
+}
 @media(min-width:620px){
   .form-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
   .filter-bar{grid-template-columns:repeat(2,minmax(0,1fr))}
@@ -266,6 +288,9 @@ button.day:hover{outline:2px solid var(--teal);outline-offset:1px}
   .month-view{max-width:760px;margin:auto}
   .activity-columns{grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
   .dashboard-kpis{grid-template-columns:repeat(4,minmax(0,1fr))}
+  .attendance-live-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .record-detail-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .worker-time-hero{grid-template-columns:minmax(0,1.4fr) minmax(260px,.6fr);align-items:center}
 }
 @media(min-width:960px){
   .device{height:100dvh}
@@ -294,6 +319,8 @@ button.day:hover{outline:2px solid var(--teal);outline-offset:1px}
   .dashboard-kpis{grid-template-columns:repeat(4,minmax(0,1fr))}
   .dashboard-layout{grid-template-columns:minmax(0,1.55fr) minmax(300px,.65fr);align-items:start}
   .dashboard-secondary{position:relative}
+  .attendance-summary-card{grid-template-columns:minmax(0,1.2fr) minmax(420px,.8fr);align-items:center;padding:22px}
+  .attendance-live-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
   .filter-bar{grid-template-columns:repeat(4,minmax(150px,1fr)) auto;align-items:end}
   .form-grid.cols-3{grid-template-columns:repeat(3,minmax(0,1fr))}
   .year-calendar{grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}

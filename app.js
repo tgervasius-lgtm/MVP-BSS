@@ -4,7 +4,7 @@ const STORAGE_KEY = 'bss-demo-state-v4';
 const ROLE_KEY = 'bss-demo-role-v3';
 const LOGIN_KEY = 'bss-demo-logged-v3';
 const APP_VERSION = '3.0';
-const APP_STAGE = 'Sprint 1';
+const APP_STAGE = 'Sprint 2';
 const DEMO_TODAY = '2026-07-10';
 const DEMO_NOW = '10:00';
 const CROATIAN_HOLIDAYS_2026 = new Set([
@@ -108,6 +108,9 @@ let calendarMonth = 6;
 let calendarMode = 'year';
 let vacationDepartment = 'Svi';
 let attendanceFilters = {month: '2026-07', department: 'Svi', status: 'Svi', search: ''};
+let attendanceView = 'all';
+let myTimeMonth = '2026-07';
+let correctionDraft = {date: DEMO_TODAY, start: '07:42', end: '16:02'};
 let reportFilters = {month: '2026-07', department: 'Svi', workerId: 'Svi', type: 'attendance'};
 
 const $ = selector => document.querySelector(selector);
@@ -217,6 +220,33 @@ function plannedShiftMinutes(workerId){
 function overtimeMinutes(records){
   return records.reduce((sum,record)=>sum+Math.max(0,recordMinutes(record)-plannedShiftMinutes(record.workerId)),0);
 }
+function formatSignedMinutes(minutes){
+  const value=Math.round(Number(minutes)||0);
+  if(!value)return '0:00 h';
+  const sign=value>0?'+':'−';
+  return `${sign}${formatMinutes(Math.abs(value))}`;
+}
+function attendanceSummary(records){
+  const completed=records.filter(record=>record.end);
+  const workedMinutes=completed.reduce((sum,record)=>sum+recordMinutes(record),0);
+  const plannedMinutes=completed.reduce((sum,record)=>sum+plannedShiftMinutes(record.workerId),0);
+  return {
+    records:records.length,
+    completed:completed.length,
+    active:records.filter(record=>record.date===DEMO_TODAY&&!record.end).length,
+    late:records.filter(record=>record.status==='Kašnjenje').length,
+    incomplete:records.filter(record=>record.status==='Nepotpun zapis').length,
+    corrected:records.filter(record=>record.status==='Ispravljeno').length,
+    review:records.filter(record=>['Kašnjenje','Nepotpun zapis'].includes(record.status)).length,
+    workedMinutes,
+    plannedMinutes,
+    balanceMinutes:workedMinutes-plannedMinutes,
+    overtimeMinutes:overtimeMinutes(completed)
+  };
+}
+function pendingCorrectionFor(record){
+  return state.corrections.find(correction=>correction.workerId===record.workerId&&correction.date===record.date&&correction.status==='Na čekanju');
+}
 function dashboardMetrics(workers){
   const ids=new Set(workers.map(worker=>worker.id));
   const records=state.records.filter(record=>ids.has(record.workerId)&&record.date.startsWith('2026-07'));
@@ -248,7 +278,7 @@ function recentAttendanceEvents(type,workerIds,limit=4){
 }
 function dashboardAlerts(metrics){
   const alerts=[];
-  if(metrics.review)alerts.push({tone:'warning',icon:'!',title:`${metrics.review} zapisa traže provjeru`,text:'Kašnjenja ili nepotpuni zapisi u srpnju.',target:'attendance'});
+  if(metrics.review)alerts.push({tone:'warning',icon:'!',title:`${metrics.review} zapisa traže provjeru`,text:'Kašnjenja ili nepotpuni zapisi u srpnju.',target:'attendance',action:'openAttendanceReview()'});
   if(state.requests.some(request=>request.status==='Na čekanju'&&requestVisible(request)))alerts.push({tone:'info',icon:'□',title:'Zahtjevi čekaju odluku',text:`${state.requests.filter(request=>request.status==='Na čekanju'&&requestVisible(request)).length} zahtjeva za odsutnost.`,target:'requests'});
   if(state.corrections.some(correction=>correction.status==='Na čekanju'&&correctionVisible(correction)))alerts.push({tone:'info',icon:'✎',title:'Korekcija vremena na čekanju',text:'Odobrenje će ažurirati evidenciju i audit log.',target:'corrections'});
   if(!state.terminal.online||state.terminal.unsynced)alerts.push({tone:'danger',icon:'◉',title:'Terminal zahtijeva pažnju',text:`${state.terminal.unsynced} neposlanih zapisa.`,target:'terminal'});
@@ -331,6 +361,9 @@ function switchRole(next){
   localStorage.setItem(ROLE_KEY,currentRole);
   vacationDepartment = 'Svi';
   calendarMode = currentRole === 'admin' ? 'year' : 'month';
+  attendanceFilters={month:'2026-07',department:'Svi',status:'Svi',search:''};
+  attendanceView='all';
+  myTimeMonth='2026-07';
   screen = 'home';
   render();
   toast(`Aktivni prikaz: ${role().label}.`);
@@ -458,6 +491,8 @@ function login(){
   localStorage.setItem(LOGIN_KEY,'1');
   logged = true;
   calendarMode = currentRole === 'admin' ? 'year' : 'month';
+  attendanceView='all';
+  myTimeMonth='2026-07';
   screen = 'home';
   render();
   toast(`Dobro došli. Aktivni prikaz: ${role().label}.`);
@@ -470,6 +505,10 @@ function resetDemo(){
   resetState();
   currentRole = 'admin';
   localStorage.setItem(ROLE_KEY,currentRole);
+  attendanceFilters={month:'2026-07',department:'Svi',status:'Svi',search:''};
+  attendanceView='all';
+  myTimeMonth='2026-07';
+  correctionDraft={date:DEMO_TODAY,start:'07:42',end:'16:02'};
   screen = 'home';
   render();
   toast('Početni demo-podaci su vraćeni.');
@@ -483,6 +522,12 @@ function viewHome(){
 }
 function openAttendanceStatus(status){
   attendanceFilters={month:'2026-07',department:'Svi',status,search:''};
+  attendanceView='all';
+  navigate('attendance');
+}
+function openAttendanceReview(){
+  attendanceFilters={month:'2026-07',department:'Svi',status:'Svi',search:''};
+  attendanceView='review';
   navigate('attendance');
 }
 function openWorkerStatus(tab){ workerListTab=tab;workerSearch='';navigate('workers'); }
@@ -516,14 +561,14 @@ function viewAdminHome(){
       ${kpiCard('sick','+',metrics.sick,'Na bolovanju','Evidentirano bolovanje','purple')}
       ${kpiCard('pending','□',metrics.pending,'Otvorene odluke','Godišnji i korekcije','amber',"navigate('requests')")}
       ${kpiCard('overtime','↗',formatMinutes(metrics.overtime),'Prekovremeno','Iznad plana smjene u srpnju','teal',"navigate('reports')")}
-      ${kpiCard('review','!',metrics.review,'Za provjeru','Kašnjenja i nepotpuni zapisi','red',"navigate('attendance')")}
+      ${kpiCard('review','!',metrics.review,'Za provjeru','Kašnjenja i nepotpuni zapisi','red',"openAttendanceReview()")}
     </section>
     <div class="dashboard-layout"><div class="dashboard-primary">
       <section class="card"><div class="card-heading"><div><h2>Prijave kroz tjedan</h2><p>Broj evidentiranih dolazaka i odlazaka po radnom danu.</p></div><button class="link-btn" onclick="navigate('attendance')">Otvori evidenciju →</button></div>${weeklyChart(weekly,metrics.active)}</section>
       <section class="card"><div class="card-heading"><div><h2>Zadnje prijave i odjave</h2><p>Najnoviji događaji iz evidencije radnog vremena.</p></div></div><div class="activity-columns"><div><h3>Prijave</h3>${checkins.map(event=>attendanceEvent(event,'in')).join('')}</div><div><h3>Odjave</h3>${checkouts.map(event=>attendanceEvent(event,'out')).join('')}</div></div></section>
       <section class="card"><div class="card-heading"><div><h2>Brze akcije</h2><p>Najčešći administrativni poslovi bez traženja po izborniku.</p></div></div><div class="quick"><button onclick="navigate('attendance')"><b>Pregledaj evidenciju</b><span>Dolasci, odlasci i nepravilnosti</span></button><button onclick="downloadReport('csv')"><b>Preuzmi CSV</b><span>Mjesečni podaci za obračun</span></button><button onclick="openWorkerModal()"><b>Dodaj radnika</b><span>Profil, smjena i RFID kartica</span></button>${demoQuick}</div></section>
     </div><aside class="dashboard-secondary">
-      <section class="card"><div class="card-heading"><div><h2>Upozorenja i odluke</h2><p>Stavke koje traže pažnju administratora.</p></div><span class="alert-total">${alerts.length}</span></div><div class="alert-list">${alerts.map(alert=>`<button class="alert-item ${alert.tone}" onclick="navigate('${alert.target}')"><span>${alert.icon}</span><div><b>${escapeHtml(alert.title)}</b><small>${escapeHtml(alert.text)}</small></div><i>›</i></button>`).join('')||'<div class="empty-state compact">Nema otvorenih upozorenja.</div>'}</div></section>
+      <section class="card"><div class="card-heading"><div><h2>Upozorenja i odluke</h2><p>Stavke koje traže pažnju administratora.</p></div><span class="alert-total">${alerts.length}</span></div><div class="alert-list">${alerts.map(alert=>`<button class="alert-item ${alert.tone}" onclick="${alert.action||`navigate('${alert.target}')`}"><span>${alert.icon}</span><div><b>${escapeHtml(alert.title)}</b><small>${escapeHtml(alert.text)}</small></div><i>›</i></button>`).join('')||'<div class="empty-state compact">Nema otvorenih upozorenja.</div>'}</div></section>
       <section class="card system-card"><div class="card-heading"><div><h2>Status sustava</h2><p>Terminal i demo-okruženje.</p></div>${pill(state.terminal.online?'Online':'Offline')}</div><div class="system-row"><span><i class="system-light ${state.terminal.online?'online':'offline'}"></i>BSS Terminal 01</span><b>${state.terminal.online?'Povezan':'Nije povezan'}</b></div><div class="system-row"><span>Zadnja sinkronizacija</span><b>${escapeHtml(state.terminal.lastSync)}</b></div><div class="system-row"><span>Neposlani zapisi</span><b>${state.terminal.unsynced}</b></div><div class="system-row"><span>Aktivne smjene</span><b>${state.shifts.filter(shift=>shift.active).length}</b></div><button class="btn secondary block" onclick="navigate('terminal')">Detalji terminala</button></section>
       <section class="card"><div class="card-heading"><div><h2>Zadnje administrativne aktivnosti</h2><p>Audit trag važnih promjena.</p></div></div>${state.audit.slice(0,3).map(item=>row(initials(item.user),item.action,`${escapeHtml(item.time)} · ${escapeHtml(item.module)}`)).join('')}<button class="btn secondary block" onclick="navigate('audit')">Cijeli audit log</button></section>
     </aside></div>`;
@@ -551,9 +596,9 @@ function viewManagerHome(){
       ${kpiCard('vacation','☀',metrics.vacation,'Na godišnjem','Danas odsutni','blue',"openWorkerStatus('Godišnji')")}
       ${kpiCard('sick','+',metrics.sick,'Na bolovanju','Evidentirano bolovanje','purple')}
       ${kpiCard('pending','□',requestCount+correctionCount,'Čeka odluku','Zahtjevi i korekcije','amber')}
-      ${kpiCard('review','!',metrics.review,'Za provjeru','Zapisi mojeg tima','red',"navigate('attendance')")}
+      ${kpiCard('review','!',metrics.review,'Za provjeru','Zapisi mojeg tima','red',"openAttendanceReview()")}
     </section>
-    <div class="dashboard-layout"><div class="dashboard-primary"><section class="card"><div class="card-heading"><div><h2>Prijave mojeg tima</h2><p>Dolazak i odlazak po radnom danu.</p></div><button class="link-btn" onclick="navigate('attendance')">Evidencija tima →</button></div>${weeklyChart(weekly,Math.max(1,team.length))}</section><section class="card"><div class="card-heading"><div><h2>Radnici mojeg tima</h2><p>Status, odjel i dodijeljena smjena.</p></div></div>${team.map(worker=>row(initials(worker.name),worker.name,`${escapeHtml(worker.dept)} · ${escapeHtml(shiftById(worker.shiftId)?.name || 'Bez smjene')}`,pill(worker.status),`openWorker(${worker.id})`)).join('')}</section></div><aside class="dashboard-secondary"><section class="card"><div class="card-heading"><div><h2>Upozorenja i odluke</h2><p>Samo stavke iz dodijeljenih odjela.</p></div><span class="alert-total">${alerts.length}</span></div><div class="alert-list">${alerts.map(alert=>`<button class="alert-item ${alert.tone}" onclick="navigate('${alert.target}')"><span>${alert.icon}</span><div><b>${escapeHtml(alert.title)}</b><small>${escapeHtml(alert.text)}</small></div><i>›</i></button>`).join('')||'<div class="empty-state compact">Nema otvorenih upozorenja.</div>'}</div></section><section class="card"><h2>Brze akcije</h2><div class="quick"><button onclick="navigate('vacations')"><b>Kalendar tima</b><span>Planiraj odsutnosti odjela</span></button><button onclick="navigate('requests')"><b>Odobri zahtjeve</b><span>${requestCount} zahtjeva čeka odluku</span></button><button onclick="navigate('corrections')"><b>Korekcije</b><span>${correctionCount} korekcija čeka odluku</span></button><button onclick="navigate('reports')"><b>Izvještaj tima</b><span>Filtrirani podaci odjela</span></button></div></section></aside></div>`;
+    <div class="dashboard-layout"><div class="dashboard-primary"><section class="card"><div class="card-heading"><div><h2>Prijave mojeg tima</h2><p>Dolazak i odlazak po radnom danu.</p></div><button class="link-btn" onclick="navigate('attendance')">Evidencija tima →</button></div>${weeklyChart(weekly,Math.max(1,team.length))}</section><section class="card"><div class="card-heading"><div><h2>Radnici mojeg tima</h2><p>Status, odjel i dodijeljena smjena.</p></div></div>${team.map(worker=>row(initials(worker.name),worker.name,`${escapeHtml(worker.dept)} · ${escapeHtml(shiftById(worker.shiftId)?.name || 'Bez smjene')}`,pill(worker.status),`openWorker(${worker.id})`)).join('')}</section></div><aside class="dashboard-secondary"><section class="card"><div class="card-heading"><div><h2>Upozorenja i odluke</h2><p>Samo stavke iz dodijeljenih odjela.</p></div><span class="alert-total">${alerts.length}</span></div><div class="alert-list">${alerts.map(alert=>`<button class="alert-item ${alert.tone}" onclick="${alert.action||`navigate('${alert.target}')`}"><span>${alert.icon}</span><div><b>${escapeHtml(alert.title)}</b><small>${escapeHtml(alert.text)}</small></div><i>›</i></button>`).join('')||'<div class="empty-state compact">Nema otvorenih upozorenja.</div>'}</div></section><section class="card"><h2>Brze akcije</h2><div class="quick"><button onclick="navigate('vacations')"><b>Kalendar tima</b><span>Planiraj odsutnosti odjela</span></button><button onclick="navigate('requests')"><b>Odobri zahtjeve</b><span>${requestCount} zahtjeva čeka odluku</span></button><button onclick="navigate('corrections')"><b>Korekcije</b><span>${correctionCount} korekcija čeka odluku</span></button><button onclick="navigate('reports')"><b>Izvještaj tima</b><span>Filtrirani podaci odjela</span></button></div></section></aside></div>`;
 }
 function viewAccountantHome(){
   const minutes = state.records.filter(record=>record.date.startsWith('2026-07')).reduce((sum,record)=>sum+recordMinutes(record),0);
@@ -561,13 +606,13 @@ function viewAccountantHome(){
 }
 
 function statusOptions(selected){
-  return ['Svi','Uredno','Aktivno','Kašnjenje','Nepotpun zapis'].map(value=>`<option ${selected===value?'selected':''}>${escapeHtml(value)}</option>`).join('');
+  return ['Svi','Uredno','Aktivno','Kašnjenje','Nepotpun zapis','Ispravljeno'].map(value=>`<option ${selected===value?'selected':''}>${escapeHtml(value)}</option>`).join('');
 }
 function departmentOptions(selected, includeAll = true){
   const departments=currentRole==='manager'?[...new Set(visibleWorkers().map(worker=>worker.dept))].sort((a,b)=>a.localeCompare(b,'hr')):departmentList();
   return `${includeAll?`<option value="Svi" ${selected==='Svi'?'selected':''}>Svi odjeli</option>`:''}${departments.map(value=>`<option value="${escapeHtml(value)}" ${selected===value?'selected':''}>${escapeHtml(value)}</option>`).join('')}`;
 }
-function filteredAttendanceRecords(){
+function attendanceRecordsForCurrentFilters(){
   return state.records.filter(recordVisible).filter(record=>{
     const worker = workerById(record.workerId);
     const search = attendanceFilters.search.toLocaleLowerCase('hr');
@@ -577,38 +622,115 @@ function filteredAttendanceRecords(){
       && (!search || worker?.name.toLocaleLowerCase('hr').includes(search));
   }).sort((a,b)=>b.date.localeCompare(a.date)||a.workerId-b.workerId);
 }
+function filteredAttendanceRecords(){
+  const records=attendanceRecordsForCurrentFilters();
+  if(attendanceView==='review')return records.filter(record=>['Kašnjenje','Nepotpun zapis'].includes(record.status));
+  if(attendanceView==='active')return records.filter(record=>record.date===DEMO_TODAY&&!record.end);
+  return records;
+}
+function attendanceViewCounts(){
+  const records=attendanceRecordsForCurrentFilters();
+  return {
+    all:records.length,
+    review:records.filter(record=>['Kašnjenje','Nepotpun zapis'].includes(record.status)).length,
+    active:records.filter(record=>record.date===DEMO_TODAY&&!record.end).length
+  };
+}
+function setAttendanceView(next){
+  if(!['all','review','active'].includes(next))return;
+  attendanceView=next;
+  render();
+}
 function applyAttendanceFilters(){
   attendanceFilters = {month:$('#attMonth').value,department:$('#attDept').value,status:$('#attStatus').value,search:$('#attSearch').value.trim()};
   render();
 }
-function clearAttendanceFilters(){ attendanceFilters={month:'2026-07',department:'Svi',status:'Svi',search:''}; render(); }
-function viewAttendance(){
-  const records = filteredAttendanceRecords();
-  const minutes = records.reduce((sum,record)=>sum+recordMinutes(record),0);
-  return `${title(currentRole==='manager'?'Evidencija mojeg tima':'Evidencija dolazaka','Stvarni operativni zapisi; RFID simulator je zaseban demo-alat.',pill(`${records.length} zapisa`))}
-    <div class="card"><div class="filter-bar"><input id="attSearch" aria-label="Traži radnika" placeholder="Ime radnika" value="${escapeHtml(attendanceFilters.search)}"><input id="attMonth" aria-label="Mjesec" type="month" value="${attendanceFilters.month}"><select id="attDept" aria-label="Odjel">${departmentOptions(attendanceFilters.department)}</select><select id="attStatus" aria-label="Status">${statusOptions(attendanceFilters.status)}</select><div class="filter-actions"><button class="btn" onclick="applyAttendanceFilters()">Primijeni</button><button class="btn secondary" onclick="clearAttendanceFilters()">Očisti</button></div></div></div>
-    ${recordTable(records,'Rezultati evidencije',true)}
-    <div class="stats-grid"><div class="stat"><div class="num">${formatMinutes(minutes)}</div><div class="lab">Završeni sati u rezultatu</div></div><div class="stat"><div class="num">${records.filter(record=>record.status==='Kašnjenje').length}</div><div class="lab">Kašnjenja</div></div><div class="stat"><div class="num">${records.filter(record=>record.status==='Nepotpun zapis').length}</div><div class="lab">Nepotpuni zapisi</div></div><div class="stat"><div class="num">${new Set(records.map(record=>record.workerId)).size}</div><div class="lab">Radnici u rezultatu</div></div></div>`;
+function clearAttendanceFilters(){ attendanceFilters={month:'2026-07',department:'Svi',status:'Svi',search:''};attendanceView='all';render(); }
+function attendanceLivePanel(records){
+  const active=records.filter(record=>record.date===DEMO_TODAY&&!record.end);
+  return `<section class="card attendance-live"><div class="card-heading"><div><h2>Aktivne evidencije danas</h2><p>Otvorene prijave u tvojem dopuštenom opsegu.</p></div><span class="live-count">${active.length} aktivno</span></div><div class="attendance-live-grid">${active.map(record=>{
+    const worker=workerById(record.workerId),shift=shiftById(worker?.shiftId);
+    return `<button class="attendance-live-item" onclick="openAttendanceRecord(${record.id})" aria-label="Otvori aktivni zapis: ${escapeHtml(worker?.name||'Radnik')}"><span class="live-avatar">${initials(worker?.name)}</span><div><b>${escapeHtml(worker?.name||'Nepoznat radnik')}</b><small>${escapeHtml(worker?.dept||'—')} · ${escapeHtml(shift?.name||'Bez smjene')}</small></div><div class="live-time"><b>${escapeHtml(record.start||'—')}</b><small>${formatMinutes(recordMinutes(record,true))}</small></div>${pill(record.status)}</button>`;
+  }).join('')||'<div class="empty-state compact">Nema aktivnih prijava za odabrane filtre.</div>'}</div></section>`;
 }
-function recordTable(records,heading = 'Evidencija',showDepartment = false){
+function viewAttendance(){
+  const baseRecords=attendanceRecordsForCurrentFilters();
+  const records = filteredAttendanceRecords();
+  const summary=attendanceSummary(records),counts=attendanceViewCounts();
+  const viewTitle={all:'Svi zapisi',review:'Za provjeru',active:'Aktivni danas'}[attendanceView];
+  return `${title(currentRole==='manager'?'Evidencija mojeg tima':'Evidencija dolazaka','Kontrolirani operativni zapisi po smjeni; RFID simulator je zaseban demo-alat.',pill(`${records.length} zapisa`))}
+    <section class="card attendance-summary-card"><div><div class="eyebrow">Obračunski pregled · ${escapeHtml(viewTitle)}</div><h2>${summary.completed} završenih od ${summary.records} prikazanih zapisa</h2><p>Plan i saldo računaju se samo iz završenih zapisa. Aktivne i nepotpune evidencije ostaju izdvojene za provjeru.</p></div><div class="attendance-summary-values"><div><span>Evidentirano</span><b>${formatMinutes(summary.workedMinutes)}</b></div><div><span>Plan završ. zapisa</span><b>${formatMinutes(summary.plannedMinutes)}</b></div><div><span>Saldo</span><b class="${summary.balanceMinutes<0?'negative':'positive'}">${formatSignedMinutes(summary.balanceMinutes)}</b></div></div></section>
+    <div class="attendance-tabs" role="group" aria-label="Prikaz evidencije"><button class="${attendanceView==='all'?'active':''}" onclick="setAttendanceView('all')">Svi zapisi <span>${counts.all}</span></button><button class="${attendanceView==='review'?'active':''}" onclick="setAttendanceView('review')">Za provjeru <span>${counts.review}</span></button><button class="${attendanceView==='active'?'active':''}" onclick="setAttendanceView('active')">Aktivni danas <span>${counts.active}</span></button></div>
+    <div class="card"><div class="filter-bar"><input id="attSearch" aria-label="Traži radnika" placeholder="Ime radnika" value="${escapeHtml(attendanceFilters.search)}"><input id="attMonth" aria-label="Mjesec" type="month" value="${attendanceFilters.month}"><select id="attDept" aria-label="Odjel">${departmentOptions(attendanceFilters.department)}</select><select id="attStatus" aria-label="Status">${statusOptions(attendanceFilters.status)}</select><div class="filter-actions"><button class="btn" onclick="applyAttendanceFilters()">Primijeni</button><button class="btn secondary" onclick="clearAttendanceFilters()">Očisti</button></div></div></div>
+    ${attendanceLivePanel(baseRecords)}
+    <div class="stats-grid attendance-kpis"><div class="stat"><div class="num">${summary.late}</div><div class="lab">Kašnjenja</div><div class="trend">Prema toleranciji smjene</div></div><div class="stat"><div class="num">${summary.incomplete}</div><div class="lab">Nepotpuni zapisi</div><div class="trend danger">Nedostaje dolazak ili odlazak</div></div><div class="stat"><div class="num">${formatMinutes(summary.overtimeMinutes)}</div><div class="lab">Prekovremeno</div><div class="trend">Iznad plana završenih zapisa</div></div><div class="stat"><div class="num">${new Set(records.map(record=>record.workerId)).size}</div><div class="lab">Radnici u rezultatu</div><div class="trend neutral">Samo dopušteni opseg uloge</div></div></div>
+    ${recordTable(records,viewTitle,true,true)}`;
+}
+function recordTable(records,heading = 'Evidencija',showDepartment = false,showDetails = false){
   const body = records.map(record=>{
-    const worker = workerById(record.workerId);
-    return `<tr><td><b>${escapeHtml(worker?.name || 'Nepoznat radnik')}</b>${showDepartment?`<br><span class="small-muted">${escapeHtml(worker?.dept || '—')}</span>`:''}</td><td>${escapeHtml(isoLabel(record.date))}</td><td>${escapeHtml(record.start || '—')}</td><td>${escapeHtml(record.end || '—')}</td><td>${record.breakMinutes?`${record.breakMinutes} min`:'—'}</td><td>${record.end?formatMinutes(recordMinutes(record)):'—'}</td><td>${pill(record.status)}</td></tr>`;
+    const worker=workerById(record.workerId),shift=shiftById(worker?.shiftId),balance=record.end?recordMinutes(record)-plannedShiftMinutes(record.workerId):null;
+    return `<tr class="${['Kašnjenje','Nepotpun zapis'].includes(record.status)?'record-review':''}"><td><b>${escapeHtml(worker?.name || 'Nepoznat radnik')}</b>${showDepartment?`<br><span class="small-muted">${escapeHtml(worker?.dept || '—')}</span>`:''}</td><td>${escapeHtml(isoLabel(record.date))}</td><td><b>${escapeHtml(shift?.name||'—')}</b><br><span class="small-muted">${escapeHtml(shift?`${shift.start} – ${shift.end}`:'Bez plana')}</span></td><td>${escapeHtml(record.start || '—')}</td><td>${escapeHtml(record.end || '—')}</td><td>${record.breakMinutes?`${record.breakMinutes} min`:'—'}</td><td>${record.end?formatMinutes(recordMinutes(record)):'—'}</td><td><span class="record-balance ${balance===null?'neutral':balance<0?'negative':'positive'}">${balance===null?'U tijeku':formatSignedMinutes(balance)}</span></td><td>${pill(record.status)}${pendingCorrectionFor(record)?'<br><span class="pending-note">Korekcija čeka</span>':''}</td>${showDetails?`<td><button class="table-detail-btn" onclick="openAttendanceRecord(${record.id})" aria-label="Detalji zapisa: ${escapeHtml(worker?.name||'Radnik')} ${escapeHtml(isoLabel(record.date))}">Otvori</button></td>`:''}</tr>`;
   }).join('');
-  return `<div class="card table-card"><div style="padding:15px 15px 8px"><h2>${escapeHtml(heading)}</h2></div><div class="table-wrap"><table><thead><tr><th>Radnik</th><th>Datum</th><th>Dolazak</th><th>Odlazak</th><th>Pauza</th><th>Ukupno</th><th>Status</th></tr></thead><tbody>${body||'<tr><td colspan="7"><div class="empty-state">Nema zapisa za odabrane kriterije.</div></td></tr>'}</tbody></table></div><div class="table-summary"><span>${records.length} zapisa</span><span>Zbroj završenih sati: ${formatMinutes(records.reduce((sum,record)=>sum+recordMinutes(record),0))}</span></div></div>`;
+  const columns=showDetails?10:9,summary=attendanceSummary(records);
+  return `<div class="card table-card"><div class="table-card-heading"><div><h2>${escapeHtml(heading)}</h2><p>Klikni “Otvori” za plan smjene, saldo i status korekcije.</p></div>${pill(`${summary.review} za provjeru`)}</div><div class="table-wrap"><table class="attendance-table"><thead><tr><th>Radnik</th><th>Datum</th><th>Smjena</th><th>Dolazak</th><th>Odlazak</th><th>Pauza</th><th>Ukupno</th><th>Saldo</th><th>Status</th>${showDetails?'<th>Detalji</th>':''}</tr></thead><tbody>${body||`<tr><td colspan="${columns}"><div class="empty-state">Nema zapisa za odabrane kriterije.</div></td></tr>`}</tbody></table></div><div class="table-summary"><span>${records.length} zapisa · ${summary.completed} završeno</span><span>Evidentirano: ${formatMinutes(summary.workedMinutes)} · plan: ${formatMinutes(summary.plannedMinutes)}</span></div></div>`;
+}
+function openAttendanceRecord(id){
+  if(!['admin','manager','worker'].includes(currentRole))return;
+  const record=state.records.find(item=>item.id===Number(id));
+  if(!record||!recordVisible(record))return;
+  const worker=workerById(record.workerId),shift=shiftById(worker?.shiftId),worked=recordMinutes(record,record.date===DEMO_TODAY),planned=plannedShiftMinutes(record.workerId),balance=record.end?recordMinutes(record)-planned:null;
+  const correction=state.corrections.find(item=>item.workerId===record.workerId&&item.date===record.date);
+  const correctionBlock=correction?`<div class="notice ${correction.status==='Na čekanju'?'':'info'}"><b>Korekcija: ${escapeHtml(correction.status)}</b><br>${escapeHtml(correction.oldStart||'—')} – ${escapeHtml(correction.oldEnd||'—')} → ${escapeHtml(correction.newStart||'—')} – ${escapeHtml(correction.newEnd||'—')} · ${escapeHtml(correction.reason)}</div>`:'<div class="muted-box">Za ovaj zapis nema poslanog zahtjeva za korekciju.</div>';
+  const workerAction=currentRole==='worker'?`<button class="btn" onclick="startCorrectionFromRecord(${record.id})">Zatraži korekciju</button>`:['admin','manager'].includes(currentRole)?'<button class="btn" onclick="openCorrectionsFromRecord()">Otvori korekcije</button>':'';
+  const modal=$('#modal');
+  modal.innerHTML=`<div class="modal-card attendance-record-modal"><div class="modal-head"><div><div class="eyebrow">Detalj evidencije</div><h2>${escapeHtml(worker?.name||'Nepoznat radnik')}</h2><div class="small-muted">${escapeHtml(worker?.dept||'—')} · ${escapeHtml(isoLabel(record.date))}</div></div><button class="close-btn" aria-label="Zatvori" onclick="closeModal()">×</button></div><div class="record-detail-status">${pill(record.status)}<span>${escapeHtml(shift?.name||'Bez smjene')} · ${escapeHtml(shift?`${shift.start} – ${shift.end}`:'Bez plana')}</span></div><div class="record-detail-grid"><div><span>Dolazak</span><b>${escapeHtml(record.start||'—')}</b></div><div><span>Odlazak</span><b>${escapeHtml(record.end||'—')}</b></div><div><span>Pauza</span><b>${record.breakMinutes?`${record.breakMinutes} min`:'—'}</b></div><div><span>Evidentirano</span><b>${record.end||record.date===DEMO_TODAY?formatMinutes(worked):'—'}</b></div><div><span>Plan smjene</span><b>${formatMinutes(planned)}</b></div><div><span>Saldo</span><b class="${balance===null?'neutral':balance<0?'negative':'positive'}">${balance===null?'U tijeku':formatSignedMinutes(balance)}</b></div></div><div class="record-source"><span>Izvor demo-zapisa</span><b>${record.status==='Ispravljeno'?'Odobrena korekcija':'RFID / Terminal 01'}</b></div>${correctionBlock}<div class="btns">${workerAction}<button class="btn secondary" onclick="closeModal()">Zatvori</button></div></div>`;
+  modal.classList.add('open');
+}
+function openCorrectionsFromRecord(){ closeModal();navigate('corrections'); }
+function startCorrectionFromRecord(id){
+  if(currentRole!=='worker')return;
+  const record=state.records.find(item=>item.id===Number(id)&&item.workerId===currentWorker().id);
+  if(!record)return;
+  correctionDraft={date:record.date,start:record.start||'',end:record.end||''};
+  closeModal();
+  screen='mytime';
+  render();
+  $('#corrReason')?.focus();
+}
+function monthDisplay(month){
+  if(!/^\d{4}-\d{2}$/.test(month||''))return month;
+  return isoToDate(`${month}-01`).toLocaleDateString('hr-HR',{month:'long',year:'numeric'});
+}
+function setMyTimeMonth(value){
+  if(!/^\d{4}-\d{2}$/.test(value||''))return;
+  myTimeMonth=value;
+  render();
+}
+function correctionForm(){
+  const draft=correctionDraft;
+  return `<div class="card correction-form-card"><div class="card-heading"><div><h2>Zatraži korekciju</h2><p>Izvorni zapis ostaje nepromijenjen dok voditelj ili administrator ne odobre zahtjev.</p></div>${pill('Kontrolirana izmjena')}</div><div class="notice info">Zahtjev mora sadržavati datum, novo vrijeme i razlog. Sve odluke ulaze u audit trag.</div><div class="form form-grid cols-3"><label>Datum<input id="corrDate" type="date" max="${DEMO_TODAY}" value="${escapeHtml(draft.date)}" onchange="updateCorrectionPreview()"></label><label>Ispravan dolazak<input id="corrStart" type="time" value="${escapeHtml(draft.start)}" onchange="updateCorrectionPreview()"></label><label>Ispravan odlazak<input id="corrEnd" type="time" value="${escapeHtml(draft.end)}" onchange="updateCorrectionPreview()"></label><label style="grid-column:1/-1">Razlog<textarea id="corrReason" rows="3" placeholder="Primjer: zaboravljena odjava ili terminal nije bio dostupan"></textarea></label></div><div id="corrPreview" class="muted-box correction-preview">${correctionPreviewText(draft.date,currentWorker().id)}</div><div class="btns"><button class="btn" onclick="submitCorrection()">Pošalji zahtjev</button></div></div>`;
 }
 function viewMyTime(){
   const worker = currentWorker();
-  const records = state.records.filter(record=>record.workerId===worker.id && record.date.startsWith('2026-07')).sort((a,b)=>b.date.localeCompare(a.date));
-  const exceptions = records.filter(record=>!['Uredno','Aktivno'].includes(record.status)).length;
-  return `${title('Moja evidencija',`Radno vrijeme za ${worker.name}.`,pill('Srpanj 2026.'))}<div class="stats-grid"><div class="stat"><div class="num">${formatMinutes(workerMonthMinutes(worker.id))}</div><div class="lab">Završeni sati</div></div><div class="stat"><div class="num">${records.length}</div><div class="lab">Zapisi u mjesecu</div></div><div class="stat"><div class="num">${exceptions}</div><div class="lab">Zapisi za provjeru</div></div><div class="stat"><div class="num">${vacationRemaining(worker.id)}</div><div class="lab">Preostali godišnji</div></div></div>${recordTable(records,'Moji zapisi')}
-    <div class="card"><h2>Zatraži korekciju</h2><p class="small-muted">Odaberi datum i upiši ispravno vrijeme. Postojeći zapis neće se promijeniti dok voditelj ili administrator ne odobre zahtjev.</p><div class="form form-grid cols-3"><label>Datum<input id="corrDate" type="date" value="2026-07-10" onchange="updateCorrectionPreview()"></label><label>Ispravan dolazak<input id="corrStart" type="time" value="07:42"></label><label>Ispravan odlazak<input id="corrEnd" type="time" value="16:02"></label><label style="grid-column:1/-1">Razlog<textarea id="corrReason" rows="3" placeholder="Opiši što treba ispraviti"></textarea></label></div><div id="corrPreview" class="muted-box" style="margin-top:11px">${correctionPreviewText('2026-07-10',worker.id)}</div><div class="btns"><button class="btn" onclick="submitCorrection()">Pošalji zahtjev</button></div></div>`;
+  const records = state.records.filter(record=>record.workerId===worker.id && record.date.startsWith(myTimeMonth)).sort((a,b)=>b.date.localeCompare(a.date));
+  const summary=attendanceSummary(records),shift=shiftById(worker.shiftId);
+  return `${title('Moja evidencija',`Samo tvoji zapisi radnog vremena za ${worker.name}.`,pill(monthDisplay(myTimeMonth)))}
+    <section class="card worker-time-hero"><div><div class="eyebrow">Osobni obračun</div><h2>${formatMinutes(summary.workedMinutes)} od ${formatMinutes(summary.plannedMinutes)} plana</h2><p>Plan se računa iz dodijeljene smjene i samo za završene zapise.</p></div><div class="worker-shift"><span>Dodijeljena smjena</span><b>${escapeHtml(shift?.name||'Bez smjene')}</b><small>${escapeHtml(shift?`${shift.start} – ${shift.end} · pauza ${shift.breakMinutes} min`:'Nema dodijeljenog rasporeda')}</small></div></section>
+    <div class="card mytime-toolbar"><label>Mjesec osobne evidencije<input id="myTimeMonth" type="month" value="${escapeHtml(myTimeMonth)}" onchange="setMyTimeMonth(this.value)"></label><span>${records.length} zapisa u odabranom mjesecu</span></div>
+    <div class="stats-grid attendance-kpis"><div class="stat"><div class="num">${formatMinutes(summary.workedMinutes)}</div><div class="lab">Završeni sati</div></div><div class="stat"><div class="num">${formatMinutes(summary.plannedMinutes)}</div><div class="lab">Plan završ. zapisa</div></div><div class="stat"><div class="num ${summary.balanceMinutes<0?'negative':'positive'}">${formatSignedMinutes(summary.balanceMinutes)}</div><div class="lab">Saldo sati</div></div><div class="stat"><div class="num">${summary.review}</div><div class="lab">Zapisi za provjeru</div></div></div>
+    ${recordTable(records,'Moji zapisi',false,true)}
+    ${correctionForm()}`;
 }
 function correctionPreviewText(date,workerId){
   const record = state.records.find(item=>item.workerId===Number(workerId)&&item.date===date);
-  return record ? `Postojeći zapis: ${record.start||'—'} – ${record.end||'—'} · ${record.status}` : 'Za taj datum nema postojećeg zapisa. Korekcija će biti označena za ručnu provjeru.';
+  const shift=shiftById(workerById(workerId)?.shiftId);
+  return record ? `Postojeći zapis: ${record.start||'—'} – ${record.end||'—'} · ${record.status}. Plan smjene: ${shift?`${shift.start} – ${shift.end}`:'nije dodijeljen'}.` : 'Za taj datum nema postojećeg zapisa. Korekcija će biti označena za ručnu provjeru.';
 }
-function updateCorrectionPreview(){ const element=$('#corrPreview'); if(element) element.textContent=correctionPreviewText($('#corrDate').value,currentWorker().id); }
+function updateCorrectionPreview(){
+  correctionDraft={date:$('#corrDate')?.value||DEMO_TODAY,start:$('#corrStart')?.value||'',end:$('#corrEnd')?.value||''};
+  const element=$('#corrPreview');
+  if(element)element.textContent=correctionPreviewText(correctionDraft.date,currentWorker().id);
+}
 
 function setWorkerTab(tab){ workerListTab=tab; render(); }
 function applyWorkerSearch(){ workerSearch=$('#workerSearch').value.trim(); render(); }
@@ -868,7 +990,14 @@ function submitCorrection(){
   if(currentRole!=='worker')return;
   const worker=currentWorker(),date=$('#corrDate').value,newStart=$('#corrStart').value,newEnd=$('#corrEnd').value,reason=$('#corrReason').value.trim();
   if(!date||(!newStart&&!newEnd)||!reason){toast('Unesi datum, ispravno vrijeme i razlog.');return;}
-  if(newStart&&newEnd&&timeToMinutes(newStart)===timeToMinutes(newEnd)){toast('Dolazak i odlazak ne mogu biti isti.');return;}
+  if(date>DEMO_TODAY){toast('Korekcija se ne može poslati za budući datum.');return;}
+  const startMinutes=timeToMinutes(newStart),endMinutes=timeToMinutes(newEnd);
+  if((newStart&&startMinutes===null)||(newEnd&&endMinutes===null)){toast('Vrijeme nije u valjanom formatu.');return;}
+  if(newStart&&newEnd&&startMinutes===endMinutes){toast('Dolazak i odlazak ne mogu biti isti.');return;}
+  if(newStart&&newEnd){
+    const duration=(endMinutes<startMinutes?endMinutes+1440:endMinutes)-startMinutes;
+    if(duration>960){toast('Evidencija ne može trajati dulje od 16 sati.');return;}
+  }
   const duplicate=state.corrections.find(correction=>correction.workerId===worker.id&&correction.date===date&&correction.status==='Na čekanju');
   if(duplicate){toast('Za taj datum već postoji korekcija na čekanju.');return;}
   const record=state.records.find(item=>item.workerId===worker.id&&item.date===date);
@@ -876,6 +1005,7 @@ function submitCorrection(){
   if(newStart===oldStart&&newEnd===oldEnd){toast('Novo vrijeme jednako je postojećem zapisu.');return;}
   state.corrections.unshift({id:Date.now(),workerId:worker.id,date,oldStart,oldEnd,newStart,newEnd,reason,status:'Na čekanju'});
   audit('Radnik',`Poslana korekcija: ${worker.name} · ${isoLabel(date)}.`,'Korekcije');
+  correctionDraft={date:DEMO_TODAY,start:'07:42',end:'16:02'};
   screen='corrections';saveAndRender('Zahtjev za korekciju je poslan.');
 }
 function viewCorrections(){
@@ -886,7 +1016,7 @@ function viewCorrections(){
     const controls=isApprover&&correction.status==='Na čekanju'?`<div class="btns"><button class="btn green small" onclick="updateCorrection(${correction.id},'Odobreno')">Odobri</button><button class="btn red small" onclick="updateCorrection(${correction.id},'Odbijeno')">Odbij</button></div>`:'';
     return `<div class="row"><div class="avatar">${initials(worker?.name)}</div><div class="meta"><b>${escapeHtml(worker?.name||'Nepoznat radnik')}</b><span>${escapeHtml(isoLabel(correction.date))} · ${escapeHtml(values.oldValue)} → ${escapeHtml(values.newValue)}<br>${escapeHtml(correction.reason)}</span></div><div class="side">${pill(correction.status)}${controls}</div></div>`;
   }).join('');
-  const form=isWorker?`<div class="card"><h2>Nova korekcija</h2><div class="form form-grid cols-3"><label>Datum<input id="corrDate" type="date" value="2026-07-10" onchange="updateCorrectionPreview()"></label><label>Ispravan dolazak<input id="corrStart" type="time" value="07:42"></label><label>Ispravan odlazak<input id="corrEnd" type="time" value="16:02"></label><label style="grid-column:1/-1">Razlog<textarea id="corrReason" rows="3"></textarea></label></div><div id="corrPreview" class="muted-box" style="margin-top:11px">${correctionPreviewText('2026-07-10',currentWorker().id)}</div><div class="btns"><button class="btn" onclick="submitCorrection()">Pošalji zahtjev</button></div></div>`:'';
+  const form=isWorker?correctionForm():'';
   return `${title(isWorker?'Moje korekcije':currentRole==='manager'?'Korekcije mojeg tima':'Korekcije vremena',isWorker?'Radnik šalje zahtjev; izvorni zapis ostaje nepromijenjen do odobrenja.':'Odobrena korekcija ažurira odgovarajući zapis i ostavlja audit trag.',pill(`${corrections.filter(correction=>correction.status==='Na čekanju').length} na čekanju`))}<div class="card">${cards||'<div class="empty-state">Nema korekcija u tvojem opsegu.</div>'}</div>${form}`;
 }
 function updateCorrection(id,status){
