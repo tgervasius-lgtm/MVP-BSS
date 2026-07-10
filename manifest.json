@@ -1,8 +1,8 @@
 {
-  "name": "BSS Smart Systems MVP+ Demo",
-  "short_name": "BSS Demo",
-  "description": "Polished interactive MVP+ demo for RFID/NFC time tracking.",
-  "start_url": "./index.html",
+  "name": "BSS Smart Systems",
+  "short_name": "BSS",
+  "description": "Evidencija radnog vremena, godišnjih odmora i RFID terminala.",
+  "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "background_color": "#f4fbf7",

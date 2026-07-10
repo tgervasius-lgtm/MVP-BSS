@@ -1,5 +1,5 @@
-const CACHE_NAME = 'bss-polished-green-v2';
-const ASSETS = ['./','./index.html','./manifest.json','./icons/icon.svg'];
+const CACHE_NAME = 'bss-demo-v3';
+const ASSETS = ['./','./index.html','./styles.css','./app.js','./manifest.json','./icons/icon.svg'];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE_NAME).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting()));
 });
