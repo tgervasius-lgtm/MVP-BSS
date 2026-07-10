@@ -14,6 +14,7 @@ Opseg demo aplikacije:
 - Radnici i RFID kartice
 - Smjene i osnovna pravila
 - Zahtjevi za godišnji
+- Godišnji kalendar za cijelu godinu
 - Ručne korekcije vremena
 - Izvještaji CSV/XLSX
 - Terminal status
@@ -21,6 +22,14 @@ Opseg demo aplikacije:
 - Postavke firme
 - Prava pristupa
 - Audit log
+
+Demo uloge:
+- Administrator: vidi cijelu firmu, sve radnike i godišnje odmore
+- Voditelj: vidi samo svoje odjele i njihove zahtjeve
+- Radnik: vidi samo vlastite sate, zahtjeve, korekcije i godišnji kalendar
+- Knjigovođa: vidi izvještaje i odobrene odsutnosti bez prava izmjene
+
+Uloga se bira na prijavi ili mijenja kroz izbornik aplikacije.
 
 Namjerno nije uključeno:
 - skladište

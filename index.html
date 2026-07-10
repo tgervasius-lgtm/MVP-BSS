@@ -58,7 +58,8 @@
     .glass{background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.22);backdrop-filter:blur(14px);border-radius:24px;padding:18px}
     .field{display:grid;gap:8px;margin-bottom:14px}
     .field label{font-size:13px;font-weight:800;color:rgba(255,255,255,.88)}
-    .field input{width:100%;border-radius:18px;border:1px solid rgba(255,255,255,.20);background:rgba(255,255,255,.16);color:#fff;padding:15px 16px;outline:none}
+    .field input,.field select{width:100%;border-radius:18px;border:1px solid rgba(255,255,255,.20);background:rgba(255,255,255,.16);color:#fff;padding:15px 16px;outline:none}
+    .field select option{color:var(--text);background:#fff}
     .field input::placeholder{color:rgba(255,255,255,.7)}
     .login-row{display:flex;justify-content:space-between;gap:12px;font-size:12px;color:rgba(255,255,255,.86);margin:8px 0 20px}
     .primary{width:100%;border-radius:18px;padding:16px 18px;background:#ffffff;color:var(--teal);font-weight:900;letter-spacing:.02em;box-shadow:0 14px 30px rgba(12,61,45,.22)}
@@ -69,6 +70,7 @@
     .mini-logo{width:44px;height:44px;border-radius:16px;background:rgba(255,255,255,.18);display:grid;place-items:center;font-weight:950;font-size:22px;border:1px solid rgba(255,255,255,.18)}
     .top-copy{flex:1;min-width:0}.top-copy h2{margin:0;font-size:17px;line-height:1.15;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.top-copy p{margin:3px 0 0;font-size:12px;color:rgba(255,255,255,.85);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .menu-btn{width:42px;height:42px;border-radius:14px;background:rgba(255,255,255,.16);color:#fff;font-size:21px;font-weight:900}
+    .role-badge{border-radius:999px;padding:8px 10px;background:rgba(255,255,255,.18);color:#fff;border:1px solid rgba(255,255,255,.18);font-size:10px;font-weight:950;letter-spacing:.05em;white-space:nowrap}
     .content{flex:1;min-height:0;overflow-y:auto;padding:18px 16px calc(110px + var(--safe));scroll-behavior:smooth;-webkit-overflow-scrolling:touch}
     .content::-webkit-scrollbar{width:0;height:0}
     .screen{animation:fade .18s ease}
@@ -96,6 +98,10 @@
     .tabs{display:flex;gap:8px;overflow-x:auto;padding-bottom:2px;margin-bottom:12px}.tabs::-webkit-scrollbar{display:none}.tab{border-radius:999px;padding:8px 11px;border:1px solid var(--line);background:#fff;color:var(--muted);font-size:11px;font-weight:900;white-space:nowrap}.tab.active{background:var(--teal);border-color:var(--teal);color:#fff}
     .rfid-box{display:flex;flex-direction:column;align-items:center;text-align:center;min-height:300px;justify-content:center}.rfid-ring{width:160px;height:160px;border-radius:50%;background:radial-gradient(circle,#16a34a 0,#16a34a 38%,#d1fae5 39%,#d1fae5 56%,#f0fdf4 57%);display:grid;place-items:center;box-shadow:0 18px 42px rgba(34,197,94,.25);margin:12px 0 16px}.rfid-card{width:66px;height:86px;border:3px solid #fff;border-radius:18px;display:grid;place-items:center;color:#fff;font-size:32px}.result{background:var(--surface-2);border:1px solid var(--line);border-radius:20px;padding:14px;width:100%;margin-top:12px;text-align:left}
     .timeline-step{padding:14px;border-radius:18px;border:1px solid var(--line);background:var(--surface-2);margin-bottom:12px}.timeline-step b{display:block;font-size:14px}.timeline-step span{display:block;margin-top:4px;font-size:12px;line-height:1.45;color:var(--muted)}
+    .role-panel{background:linear-gradient(135deg,#ecfdf5,#f0fdf4);border:1px solid #cde5d6;border-radius:20px;padding:13px;margin-bottom:12px}.role-panel label{display:block;font-size:11px;font-weight:900;color:var(--muted);margin-bottom:7px}.role-panel select{width:100%;border:1px solid var(--line);border-radius:14px;background:#fff;color:var(--text);padding:11px 12px;font-weight:850}
+    .calendar-toolbar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}.year-switch{display:flex;align-items:center;gap:8px}.year-switch button{width:38px;height:38px;border-radius:13px;border:1px solid var(--line);background:#fff;color:var(--teal);font-size:18px;font-weight:950}.year-switch b{min-width:48px;text-align:center}.calendar-filter{border:1px solid var(--line);border-radius:13px;background:#fff;color:var(--text);padding:10px 11px;font-size:12px;font-weight:800;max-width:180px}
+    .year-calendar{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.month-card{background:#fff;border:1px solid var(--line);border-radius:18px;padding:10px;min-width:0}.month-card h3{margin:0 0 8px;font-size:13px;text-transform:capitalize}.week-row,.day-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}.week-row span{text-align:center;font-size:7px;font-weight:900;color:var(--muted);padding-bottom:4px}.day{aspect-ratio:1;min-width:0;border-radius:6px;display:flex;align-items:center;justify-content:center;position:relative;font-size:8px;color:var(--text);background:#f8fcf9}.day.empty{background:transparent}.day.has-approved{background:#dcfce7;color:#166534;font-weight:950}.day.has-pending{background:#fff4d6;color:#92400e;font-weight:950}.day.has-mixed{background:#dbeafe;color:#1d4ed8;font-weight:950}.day.today{outline:2px solid var(--teal);outline-offset:1px}.event-count{position:absolute;right:-2px;top:-3px;min-width:11px;height:11px;padding:0 2px;border-radius:999px;background:var(--blue);color:#fff;display:grid;place-items:center;font-size:6px;font-weight:950}.calendar-legend{display:flex;gap:12px;flex-wrap:wrap;margin-top:12px;font-size:11px;color:var(--muted)}.legend-dot{width:10px;height:10px;border-radius:3px;display:inline-block;margin-right:5px;vertical-align:-1px}.legend-dot.approved{background:#bbf7d0}.legend-dot.pending{background:#fcd34d}.legend-dot.mixed{background:#bfdbfe}
+    @media(max-width:360px){.year-calendar{grid-template-columns:1fr}}
     .drawer{position:absolute;inset:0;background:rgba(18,48,38,.44);z-index:20;display:none}.drawer.open{display:block}.drawer-panel{position:absolute;right:0;top:0;bottom:0;width:min(360px,88%);background:#fff;padding:calc(16px + var(--safe-top)) 16px 18px;transform:translateX(100%);transition:transform .2s ease;box-shadow:-12px 0 32px rgba(0,0,0,.12);overflow:auto}.drawer.open .drawer-panel{transform:none}
     .drawer-item{width:100%;display:flex;align-items:center;gap:10px;padding:13px 12px;border-radius:16px;background:#fff;color:var(--text);font-weight:850;text-align:left}.drawer-item.active{background:#ecfdf5;color:var(--teal)}
     .bottom-nav{position:absolute;left:14px;right:14px;bottom:calc(14px + var(--safe));height:76px;border-radius:24px;background:rgba(255,255,255,.95);backdrop-filter:blur(18px);display:grid;grid-template-columns:repeat(5,1fr);padding:6px;box-shadow:0 18px 46px rgba(18,48,38,.16);z-index:8;border:1px solid rgba(255,255,255,.8)}
@@ -126,9 +132,15 @@ const DEFAULT_STATE = {
     {id:4,worker:'Tomislav Bognar',date:'09.07.2026.',start:'08:05',end:'—',pause:'—',total:'Aktivno',status:'Prijavljen'}
   ],
   requests:[
-    {id:1,worker:'Marko Marić',type:'Godišnji odmor',period:'23.06. – 27.06.',days:'5 dana',note:'Obiteljski odmor',status:'Na čekanju'},
-    {id:2,worker:'Ana Kovač',type:'Slobodan dan',period:'15.07.',days:'1 dan',note:'Privatne obveze',status:'Odobreno'},
-    {id:3,worker:'Josip Jurić',type:'Godišnji odmor',period:'05.08. – 09.08.',days:'5 dana',note:'Ljetni godišnji',status:'Na čekanju'}
+    {id:1,worker:'Marko Marić',type:'Godišnji odmor',start:'2026-06-23',end:'2026-06-27',period:'23.06. – 27.06.',days:'5 dana',note:'Obiteljski odmor',status:'Na čekanju'},
+    {id:2,worker:'Ana Kovač',type:'Slobodan dan',start:'2026-07-15',end:'2026-07-15',period:'15.07.',days:'1 dan',note:'Privatne obveze',status:'Odobreno'},
+    {id:3,worker:'Josip Jurić',type:'Godišnji odmor',start:'2026-08-05',end:'2026-08-09',period:'05.08. – 09.08.',days:'5 dana',note:'Ljetni godišnji',status:'Na čekanju'},
+    {id:4,worker:'Ivan Horvat',type:'Godišnji odmor',start:'2026-03-16',end:'2026-03-20',period:'16.03. – 20.03.',days:'5 dana',note:'Proljetni odmor',status:'Odobreno'},
+    {id:5,worker:'Ivan Horvat',type:'Godišnji odmor',start:'2026-09-28',end:'2026-10-02',period:'28.09. – 02.10.',days:'5 dana',note:'Jesenski odmor',status:'Odobreno'},
+    {id:6,worker:'Ivan Horvat',type:'Godišnji odmor',start:'2026-12-28',end:'2026-12-30',period:'28.12. – 30.12.',days:'3 dana',note:'Kraj godine',status:'Na čekanju'},
+    {id:7,worker:'Petra Novak',type:'Godišnji odmor',start:'2026-09-07',end:'2026-09-18',period:'07.09. – 18.09.',days:'10 dana',note:'Glavni godišnji',status:'Odobreno'},
+    {id:8,worker:'Tomislav Bognar',type:'Godišnji odmor',start:'2026-12-21',end:'2026-12-24',period:'21.12. – 24.12.',days:'4 dana',note:'Blagdanski odmor',status:'Odobreno'},
+    {id:9,worker:'Marko Marić',type:'Godišnji odmor',start:'2026-04-06',end:'2026-04-10',period:'06.04. – 10.04.',days:'5 dana',note:'Proljetni odmor',status:'Odobreno'}
   ],
   corrections:[
     {id:1,worker:'Marko Marić',date:'08.07.2026.',oldValue:'Odjava: —',newValue:'Odjava: 16:02',reason:'Zaboravljena odjava',status:'Na čekanju'},
@@ -144,16 +156,25 @@ const DEFAULT_STATE = {
   lastScan:{name:'Marko Marić',status:'Prijavljen',time:'07:48',terminal:'BSS Terminal 01',message:'Prijava prihvaćena.'},
   lastReport:'CSV preuzet 09.07.2026. 08:16'
 };
+const ROLE_CONFIG = {
+  admin:{label:'Administrator',short:'ADMIN',user:'Tomislav Bognar'},
+  manager:{label:'Voditelj',short:'VODITELJ',user:'Marko Marić',departments:['Sklapanje','Proizvodnja']},
+  worker:{label:'Radnik',short:'RADNIK',user:'Ivan Horvat'},
+  accountant:{label:'Knjigovođa',short:'KNJIGOVOĐA',user:'Ana Kovač'}
+};
 let state = loadState();
 let logged = localStorage.getItem('bss-polished-logged') === '1';
+let currentRole = localStorage.getItem('bss-polished-role') || 'admin';
 let screen = 'home';
 let activeWorkerId = 1;
 let workerTab = 'Profil';
+let calendarYear = 2026;
+let vacationDepartment = 'Svi';
 const $ = s => document.querySelector(s);
 function clone(obj){return JSON.parse(JSON.stringify(obj));}
-function loadState(){try{const raw = localStorage.getItem('bss-polished-state');return raw ? JSON.parse(raw) : clone(DEFAULT_STATE);}catch(e){return clone(DEFAULT_STATE);}}
-function saveState(){localStorage.setItem('bss-polished-state', JSON.stringify(state));}
-function resetState(){localStorage.removeItem('bss-polished-state'); state = clone(DEFAULT_STATE); saveState();}
+function loadState(){try{const raw = localStorage.getItem('bss-polished-state-v2');return raw ? JSON.parse(raw) : clone(DEFAULT_STATE);}catch(e){return clone(DEFAULT_STATE);}}
+function saveState(){localStorage.setItem('bss-polished-state-v2', JSON.stringify(state));}
+function resetState(){localStorage.removeItem('bss-polished-state-v2'); state = clone(DEFAULT_STATE); saveState();}
 function now(){return new Date().toLocaleString('hr-HR',{hour:'2-digit',minute:'2-digit',day:'2-digit',month:'2-digit',year:'numeric'}).replace(',', '.');}
 function audit(user, action, module){state.audit.unshift({time:now(), user, action, module}); saveState();}
 function toast(msg){const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(window.__toast); window.__toast = setTimeout(()=>t.classList.remove('show'),2200);}
@@ -161,15 +182,49 @@ function pill(status){let cls=''; if(['Prisutan','Uredno','Odobreno','Online','P
 function title(title, subtitle, right=''){return `<div class="section-title"><div><h1>${title}</h1><p>${subtitle}</p></div>${right}</div>`;}
 function row(avatar, titleText, subtitle, right=''){return `<div class="row"><div class="avatar">${avatar}</div><div class="meta"><b>${titleText}</b><span>${subtitle}</span></div><div class="side">${right}</div></div>`;}
 function pendingCount(){return state.requests.filter(x=>x.status==='Na čekanju').length + state.corrections.filter(x=>x.status==='Na čekanju').length;}
-function navigate(next){screen = next; if(screen!=='worker') workerTab='Profil'; render();}
+function role(){return ROLE_CONFIG[currentRole] || ROLE_CONFIG.admin;}
+function currentWorkerName(){return role().user;}
+function allowedScreens(){
+  const access={
+    admin:['home','attendance','mytime','workers','worker','shifts','requests','vacations','corrections','reports','terminal','flow','roles','audit','settings'],
+    manager:['home','attendance','workers','worker','shifts','requests','vacations','corrections','reports','terminal','flow'],
+    worker:['home','mytime','requests','vacations','corrections'],
+    accountant:['home','reports','vacations']
+  };
+  return access[currentRole] || access.admin;
+}
+function navigate(next){screen = allowedScreens().includes(next) ? next : 'home'; if(screen!=='worker') workerTab='Profil'; render();}
+function switchRole(next){
+  if(!ROLE_CONFIG[next]) return;
+  currentRole=next;
+  vacationDepartment='Svi';
+  localStorage.setItem('bss-polished-role',currentRole);
+  screen='home';
+  closeDrawer();
+  render();
+  toast(`Prikaz promijenjen: ${role().label}`);
+}
+function visibleWorkers(){
+  if(currentRole==='admin') return state.workers;
+  if(currentRole==='manager') return state.workers.filter(w=>role().departments.includes(w.dept));
+  if(currentRole==='worker') return state.workers.filter(w=>w.name===currentWorkerName());
+  return [];
+}
+function requestVisible(r){
+  if(currentRole==='admin' || currentRole==='accountant') return true;
+  if(currentRole==='worker') return r.worker===currentWorkerName();
+  const w=state.workers.find(x=>x.name===r.worker);
+  return !!w && role().departments.includes(w.dept);
+}
 function topCopy(){
   const map={
-    home:['Početna','Danas u firmi · '+state.company.name],
+    home:['Početna',role().label+' · '+state.company.name],
     attendance:['RFID/NFC evidencija','Prijava, odjava, greška i offline zapis'],
     mytime:['Moja evidencija','Radni sati, status dana i korekcije'],
     workers:['Radnici','Radnici, smjene i RFID kartice'],
     worker:['Detalj radnika','Profil, evidencija i kartica'],
     requests:['Zahtjevi','Godišnji i slobodni dani'],
+    vacations:['Kalendar godišnjih','Godišnji pregled odsutnosti'],
     corrections:['Korekcije vremena','Odobravanje i audit trag'],
     reports:['Izvještaji','CSV export za obračun sati'],
     terminal:['Terminal status','Hardver, sinkronizacija i offline rad'],
@@ -182,6 +237,24 @@ function topCopy(){
 }
 function navButton(id, ico, text){return `<button class="nav-item ${screen===id?'active':''}" onclick="navigate('${id}')"><span class="ico">${ico}</span>${text}</button>`;}
 function drawerItem(id, ico, text){return `<button class="drawer-item ${screen===id?'active':''}" onclick="closeDrawer();navigate('${id}')">${ico} ${text}</button>`;}
+function bottomNavigation(){
+  const items={
+    admin:[['home','⌂','Početna'],['attendance','◴','Evidencija'],['workers','☷','Radnici'],['vacations','▦','Godišnji'],['reports','⇩','Izvještaji']],
+    manager:[['home','⌂','Početna'],['workers','☷','Tim'],['vacations','▦','Godišnji'],['requests','□','Zahtjevi'],['reports','⇩','Izvještaji']],
+    worker:[['home','⌂','Početna'],['mytime','◷','Moji sati'],['vacations','▦','Godišnji'],['requests','□','Zahtjevi'],['corrections','✎','Korekcije']],
+    accountant:[['home','⌂','Početna'],['reports','⇩','Izvještaji'],['vacations','▦','Godišnji']]
+  }[currentRole] || [];
+  return `<div class="bottom-nav" style="grid-template-columns:repeat(${items.length},1fr)">${items.map(x=>navButton(...x)).join('')}</div>`;
+}
+function drawerNavigation(){
+  const items={
+    admin:[['home','⌂','Početna'],['attendance','◴','RFID/NFC evidencija'],['mytime','◷','Moja evidencija'],['workers','☷','Radnici i kartice'],['shifts','↺','Smjene i pravila'],['vacations','▦','Kalendar godišnjih'],['requests','□','Zahtjevi za godišnji'],['corrections','✎','Korekcije vremena'],['reports','⇩','Izvještaji CSV/XLSX'],['terminal','◉','Terminal status'],['flow','→','Kako radi terminal'],['roles','♙','Prava pristupa'],['audit','☰','Audit log'],['settings','⚙','Postavke firme']],
+    manager:[['home','⌂','Početna'],['attendance','◴','RFID/NFC evidencija'],['workers','☷','Radnici mog tima'],['shifts','↺','Smjene i pravila'],['vacations','▦','Kalendar mog tima'],['requests','□','Zahtjevi mog tima'],['corrections','✎','Korekcije mog tima'],['reports','⇩','Izvještaji'],['terminal','◉','Terminal status'],['flow','→','Kako radi terminal']],
+    worker:[['home','⌂','Početna'],['mytime','◷','Moja evidencija'],['vacations','▦','Moj godišnji kalendar'],['requests','□','Moji zahtjevi'],['corrections','✎','Moje korekcije']],
+    accountant:[['home','⌂','Početna'],['reports','⇩','Izvještaji CSV/XLSX'],['vacations','▦','Kalendar odsutnosti']]
+  }[currentRole] || [];
+  return items.map(x=>drawerItem(...x)).join('');
+}
 function shell(){const [head, sub] = topCopy(); return `
   <div class="device">
     <div id="login" class="login ${logged?'hidden':''}">
@@ -194,6 +267,7 @@ function shell(){const [head, sub] = topCopy(); return `
       <div class="glass">
         <div class="field"><label>Email ili korisničko ime</label><input value="admin@bss.hr"></div>
         <div class="field"><label>Lozinka</label><input type="password" value="demodemo"></div>
+        <div class="field"><label>Demo prikaz</label><select id="loginRole"><option value="admin">Administrator – cijela firma</option><option value="manager">Voditelj – vlastiti tim</option><option value="worker">Radnik – samo vlastiti podaci</option><option value="accountant">Knjigovođa – izvještaji</option></select></div>
         <div class="login-row"><span>☑ Zapamti me</span><span>Zaboravili ste lozinku?</span></div>
         <button class="primary" onclick="login()">Uđi u BSS demo</button>
       </div>
@@ -203,46 +277,41 @@ function shell(){const [head, sub] = topCopy(); return `
       <div class="topbar">
         <div class="mini-logo">B</div>
         <div class="top-copy"><h2>${head}</h2><p>${sub}</p></div>
+        <button class="role-badge" onclick="openDrawer()">${role().short}</button>
         <button class="menu-btn" onclick="openDrawer()">☰</button>
       </div>
       <div class="content" id="content"></div>
-      <div class="bottom-nav">
-        ${navButton('home','⌂','Početna')}
-        ${navButton('attendance','◴','Evidencija')}
-        ${navButton('workers','☷','Radnici')}
-        ${navButton('requests','□','Zahtjevi')}
-        ${navButton('reports','⇩','Izvještaji')}
-      </div>
+      ${bottomNavigation()}
       <div class="drawer" id="drawer" onclick="if(event.target.id==='drawer')closeDrawer()">
         <div class="drawer-panel">
           <div class="modal-head"><b>BSS izbornik</b><button class="close-btn" onclick="closeDrawer()">×</button></div>
-          ${drawerItem('home','⌂','Početna')}
-          ${drawerItem('attendance','◴','RFID/NFC evidencija')}
-          ${drawerItem('mytime','◷','Moja evidencija')}
-          ${drawerItem('workers','☷','Radnici i kartice')}
-          ${drawerItem('shifts','↺','Smjene i pravila')}
-          ${drawerItem('requests','□','Zahtjevi za godišnji')}
-          ${drawerItem('corrections','✎','Korekcije vremena')}
-          ${drawerItem('reports','⇩','Izvještaji CSV/XLSX')}
-          ${drawerItem('terminal','◉','Terminal status')}
-          ${drawerItem('flow','→','Kako radi terminal')}
-          ${drawerItem('roles','♙','Prava pristupa')}
-          ${drawerItem('audit','☰','Audit log')}
-          ${drawerItem('settings','⚙','Postavke firme')}
+          <div class="role-panel"><label>Prikaži aplikaciju kao</label><select onchange="switchRole(this.value)"><option value="admin" ${currentRole==='admin'?'selected':''}>Administrator</option><option value="manager" ${currentRole==='manager'?'selected':''}>Voditelj</option><option value="worker" ${currentRole==='worker'?'selected':''}>Radnik</option><option value="accountant" ${currentRole==='accountant'?'selected':''}>Knjigovođa</option></select></div>
+          ${drawerNavigation()}
           <button class="drawer-item" onclick="resetDemo()">↻ Reset demo podataka</button>
+          <button class="drawer-item" onclick="logout()">⇥ Odjava</button>
         </div>
       </div>
       <div class="modal" id="modal"></div>
       <div class="toast" id="toast"></div>
     </div>
   </div>`;}
-function render(){document.getElementById('root').innerHTML = shell(); if(!logged) return; const views={home:viewHome,attendance:viewAttendance,mytime:viewMyTime,workers:viewWorkers,requests:viewRequests,corrections:viewCorrections,reports:viewReports,terminal:viewTerminal,flow:viewFlow,shifts:viewShifts,roles:viewRoles,audit:viewAudit,settings:viewSettings,worker:viewWorker}; $('#content').innerHTML = `<div class="screen">${(views[screen]||viewHome)()}</div>`;}
-function login(){logged=true;localStorage.setItem('bss-polished-logged','1');render();toast('Dobrodošli u BSS MVP+ demo.');}
+function render(){
+  if(!allowedScreens().includes(screen)) screen='home';
+  document.getElementById('root').innerHTML = shell();
+  if(!logged) return;
+  const views={home:viewHome,attendance:viewAttendance,mytime:viewMyTime,workers:viewWorkers,requests:viewRequests,vacations:viewVacations,corrections:viewCorrections,reports:viewReports,terminal:viewTerminal,flow:viewFlow,shifts:viewShifts,roles:viewRoles,audit:viewAudit,settings:viewSettings,worker:viewWorker};
+  $('#content').innerHTML = `<div class="screen">${(views[screen]||viewHome)()}</div>`;
+}
+function login(){currentRole=$('#loginRole').value;localStorage.setItem('bss-polished-role',currentRole);logged=true;localStorage.setItem('bss-polished-logged','1');screen='home';render();toast(`Dobrodošli. Aktivni prikaz: ${role().label}.`);}
+function logout(){logged=false;localStorage.removeItem('bss-polished-logged');screen='home';render();}
 function openDrawer(){$('#drawer').classList.add('open');}
 function closeDrawer(){$('#drawer').classList.remove('open');}
 function saveAndRender(msg){saveState(); render(); if(msg) toast(msg);}
 
 function viewHome(){
+  if(currentRole==='worker') return viewWorkerHome();
+  if(currentRole==='manager') return viewManagerHome();
+  if(currentRole==='accountant') return viewAccountantHome();
   const present = state.workers.filter(w=>w.status==='Prisutan').length;
   const late = state.workers.filter(w=>w.status==='Kasni').length;
   return `
@@ -263,6 +332,26 @@ function viewHome(){
   <div class="card"><h2>Zadnje aktivnosti</h2>${state.audit.slice(0,4).map(a=>row((a.user[0]||'S'),a.action,`${a.time} · ${a.user} · ${a.module}`)).join('')}</div>
   <div class="card"><div class="summary-line"><span>Terminal</span><b>BSS Terminal 01 · ${state.terminal.online?'Online':'Offline'}</b></div><div class="summary-line"><span>Zadnja sinkronizacija</span><b>${state.terminal.lastSync}</b></div><div class="summary-line"><span>Neposlani zapisi</span><b>${state.terminal.unsynced}</b></div></div>`;
 }
+function viewWorkerHome(){
+  const w=state.workers.find(x=>x.name===currentWorkerName()) || state.workers[0];
+  const ownRequests=state.requests.filter(r=>r.worker===w.name);
+  const approved=ownRequests.filter(r=>r.status==='Odobreno').length;
+  const pending=ownRequests.filter(r=>r.status==='Na čekanju').length;
+  return `${title(`Pozdrav, ${w.name.split(' ')[0]}`,'Tvoj osobni pregled. Podaci drugih radnika nisu dostupni.',pill(w.status))}
+  <div class="card hero"><h2 style="margin:0;font-size:22px">${w.status==='Prisutan'?'Trenutačno si prijavljen':'Trenutačno nisi prijavljen'}</h2><p style="margin:10px 0 0">Današnja smjena: ${w.shift} · zadnja prijava ${w.today}</p><div class="meta-line"><span>Danas evidentirano</span><b>6:18 h</b></div><div class="meta-line"><span>Planirana smjena</span><b>06:00 – 14:00</b></div></div>
+  <div class="grid-2"><div class="stat"><div class="num">168:45</div><div class="lab">Sati ovaj mjesec</div><div class="trend">Osobni podaci</div></div><div class="stat"><div class="num">18</div><div class="lab">Preostali dani</div><div class="trend">Godišnji odmor</div></div><div class="stat"><div class="num">${approved}</div><div class="lab">Odobreni zahtjevi</div></div><div class="stat"><div class="num">${pending}</div><div class="lab">Zahtjevi na čekanju</div></div></div>
+  <div class="card"><h2>Brze akcije</h2><div class="quick"><button onclick="navigate('mytime')"><b>Moji sati</b><span>Pregledaj svoje dolaske, odlaske i ukupne sate</span></button><button onclick="navigate('vacations')"><b>Moj godišnji</b><span>Cijela godina prikazana u osobnom kalendaru</span></button><button onclick="navigate('requests')"><b>Novi zahtjev</b><span>Zatraži godišnji ili slobodan dan</span></button><button onclick="navigate('corrections')"><b>Korekcija</b><span>Prati zahtjeve za ispravak vremena</span></button></div></div>
+  ${recordsTable(w.name)}`;
+}
+function viewManagerHome(){
+  const team=visibleWorkers();
+  const present=team.filter(w=>w.status==='Prisutan').length;
+  const pending=state.requests.filter(r=>requestVisible(r)&&r.status==='Na čekanju').length;
+  return `${title('Pregled mog tima','Voditelj vidi samo odjele Sklapanje i Proizvodnja.',pill(`${team.length} radnika`))}<div class="grid-2"><div class="stat"><div class="num">${present}</div><div class="lab">Prisutni u timu</div></div><div class="stat"><div class="num">${team.filter(w=>w.status==='Kasni').length}</div><div class="lab">Kašnjenja</div></div><div class="stat"><div class="num">${pending}</div><div class="lab">Zahtjevi na čekanju</div></div><div class="stat"><div class="num">${state.corrections.filter(c=>c.status==='Na čekanju'&&requestVisible({worker:c.worker})).length}</div><div class="lab">Korekcije</div></div></div><div class="card"><h2>Radnici mog tima</h2>${team.map(w=>row(w.avatar,w.name,`${w.dept} · ${w.shift}`,pill(w.status))).join('')}</div><div class="card"><h2>Brze akcije</h2><div class="quick"><button onclick="navigate('vacations')"><b>Kalendar tima</b><span>Godišnji odmori mojih odjela</span></button><button onclick="navigate('requests')"><b>Odobri zahtjeve</b><span>${pending} zahtjeva čeka odluku</span></button></div></div>`;
+}
+function viewAccountantHome(){
+  return `${title('Pregled za knjigovodstvo','Pristup izvještajima bez administrativnih ovlasti.',pill('Samo čitanje'))}<div class="card hero"><h2 style="margin:0;font-size:22px">Obračunski podaci su spremni</h2><p style="margin:10px 0 0">Knjigovođa može generirati i preuzeti izvještaje, ali ne može mijenjati radnike, smjene ili evidenciju.</p><div class="meta-line"><span>Aktivni radnici</span><b>${state.workers.length}</b></div><div class="meta-line"><span>Posljednji export</span><b>${state.lastReport}</b></div></div><div class="card"><h2>Brze akcije</h2><div class="quick"><button onclick="navigate('reports')"><b>Izvještaji</b><span>CSV/XLSX za obračun sati</span></button><button onclick="navigate('vacations')"><b>Odsutnosti</b><span>Pregled odobrenih godišnjih odmora</span></button></div></div>`;
+}
 function viewAttendance(){const l=state.lastScan;return `
   ${title('RFID/NFC evidencija','Prikaz prijave, odjave, nepoznate kartice i offline rada.')}
   <div class="card rfid-box"><span class="pill ${state.terminal.online?'green':'red'}">${state.terminal.online?'Terminal online':'Terminal offline'} · Ulaz proizvodnje</span><div class="rfid-ring"><div class="rfid-card">≋</div></div><h2 style="margin:0;font-size:21px">Prislonite RFID karticu</h2><p class="small-muted" style="max-width:300px;text-align:center">Terminal daje zvučnu potvrdu i šalje zapis u aplikaciju. Ako internet padne, zapis se sprema lokalno i sinkronizira kasnije.</p><div class="result"><div class="summary-line"><span>Radnik / kartica</span><b>${l.name}</b></div><div class="summary-line"><span>Status</span><b>${pill(l.status)}</b></div><div class="summary-line"><span>Vrijeme</span><b>${l.time}</b></div><div class="summary-line"><span>Poruka</span><b>${l.message}</b></div></div><div class="btns"><button class="btn" onclick="scanToggle()">Simuliraj očitanje</button><button class="btn secondary" onclick="unknownCard()">Nepoznata kartica</button><button class="btn secondary" onclick="offlineScan()">Offline prijava</button></div></div>
@@ -271,12 +360,13 @@ function scanToggle(){const worker = state.workers.find(w=>w.name==='Marko Mari�
 function unknownCard(){state.lastScan={name:'UID 04 A7 91 2B',status:'Greška',time:new Date().toLocaleTimeString('hr-HR',{hour:'2-digit',minute:'2-digit'}),terminal:'BSS Terminal 01',message:'Kartica nije dodijeljena radniku.'}; audit('Sustav','Odbijena nepoznata RFID kartica 04 A7 91 2B.','Terminal'); saveAndRender('Nepoznata kartica odbijena.');}
 function offlineScan(){state.terminal.online=false; state.terminal.unsynced += 1; state.lastScan={name:'Ivan Horvat',status:'Offline sync',time:new Date().toLocaleTimeString('hr-HR',{hour:'2-digit',minute:'2-digit'}),terminal:'BSS Terminal 01',message:'Zapis spremljen lokalno.'}; audit('Terminal','Offline prijava spremljena lokalno.','Terminal'); saveAndRender('Zapis je spremljen lokalno.');}
 
-function viewMyTime(){return `${title('Moja evidencija','Pregled dolazaka, odlazaka, pauza i statusa dana.',pill('Lipanj 2026.'))}<div class="card"><div class="grid-2"><div class="stat"><div class="num">168:45</div><div class="lab">Ukupno sati</div></div><div class="stat"><div class="num">6:45</div><div class="lab">Prekovremeno</div></div></div></div>${recordsTable()}<div class="card"><h2>Zahtjev za korekciju</h2><div class="form"><label>Datum<input id="corrDate" value="08.07.2026."></label><label>Razlog<textarea id="corrReason" rows="3">Zaboravljena odjava nakon završetka smjene.</textarea></label><button class="btn block" onclick="addCorrection()">Pošalji zahtjev</button></div></div>`;}
-function recordsTable(worker=''){const rows=worker?state.records.filter(r=>r.worker===worker):state.records; return `<div class="card table-wrap"><table><thead><tr><th>Radnik</th><th>Datum</th><th>Dolazak</th><th>Odlazak</th><th>Ukupno</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${r.worker}</td><td>${r.date}<br>${pill(r.status)}</td><td>${r.start}</td><td>${r.end}</td><td>${r.total}</td></tr>`).join('')}</tbody></table></div>`;}
-function addCorrection(){const date=$('#corrDate').value.trim(), reason=$('#corrReason').value.trim(); state.corrections.unshift({id:Date.now(),worker:'Tomislav Bognar',date,oldValue:'Odjava: —',newValue:'Odjava: 16:02',reason,status:'Na čekanju'}); audit('Radnik','Poslan zahtjev za korekciju vremena.','Korekcije'); saveAndRender('Zahtjev za korekciju poslan voditelju.'); navigate('corrections');}
+function viewMyTime(){const worker=currentWorkerName();return `${title('Moja evidencija',`Pregled radnog vremena za ${worker}.`,pill('Srpanj 2026.'))}<div class="card"><div class="grid-2"><div class="stat"><div class="num">168:45</div><div class="lab">Ukupno sati</div></div><div class="stat"><div class="num">6:45</div><div class="lab">Prekovremeno</div></div></div></div>${recordsTable(worker)}<div class="card"><h2>Zahtjev za korekciju</h2><div class="form"><label>Datum<input id="corrDate" value="08.07.2026."></label><label>Razlog<textarea id="corrReason" rows="3">Zaboravljena odjava nakon završetka smjene.</textarea></label><button class="btn block" onclick="addCorrection()">Pošalji zahtjev</button></div></div>`;}
+function recordVisible(r){if(currentRole==='worker')return r.worker===currentWorkerName();if(currentRole==='manager'){const w=state.workers.find(x=>x.name===r.worker);return !!w&&role().departments.includes(w.dept);}return true;}
+function recordsTable(worker=''){const limitedWorker=worker||(currentRole==='worker'?currentWorkerName():'');const rows=(limitedWorker?state.records.filter(r=>r.worker===limitedWorker):state.records).filter(recordVisible); return `<div class="card table-wrap"><table><thead><tr><th>Radnik</th><th>Datum</th><th>Dolazak</th><th>Odlazak</th><th>Ukupno</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${r.worker}</td><td>${r.date}<br>${pill(r.status)}</td><td>${r.start}</td><td>${r.end}</td><td>${r.total}</td></tr>`).join('')||'<tr><td colspan="5">Nema zapisa za odabrani period.</td></tr>'}</tbody></table></div>`;}
+function addCorrection(){const date=$('#corrDate').value.trim(), reason=$('#corrReason').value.trim(); state.corrections.unshift({id:Date.now(),worker:currentWorkerName(),date,oldValue:'Odjava: —',newValue:'Odjava: 16:02',reason,status:'Na čekanju'}); audit(currentRole==='worker'?'Radnik':role().label,'Poslan zahtjev za korekciju vremena.','Korekcije'); saveAndRender('Zahtjev za korekciju poslan voditelju.'); navigate('corrections');}
 
-function viewWorkers(){return `${title('Radnici','Upravljanje zaposlenicima, smjenama i RFID karticama.',`<button class="btn" onclick="openWorkerModal()">Dodaj</button>`)}<div class="tabs"><button class="tab active">Svi</button><button class="tab">Prisutni</button><button class="tab">Godišnji</button></div><div class="card">${state.workers.map(w=>`<div class="row" onclick="openWorker(${w.id})"><div class="avatar">${w.avatar}</div><div class="meta"><b>${w.name}</b><span>${w.dept} · ${w.role} · ${w.shift}<br>RFID: ${w.card}</span></div><div class="side">${pill(w.status)}</div></div>`).join('')}</div><div class="card"><div class="summary-line"><span>Aktivne RFID kartice</span><b>${state.workers.length}</b></div><div class="summary-line"><span>Radnici bez kartice</span><b>0</b></div><div class="summary-line"><span>Status podataka</span><b>Spremljeno lokalno</b></div></div>`;}
-function openWorker(id){activeWorkerId=id; screen='worker'; workerTab='Profil'; render();}
+function viewWorkers(){const workers=visibleWorkers();const isAdmin=currentRole==='admin';return `${title(isAdmin?'Radnici':'Radnici mog tima',isAdmin?'Upravljanje zaposlenicima, smjenama i RFID karticama.':'Prikaz je ograničen na odjele voditelja.',isAdmin?`<button class="btn" onclick="openWorkerModal()">Dodaj</button>`:'')}<div class="tabs"><button class="tab active">Svi</button><button class="tab">Prisutni</button><button class="tab">Godišnji</button></div><div class="card">${workers.map(w=>`<div class="row" onclick="openWorker(${w.id})"><div class="avatar">${w.avatar}</div><div class="meta"><b>${w.name}</b><span>${w.dept} · ${w.role} · ${w.shift}${isAdmin?`<br>RFID: ${w.card}`:''}</span></div><div class="side">${pill(w.status)}</div></div>`).join('')}</div><div class="card"><div class="summary-line"><span>Prikazani radnici</span><b>${workers.length}</b></div><div class="summary-line"><span>Opseg pristupa</span><b>${isAdmin?'Cijela firma':'Moji odjeli'}</b></div><div class="summary-line"><span>Status podataka</span><b>Spremljeno lokalno</b></div></div>`;}
+function openWorker(id){if(!visibleWorkers().some(w=>w.id===id)) return;activeWorkerId=id; screen='worker'; workerTab='Profil'; render();}
 function getWorker(){return state.workers.find(w=>w.id===activeWorkerId) || state.workers[0];}
 function viewWorker(){const w=getWorker(); const content = workerTab==='Profil'
   ? `<div class="summary-line"><span>Odjel</span><b>${w.dept}</b></div><div class="summary-line"><span>Radno mjesto</span><b>${w.role}</b></div><div class="summary-line"><span>Smjena</span><b>${w.shift}</b></div><div class="summary-line"><span>RFID UID</span><b>${w.card}</b></div><div class="summary-line"><span>Danas</span><b>${w.today}</b></div>`
@@ -287,15 +377,76 @@ function viewWorker(){const w=getWorker(); const content = workerTab==='Profil'
       : `<div class="card" style="margin:0;border:0;box-shadow:none;padding:0">${state.corrections.filter(c=>c.worker===w.name).map(c=>row('K',`${c.oldValue} → ${c.newValue}`,`${c.date} · ${c.reason}`,pill(c.status))).join('') || '<p class="small-muted">Nema korekcija za ovog radnika.</p>'}</div>`;
   return `${title(w.name,`${w.dept} · ${w.role}`,pill(w.status))}<div class="card"><div class="tabs">${['Profil','Evidencija','RFID kartica','Korekcije'].map(t=>`<button class="tab ${workerTab===t?'active':''}" onclick="workerTab='${t}';render()">${t}</button>`).join('')}</div>${content}</div><div class="card"><h2>Napomena za kupca</h2><p class="small-muted">Kartica se može promijeniti bez gubitka stare evidencije. Time firma zadržava povijest radnih sati i audit trag.</p></div>`;}
 
-function viewRequests(){return `${title('Zahtjevi za godišnji','Odobravanje godišnjih i slobodnih dana.',pill(`${state.requests.filter(r=>r.status==='Na čekanju').length} na čekanju`))}<div class="card">${state.requests.map(r=>`<div class="row"><div class="meta"><b>${r.worker}</b><span>${r.type} · ${r.period} · ${r.days}<br>${r.note}</span></div><div class="side">${pill(r.status)}${r.status==='Na čekanju'?`<div class="btns"><button class="btn green" onclick="updateRequest(${r.id},'Odobreno')">Odobri</button><button class="btn red" onclick="updateRequest(${r.id},'Odbijeno')">Odbij</button></div>`:''}</div></div>`).join('')}</div>`;}
-function updateRequest(id,status){const r=state.requests.find(x=>x.id===id); if(!r) return; r.status=status; audit('Voditelj',`${status} zahtjev: ${r.worker} · ${r.period}.`,'Zahtjevi'); saveAndRender(`Zahtjev: ${status}`);}
+function viewRequests(){
+  const requests=state.requests.filter(requestVisible);
+  const isWorker=currentRole==='worker';
+  const isApprover=['admin','manager'].includes(currentRole);
+  const pending=requests.filter(r=>r.status==='Na čekanju').length;
+  const requestForm=isWorker?`<div class="card"><h2>Novi zahtjev</h2><div class="form"><label>Vrsta<select id="vacType"><option>Godišnji odmor</option><option>Slobodan dan</option></select></label><label>Od<input id="vacStart" type="date" value="2026-08-17"></label><label>Do<input id="vacEnd" type="date" value="2026-08-21"></label><label>Napomena<textarea id="vacNote" rows="3">Planirani godišnji odmor.</textarea></label><button class="btn block" onclick="submitVacationRequest()">Pošalji zahtjev</button></div></div>`:'';
+  return `${title(isWorker?'Moji zahtjevi':currentRole==='manager'?'Zahtjevi mog tima':'Zahtjevi za godišnji',isWorker?'Radnik vidi i šalje samo vlastite zahtjeve.':'Odobravanje godišnjih i slobodnih dana.',pill(`${pending} na čekanju`))}<div class="card">${requests.map(r=>`<div class="row"><div class="meta"><b>${r.worker}</b><span>${r.type} · ${r.period} · ${r.days}<br>${r.note}</span></div><div class="side">${pill(r.status)}${isApprover&&r.status==='Na čekanju'?`<div class="btns"><button class="btn green" onclick="updateRequest(${r.id},'Odobreno')">Odobri</button><button class="btn red" onclick="updateRequest(${r.id},'Odbijeno')">Odbij</button></div>`:''}</div></div>`).join('')||'<p class="small-muted">Nema zahtjeva.</p>'}</div>${requestForm}<button class="btn secondary block" onclick="navigate('vacations')">Otvori godišnji kalendar</button>`;
+}
+function dateLabel(iso){return new Date(`${iso}T12:00:00`).toLocaleDateString('hr-HR',{day:'2-digit',month:'2-digit'}).replace(/\.$/,'');}
+function dayCount(start,end){return Math.max(1,Math.round((new Date(`${end}T12:00:00`)-new Date(`${start}T12:00:00`))/86400000)+1);}
+function submitVacationRequest(){
+  const type=$('#vacType').value,start=$('#vacStart').value,end=$('#vacEnd').value,note=$('#vacNote').value.trim();
+  if(!start||!end||end<start){toast('Provjeri početni i završni datum.');return;}
+  const count=dayCount(start,end);
+  state.requests.unshift({id:Date.now(),worker:currentWorkerName(),type,start,end,period:start===end?dateLabel(start):`${dateLabel(start)} – ${dateLabel(end)}`,days:`${count} ${count===1?'dan':'dana'}`,note:note||'Bez napomene',status:'Na čekanju'});
+  audit('Radnik',`Poslan zahtjev za ${type.toLowerCase()}: ${dateLabel(start)} – ${dateLabel(end)}.`,'Zahtjevi');
+  saveAndRender('Zahtjev je poslan voditelju.');
+}
+function updateRequest(id,status){if(!['admin','manager'].includes(currentRole)) return;const r=state.requests.find(x=>x.id===id); if(!r||!requestVisible(r)) return; r.status=status; audit(role().label,`${status} zahtjev: ${r.worker} · ${r.period}.`,'Zahtjevi'); saveAndRender(`Zahtjev: ${status}`);}
 
-function viewCorrections(){return `${title('Korekcije vremena','Svaka ručna izmjena ima razlog i audit zapis.')}<div class="card">${state.corrections.map(c=>`<div class="row"><div class="meta"><b>${c.worker}</b><span>${c.date} · ${c.oldValue} → ${c.newValue}<br>${c.reason}</span></div><div class="side">${pill(c.status)}${c.status==='Na čekanju'?`<div class="btns"><button class="btn green" onclick="updateCorrection(${c.id},'Odobreno')">Odobri</button><button class="btn red" onclick="updateCorrection(${c.id},'Odbijeno')">Odbij</button></div>`:''}</div></div>`).join('')}</div><div class="card hero"><h2 style="margin:0">Odgovor na pitanje “može li netko muljati sate?”</h2><p style="margin:10px 0 0">Vrijeme se može korigirati samo kroz kontrolirani zahtjev. Stara vrijednost, nova vrijednost, korisnik, razlog i vrijeme izmjene ostaju u audit logu.</p></div>`;}
-function updateCorrection(id,status){const c=state.corrections.find(x=>x.id===id); if(!c) return; c.status=status; audit('Voditelj',`${status} korekcija za ${c.worker}: ${c.oldValue} → ${c.newValue}.`,'Korekcije'); saveAndRender(`Korekcija: ${status}`);}
+function calendarRequests(){
+  return state.requests.filter(r=>r.start&&r.end&&r.status!=='Odbijeno'&&requestVisible(r))
+    .filter(r=>currentRole!=='accountant'||r.status==='Odobreno')
+    .filter(r=>vacationDepartment==='Svi'||(state.workers.find(w=>w.name===r.worker)||{}).dept===vacationDepartment);
+}
+function isoDate(year,month,day){return `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;}
+function calendarMonth(month,requests){
+  const first=new Date(calendarYear,month,1),count=new Date(calendarYear,month+1,0).getDate(),offset=(first.getDay()+6)%7;
+  const monthName=first.toLocaleDateString('hr-HR',{month:'long'});
+  const today=new Date();
+  let cells=Array.from({length:offset},()=>'<span class="day empty"></span>').join('');
+  for(let day=1;day<=count;day++){
+    const iso=isoDate(calendarYear,month,day),events=requests.filter(r=>r.start<=iso&&r.end>=iso);
+    const statuses=[...new Set(events.map(r=>r.status))];
+    const statusClass=!events.length?'':statuses.length>1?'has-mixed':statuses[0]==='Odobreno'?'has-approved':'has-pending';
+    const isToday=today.getFullYear()===calendarYear&&today.getMonth()===month&&today.getDate()===day;
+    const names=events.map(r=>`${r.worker} – ${r.status}`).join(', ');
+    cells+=`<button class="day ${statusClass} ${isToday?'today':''}" ${events.length?`onclick="showVacationDay('${iso}')" title="${names}"`:''}>${day}${events.length>1?`<span class="event-count">${events.length}</span>`:''}</button>`;
+  }
+  return `<div class="month-card"><h3>${monthName}</h3><div class="week-row">${['P','U','S','Č','P','S','N'].map(d=>`<span>${d}</span>`).join('')}</div><div class="day-grid">${cells}</div></div>`;
+}
+function changeCalendarYear(delta){calendarYear+=delta;render();}
+function showVacationDay(iso){
+  const events=calendarRequests().filter(r=>r.start<=iso&&r.end>=iso);
+  if(!events.length) return;
+  const modal=$('#modal');
+  modal.innerHTML=`<div class="modal-card"><div class="modal-head"><div><h2 style="margin:0">${new Date(`${iso}T12:00:00`).toLocaleDateString('hr-HR',{day:'numeric',month:'long',year:'numeric'})}</h2><p class="small-muted" style="margin:4px 0 0">Odsutnosti za odabrani dan</p></div><button class="close-btn" onclick="closeModal()">×</button></div>${events.map(r=>row((r.worker.split(' ').map(x=>x[0]).join('').slice(0,2)),r.worker,`${r.type} · ${r.period}`,pill(r.status))).join('')}</div>`;
+  modal.classList.add('open');
+}
+function viewVacations(){
+  const requests=calendarRequests();
+  const inYear=requests.filter(r=>r.start.slice(0,4)<=String(calendarYear)&&r.end.slice(0,4)>=String(calendarYear));
+  const departments=['Svi',...new Set(visibleWorkers().map(w=>w.dept))];
+  const canFilter=currentRole==='admin';
+  const titleText=currentRole==='worker'?'Moj godišnji kalendar':currentRole==='manager'?'Kalendar mog tima':currentRole==='accountant'?'Kalendar odsutnosti':'Kalendar godišnjih – cijela firma';
+  const subtitle=currentRole==='worker'?'Prikazuju se isključivo tvoji odobreni i poslani zahtjevi.':currentRole==='admin'?'Administrator vidi godišnje odmore svih radnika kroz cijelu godinu.':'Prikaz je ograničen pravima tvoje uloge.';
+  return `${title(titleText,subtitle,pill(String(calendarYear)))}
+  <div class="card"><div class="calendar-toolbar"><div class="year-switch"><button onclick="changeCalendarYear(-1)" aria-label="Prethodna godina">‹</button><b>${calendarYear}</b><button onclick="changeCalendarYear(1)" aria-label="Sljedeća godina">›</button></div>${canFilter?`<select class="calendar-filter" onchange="vacationDepartment=this.value;render()">${departments.map(d=>`<option ${vacationDepartment===d?'selected':''}>${d}</option>`).join('')}</select>`:''}</div></div>
+  <div class="grid-2"><div class="stat"><div class="num">${inYear.length}</div><div class="lab">Periodi odsutnosti</div></div><div class="stat"><div class="num">${new Set(inYear.map(r=>r.worker)).size}</div><div class="lab">Radnici u kalendaru</div></div></div>
+  <div class="card"><div class="year-calendar">${Array.from({length:12},(_,m)=>calendarMonth(m,inYear)).join('')}</div><div class="calendar-legend"><span><i class="legend-dot approved"></i>Odobreno</span><span><i class="legend-dot pending"></i>Na čekanju</span><span><i class="legend-dot mixed"></i>Više radnika/statusa</span></div><p class="small-muted">Dodirni označeni datum kako bi vidio detalje.</p></div>
+  <div class="card"><h2>${currentRole==='worker'?'Moji periodi':'Planirani godišnji odmori'}</h2>${inYear.sort((a,b)=>a.start.localeCompare(b.start)).map(r=>row(r.worker.split(' ').map(x=>x[0]).join('').slice(0,2),r.worker,`${r.type} · ${r.period} · ${r.days}`,pill(r.status))).join('')||'<p class="small-muted">Nema evidentiranih godišnjih odmora za odabranu godinu.</p>'}</div>
+  ${currentRole==='worker'?'<button class="btn block" onclick="navigate(\'requests\')">Pošalji novi zahtjev</button>':''}`;
+}
+
+function viewCorrections(){const isWorker=currentRole==='worker';const isApprover=['admin','manager'].includes(currentRole);const corrections=state.corrections.filter(c=>requestVisible({worker:c.worker}));return `${title(isWorker?'Moje korekcije':currentRole==='manager'?'Korekcije mog tima':'Korekcije vremena',isWorker?'Vidiš samo vlastite zahtjeve za ispravak vremena.':'Svaka ručna izmjena ima razlog i audit zapis.')}<div class="card">${corrections.map(c=>`<div class="row"><div class="meta"><b>${c.worker}</b><span>${c.date} · ${c.oldValue} → ${c.newValue}<br>${c.reason}</span></div><div class="side">${pill(c.status)}${isApprover&&c.status==='Na čekanju'?`<div class="btns"><button class="btn green" onclick="updateCorrection(${c.id},'Odobreno')">Odobri</button><button class="btn red" onclick="updateCorrection(${c.id},'Odbijeno')">Odbij</button></div>`:''}</div></div>`).join('')||'<p class="small-muted">Nema zahtjeva za korekciju.</p>'}</div><div class="card hero"><h2 style="margin:0">Kontrolirana korekcija vremena</h2><p style="margin:10px 0 0">Stara vrijednost, nova vrijednost, korisnik, razlog i vrijeme izmjene ostaju u audit logu. Radnik ne može sam promijeniti evidenciju.</p></div>`;}
+function updateCorrection(id,status){if(!['admin','manager'].includes(currentRole)) return;const c=state.corrections.find(x=>x.id===id); if(!c||!requestVisible({worker:c.worker})) return; c.status=status; audit(role().label,`${status} korekcija za ${c.worker}: ${c.oldValue} → ${c.newValue}.`,'Korekcije'); saveAndRender(`Korekcija: ${status}`);}
 
 function viewReports(){return `${title('Izvještaji','Export za knjigovodstvo i obračun sati.',pill('CSV/XLSX'))}<div class="card"><div class="form"><label>Period<select><option>01.06.2026. – 30.06.2026.</option><option>01.07.2026. – 31.07.2026.</option></select></label><label>Radnici<select><option>Svi aktivni radnici</option><option>Samo proizvodnja</option><option>Jedan radnik</option></select></label><label>Vrsta izvještaja<select><option>Mjesečna evidencija radnog vremena</option><option>Kašnjenja i nepotpuni dani</option><option>Godišnji i odsutnosti</option><option>Korekcije vremena</option></select></label><button class="btn block" onclick="generateReport()">Generiraj izvještaj</button></div></div><div class="card"><h2>Export za obračun plaće</h2><div class="summary-line"><span>Format</span><b>CSV radi odmah · XLSX je sljedeći korak</b></div><div class="summary-line"><span>Sadržaj</span><b>Dolasci, odlasci, pauza i ukupni sati</b></div><div class="summary-line"><span>Status</span><b>${state.lastReport || 'Spremno za generiranje'}</b></div><div class="btns"><button class="btn" onclick="downloadCSV()">Preuzmi CSV</button><button class="btn secondary" onclick="toast('XLSX je planiran za sljedeći razvojni korak.')">Preuzmi XLSX</button></div></div>${recordsTable()}`;}
 function generateReport(){state.lastReport = `Generirano ${now()}`; audit('Admin','Generiran mjesečni izvještaj radnog vremena.','Izvještaji'); saveAndRender('Izvještaj generiran.');}
-function downloadCSV(){const head=['Radnik','Datum','Dolazak','Odlazak','Pauza','Ukupno','Status']; const rows=state.records.map(r=>[r.worker,r.date,r.start,r.end,r.pause,r.total,r.status]); const csv=[head,...rows].map(r=>r.map(v=>`"${String(v).replaceAll('"','""')}"`).join(',')).join('\n'); const blob=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='BSS_evidencija_radnog_vremena_06_2026.csv'; a.click(); URL.revokeObjectURL(a.href); state.lastReport = `CSV preuzet ${now()}`; audit('Admin','Preuzet CSV izvještaj za obračun sati.','Izvještaji'); saveState(); toast('CSV izvještaj preuzet.'); render();}
+function downloadCSV(){const head=['Radnik','Datum','Dolazak','Odlazak','Pauza','Ukupno','Status']; const rows=state.records.filter(recordVisible).map(r=>[r.worker,r.date,r.start,r.end,r.pause,r.total,r.status]); const csv=[head,...rows].map(r=>r.map(v=>`"${String(v).replaceAll('"','""')}"`).join(',')).join('\n'); const blob=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='BSS_evidencija_radnog_vremena_06_2026.csv'; a.click(); URL.revokeObjectURL(a.href); state.lastReport = `CSV preuzet ${now()}`; audit(role().label,'Preuzet CSV izvještaj za obračun sati.','Izvještaji'); saveState(); toast('CSV izvještaj preuzet.'); render();}
 
 function viewTerminal(){return `${title('Terminal status','Osnovni nadzor hardvera i offline sync.',pill(state.terminal.online?'Online':'Offline'))}<div class="card hero"><h2 style="margin:0 0 6px;font-size:22px">BSS Terminal 01</h2><p style="margin:0;font-size:13px;line-height:1.45">Ulaz proizvodnje · RFID/NFC prijava i odjava</p><div class="meta-line"><span>Zadnja sinkronizacija</span><b>${state.terminal.lastSync}</b></div></div><div class="card"><div class="summary-line"><span>Današnja očitanja</span><b>${state.terminal.scans}</b></div><div class="summary-line"><span>Neposlani zapisi</span><b>${state.terminal.unsynced}</b></div><div class="summary-line"><span>Status mreže</span><b>${state.terminal.online?'Wi‑Fi online':'Wi‑Fi offline'}</b></div><div class="summary-line"><span>Verzija uređaja</span><b>${state.terminal.version}</b></div><div class="btns"><button class="btn secondary" onclick="simulateOffline()">Simuliraj pad interneta</button><button class="btn" onclick="restoreTerminal()">Vrati vezu / sinkroniziraj</button></div></div><div class="card"><h2>Offline način</h2><p class="small-muted">Ako internet padne, terminal lokalno sprema prijave i sinkronizira ih kada se veza vrati. To sprječava gubitak evidencije.</p></div>`;}
 function simulateOffline(){state.terminal.online=false; state.terminal.unsynced += 3; state.terminal.lastSync='prije 12 min'; audit('Terminal','Simuliran pad interneta. 3 zapisa čekaju sinkronizaciju.','Terminal'); saveAndRender('Terminal je offline. Zapisi se spremaju lokalno.');}
@@ -315,10 +466,10 @@ function viewShifts(){return `${title('Smjene i pravila','MVP smjene bez nepotre
   ['Fleksibilna smjena','Po potrebi · Za ured i administraciju']
 ].map(s=>row('S',s[0],s[1],pill('Aktivna'))).join('')}</div><div class="card"><div class="summary-line"><span>Standardni dan</span><b>8:00 h</b></div><div class="summary-line"><span>Zaokruživanje</span><b>na 5 min</b></div><div class="summary-line"><span>Prekovremeno</span><b>označeno, ne obračunato</b></div></div>`;}
 function viewRoles(){return `${title('Prava pristupa','Jasne role bez overengineeringa.')}<div class="card">${[
-  ['Admin firme','Vidi sve radnike, smjene, zahtjeve, korekcije i izvještaje.'],
-  ['Voditelj','Vidi svoj odjel i odobrava zahtjeve svoga tima.'],
-  ['Radnik','Vidi svoju evidenciju i šalje zahtjeve.'],
-  ['Knjigovođa','Čita i izvozi izvještaje za obračun sati.']
+  ['Admin firme','Vidi sve radnike, smjene, zahtjeve, godišnji kalendar cijele firme, korekcije i izvještaje.'],
+  ['Voditelj','Vidi svoje odjele, njihov godišnji kalendar i odobrava zahtjeve svoga tima.'],
+  ['Radnik','Vidi samo svoju evidenciju, vlastiti godišnji kalendar i šalje zahtjeve.'],
+  ['Knjigovođa','Čita i izvozi izvještaje te vidi odobrene odsutnosti bez prava izmjene.']
 ].map(r=>row('R',r[0],r[1],pill(r[0]==='Knjigovođa'?'MVP+':'Aktivna'))).join('')}</div>`;}
 function viewAudit(){return `${title('Audit log','Transparentan trag svih važnih izmjena.')}<div class="card">${state.audit.map(a=>row((a.user[0]||'S'),a.action,`${a.time} · ${a.user} · ${a.module}`)).join('')}</div>`;}
 function viewSettings(){const c=state.company; return `${title('Postavke firme','Osnovna konfiguracija bez enterprise viška.')}<div class="card"><div class="form"><label>Naziv firme<input id="setName" value="${c.name}"></label><label>OIB<input id="setOib" value="${c.oib}"></label><label>Adresa<input id="setAddress" value="${c.address}"></label><label>Standardno radno vrijeme<input id="setWorkTime" value="${c.workTime}"></label><button class="btn block" onclick="saveSettings()">Spremi postavke</button></div></div><div class="card"><h2>MVP granica</h2><p class="small-muted">Nema skladišta, ERP-a, GPS-a, AI analitike ni payroll obračuna u prvoj verziji. Fokus ostaje evidencija sati + RFID terminal + export.</p></div>`;}

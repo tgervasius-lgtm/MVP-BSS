@@ -1,4 +1,4 @@
-const CACHE_NAME = 'bss-polished-green-v1';
+const CACHE_NAME = 'bss-polished-green-v2';
 const ASSETS = ['./','./index.html','./manifest.json','./icons/icon.svg'];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE_NAME).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting()));
@@ -8,5 +8,13 @@ self.addEventListener('activate', e => {
 });
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
+  if (e.request.mode === 'navigate') {
+    e.respondWith(fetch(e.request).then(response => {
+      const copy = response.clone();
+      caches.open(CACHE_NAME).then(cache => cache.put(e.request, copy));
+      return response;
+    }).catch(() => caches.match(e.request).then(cached => cached || caches.match('./index.html'))));
+    return;
+  }
   e.respondWith(caches.match(e.request).then(cached => cached || fetch(e.request)));
 });
