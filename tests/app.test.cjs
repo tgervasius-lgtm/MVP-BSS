@@ -41,6 +41,38 @@ test('evidencija i RFID simulator su odvojeni',()=>{
   assert.ok(document.querySelector('.rfid-ring'));
 });
 
+test('Demo 3.0 Sprint 1 dashboard ima potpuni operativni pregled',()=>{
+  const {window,document,state} = boot('admin');
+  assert.match(document.querySelector('.version-chip').textContent,/v3\.0/);
+  assert.match(document.querySelector('.side-footer').textContent,/Sprint 1/);
+  assert.equal(document.querySelectorAll('.dashboard-kpis .kpi-card').length,8);
+  assert.equal(document.querySelector('[data-kpi="present"] .kpi-value').textContent,'3');
+  assert.equal(document.querySelector('[data-kpi="absent"] .kpi-value').textContent,'1');
+  assert.equal(document.querySelector('[data-kpi="vacation"] .kpi-value').textContent,'1');
+  assert.equal(document.querySelector('[data-kpi="sick"] .kpi-value').textContent,'1');
+  assert.equal(document.querySelectorAll('.weekly-chart .chart-day').length,5);
+  assert.ok(document.querySelectorAll('.activity-columns .activity-item').length>=6);
+  const metrics=window.dashboardMetrics(state().workers.filter(worker=>worker.active));
+  assert.equal(metrics.active,7);
+  assert.ok(metrics.monthMinutes>0);
+  assert.ok(metrics.overtime>=0);
+});
+
+test('navigacija je grupirana i prikazuje brojače otvorenih stavki',()=>{
+  const {document} = boot('admin');
+  const groups=new Set([...document.querySelectorAll('.desktop-nav .nav-group-label')].map(item=>item.textContent));
+  assert.deepEqual(groups,new Set(['Pregled','Ljudi i rasporedi','Odobravanja','Sustav','Demo alati']));
+  const badges=[...document.querySelectorAll('.desktop-nav .nav-count')].map(item=>Number(item.textContent));
+  assert.ok(badges.length>=2);
+  assert.ok(badges.every(value=>value>0));
+});
+
+test('Sprint 1 ostaje unutar uskog BSS opsega',()=>{
+  const {document}=boot('admin');
+  const text=document.querySelector('#app').textContent.toLocaleLowerCase('hr');
+  assert.doesNotMatch(text,/skladište|gps|geofencing|ai analitika|obračun plaće|otvaranje vrata|crm/);
+});
+
 test('administrator ima godišnji pregled, radnik vidi samo sebe',()=>{
   const admin = boot('admin');
   admin.window.navigate('vacations');
