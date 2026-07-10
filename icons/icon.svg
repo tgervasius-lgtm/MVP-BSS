@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title">
+  <title id="title">BSS Smart Systems</title>
+  <defs>
+    <linearGradient id="bg" x1="64" y1="48" x2="448" y2="464" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0f766e"/>
+      <stop offset=".58" stop-color="#15906f"/>
+      <stop offset="1" stop-color="#22c55e"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="132" fill="url(#bg)"/>
+  <path d="M162 118h116c77 0 120 34 120 90 0 34-18 60-50 75 42 14 65 45 65 91 0 67-49 105-137 105H162V118Zm103 143c42 0 62-14 62-43 0-28-20-41-62-41h-31v84h31Zm10 157c44 0 66-17 66-49 0-31-22-47-66-47h-41v96h41Z" fill="#fff"/>
+</svg>
