@@ -1,1 +1,13 @@
-{"name":"BSS Smart Systems MVP+ Demo","short_name":"BSS Demo","description":"Interaktivni MVP+ demo za evidenciju radnog vremena preko RFID/NFC terminala.","start_url":"./index.html","scope":"./","display":"standalone","background_color":"#081a31","theme_color":"#0b1f3a","icons":[{"src":"icons/icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}]}
+{
+  "name": "BSS Smart Systems MVP+ Demo",
+  "short_name": "BSS Demo",
+  "description": "Polished interactive MVP+ demo for RFID/NFC time tracking.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f4fbf7",
+  "theme_color": "#0f766e",
+  "icons": [
+    {"src":"icons/icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}
+  ]
+}
