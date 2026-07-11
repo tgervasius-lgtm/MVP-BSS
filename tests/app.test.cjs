@@ -8,11 +8,32 @@ const html = fs.readFileSync('index.html','utf8');
 const source = fs.readFileSync('app.js','utf8');
 const styles = fs.readFileSync('styles.css','utf8');
 const manifest = JSON.parse(fs.readFileSync('manifest.json','utf8'));
+const designTokens = fs.readFileSync('design-system/tokens.css','utf8');
+const designGuideHtml = fs.readFileSync('design-system/index.html','utf8');
+const designGuideStyles = fs.readFileSync('design-system/guide.css','utf8');
+const designGuideScript = fs.readFileSync('design-system/guide.js','utf8');
+const designSystemDoc = fs.readFileSync('BSS_DESIGN_SYSTEM_V1.md','utf8');
+const serviceWorker = fs.readFileSync('sw.js','utf8');
 
-function boot(role='admin'){
+function hexToken(css,name){
+  const match=css.match(new RegExp(`${name}:\\s*(#[0-9a-f]{6})`,'i'));
+  assert.ok(match,`nedostaje heksadecimalna vrijednost za ${name}`);
+  return match[1];
+}
+function contrastRatio(foreground,background){
+  const luminance=hex=>{
+    const rgb=hex.match(/[0-9a-f]{2}/gi).map(value=>parseInt(value,16)/255).map(value=>value<=.04045?value/12.92:((value+.055)/1.055)**2.4);
+    return .2126*rgb[0]+.7152*rgb[1]+.0722*rgb[2];
+  };
+  const first=luminance(foreground),second=luminance(background);
+  return (Math.max(first,second)+.05)/(Math.min(first,second)+.05);
+}
+
+function boot(role='admin',options={}){
   const dom = new JSDOM(html,{url:'https://bss.test/',runScripts:'outside-only'});
   dom.window.TextEncoder = TextEncoder;
   dom.window.Blob = Blob;
+  if(options.theme) dom.window.localStorage.setItem('bss-theme-v1',options.theme);
   const context = dom.getInternalVMContext();
   vm.runInContext(source,context);
   dom.window.document.querySelector('#loginRole').value = role;
@@ -879,4 +900,94 @@ test('XLSX generator stvara valjani ZIP okvir',()=>{
   const bytes=window.zipStore([{name:'test.txt',content:'BSS'}]);
   assert.deepEqual([...bytes.slice(0,4)],[80,75,3,4]);
   assert.deepEqual([...bytes.slice(-22,-18)],[80,75,5,6]);
+});
+
+test('Design System v1.0 ima jedinstvene primitive i semantičke tokene za obje teme',()=>{
+  assert.ok(styles.trimStart().startsWith('@import url("./design-system/tokens.css")'));
+  for(const token of [
+    '--bss-color-brand-600','--bss-color-bg-surface','--bss-color-text-muted',
+    '--bss-color-action-primary','--bss-font-sans','--bss-space-4',
+    '--bss-radius-lg','--bss-shadow-md','--bss-duration-normal','--bss-control-min-height'
+  ]) assert.match(designTokens,new RegExp(`${token}:`));
+  assert.match(designTokens,/:root\[data-theme="dark"\]/);
+  assert.match(designTokens,/--bss-color-bg-canvas: var\(--bss-color-neutral-950\)/);
+  assert.match(designTokens,/Naslijeđeni aliasi Demo 3\.0/);
+  assert.match(designSystemDoc,/Quality gate za novu komponentu/);
+  assert.match(designSystemDoc,/Brand Book.*BSS Refactor(?:a|u)? v1/s);
+});
+
+test('ključni tekst i statusi Design Systema zadovoljavaju WCAG AA kontrast',()=>{
+  const pairs=[
+    ['--bss-color-neutral-500','--bss-color-neutral-50'],
+    ['--bss-color-success-600','--bss-color-success-100'],
+    ['--bss-color-warning-700','--bss-color-warning-100'],
+    ['--bss-color-danger-700','--bss-color-danger-100'],
+    ['--bss-color-info-700','--bss-color-info-100'],
+    ['--bss-color-neutral-0','--bss-color-brand-600']
+  ];
+  for(const [foreground,background] of pairs){
+    assert.ok(contrastRatio(hexToken(designTokens,foreground),hexToken(designTokens,background))>=4.5,`${foreground} nema AA kontrast na ${background}`);
+  }
+  const dark=designTokens.slice(designTokens.indexOf(':root[data-theme="dark"]'));
+  for(const [foreground,background] of [
+    ['--bss-color-text-muted','--bss-color-bg-surface'],
+    ['--bss-color-success','--bss-color-success-soft'],
+    ['--bss-color-warning','--bss-color-warning-soft'],
+    ['--bss-color-danger','--bss-color-danger-soft'],
+    ['--bss-color-info','--bss-color-info-soft']
+  ]){
+    const bg=background==='--bss-color-bg-surface'?hexToken(designTokens,'--bss-color-neutral-900'):hexToken(dark,background);
+    assert.ok(contrastRatio(hexToken(dark,foreground),bg)>=4.5,`${foreground} nema AA kontrast na ${background} u tamnoj temi`);
+  }
+});
+
+test('tema aplikacije je pristupačna, spremljena i preživljava ponovno iscrtavanje',()=>{
+  assert.match(styles,/\.switch\{[^}]*width:44px;[^}]*height:44px/);
+  const {window,document}=boot('admin');
+  assert.equal(document.documentElement.dataset.theme,'light');
+  window.openDrawer();
+  let control=document.querySelector('[data-theme-switch]');
+  assert.equal(control.getAttribute('role'),'switch');
+  assert.equal(control.getAttribute('aria-checked'),'false');
+  window.toggleTheme();
+  assert.equal(document.documentElement.dataset.theme,'dark');
+  assert.equal(window.localStorage.getItem('bss-theme-v1'),'dark');
+  assert.equal(document.querySelector('meta[name="theme-color"]').content,'#071b17');
+  assert.equal(control.getAttribute('aria-checked'),'true');
+  assert.match(document.querySelector('[data-theme-copy]').textContent,/tamna tema/);
+  window.render();
+  control=document.querySelector('[data-theme-switch]');
+  assert.equal(control.getAttribute('aria-checked'),'true');
+  assert.ok(control.classList.contains('on'));
+
+  const restored=boot('worker',{theme:'dark'});
+  assert.equal(restored.document.documentElement.dataset.theme,'dark');
+  assert.equal(restored.document.querySelector('[data-theme-switch]').getAttribute('aria-checked'),'true');
+});
+
+test('živi Design System vodič dokumentira komponente, responsive i pristupačnost',()=>{
+  const guide = new JSDOM(designGuideHtml).window.document;
+  for(const id of ['principles','colors','type','spacing','components','states','responsive','accessibility','icons']){
+    assert.ok(guide.querySelector(`#${id}`),`nedostaje sekcija ${id}`);
+  }
+  assert.ok(guide.querySelector('[data-theme-switch][role="switch"]'));
+  assert.equal(guide.documentElement.lang,'hr');
+  assert.match(guide.querySelector('title').textContent,/Design System v1\.0/);
+  assert.match(designGuideStyles,/@media\(max-width:760px\)/);
+  assert.match(designGuideStyles,/@media\(prefers-reduced-motion:reduce\)/);
+  assert.match(designGuideStyles,/@media\(prefers-contrast:more\)/);
+  assert.match(designGuideScript,/bss-theme-v1/);
+  assert.match(designGuideScript,/IntersectionObserver/);
+});
+
+test('aplikacija povezuje vodič i offline predmemorira cijeli Design System',()=>{
+  const {document}=boot('admin');
+  document.querySelector('.role-badge').click();
+  const link=document.querySelector('.design-system-link');
+  assert.equal(link.getAttribute('href'),'./design-system/');
+  assert.match(link.textContent,/Design System v1\.0/);
+  for(const asset of ['design-system/index.html','design-system/tokens.css','design-system/guide.css','design-system/guide.js']){
+    assert.match(serviceWorker,new RegExp(asset.replaceAll('.','\\.')));
+  }
+  assert.match(serviceWorker,/bss-design-system-v1/);
 });

@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="hr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#0f766e">
+  <meta name="color-scheme" content="light dark">
+  <meta name="description" content="BSS Design System v1.0 — temelji, komponente i pravila sučelja.">
+  <title>BSS Design System v1.0</title>
+  <link rel="icon" type="image/svg+xml" href="../icons/icon.svg">
+  <link rel="stylesheet" href="tokens.css">
+  <link rel="stylesheet" href="guide.css">
+  <script>
+    (()=>{try{const saved=localStorage.getItem('bss-theme-v1');const dark=matchMedia('(prefers-color-scheme: dark)').matches;document.documentElement.dataset.theme=saved==='dark'||saved==='light'?saved:(dark?'dark':'light');}catch(_){document.documentElement.dataset.theme='light';}})();
+  </script>
+</head>
+<body>
+  <a class="ds-skip" href="#main">Preskoči na sadržaj</a>
+  <header class="ds-header">
+    <a class="ds-brand" href="../" aria-label="Povratak u BSS Demo 3.0">
+      <span class="ds-logo" aria-hidden="true">B</span>
+      <span><b>BSS Design System</b><small>Verzija 1.0 · Demo 3.0</small></span>
+    </a>
+    <div class="ds-header-actions">
+      <a class="ds-button secondary" href="../">Otvori aplikaciju</a>
+      <button class="ds-theme-button" type="button" role="switch" aria-checked="false" data-theme-switch>
+        <span aria-hidden="true" data-theme-icon>☾</span><span data-theme-label>Tamna tema</span>
+      </button>
+    </div>
+  </header>
+
+  <div class="ds-layout">
+    <nav class="ds-nav" aria-label="Sadržaj Design Systema">
+      <a href="#principles">Načela</a>
+      <a href="#colors">Boje</a>
+      <a href="#type">Tipografija</a>
+      <a href="#spacing">Razmaci i oblik</a>
+      <a href="#components">Komponente</a>
+      <a href="#states">Stanja</a>
+      <a href="#responsive">Responsive</a>
+      <a href="#accessibility">Pristupačnost</a>
+      <a href="#icons">Ikone</a>
+    </nav>
+
+    <main class="ds-main" id="main">
+      <section class="ds-hero" id="principles">
+        <div>
+          <span class="ds-eyebrow">Jedan vizualni jezik</span>
+          <h1>BSS Design System v1.0</h1>
+          <p>Operativno sučelje za evidenciju vremena mora biti jasno u nekoliko sekundi, pouzdano na telefonu i jednako razumljivo radniku, voditelju i administratoru.</p>
+        </div>
+        <div class="ds-version-card">
+          <span>Status</span><b>Aktivno u Demo 3.0</b>
+          <span>Teme</span><b>Svijetla + tamna</b>
+          <span>Osnovni razmak</span><b>4 px</b>
+          <span>Minimalna kontrola</span><b>44 px</b>
+        </div>
+      </section>
+
+      <section class="ds-section">
+        <div class="ds-section-head"><span>01</span><div><h2>Načela</h2><p>Odluke koje imaju prednost pred dekoracijom.</p></div></div>
+        <div class="ds-grid four">
+          <article class="ds-card"><b>Jasno prije gustoće</b><p>Najvažniji status i sljedeća radnja moraju se prepoznati bez uputa.</p></article>
+          <article class="ds-card"><b>Uloga određuje pogled</b><p>Radnik vidi sebe; voditelj dodijeljene odjele; administrator cijelu tvrtku.</p></article>
+          <article class="ds-card"><b>Status nije samo boja</b><p>Boja je uvijek podržana tekstom, ikonom ili oblikom.</p></article>
+          <article class="ds-card"><b>Mobilno je radno</b><p>Telefon nije umanjeni desktop, nego primarni operativni ekran.</p></article>
+        </div>
+      </section>
+
+      <section class="ds-section" id="colors">
+        <div class="ds-section-head"><span>02</span><div><h2>Boje</h2><p>Brand primitive i semantička stanja za obje teme.</p></div></div>
+        <h3>Brand skala</h3>
+        <div class="ds-swatches brand-swatches">
+          <div style="--swatch:var(--bss-color-brand-50)"><i></i><b>50</b><code>#ECFDF5</code></div>
+          <div style="--swatch:var(--bss-color-brand-100)"><i></i><b>100</b><code>#D1FAE5</code></div>
+          <div style="--swatch:var(--bss-color-brand-300)"><i></i><b>300</b><code>#6EE7B7</code></div>
+          <div style="--swatch:var(--bss-color-brand-500)"><i></i><b>500</b><code>#14B8A6</code></div>
+          <div style="--swatch:var(--bss-color-brand-600)"><i></i><b>600</b><code>#0F766E</code></div>
+          <div style="--swatch:var(--bss-color-brand-700)"><i></i><b>700</b><code>#0B5E58</code></div>
+          <div style="--swatch:var(--bss-color-brand-900)"><i></i><b>900</b><code>#0C3F3A</code></div>
+          <div style="--swatch:var(--bss-color-brand-950)"><i></i><b>950</b><code>#062A26</code></div>
+        </div>
+        <h3>Semantička stanja</h3>
+        <div class="ds-grid four">
+          <div class="ds-status success"><span>✓</span><div><b>Uspjeh</b><small>Potvrđeno, prisutan, sinkronizirano</small></div></div>
+          <div class="ds-status warning"><span>!</span><div><b>Upozorenje</b><small>Na čekanju, kašnjenje, provjera</small></div></div>
+          <div class="ds-status danger"><span>×</span><div><b>Greška</b><small>Odbijeno, offline, blokirano</small></div></div>
+          <div class="ds-status info"><span>i</span><div><b>Informacija</b><small>Kontekst bez hitne radnje</small></div></div>
+        </div>
+      </section>
+
+      <section class="ds-section" id="type">
+        <div class="ds-section-head"><span>03</span><div><h2>Tipografija</h2><p>Sistemski sans-serif ostaje brz, čitljiv i ne ovisi o mreži.</p></div></div>
+        <div class="ds-type-scale">
+          <div><code>3xl / 32</code><strong class="t-3xl">Operativni pregled</strong></div>
+          <div><code>2xl / 24</code><strong class="t-2xl">Evidencija vremena</strong></div>
+          <div><code>xl / 18</code><strong class="t-xl">Današnja aktivnost</strong></div>
+          <div><code>md / 14</code><span>Marko Marić prijavio se u 08:12.</span></div>
+          <div><code>sm / 12</code><span class="muted">Pomoćni tekst i objašnjenje polja.</span></div>
+          <div><code>xs / 10</code><span class="label">STATUS · SINKRONIZIRANO</span></div>
+        </div>
+      </section>
+
+      <section class="ds-section" id="spacing">
+        <div class="ds-section-head"><span>04</span><div><h2>Razmaci, radijusi i sjene</h2><p>Ritam od 4 px održava sučelje skladnim kroz sve module.</p></div></div>
+        <div class="ds-measures">
+          <div><span style="--measure:4px"></span><code>1 · 4 px</code></div>
+          <div><span style="--measure:8px"></span><code>2 · 8 px</code></div>
+          <div><span style="--measure:12px"></span><code>3 · 12 px</code></div>
+          <div><span style="--measure:16px"></span><code>4 · 16 px</code></div>
+          <div><span style="--measure:24px"></span><code>6 · 24 px</code></div>
+          <div><span style="--measure:32px"></span><code>8 · 32 px</code></div>
+        </div>
+        <div class="ds-grid four shape-grid">
+          <div class="shape sm">8</div><div class="shape md">12</div><div class="shape lg">16</div><div class="shape xl">20</div>
+        </div>
+      </section>
+
+      <section class="ds-section" id="components">
+        <div class="ds-section-head"><span>05</span><div><h2>Komponente</h2><p>Referentna stanja elemenata koji se već koriste u Demo 3.0.</p></div></div>
+        <div class="ds-component-stack">
+          <article class="ds-preview"><h3>Gumbi</h3><div class="ds-row"><button class="ds-button">Primarna radnja</button><button class="ds-button secondary">Sekundarna</button><button class="ds-button danger">Odbij zahtjev</button><button class="ds-button" disabled>Onemogućeno</button></div></article>
+          <article class="ds-preview"><h3>Statusne oznake</h3><div class="ds-row"><span class="ds-pill success">Odobreno</span><span class="ds-pill warning">Na čekanju</span><span class="ds-pill danger">Odbijeno</span><span class="ds-pill info">Informacija</span><span class="ds-pill neutral">Neaktivno</span></div></article>
+          <article class="ds-preview"><h3>Polja obrasca</h3><div class="ds-form"><label>Radnik<input value="Ivan Horvat"></label><label>Odjel<select><option>Proizvodnja</option></select></label><label>Datum<input type="date" value="2026-07-10"></label></div></article>
+          <article class="ds-preview"><h3>Kartica i tablica</h3><div class="ds-sample-card"><div><span class="ds-avatar">IH</span><div><b>Ivan Horvat</b><small>Proizvodnja · jutarnja smjena</small></div></div><span class="ds-pill success">Prisutan</span></div><div class="ds-table-wrap"><table><thead><tr><th>Radnik</th><th>Dolazak</th><th>Odlazak</th><th>Saldo</th></tr></thead><tbody><tr><td>Ivan Horvat</td><td>07:42</td><td>16:02</td><td class="positive">+0:20 h</td></tr><tr><td>Marko Marić</td><td>08:12</td><td>—</td><td class="warning-text">Provjera</td></tr></tbody></table></div></article>
+        </div>
+      </section>
+
+      <section class="ds-section" id="states">
+        <div class="ds-section-head"><span>06</span><div><h2>Interakcijska stanja</h2><p>Svaka kontrola mora imati dosljedan odgovor.</p></div></div>
+        <div class="ds-grid four">
+          <article class="ds-card"><b>Default</b><p>Jasna oznaka i kontrast bez oslanjanja na hover.</p></article>
+          <article class="ds-card state-hover"><b>Hover</b><p>Promjena površine ili ruba, bez pomicanja sadržaja.</p></article>
+          <article class="ds-card state-focus" tabindex="0"><b>Focus visible</b><p>Plavi prsten od 3 px s razmakom od 2 px.</p></article>
+          <article class="ds-card state-disabled"><b>Disabled</b><p>Niži kontrast i bez mogućnosti aktivacije.</p></article>
+        </div>
+      </section>
+
+      <section class="ds-section" id="responsive">
+        <div class="ds-section-head"><span>07</span><div><h2>Responsive pravila</h2><p>Sadržaj se prilagođava zadatku, ne samo širini.</p></div></div>
+        <div class="ds-breakpoints">
+          <div><b>0–619 px</b><span>Jedan stupac, donja navigacija, kontrole najmanje 44 px.</span></div>
+          <div><b>620–959 px</b><span>Dva stupca gdje sadržaj ostaje čitljiv; modal u sredini.</span></div>
+          <div><b>960–1279 px</b><span>Stalna bočna navigacija i operativni višestupčani prikaz.</span></div>
+          <div><b>1280+ px</b><span>Proširene mreže bez razvlačenja sadržaja preko 1380 px.</span></div>
+        </div>
+      </section>
+
+      <section class="ds-section" id="accessibility">
+        <div class="ds-section-head"><span>08</span><div><h2>Pristupačnost</h2><p>Minimalni kriteriji za svaku novu ili izmijenjenu komponentu.</p></div></div>
+        <ul class="ds-checklist">
+          <li><b>Kontrast:</b> najmanje 4.5:1 za redovni tekst i 3:1 za veliki tekst i važne grafičke elemente.</li>
+          <li><b>Tipkovnica:</b> logičan red fokusa, vidljiv fokus i bez zamke izvan aktivnog modala.</li>
+          <li><b>Dodir:</b> glavne interaktivne kontrole najmanje 44 × 44 px.</li>
+          <li><b>Značenje:</b> statusi, greške i obavezna polja nisu označeni samo bojom.</li>
+          <li><b>Kretanje:</b> poštuje se <code>prefers-reduced-motion</code>.</li>
+          <li><b>Jezik:</b> kratke hrvatske oznake, dosljedni nazivi i jasne poruke o rezultatu radnje.</li>
+        </ul>
+      </section>
+
+      <section class="ds-section" id="icons">
+        <div class="ds-section-head"><span>09</span><div><h2>Ikone</h2><p>Ikona ubrzava skeniranje, ali ne zamjenjuje naziv važne radnje.</p></div></div>
+        <div class="ds-icon-grid">
+          <div><i>⌂</i><b>Početna</b></div><div><i>◷</i><b>Vrijeme</b></div><div><i>♙</i><b>Radnici</b></div><div><i>□</i><b>Kalendar</b></div><div><i>▤</i><b>Izvještaji</b></div><div><i>⌁</i><b>Terminal</b></div>
+        </div>
+        <p class="ds-note">Za produkciju koristiti jednu SVG biblioteku: 20–24 px, potez 1.75–2 px, <code>currentColor</code>, dekorativne ikone <code>aria-hidden="true"</code>. Emoji nisu konačni produkcijski asseti.</p>
+      </section>
+
+      <footer class="ds-footer"><span>BSS Design System v1.0</span><span>Temelj za Brand Book i BSS Refactor v1</span></footer>
+    </main>
+  </div>
+  <script src="guide.js"></script>
+</body>
+</html>
