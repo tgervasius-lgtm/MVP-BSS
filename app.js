@@ -1,10 +1,10 @@
 'use strict';
 
-const STORAGE_KEY = 'bss-demo-state-v4';
+const STORAGE_KEY = 'bss-demo-state-v5';
 const ROLE_KEY = 'bss-demo-role-v3';
 const LOGIN_KEY = 'bss-demo-logged-v3';
 const APP_VERSION = '3.0';
-const APP_STAGE = 'Sprint 2';
+const APP_STAGE = 'Sprint 3';
 const DEMO_TODAY = '2026-07-10';
 const DEMO_NOW = '10:00';
 const CROATIAN_HOLIDAYS_2026 = new Set([
@@ -14,7 +14,7 @@ const CROATIAN_HOLIDAYS_2026 = new Set([
 ]);
 
 const DEFAULT_STATE = {
-  version: 4,
+  version: 5,
   demoMode: true,
   company: {
     name: 'BSS Demo d.o.o.',
@@ -63,15 +63,17 @@ const DEFAULT_STATE = {
     {id: 22, workerId: 7, date: '2026-07-07', start: '07:56', end: '16:01', breakMinutes: 30, status: 'Uredno'}
   ],
   requests: [
-    {id: 1, workerId: 2, type: 'Godišnji odmor', start: '2026-06-23', end: '2026-06-27', note: 'Obiteljski odmor', status: 'Na čekanju'},
-    {id: 2, workerId: 3, type: 'Slobodan dan', start: '2026-07-15', end: '2026-07-15', note: 'Privatne obveze', status: 'Odobreno'},
-    {id: 3, workerId: 6, type: 'Godišnji odmor', start: '2026-08-05', end: '2026-08-09', note: 'Ljetni godišnji', status: 'Na čekanju'},
-    {id: 4, workerId: 1, type: 'Godišnji odmor', start: '2026-03-16', end: '2026-03-20', note: 'Proljetni odmor', status: 'Odobreno'},
-    {id: 5, workerId: 1, type: 'Godišnji odmor', start: '2026-09-28', end: '2026-10-02', note: 'Jesenski odmor', status: 'Odobreno'},
-    {id: 6, workerId: 1, type: 'Godišnji odmor', start: '2026-12-28', end: '2026-12-30', note: 'Kraj godine', status: 'Na čekanju'},
-    {id: 7, workerId: 4, type: 'Godišnji odmor', start: '2026-09-07', end: '2026-09-18', note: 'Glavni godišnji', status: 'Odobreno'},
-    {id: 8, workerId: 5, type: 'Godišnji odmor', start: '2026-12-21', end: '2026-12-24', note: 'Blagdanski odmor', status: 'Odobreno'},
-    {id: 9, workerId: 2, type: 'Godišnji odmor', start: '2026-04-06', end: '2026-04-10', note: 'Proljetni odmor', status: 'Odobreno'}
+    {id: 1, workerId: 2, type: 'Godišnji odmor', start: '2026-08-17', end: '2026-08-21', note: 'Obiteljski odmor', status: 'Na čekanju', submittedAt: '10.07.2026. 09:10'},
+    {id: 2, workerId: 3, type: 'Slobodan dan', start: '2026-07-15', end: '2026-07-15', note: 'Privatne obveze', status: 'Odobreno', submittedAt: '25.06.2026. 11:20', decidedBy: 'Administrator', decidedAt: '30.06.2026. 08:45', decisionNote: 'Odobreno prema planu odjela.'},
+    {id: 3, workerId: 7, type: 'Godišnji odmor', start: '2026-09-30', end: '2026-10-02', note: 'Obiteljske obveze', status: 'Na čekanju', submittedAt: '09.07.2026. 13:40'},
+    {id: 4, workerId: 1, type: 'Godišnji odmor', start: '2026-03-16', end: '2026-03-20', note: 'Proljetni odmor', status: 'Odobreno', submittedAt: '01.02.2026. 10:15', decidedBy: 'Voditelj', decidedAt: '03.02.2026. 09:05', decisionNote: 'Termin usklađen sa smjenom.'},
+    {id: 5, workerId: 1, type: 'Godišnji odmor', start: '2026-09-28', end: '2026-10-02', note: 'Jesenski odmor', status: 'Odobreno', submittedAt: '20.06.2026. 12:10', decidedBy: 'Voditelj', decidedAt: '21.06.2026. 08:30', decisionNote: 'Odobreno uz dogovorenu zamjenu.'},
+    {id: 6, workerId: 1, type: 'Godišnji odmor', start: '2026-12-28', end: '2026-12-30', note: 'Kraj godine', status: 'Na čekanju', submittedAt: '08.07.2026. 16:20'},
+    {id: 7, workerId: 4, type: 'Godišnji odmor', start: '2026-09-07', end: '2026-09-18', note: 'Glavni godišnji', status: 'Odobreno', submittedAt: '12.05.2026. 14:05', decidedBy: 'Administrator', decidedAt: '13.05.2026. 09:10', decisionNote: 'Odobreno.'},
+    {id: 8, workerId: 5, type: 'Godišnji odmor', start: '2026-12-21', end: '2026-12-24', note: 'Blagdanski odmor', status: 'Odobreno', submittedAt: '05.07.2026. 10:20', decidedBy: 'Administrator', decidedAt: '06.07.2026. 08:50', decisionNote: 'Odobreno.'},
+    {id: 9, workerId: 2, type: 'Godišnji odmor', start: '2026-04-06', end: '2026-04-10', note: 'Proljetni odmor', status: 'Odobreno', submittedAt: '15.02.2026. 09:20', decidedBy: 'Voditelj', decidedAt: '16.02.2026. 08:15', decisionNote: 'Odobreno.'},
+    {id: 10, workerId: 6, type: 'Godišnji odmor', start: '2026-08-24', end: '2026-08-28', note: 'Ljetni odmor', status: 'Odbijeno', submittedAt: '03.07.2026. 12:00', decidedBy: 'Administrator', decidedAt: '04.07.2026. 09:00', decisionNote: 'Predloži drugi termin zbog planiranog servisa.'},
+    {id: 11, workerId: 1, type: 'Slobodan dan', start: '2026-06-12', end: '2026-06-12', note: 'Privatne obveze', status: 'Poništeno', submittedAt: '01.06.2026. 15:30', decidedBy: 'Radnik', decidedAt: '05.06.2026. 10:10', decisionNote: 'Zahtjev više nije potreban.'}
   ],
   corrections: [
     {id: 1, workerId: 2, date: '2026-07-08', oldStart: '08:12', oldEnd: '', newStart: '08:12', newEnd: '16:02', reason: 'Zaboravljena odjava', status: 'Na čekanju'},
@@ -107,6 +109,8 @@ let calendarYear = 2026;
 let calendarMonth = 6;
 let calendarMode = 'year';
 let vacationDepartment = 'Svi';
+let requestStatusFilter = 'Na čekanju';
+let requestSearch = '';
 let attendanceFilters = {month: '2026-07', department: 'Svi', status: 'Svi', search: ''};
 let attendanceView = 'all';
 let myTimeMonth = '2026-07';
@@ -120,7 +124,7 @@ function loadState(){
   try{
     const raw = localStorage.getItem(STORAGE_KEY);
     const parsed = raw ? JSON.parse(raw) : null;
-    return parsed && parsed.version === 4 ? parsed : clone(DEFAULT_STATE);
+    return parsed && parsed.version === 5 ? parsed : clone(DEFAULT_STATE);
   }catch(error){
     return clone(DEFAULT_STATE);
   }
@@ -304,7 +308,8 @@ function pill(status){
   const orange = ['Na čekanju','Kasni','Kašnjenje','Nepotpun zapis','Očekuje smjenu','Offline zapis'];
   const red = ['Odbijeno','Odsutna','Greška','Offline','Blokirana','Neaktivan','Neaktivna'];
   const blue = ['Godišnji','Bolovanje','Samo čitanje','Demo'];
-  const css = green.includes(status) ? 'green' : orange.includes(status) ? 'orange' : red.includes(status) ? 'red' : blue.includes(status) ? 'blue' : '';
+  const gray = ['Poništeno'];
+  const css = green.includes(status) ? 'green' : orange.includes(status) ? 'orange' : red.includes(status) ? 'red' : blue.includes(status) ? 'blue' : gray.includes(status) ? 'gray' : '';
   return `<span class="pill ${css}">${escapeHtml(status)}</span>`;
 }
 function title(heading,subtitle,right = ''){
@@ -361,6 +366,8 @@ function switchRole(next){
   localStorage.setItem(ROLE_KEY,currentRole);
   vacationDepartment = 'Svi';
   calendarMode = currentRole === 'admin' ? 'year' : 'month';
+  requestStatusFilter=currentRole==='worker'?'Svi':'Na čekanju';
+  requestSearch='';
   attendanceFilters={month:'2026-07',department:'Svi',status:'Svi',search:''};
   attendanceView='all';
   myTimeMonth='2026-07';
@@ -491,6 +498,8 @@ function login(){
   localStorage.setItem(LOGIN_KEY,'1');
   logged = true;
   calendarMode = currentRole === 'admin' ? 'year' : 'month';
+  requestStatusFilter=currentRole==='worker'?'Svi':'Na čekanju';
+  requestSearch='';
   attendanceView='all';
   myTimeMonth='2026-07';
   screen = 'home';
@@ -508,6 +517,8 @@ function resetDemo(){
   attendanceFilters={month:'2026-07',department:'Svi',status:'Svi',search:''};
   attendanceView='all';
   myTimeMonth='2026-07';
+  requestStatusFilter='Na čekanju';
+  requestSearch='';
   correctionDraft={date:DEMO_TODAY,start:'07:42',end:'16:02'};
   screen = 'home';
   render();
@@ -862,65 +873,133 @@ function toggleShift(id){
   shift.active=!shift.active;audit('Administrator',`${shift.active?'Aktivirana':'Deaktivirana'} smjena ${shift.name}.`,'Smjene');saveAndRender(`Smjena je ${shift.active?'aktivna':'neaktivna'}.`);
 }
 
+const REQUEST_STATUSES=['Na čekanju','Odobreno','Odbijeno','Poništeno'];
 function intervalsOverlap(startA,endA,startB,endB){ return startA<=endB && startB<=endA; }
+function activeLeaveRequest(request){ return ['Na čekanju','Odobreno'].includes(request.status); }
 function teamConflicts(request){
   const worker=workerById(request.workerId);
-  if(!worker)return[];
-  return state.requests.filter(other=>other.id!==request.id&&other.workerId!==request.workerId&&other.status!=='Odbijeno'&&intervalsOverlap(request.start,request.end,other.start,other.end)&&workerById(other.workerId)?.dept===worker.dept);
+  if(!worker||!activeLeaveRequest(request))return[];
+  return state.requests.filter(other=>other.id!==request.id&&other.workerId!==request.workerId&&activeLeaveRequest(other)&&intervalsOverlap(request.start,request.end,other.start,other.end)&&workerById(other.workerId)?.dept===worker.dept);
 }
 function committedVacationDays(workerId,year=2026){
-  return state.requests.filter(request=>request.workerId===Number(workerId)&&request.type==='Godišnji odmor'&&request.status!=='Odbijeno'&&request.start.startsWith(String(year))).reduce((sum,request)=>sum+businessDays(request.start,request.end),0);
+  return state.requests.filter(request=>request.workerId===Number(workerId)&&request.type==='Godišnji odmor'&&activeLeaveRequest(request)&&request.start.startsWith(String(year))).reduce((sum,request)=>sum+businessDays(request.start,request.end),0);
 }
-function requestCard(request,isApprover){
-  const worker=workerById(request.workerId);
-  const days=businessDays(request.start,request.end);
-  const conflicts=teamConflicts(request);
-  const controls=isApprover&&request.status==='Na čekanju'?`<div class="btns"><button class="btn green small" onclick="updateRequest(${request.id},'Odobreno')">Odobri</button><button class="btn red small" onclick="updateRequest(${request.id},'Odbijeno')">Odbij</button></div>`:'';
-  const conflictLabel=conflicts.length?`<br><span style="color:var(--amber);font-weight:800">Preklapanje u odjelu: ${conflicts.map(item=>escapeHtml(workerById(item.workerId)?.name||'')).join(', ')}</span>`:'';
-  return `<div class="row"><div class="avatar">${initials(worker?.name)}</div><div class="meta"><b>${escapeHtml(worker?.name||'Nepoznat radnik')}</b><span>${escapeHtml(request.type)} · ${escapeHtml(rangeLabel(request.start,request.end))} · ${pluralDays(days)}<br>${escapeHtml(request.note||'Bez napomene')}${conflictLabel}</span></div><div class="side">${pill(request.status)}${controls}</div></div>`;
+function reservedVacationDays(workerId,year=2026){
+  return state.requests.filter(request=>request.workerId===Number(workerId)&&request.type==='Godišnji odmor'&&request.status==='Na čekanju'&&request.start.startsWith(String(year))).reduce((sum,request)=>sum+businessDays(request.start,request.end),0);
+}
+function vacationBalanceSummary(workerId,year=2026){
+  const worker=workerById(workerId),allowance=Number(worker?.vacationAllowance||0),used=vacationUsed(workerId,year),reserved=reservedVacationDays(workerId,year);
+  return {allowance,used,reserved,remaining:Math.max(0,allowance-used),available:Math.max(0,allowance-used-reserved)};
+}
+function scopedLeaveRequests(){ return state.requests.filter(requestVisible).sort((a,b)=>b.start.localeCompare(a.start)||Number(b.id)-Number(a.id)); }
+function requestStatusCounts(requests){ return Object.fromEntries(['Svi',...REQUEST_STATUSES].map(status=>[status,status==='Svi'?requests.length:requests.filter(request=>request.status===status).length])); }
+function filteredLeaveRequests(){
+  const search=requestSearch.toLocaleLowerCase('hr');
+  return scopedLeaveRequests().filter(request=>{
+    const worker=workerById(request.workerId);
+    return (requestStatusFilter==='Svi'||request.status===requestStatusFilter)&&(!search||`${worker?.name||''} ${worker?.dept||''} ${request.type} ${request.note||''}`.toLocaleLowerCase('hr').includes(search));
+  });
+}
+function setRequestStatusFilter(status){ if(!['Svi',...REQUEST_STATUSES].includes(status))return;requestStatusFilter=status;render(); }
+function applyRequestSearch(){ requestSearch=$('#requestSearch')?.value.trim()||'';render(); }
+function clearRequestFilters(){ requestStatusFilter=currentRole==='worker'?'Svi':'Na čekanju';requestSearch='';render(); }
+function requestCard(request,isApprover=false){
+  const worker=workerById(request.workerId),days=businessDays(request.start,request.end),conflicts=teamConflicts(request);
+  const conflictText=currentRole==='worker'?'Postoji drugi aktivni zahtjev u odjelu.':conflicts.map(item=>escapeHtml(workerById(item.workerId)?.name||'Radnik')).join(', ');
+  const conflictBlock=conflicts.length?`<div class="leave-conflict"><b>Preklapanje u odjelu</b><span>${conflictText}</span></div>`:'';
+  const decisionBlock=request.decidedAt?`<div class="leave-decision"><span>${escapeHtml(request.decidedBy||'Sustav')} · ${escapeHtml(request.decidedAt)}</span><b>${escapeHtml(request.decisionNote||'Odluka bez dodatne napomene.')}</b></div>`:'';
+  const approverAction=isApprover&&request.status==='Na čekanju'?`<button class="btn small" onclick="openRequestDecision(${request.id})">Donesi odluku</button>`:'';
+  const workerAction=currentRole==='worker'&&request.workerId===currentWorker().id&&request.status==='Na čekanju'?`<button class="btn red small" onclick="openCancelRequest(${request.id})">Poništi zahtjev</button>`:'';
+  return `<article class="leave-request-card" data-request-id="${request.id}" data-status="${escapeHtml(request.status)}"><div class="leave-request-head"><div class="avatar">${initials(worker?.name)}</div><div><b>${escapeHtml(worker?.name||'Nepoznat radnik')}</b><span>${escapeHtml(worker?.dept||'—')} · poslano ${escapeHtml(request.submittedAt||'nije evidentirano')}</span></div>${pill(request.status)}</div><div class="leave-request-body"><div><span>Vrsta</span><b>${escapeHtml(request.type)}</b></div><div><span>Razdoblje</span><b>${escapeHtml(rangeLabel(request.start,request.end))}</b></div><div><span>Radni dani</span><b>${days}</b></div></div><p>${escapeHtml(request.note||'Bez dodatne napomene.')}</p>${conflictBlock}${decisionBlock}${approverAction||workerAction?`<div class="leave-request-actions">${approverAction}${workerAction}</div>`:''}</article>`;
+}
+function requestTabs(requests){
+  const counts=requestStatusCounts(requests);
+  return `<div class="request-tabs" role="group" aria-label="Status zahtjeva">${['Na čekanju','Odobreno','Odbijeno','Poništeno','Svi'].map(status=>`<button class="${requestStatusFilter===status?'active':''}" onclick="setRequestStatusFilter('${status}')">${status}<span>${counts[status]}</span></button>`).join('')}</div>`;
+}
+function vacationRequestForm(){
+  const balance=vacationBalanceSummary(currentWorker().id);
+  return `<section class="card leave-form-card"><div class="card-heading"><div><h2>Novi zahtjev</h2><p>Radni dani računaju se bez vikenda i hrvatskih blagdana u 2026.</p></div>${pill(`${balance.available} dostupno`)}</div><div class="notice info">Zahtjev rezervira dane dok je na čekanju. Izvorni fond odobrenih dana mijenja se tek nakon odluke.</div><div class="form form-grid"><label>Vrsta<select id="vacType" onchange="updateVacationRequestPreview()"><option>Godišnji odmor</option><option>Slobodan dan</option></select></label><label>Fond za nove zahtjeve<input value="${balance.available} radnih dana" disabled></label><label>Od<input id="vacStart" type="date" min="2026-07-11" max="2026-12-31" value="2026-08-17" onchange="updateVacationRequestPreview()"></label><label>Do<input id="vacEnd" type="date" min="2026-07-11" max="2026-12-31" value="2026-08-21" onchange="updateVacationRequestPreview()"></label><label style="grid-column:1/-1">Napomena za organizaciju rada<textarea id="vacNote" rows="3" placeholder="Ne upisuj osjetljive privatne ili zdravstvene podatke"></textarea></label></div><div id="vacRequestPreview" class="leave-request-preview">${vacationRequestPreviewText('Godišnji odmor','2026-08-17','2026-08-21',currentWorker().id)}</div><div class="btns"><button class="btn" onclick="submitVacationRequest()">Pošalji zahtjev</button></div></section>`;
+}
+function vacationRequestPreviewText(type,start,end,workerId){
+  if(!start||!end||end<start)return 'Odaberi valjano razdoblje.';
+  const days=businessDays(start,end),balance=vacationBalanceSummary(workerId);
+  if(!days)return 'Odabrano razdoblje nema radnih dana.';
+  if(type!=='Godišnji odmor')return `${pluralDays(days)} · slobodan dan ne umanjuje fond godišnjeg odmora u ovom demo-prikazu.`;
+  return `${pluralDays(days)} · dostupno prije zahtjeva ${balance.available} · nakon slanja ${Math.max(0,balance.available-days)}.`;
+}
+function updateVacationRequestPreview(){
+  const element=$('#vacRequestPreview');
+  if(element)element.textContent=vacationRequestPreviewText($('#vacType').value,$('#vacStart').value,$('#vacEnd').value,currentWorker().id);
 }
 function viewRequests(){
-  const isApprover=['admin','manager'].includes(currentRole);
-  const isWorker=currentRole==='worker';
-  const requests=state.requests.filter(requestVisible).sort((a,b)=>b.start.localeCompare(a.start));
-  const worker=currentWorker();
-  const available=Math.max(0,(worker.vacationAllowance||0)-committedVacationDays(worker.id));
-  const form=isWorker?`<div class="card"><h2>Novi zahtjev</h2><div class="notice info">Trajanje se računa po radnim danima (ponedjeljak–petak), bez hrvatskih blagdana u 2026. Zahtjev koji se preklapa s tvojim postojećim zahtjevom neće se poslati.</div><div class="form form-grid"><label>Vrsta<select id="vacType"><option>Godišnji odmor</option><option>Slobodan dan</option></select></label><label>Preostalo za nove zahtjeve<input value="${available} radnih dana" disabled></label><label>Od<input id="vacStart" type="date" value="2026-08-17"></label><label>Do<input id="vacEnd" type="date" value="2026-08-21"></label><label style="grid-column:1/-1">Napomena<textarea id="vacNote" rows="3" placeholder="Kratka napomena voditelju"></textarea></label></div><div class="btns"><button class="btn" onclick="submitVacationRequest()">Pošalji zahtjev</button></div></div>`:'';
-  return `${title(isWorker?'Moji zahtjevi':currentRole==='manager'?'Zahtjevi mojeg tima':'Zahtjevi za odsutnost',isWorker?'Status godišnjih odmora i slobodnih dana.':'Odobravanje uz vidljivo preklapanje unutar odjela.',pill(`${requests.filter(request=>request.status==='Na čekanju').length} na čekanju`))}
-    ${isApprover?'<div class="notice">Oznaka preklapanja je upozorenje za planiranje kapaciteta. Voditelj i dalje može donijeti odluku prema stvarnoj zamjeni u smjeni.</div>':''}
-    <div class="card">${requests.map(request=>requestCard(request,isApprover)).join('')||'<div class="empty-state">Nema zahtjeva u tvojem opsegu.</div>'}</div>${form}<button class="btn secondary block" onclick="navigate('vacations')">Otvori kalendar godišnjih</button>`;
+  const isApprover=['admin','manager'].includes(currentRole),isWorker=currentRole==='worker',scoped=scopedLeaveRequests(),requests=filteredLeaveRequests(),counts=requestStatusCounts(scoped);
+  const conflicts=scoped.filter(request=>request.status==='Na čekanju'&&teamConflicts(request).length).length;
+  const approvedDays=scoped.filter(request=>request.status==='Odobreno').reduce((sum,request)=>sum+businessDays(request.start,request.end),0);
+  const balance=isWorker?vacationBalanceSummary(currentWorker().id):null;
+  const summary=isWorker?`<div class="stats-grid leave-kpis"><div class="stat"><div class="num">${balance.allowance}</div><div class="lab">Godišnji fond 2026.</div></div><div class="stat"><div class="num">${balance.used}</div><div class="lab">Odobreno</div></div><div class="stat"><div class="num">${balance.reserved}</div><div class="lab">Rezervirano na čekanju</div></div><div class="stat"><div class="num">${balance.available}</div><div class="lab">Dostupno za novi zahtjev</div></div></div>`:`<div class="stats-grid leave-kpis"><div class="stat"><div class="num">${counts['Na čekanju']}</div><div class="lab">Čeka odluku</div></div><div class="stat"><div class="num">${conflicts}</div><div class="lab">Zahtjevi s preklapanjem</div></div><div class="stat"><div class="num">${approvedDays}</div><div class="lab">Odobreni radni dani</div></div><div class="stat"><div class="num">${counts.Odbijeno+counts.Poništeno}</div><div class="lab">Zatvoreno bez odsutnosti</div></div></div>`;
+  return `${title(isWorker?'Moji zahtjevi':currentRole==='manager'?'Zahtjevi mojeg tima':'Zahtjevi za odsutnost',isWorker?'Tvoji zahtjevi, odluke i raspoloživi dani.':'Odluke s napomenom, provjerom preklapanja i audit tragom.',pill(`${counts['Na čekanju']} na čekanju`))}${summary}<div class="card request-control-card">${requestTabs(scoped)}<div class="request-search"><input id="requestSearch" aria-label="Traži zahtjeve" placeholder="Ime, odjel, vrsta ili napomena" value="${escapeHtml(requestSearch)}"><button class="btn" onclick="applyRequestSearch()">Traži</button><button class="btn secondary" onclick="clearRequestFilters()">Očisti</button></div></div>${isApprover?'<div class="notice">Preklapanje je upozorenje za kapacitet odjela, ne automatska zabrana. Odluka i napomena ostaju u audit tragu.</div>':''}<div class="leave-request-grid">${requests.map(request=>requestCard(request,isApprover)).join('')||'<div class="card empty-state">Nema zahtjeva za odabrane kriterije.</div>'}</div>${isWorker?vacationRequestForm():''}<button class="btn secondary block" onclick="navigate('vacations')">Otvori kalendar godišnjih</button>`;
 }
 function submitVacationRequest(){
   if(currentRole!=='worker')return;
   const worker=currentWorker(),type=$('#vacType').value,start=$('#vacStart').value,end=$('#vacEnd').value,note=$('#vacNote').value.trim();
   if(!start||!end||end<start){toast('Provjeri početni i završni datum.');return;}
+  if(start<=DEMO_TODAY){toast('Novi zahtjev mora početi nakon današnjeg dana.');return;}
+  if(!start.startsWith('2026-')||!end.startsWith('2026-')){toast('Demo 3.0 podržava zahtjeve unutar 2026. godine.');return;}
   const days=businessDays(start,end);
   if(days===0){toast('Odabrano razdoblje nema radnih dana.');return;}
-  const ownOverlap=state.requests.find(request=>request.workerId===worker.id&&request.status!=='Odbijeno'&&intervalsOverlap(start,end,request.start,request.end));
+  const ownOverlap=state.requests.find(request=>request.workerId===worker.id&&activeLeaveRequest(request)&&intervalsOverlap(start,end,request.start,request.end));
   if(ownOverlap){toast(`Zahtjev se preklapa s razdobljem ${rangeLabel(ownOverlap.start,ownOverlap.end)}.`);return;}
   if(type==='Godišnji odmor'){
-    const available=Math.max(0,(worker.vacationAllowance||0)-committedVacationDays(worker.id));
+    const available=vacationBalanceSummary(worker.id).available;
     if(days>available){toast(`Nema dovoljno raspoloživih dana. Dostupno: ${available}.`);return;}
   }
-  const request={id:Date.now(),workerId:worker.id,type,start,end,note:note||'Bez napomene',status:'Na čekanju'};
+  const request={id:Date.now(),workerId:worker.id,type,start,end,note:note||'Bez dodatne napomene.',status:'Na čekanju',submittedAt:now()};
   state.requests.unshift(request);
   const conflicts=teamConflicts(request).length;
+  requestStatusFilter='Na čekanju';
   audit('Radnik',`Poslan zahtjev: ${worker.name} · ${rangeLabel(start,end)} · ${pluralDays(days)}.`,'Zahtjevi');
   saveAndRender(conflicts?`Zahtjev je poslan. Postoji ${conflicts} preklapanje u odjelu.`:'Zahtjev je poslan voditelju.');
 }
-function updateRequest(id,status){
+function openRequestDecision(id){
   if(!['admin','manager'].includes(currentRole))return;
   const request=state.requests.find(item=>item.id===Number(id));
-  if(!request||!requestVisible(request)||!['Odobreno','Odbijeno'].includes(status))return;
-  request.status=status;
-  const worker=workerById(request.workerId);
-  const decision=status==='Odobreno'?'Odobren':'Odbijen';
-  audit(role().label,`${decision} zahtjev: ${worker?.name||'Radnik'} · ${rangeLabel(request.start,request.end)}.`,'Zahtjevi');
-  saveAndRender(`Zahtjev je ${decision.toLowerCase()}.`);
+  if(!request||!requestVisible(request)||request.status!=='Na čekanju')return;
+  const worker=workerById(request.workerId),conflicts=teamConflicts(request),balance=vacationBalanceSummary(request.workerId);
+  const modal=$('#modal');
+  modal.innerHTML=`<div class="modal-card request-decision-modal"><div class="modal-head"><div><div class="eyebrow">Odluka o zahtjevu</div><h2>${escapeHtml(worker?.name||'Nepoznat radnik')}</h2><div class="small-muted">${escapeHtml(worker?.dept||'—')} · ${escapeHtml(request.type)}</div></div><button class="close-btn" aria-label="Zatvori" onclick="closeModal()">×</button></div><div class="record-detail-grid"><div><span>Od</span><b>${escapeHtml(isoLabel(request.start))}</b></div><div><span>Do</span><b>${escapeHtml(isoLabel(request.end))}</b></div><div><span>Radni dani</span><b>${businessDays(request.start,request.end)}</b></div><div><span>Odobreno dosad</span><b>${balance.used}</b></div><div><span>Rezervirano</span><b>${balance.reserved}</b></div><div><span>Preklapanja</span><b class="${conflicts.length?'negative':'positive'}">${conflicts.length}</b></div></div><div class="muted-box">${escapeHtml(request.note||'Bez dodatne napomene.')}</div>${conflicts.length?`<div class="notice"><b>Preklapanje u odjelu:</b> ${conflicts.map(item=>escapeHtml(workerById(item.workerId)?.name||'Radnik')).join(', ')}</div>`:'<div class="notice info">Nema preklapanja s aktivnim zahtjevima u odjelu.</div>'}<div class="form"><label>Napomena odluke<textarea id="requestDecisionNote" rows="3" placeholder="Obvezna kod odbijanja; preporučena kod odobrenja"></textarea></label></div><div class="btns"><button class="btn green" onclick="decideRequest(${request.id},'Odobreno')">Odobri</button><button class="btn red" onclick="decideRequest(${request.id},'Odbijeno')">Odbij / traži izmjenu</button><button class="btn secondary" onclick="closeModal()">Odustani</button></div></div>`;
+  modal.classList.add('open');
+}
+function decideRequest(id,status,noteOverride=''){
+  if(!['admin','manager'].includes(currentRole)||!['Odobreno','Odbijeno'].includes(status))return;
+  const request=state.requests.find(item=>item.id===Number(id));
+  if(!request||!requestVisible(request)||request.status!=='Na čekanju')return;
+  const note=noteOverride||$('#requestDecisionNote')?.value.trim()||'';
+  if(status==='Odbijeno'&&!note){toast('Kod odbijanja upiši razlog ili prijedlog izmjene.');return;}
+  request.status=status;request.decidedBy=role().label;request.decidedAt=now();request.decisionNote=note||(status==='Odobreno'?'Odobreno bez dodatne napomene.':'');
+  const worker=workerById(request.workerId),decision=status==='Odobreno'?'Odobren':'Odbijen';
+  audit(role().label,`${decision} zahtjev: ${worker?.name||'Radnik'} · ${rangeLabel(request.start,request.end)} · ${request.decisionNote}`,'Zahtjevi');
+  closeModal();saveAndRender(`Zahtjev je ${decision.toLowerCase()}.`);
+}
+function updateRequest(id,status){ decideRequest(id,status,status==='Odobreno'?'Odobreno iz pregleda zahtjeva.':'Potrebna je izmjena termina.'); }
+function openCancelRequest(id){
+  if(currentRole!=='worker')return;
+  const request=state.requests.find(item=>item.id===Number(id));
+  if(!request||request.workerId!==currentWorker().id||request.status!=='Na čekanju')return;
+  const modal=$('#modal');
+  modal.innerHTML=`<div class="modal-card"><div class="modal-head"><div><h2>Poništi zahtjev?</h2><div class="small-muted">${escapeHtml(rangeLabel(request.start,request.end))} · ${pluralDays(businessDays(request.start,request.end))}</div></div><button class="close-btn" aria-label="Zatvori" onclick="closeModal()">×</button></div><p class="small-muted">Zahtjev će ostati vidljiv u povijesti sa statusom Poništeno, a rezervirani dani vratit će se u raspoloživi fond.</p><div class="btns"><button class="btn red" onclick="cancelVacationRequest(${request.id})">Da, poništi</button><button class="btn secondary" onclick="closeModal()">Odustani</button></div></div>`;
+  modal.classList.add('open');
+}
+function cancelVacationRequest(id){
+  if(currentRole!=='worker')return;
+  const request=state.requests.find(item=>item.id===Number(id));
+  if(!request||request.workerId!==currentWorker().id||request.status!=='Na čekanju')return;
+  request.status='Poništeno';request.decidedBy='Radnik';request.decidedAt=now();request.decisionNote='Zahtjev je poništio radnik.';
+  audit('Radnik',`Poništen zahtjev: ${currentWorker().name} · ${rangeLabel(request.start,request.end)}.`,'Zahtjevi');
+  closeModal();saveAndRender('Zahtjev je poništen, a rezervirani dani su vraćeni.');
 }
 
 function calendarRequests(){
-  return state.requests.filter(request=>request.start&&request.end&&request.status!=='Odbijeno'&&requestVisible(request))
+  return state.requests.filter(request=>request.start&&request.end&&activeLeaveRequest(request)&&requestVisible(request))
     .filter(request=>currentRole!=='accountant'||request.status==='Odobreno')
     .filter(request=>vacationDepartment==='Svi'||workerById(request.workerId)?.dept===vacationDepartment);
 }
@@ -960,8 +1039,15 @@ function showVacationDay(iso){
   const events=requestsForDay(iso,calendarRequests());
   if(!events.length)return;
   const modal=$('#modal');
-  modal.innerHTML=`<div class="modal-card"><div class="modal-head"><div><h2>${escapeHtml(isoToDate(iso).toLocaleDateString('hr-HR',{day:'numeric',month:'long',year:'numeric'}))}</h2><div class="small-muted">Odsutnosti za odabrani datum</div></div><button class="close-btn" onclick="closeModal()">×</button></div>${events.map(request=>{const worker=workerById(request.workerId);return row(initials(worker?.name),worker?.name||'Nepoznat radnik',`${escapeHtml(request.type)} · ${pluralDays(businessDays(request.start,request.end))}`,pill(request.status));}).join('')}</div>`;
+  modal.innerHTML=`<div class="modal-card"><div class="modal-head"><div><h2>${escapeHtml(isoToDate(iso).toLocaleDateString('hr-HR',{day:'numeric',month:'long',year:'numeric'}))}</h2><div class="small-muted">Odsutnosti za odabrani datum</div></div><button class="close-btn" aria-label="Zatvori" onclick="closeModal()">×</button></div><div class="leave-request-grid compact">${events.map(request=>requestCard(request,false)).join('')}</div></div>`;
   modal.classList.add('open');
+}
+function departmentLeaveSummary(requests){
+  const departments=[...new Set(visibleWorkers().filter(worker=>worker.active&&(vacationDepartment==='Svi'||worker.dept===vacationDepartment)).map(worker=>worker.dept))].sort((a,b)=>a.localeCompare(b,'hr'));
+  return departments.map(department=>{
+    const departmentRequests=requests.filter(request=>workerById(request.workerId)?.dept===department);
+    return {department,workers:visibleWorkers().filter(worker=>worker.active&&worker.dept===department).length,pending:departmentRequests.filter(request=>request.status==='Na čekanju').length,approvedDays:departmentRequests.filter(request=>request.status==='Odobreno').reduce((sum,request)=>sum+businessDays(request.start,request.end),0),conflicts:departmentRequests.filter(request=>teamConflicts(request).length).length};
+  });
 }
 function viewVacations(){
   const requests=calendarRequests().filter(request=>request.start.slice(0,4)<=String(calendarYear)&&request.end.slice(0,4)>=String(calendarYear));
@@ -970,15 +1056,17 @@ function viewVacations(){
   const subtitle=currentRole==='worker'?'Prikazuju se samo tvoji zahtjevi.':isAdmin?'Godišnji pregled svih radnika uz filtar odjela.':'Prikaz je ograničen pravima tvoje uloge.';
   const label=calendarMode==='year'?String(calendarYear):new Date(calendarYear,calendarMonth,1).toLocaleDateString('hr-HR',{month:'long',year:'numeric'});
   const calendar=calendarMode==='year'?`<div class="year-calendar">${Array.from({length:12},(_,month)=>calendarMonthCard(calendarYear,month,requests)).join('')}</div>`:`<div class="month-view">${calendarMonthCard(calendarYear,calendarMonth,requests,true)}</div>`;
-  const balanceWorkers=currentRole==='accountant'?[]:visibleWorkers().filter(worker=>worker.active);
+  const balanceWorkers=currentRole==='accountant'?[]:visibleWorkers().filter(worker=>worker.active&&(vacationDepartment==='Svi'||worker.dept===vacationDepartment));
   const approved=requests.filter(request=>request.status==='Odobreno');
   const pendingVisible=currentRole!=='accountant';
+  const departmentSummary=['admin','manager'].includes(currentRole)?departmentLeaveSummary(requests):[];
   return `${title(titleText,subtitle,pill(String(calendarYear)))}
     <div class="card"><div class="calendar-toolbar"><div class="calendar-controls"><button onclick="changeCalendarPeriod(-1)" aria-label="Prethodno">‹</button><b>${escapeHtml(label)}</b><button onclick="changeCalendarPeriod(1)" aria-label="Sljedeće">›</button></div><div class="view-switch"><button class="${calendarMode==='month'?'active':''}" onclick="setCalendarMode('month')">Mjesec</button><button class="${calendarMode==='year'?'active':''}" onclick="setCalendarMode('year')">Godina</button></div>${isAdmin?`<select class="calendar-filter" onchange="setVacationDepartment(this.value)"><option value="Svi" ${vacationDepartment==='Svi'?'selected':''}>Svi odjeli</option>${departmentList().map(dept=>`<option ${vacationDepartment===dept?'selected':''}>${escapeHtml(dept)}</option>`).join('')}</select>`:''}</div></div>
-    <div class="stats-grid"><div class="stat"><div class="num">${requests.length}</div><div class="lab">Periodi odsutnosti</div></div><div class="stat"><div class="num">${new Set(requests.map(request=>request.workerId)).size}</div><div class="lab">Radnici u kalendaru</div></div><div class="stat"><div class="num">${approved.reduce((sum,request)=>sum+businessDays(request.start,request.end),0)}</div><div class="lab">Odobreni radni dani</div></div><div class="stat"><div class="num">${requests.filter(request=>teamConflicts(request).length).length}</div><div class="lab">Periodi s preklapanjem</div></div></div>
-    <div class="card">${calendar}<div class="calendar-legend"><span><i class="legend-dot approved"></i>Odobreno</span>${pendingVisible?'<span><i class="legend-dot pending"></i>Na čekanju</span>':''}<span><i class="legend-dot mixed"></i>Više događaja/statusa</span></div><p class="small-muted">Detalji se otvaraju samo na označenim datumima; prazni dani nisu nepotrebno interaktivni.</p></div>
-    ${balanceWorkers.length?`<div class="card"><h2>Stanje godišnjeg odmora ${calendarYear}.</h2><div class="balance-list">${balanceWorkers.map(worker=>{const used=vacationUsed(worker.id,calendarYear),remaining=vacationRemaining(worker.id,calendarYear),allowance=worker.vacationAllowance||0,percent=allowance?Math.min(100,used/allowance*100):0;return `<div class="balance-item"><div><b>${escapeHtml(worker.name)}</b><span> Iskorišteno ${used} od ${allowance} radnih dana</span><div class="progress"><i style="width:${percent}%"></i></div></div><b>${remaining} preostalo</b></div>`;}).join('')}</div></div>`:''}
-    <div class="card"><h2>${currentRole==='worker'?'Moja razdoblja':'Planirane odsutnosti'}</h2>${requests.slice().sort((a,b)=>a.start.localeCompare(b.start)).map(request=>requestCard(request,false)).join('')||'<div class="empty-state">Nema odsutnosti za odabrani prikaz.</div>'}</div>${currentRole==='worker'?'<button class="btn block" onclick="navigate(\'requests\')">Pošalji novi zahtjev</button>':''}`;
+    <div class="stats-grid leave-kpis"><div class="stat"><div class="num">${requests.length}</div><div class="lab">Aktivni periodi</div></div><div class="stat"><div class="num">${requests.filter(request=>request.status==='Na čekanju').length}</div><div class="lab">Čeka odluku</div></div><div class="stat"><div class="num">${approved.reduce((sum,request)=>sum+businessDays(request.start,request.end),0)}</div><div class="lab">Odobreni radni dani</div></div><div class="stat"><div class="num">${requests.filter(request=>teamConflicts(request).length).length}</div><div class="lab">Periodi s preklapanjem</div></div></div>
+    ${departmentSummary.length?`<section class="card"><div class="card-heading"><div><h2>Kapacitet po odjelima</h2><p>Odobreni dani, zahtjevi na čekanju i vidljiva preklapanja.</p></div></div><div class="leave-department-grid">${departmentSummary.map(item=>`<div><b>${escapeHtml(item.department)}</b><span>${item.workers} radnika</span><dl><dt>Odobreno</dt><dd>${item.approvedDays} dana</dd><dt>Na čekanju</dt><dd>${item.pending}</dd><dt>Preklapanja</dt><dd class="${item.conflicts?'negative':'positive'}">${item.conflicts}</dd></dl></div>`).join('')}</div></section>`:''}
+    <div class="card calendar-card">${calendar}<div class="calendar-legend"><span><i class="legend-dot approved"></i>Odobreno</span>${pendingVisible?'<span><i class="legend-dot pending"></i>Na čekanju</span>':''}<span><i class="legend-dot mixed"></i>Više događaja/statusa</span></div><p class="small-muted">Kalendar rezervira samo odobrene zahtjeve i zahtjeve na čekanju. Odbijeni i poništeni ostaju u povijesti, ali ne zauzimaju dane.</p></div>
+    ${balanceWorkers.length?`<section class="card"><div class="card-heading"><div><h2>Stanje godišnjeg odmora ${calendarYear}.</h2><p>Odobreno, rezervirano i stvarno dostupno za novi zahtjev.</p></div></div><div class="balance-list">${balanceWorkers.map(worker=>{const balance=vacationBalanceSummary(worker.id,calendarYear),percent=balance.allowance?Math.min(100,balance.used/balance.allowance*100):0;return `<div class="balance-item"><div><b>${escapeHtml(worker.name)}</b><span>Odobreno ${balance.used} · rezervirano ${balance.reserved} · fond ${balance.allowance}</span><div class="progress"><i style="width:${percent}%"></i></div></div><div class="balance-numbers"><b>${balance.available} dostupno</b><span>${balance.remaining} nakon odobrenog</span></div></div>`;}).join('')}</div></section>`:''}
+    <section class="card"><div class="card-heading"><div><h2>${currentRole==='worker'?'Moja aktivna razdoblja':'Planirane odsutnosti'}</h2><p>Odobreno i na čekanju za odabrani kalendarski prikaz.</p></div></div><div class="leave-request-grid compact">${requests.slice().sort((a,b)=>a.start.localeCompare(b.start)).map(request=>requestCard(request,false)).join('')||'<div class="empty-state">Nema odsutnosti za odabrani prikaz.</div>'}</div></section>${currentRole==='worker'?'<button class="btn block" onclick="navigate(\'requests\')">Pošalji novi zahtjev</button>':''}`;
 }
 
 function correctionValues(correction){

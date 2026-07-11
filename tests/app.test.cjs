@@ -41,10 +41,10 @@ test('evidencija i RFID simulator su odvojeni',()=>{
   assert.ok(document.querySelector('.rfid-ring'));
 });
 
-test('Demo 3.0 dashboard zadržava potpuni operativni pregled u Sprintu 2',()=>{
+test('Demo 3.0 dashboard zadržava potpuni operativni pregled u Sprintu 3',()=>{
   const {window,document,state} = boot('admin');
   assert.match(document.querySelector('.version-chip').textContent,/v3\.0/);
-  assert.match(document.querySelector('.side-footer').textContent,/Sprint 2/);
+  assert.match(document.querySelector('.side-footer').textContent,/Sprint 3/);
   assert.equal(document.querySelectorAll('.dashboard-kpis .kpi-card').length,8);
   assert.equal(document.querySelector('[data-kpi="present"] .kpi-value').textContent,'3');
   assert.equal(document.querySelector('[data-kpi="absent"] .kpi-value').textContent,'1');
@@ -184,6 +184,117 @@ test('administrator ima godišnji pregled, radnik vidi samo sebe',()=>{
   const text = worker.document.querySelector('#content').textContent;
   assert.match(text,/Ivan Horvat/);
   assert.doesNotMatch(text,/Marko Marić|Petra Novak/);
+});
+
+test('Sprint 3 razdvaja statuse zahtjeva i kalendar rezervira samo aktivne odsutnosti',()=>{
+  const {window,document,state}=boot('admin');
+  window.navigate('requests');
+  assert.equal(document.querySelectorAll('.request-tabs button').length,5);
+  assert.equal(document.querySelectorAll('.leave-request-card').length,3);
+  assert.ok([...document.querySelectorAll('.leave-request-card')].every(card=>card.dataset.status==='Na čekanju'));
+  const counts=window.requestStatusCounts(state().requests);
+  assert.equal(counts.Svi,11);
+  assert.equal(counts['Na čekanju'],3);
+  assert.equal(counts.Odobreno,6);
+  assert.equal(counts.Odbijeno,1);
+  assert.equal(counts.Poništeno,1);
+
+  window.setRequestStatusFilter('Odbijeno');
+  assert.equal(document.querySelectorAll('.leave-request-card').length,1);
+  assert.match(document.querySelector('#content').textContent,/Predloži drugi termin/);
+
+  window.navigate('vacations');
+  assert.equal(document.querySelectorAll('.year-calendar .month-card').length,12);
+  assert.equal(window.calendarRequests().length,9);
+  assert.ok(window.calendarRequests().every(request=>['Na čekanju','Odobreno'].includes(request.status)));
+  assert.equal(document.querySelectorAll('#content .leave-request-card').length,9);
+  assert.equal(document.querySelectorAll('#content .leave-request-card[data-status="Odbijeno"],#content .leave-request-card[data-status="Poništeno"]').length,0);
+  window.setVacationDepartment('Proizvodnja');
+  assert.ok(window.calendarRequests().every(request=>state().workers.find(worker=>worker.id===request.workerId).dept==='Proizvodnja'));
+  assert.equal(document.querySelectorAll('.leave-department-grid>div').length,1);
+  assert.equal(document.querySelectorAll('.balance-item').length,2);
+});
+
+test('knjigovođa u godišnjem kalendaru vidi samo odobrene odsutnosti',()=>{
+  const {window,document}=boot('accountant');
+  window.navigate('vacations');
+  assert.equal(window.calendarRequests().length,6);
+  assert.ok(window.calendarRequests().every(request=>request.status==='Odobreno'));
+  assert.equal(document.querySelectorAll('.balance-item').length,0);
+  assert.equal(document.querySelectorAll('#content .leave-request-card[data-status="Na čekanju"]').length,0);
+});
+
+test('voditelj donosi odluku s napomenom samo za radnike svojeg opsega',()=>{
+  const {window,document,state}=boot('manager');
+  window.navigate('requests');
+  assert.equal(document.querySelectorAll('.leave-request-card').length,3);
+  const marija=state().requests.find(request=>request.id===3);
+  window.openRequestDecision(3);
+  assert.ok(document.querySelector('#modal').classList.contains('open'));
+  assert.match(document.querySelector('#modal').textContent,/Marija Radić/);
+  assert.match(document.querySelector('#modal').textContent,/Preklapanje u odjelu/);
+  window.decideRequest(3,'Odbijeno');
+  assert.equal(marija.status,'Na čekanju');
+  assert.match(document.querySelector('#toast').textContent,/upiši razlog/);
+  document.querySelector('#requestDecisionNote').value='Predloži termin nakon 2. listopada.';
+  window.decideRequest(3,'Odbijeno');
+  assert.equal(marija.status,'Odbijeno');
+  assert.equal(marija.decidedBy,'Voditelj');
+  assert.match(marija.decisionNote,/nakon 2\. listopada/);
+  assert.match(state().audit[0].action,/Odbijen zahtjev/);
+
+  window.openRequestDecision(2);
+  assert.equal(document.querySelector('#modal').classList.contains('open'),false);
+});
+
+test('radnik vidi vlastiti fond i poništavanjem vraća rezervirane dane',()=>{
+  const {window,document,state}=boot('worker');
+  window.navigate('requests');
+  assert.equal(document.querySelectorAll('.leave-request-card').length,4);
+  assert.doesNotMatch(document.querySelector('#content').textContent,/Marko Marić|Marija Radić|Petra Novak/);
+  let balance=window.vacationBalanceSummary(1);
+  assert.equal(balance.allowance,24);
+  assert.equal(balance.used,10);
+  assert.equal(balance.reserved,3);
+  assert.equal(balance.remaining,14);
+  assert.equal(balance.available,11);
+  assert.match(document.querySelector('#vacRequestPreview').textContent,/5 radnih dana.*nakon slanja 6/);
+
+  window.openCancelRequest(6);
+  assert.ok(document.querySelector('#modal').classList.contains('open'));
+  window.cancelVacationRequest(6);
+  assert.equal(state().requests.find(request=>request.id===6).status,'Poništeno');
+  balance=window.vacationBalanceSummary(1);
+  assert.equal(balance.reserved,0);
+  assert.equal(balance.available,14);
+  assert.match(state().audit[0].action,/Poništen zahtjev/);
+});
+
+test('novi godišnji zahtjev provjerava budući datum, preklapanje i raspoloživi fond',()=>{
+  const {window,document,state}=boot('worker');
+  window.navigate('requests');
+  const before=state().requests.length;
+
+  document.querySelector('#vacStart').value='2026-09-30';
+  document.querySelector('#vacEnd').value='2026-10-01';
+  window.submitVacationRequest();
+  assert.equal(state().requests.length,before);
+  assert.match(document.querySelector('#toast').textContent,/preklapa/);
+
+  document.querySelector('#vacStart').value='2026-08-10';
+  document.querySelector('#vacEnd').value='2026-08-28';
+  window.submitVacationRequest();
+  assert.equal(state().requests.length,before);
+  assert.match(document.querySelector('#toast').textContent,/Nema dovoljno/);
+
+  document.querySelector('#vacType').value='Slobodan dan';
+  document.querySelector('#vacStart').value='2026-08-05';
+  document.querySelector('#vacEnd').value='2026-08-09';
+  document.querySelector('#vacNote').value='Privatne obveze';
+  window.submitVacationRequest();
+  assert.equal(state().requests.length,before+1);
+  assert.equal(state().requests[0].status,'Na čekanju');
+  assert.equal(window.businessDays(state().requests[0].start,state().requests[0].end),2);
 });
 
 test('voditelj je ograničen na dodijeljene odjele',()=>{
