@@ -7,7 +7,8 @@ Trenutna razvojna faza:
 - Sprint 4: Izvještaji – spremno za pregled
 - Sprint 5: RFID terminal – spremno za pregled
 - Sprint 6: Postavke i administracija – spremno za pregled
-- produkcijski backend počinje tek nakon završetka svih sedam Demo 3.0 sprintova
+- Sprint 7: Dizajn i završno poliranje – spremno za pregled
+- produkcijski backend razmatra se tek nakon odobrenja završnog Demo 3.0 pregleda
 
 Objavljena aplikacija:
 https://mvp-bss.pages.dev/
@@ -63,6 +64,13 @@ Kako se objavljuje:
 - opseg odjela voditelja, blokiranje računa, demo reset lozinke i zaštita glavnog administratora
 - pozivnice sa statusom, rokom valjanosti, ponovnim slanjem i poništavanjem
 - filtriranje audit traga po modulu i tekstu
+- završni prodajni prikaz procesa od RFID kartice do CSV/XLSX izvoza
+- stabilna desktop bočna navigacija i mobilna navigacija sa sigurnim rubovima uređaja
+- čitljiviji mobilni obrasci, kartice, modali i široke tablice s vodoravnim pomicanjem
+- pristupačna aktivna navigacija, preskok na sadržaj, dinamički naslov stranice i fokusabilne tablice
+- zatvaranje modala i izbornika tipkom Escape te zadržavanje fokusa unutar aktivnog sloja
+- potvrda prije vraćanja početnih demo-podataka
+- nenametljive animacije s punom podrškom za smanjeno kretanje
 - prodajni demo način koji se može isključiti
 - lokalno spremanje demo-podataka u preglednik
 

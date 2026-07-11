@@ -6,6 +6,8 @@ const {JSDOM} = require('jsdom');
 
 const html = fs.readFileSync('index.html','utf8');
 const source = fs.readFileSync('app.js','utf8');
+const styles = fs.readFileSync('styles.css','utf8');
+const manifest = JSON.parse(fs.readFileSync('manifest.json','utf8'));
 
 function boot(role='admin'){
   const dom = new JSDOM(html,{url:'https://bss.test/',runScripts:'outside-only'});
@@ -46,10 +48,10 @@ test('evidencija i RFID simulator su odvojeni',()=>{
   assert.ok(document.querySelector('.rfid-ring'));
 });
 
-test('Demo 3.0 dashboard zadržava potpuni operativni pregled u Sprintu 6',()=>{
+test('Demo 3.0 dashboard zadržava potpuni operativni pregled u Sprintu 7',()=>{
   const {window,document,state} = boot('admin');
   assert.match(document.querySelector('.version-chip').textContent,/v3\.0/);
-  assert.match(document.querySelector('.side-footer').textContent,/Sprint 6/);
+  assert.match(document.querySelector('.side-footer').textContent,/Sprint 7/);
   assert.equal(document.querySelectorAll('.dashboard-kpis .kpi-card').length,8);
   assert.equal(document.querySelector('[data-kpi="present"] .kpi-value').textContent,'3');
   assert.equal(document.querySelector('[data-kpi="absent"] .kpi-value').textContent,'1');
@@ -579,6 +581,93 @@ test('administracijski ekrani ostaju nedostupni radniku i voditelju',()=>{
     assert.equal(evaluate('screen'),'home');
     assert.equal(document.querySelector('.access-table'),null);
   }
+});
+
+test('Sprint 7 povezuje prodajnu priču od RFID kartice do izvoza',()=>{
+  const {window,document}=boot('admin');
+  window.navigate('flow');
+  assert.equal(document.querySelectorAll('.process-step').length,5);
+  assert.equal(document.querySelectorAll('.demo-proof-grid .card').length,3);
+  assert.equal(document.querySelectorAll('.demo-story-hero .btn').length,2);
+  const text=document.querySelector('#content').textContent;
+  assert.match(text,/RFID karticu.*sinkronizira.*Voditelj.*CSV i XLSX/s);
+  assert.match(text,/RFID\/NFC, radnici, smjene, odsutnosti, korekcije, izvještaji, administracija i audit/);
+  assert.doesNotMatch(text,/skladište|ERP|GPS|AI analitika|payroll|CRM/i);
+});
+
+test('aktivna navigacija ima semantiku i detalj radnika zadržava Radnike',()=>{
+  const {window,document}=boot('admin');
+  let active=document.querySelectorAll('.bottom-nav [aria-current="page"]');
+  assert.equal(active.length,1);
+  assert.match(active[0].textContent,/Početna/);
+  window.navigate('workers');
+  active=document.querySelectorAll('.bottom-nav [aria-current="page"]');
+  assert.equal(active.length,1);
+  assert.match(active[0].textContent,/Radnici/);
+  window.openWorker(1);
+  active=document.querySelectorAll('.bottom-nav [aria-current="page"]');
+  assert.equal(active.length,1);
+  assert.match(active[0].textContent,/Radnici/);
+});
+
+test('glavni sadržaj, tablice i naslov stranice imaju završnu pristupačnu semantiku',()=>{
+  const {window,document}=boot('admin');
+  assert.equal(document.querySelector('.skip-link').getAttribute('href'),'#content');
+  assert.equal(document.title,'Početna | BSS Demo 3.0');
+  window.navigate('attendance');
+  assert.equal(document.title,'Evidencija dolazaka | BSS Demo 3.0');
+  const regions=[...document.querySelectorAll('.table-wrap')];
+  assert.ok(regions.length>=1);
+  assert.ok(regions.every(region=>region.getAttribute('role')==='region'&&region.tabIndex===0));
+  assert.ok(regions.every(region=>/pomakni vodoravno/.test(region.getAttribute('aria-label'))));
+  assert.equal(document.querySelectorAll('.table-scroll-hint').length,regions.length);
+});
+
+test('izbornik i modal podržavaju Escape, aria stanje i imenovani dijalog',()=>{
+  const {window,document}=boot('admin');
+  window.openDrawer();
+  const drawer=document.querySelector('#drawer');
+  assert.ok(drawer.classList.contains('open'));
+  assert.equal(drawer.getAttribute('aria-hidden'),'false');
+  assert.ok([...document.querySelectorAll('[aria-controls="drawer"]')].every(button=>button.getAttribute('aria-expanded')==='true'));
+  document.dispatchEvent(new window.KeyboardEvent('keydown',{key:'Escape',bubbles:true}));
+  assert.equal(drawer.classList.contains('open'),false);
+  assert.equal(drawer.getAttribute('aria-hidden'),'true');
+
+  window.openWorkerModal();
+  const modal=document.querySelector('#modal');
+  assert.ok(modal.classList.contains('open'));
+  assert.equal(modal.getAttribute('aria-hidden'),'false');
+  assert.equal(modal.getAttribute('aria-labelledby'),'activeModalTitle');
+  assert.equal(document.querySelector('#activeModalTitle').textContent,'Dodaj radnika');
+  document.dispatchEvent(new window.KeyboardEvent('keydown',{key:'Escape',bubbles:true}));
+  assert.equal(modal.classList.contains('open'),false);
+  assert.equal(modal.getAttribute('aria-hidden'),'true');
+});
+
+test('vraćanje demo podataka prvo prikazuje jasnu potvrdu',()=>{
+  const {window,document,state}=boot('admin');
+  state().company.name='Privremena promjena';
+  window.openDrawer();
+  window.openResetDemoDialog();
+  assert.equal(state().company.name,'Privremena promjena');
+  assert.ok(document.querySelector('#modal').classList.contains('open'));
+  assert.match(document.querySelector('#modal').textContent,/Vratiti početne demo-podatke.*lokalne izmjene/s);
+  window.resetDemo();
+  assert.equal(state().company.name,'BSS Demo d.o.o.');
+  assert.equal(document.querySelector('#modal').classList.contains('open'),false);
+});
+
+test('mobilni, desktop, animacijski i PWA završni sloj imaju zaštitna pravila',()=>{
+  assert.match(styles,/@media\(max-width:520px\)/);
+  assert.match(styles,/@media\(min-width:960px\)/);
+  assert.match(styles,/@media\(prefers-reduced-motion:reduce\)/);
+  assert.match(styles,/@keyframes rfidPulse/);
+  assert.match(styles,/\.skip-link/);
+  assert.equal(manifest.display,'standalone');
+  assert.equal(manifest.lang,'hr');
+  assert.ok(manifest.categories.includes('business'));
+  assert.ok(manifest.categories.includes('productivity'));
 });
 
 test('Sprint 5 prikazuje identitet, dijagnostiku i događaje terminala',()=>{

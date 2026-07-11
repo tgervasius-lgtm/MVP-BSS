@@ -23,7 +23,7 @@ Demo 3.0 ne uključuje skladište, ERP, GPS/geofencing, AI analitiku, payroll ob
 | 4 | Izvještaji | Spremno za pregled |
 | 5 | RFID terminal | Spremno za pregled |
 | 6 | Postavke i administracija | Spremno za pregled |
-| 7 | Dizajn i završno poliranje | Čeka |
+| 7 | Dizajn i završno poliranje | Spremno za pregled |
 
 ## Sprint 1 – kriteriji prihvata
 
@@ -112,6 +112,23 @@ Demo 3.0 ne uključuje skladište, ERP, GPS/geofencing, AI analitiku, payroll ob
 - Audit log se može filtrirati po modulu i pretraživati po korisniku ili radnji.
 - Radnik, voditelj i knjigovođa ne mogu otvoriti administratorske postavke ni upravljanje korisničkim računima.
 - Aktivna smjena ne može se ugasiti dok ima dodijeljene radnike, a trajanje smjene mora biti veće od nule i najviše 16 sati.
+- Svi postojeći i novi testovi moraju proći prije PR-a.
+
+## Sprint 7 – kriteriji prihvata
+
+- Demo na desktopu ima stabilnu bočnu navigaciju, zaseban pomični sadržaj i čitljive široke tablice bez pomicanja cijele stranice.
+- Mobilni prikaz koristi cijeli ekran, sigurne rubove uređaja, stalnu donju navigaciju i sadržaj koji ostaje dostupan iznad nje.
+- Naslovi, akcije, kartice, obrasci, modali i tablični sažeci prilagođavaju se uskom ekranu bez preklapanja kontrola.
+- Aktivna stavka navigacije jasno je označena vizualno i atributom `aria-current`, uključujući detalj odabranog radnika.
+- Svaki tablični prikaz može dobiti fokus tipkovnicom i ima opis da se na užem ekranu pomiče vodoravno.
+- Glavni sadržaj ima preskočnu poveznicu, a naslov kartice preglednika prati otvoreni modul.
+- Drawer i modal imaju dijalošku semantiku, zatvaraju se tipkom Escape, zadržavaju fokus unutar aktivnog sloja i vraćaju ga nakon zatvaranja.
+- Reset početnih demo-podataka traži jasnu potvrdu i objašnjava koje će lokalne promjene nestati.
+- Animacije ulaska, stanja terminala i RFID očitanja ostaju kratke i nenametljive te se potpuno isključuju kada korisnik traži smanjeno kretanje.
+- Završni prodajni prikaz jasno povezuje pet koraka: RFID očitanje, potvrdu, sinkronizaciju, odluku voditelja i CSV/XLSX izvoz.
+- PWA metapodaci opisuju hrvatsku poslovnu aplikaciju, samostalni prikaz i aktualnu Sprint 7 predmemoriju.
+- Sve četiri uloge, cijeli poslovni tijek i sve funkcije Sprintova 1–6 ostaju regresijski pokriveni.
+- Završno poliranje ne dodaje skladište, ERP, GPS/geofencing, AI analitiku, payroll, otvaranje vrata, inventar ni CRM.
 - Svi postojeći i novi testovi moraju proći prije PR-a.
 
 ## Pravilo završetka sprinta
