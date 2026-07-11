@@ -6,6 +6,7 @@ Trenutna razvojna faza:
 - Sprint 3: Godišnji odmori – spremno za pregled
 - Sprint 4: Izvještaji – spremno za pregled
 - Sprint 5: RFID terminal – spremno za pregled
+- Sprint 6: Postavke i administracija – spremno za pregled
 - produkcijski backend počinje tek nakon završetka svih sedam Demo 3.0 sprintova
 
 Objavljena aplikacija:
@@ -54,12 +55,20 @@ Kako se objavljuje:
 - lokalno odbijanje nepoznate kartice bez punjenja offline reda
 - administratorske kontrole veze i read-only pregled događaja dodijeljenih odjela za voditelja
 - izolirani RFID simulator koji ne mijenja službenu evidenciju
+- postavke tvrtke s provjerom OIB-a, kontakta, fonda godišnjeg i sigurnosnih rokova
+- upravljanje odjelima i radnim mjestima uz zaštitu aktivnih veza s radnicima
+- konfigurirani odjeli, radna mjesta i smjene u obrascu radnika te podrška za radnika bez RFID kartice
+- zakonski blagdani i interni neradni dani koji ulaze u obračun godišnjeg odmora
+- korisnički računi s ulogama administratora, voditelja, radnika i knjigovođe
+- opseg odjela voditelja, blokiranje računa, demo reset lozinke i zaštita glavnog administratora
+- pozivnice sa statusom, rokom valjanosti, ponovnim slanjem i poništavanjem
+- filtriranje audit traga po modulu i tekstu
 - prodajni demo način koji se može isključiti
 - lokalno spremanje demo-podataka u preglednik
 
 Važna granica:
-Ovo je statičan demonstrator. Nema stvarnu prijavu korisnika, centralnu bazu,
-backend API ni vezu s fizičkim terminalom. Plan za pilot backend nalazi se u
+Ovo je statičan demonstrator. Nema stvarnu autentikaciju, slanje emaila,
+centralnu bazu, backend API ni vezu s fizičkim terminalom. Plan za pilot backend nalazi se u
 datoteci BACKEND_MVP_PLAN.md.
 
 Lokalno pokretanje:

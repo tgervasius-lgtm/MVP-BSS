@@ -1,10 +1,10 @@
 'use strict';
 
-const STORAGE_KEY = 'bss-demo-state-v7';
+const STORAGE_KEY = 'bss-demo-state-v8';
 const ROLE_KEY = 'bss-demo-role-v3';
 const LOGIN_KEY = 'bss-demo-logged-v3';
 const APP_VERSION = '3.0';
-const APP_STAGE = 'Sprint 5';
+const APP_STAGE = 'Sprint 6';
 const DEMO_TODAY = '2026-07-10';
 const DEMO_NOW = '10:00';
 const CROATIAN_HOLIDAYS_2026 = new Set([
@@ -14,15 +14,51 @@ const CROATIAN_HOLIDAYS_2026 = new Set([
 ]);
 
 const DEFAULT_STATE = {
-  version: 7,
+  version: 8,
   demoMode: true,
   company: {
     name: 'BSS Demo d.o.o.',
-    oib: '12345678901',
+    oib: '12345678903',
     address: 'Đakovo, Hrvatska',
     timezone: 'Europe/Zagreb',
-    workTime: '08:00 – 16:00'
+    workTime: '08:00 – 16:00',
+    contactEmail: 'uprava@bss.hr',
+    phone: '+385 31 000 000',
+    defaultVacationAllowance: 24
   },
+  departments: [
+    {id:1,name:'Proizvodnja',code:'PROD',managerId:2,active:true},
+    {id:2,name:'Sklapanje',code:'SKL',managerId:2,active:true},
+    {id:3,name:'Ured',code:'URED',managerId:null,active:true},
+    {id:4,name:'Prodaja',code:'PROD-A',managerId:null,active:true},
+    {id:5,name:'IT podrška',code:'IT',managerId:5,active:true},
+    {id:6,name:'Održavanje',code:'ODR',managerId:null,active:true}
+  ],
+  jobPositions: [
+    {id:1,name:'Operater',code:'OPR',department:'Proizvodnja',active:true},
+    {id:2,name:'Kontrola kvalitete',code:'KVAL',department:'Proizvodnja',active:true},
+    {id:3,name:'Voditelj smjene',code:'VOD-S',department:'Sklapanje',active:true},
+    {id:4,name:'Administracija',code:'ADM-U',department:'Ured',active:true},
+    {id:5,name:'Komercijalist',code:'KOM',department:'Prodaja',active:true},
+    {id:6,name:'Administrator',code:'ADMIN',department:'IT podrška',active:true},
+    {id:7,name:'Serviser',code:'SERV',department:'Održavanje',active:true}
+  ],
+  holidays: [
+    {id:1,date:'2026-01-01',name:'Nova godina',type:'Državni blagdan',protected:true,active:true},
+    {id:2,date:'2026-01-06',name:'Bogojavljenje',type:'Državni blagdan',protected:true,active:true},
+    {id:3,date:'2026-04-05',name:'Uskrs',type:'Državni blagdan',protected:true,active:true},
+    {id:4,date:'2026-04-06',name:'Uskrsni ponedjeljak',type:'Državni blagdan',protected:true,active:true},
+    {id:5,date:'2026-05-01',name:'Praznik rada',type:'Državni blagdan',protected:true,active:true},
+    {id:6,date:'2026-05-30',name:'Dan državnosti',type:'Državni blagdan',protected:true,active:true},
+    {id:7,date:'2026-06-04',name:'Tijelovo',type:'Državni blagdan',protected:true,active:true},
+    {id:8,date:'2026-06-22',name:'Dan antifašističke borbe',type:'Državni blagdan',protected:true,active:true},
+    {id:9,date:'2026-08-05',name:'Dan pobjede i domovinske zahvalnosti',type:'Državni blagdan',protected:true,active:true},
+    {id:10,date:'2026-08-15',name:'Velika Gospa',type:'Državni blagdan',protected:true,active:true},
+    {id:11,date:'2026-11-01',name:'Svi sveti',type:'Državni blagdan',protected:true,active:true},
+    {id:12,date:'2026-11-18',name:'Dan sjećanja',type:'Državni blagdan',protected:true,active:true},
+    {id:13,date:'2026-12-25',name:'Božić',type:'Državni blagdan',protected:true,active:true},
+    {id:14,date:'2026-12-26',name:'Sveti Stjepan',type:'Državni blagdan',protected:true,active:true}
+  ],
   shifts: [
     {id: 1, name: 'Jutarnja', start: '08:00', end: '16:00', breakMinutes: 30, tolerance: 5, active: true},
     {id: 2, name: 'Popodnevna', start: '14:00', end: '22:00', breakMinutes: 30, tolerance: 5, active: true},
@@ -38,6 +74,19 @@ const DEFAULT_STATE = {
     {id: 6, name: 'Josip Jurić', email: 'josip.juric@bss.hr', dept: 'Održavanje', jobTitle: 'Serviser', shiftId: 2, status: 'Očekuje smjenu', card: '04 FA 02 DD', cardStatus: 'Aktivna', todayStart: '', active: true, vacationAllowance: 24},
     {id: 7, name: 'Marija Radić', email: 'marija.radic@bss.hr', dept: 'Proizvodnja', jobTitle: 'Kontrola kvalitete', shiftId: 1, status: 'Bolovanje', card: '04 3C 62 E1', cardStatus: 'Aktivna', todayStart: '', active: true, vacationAllowance: 24}
   ],
+  accessUsers: [
+    {id:1,workerId:1,email:'ivan.horvat@bss.hr',role:'Radnik',departments:[],status:'Aktivan',lastLogin:'10.07.2026. 07:38',passwordResetAt:''},
+    {id:2,workerId:2,email:'marko.maric@bss.hr',role:'Voditelj',departments:['Sklapanje','Proizvodnja'],status:'Aktivan',lastLogin:'10.07.2026. 07:50',passwordResetAt:''},
+    {id:3,workerId:3,email:'ana.kovac@bss.hr',role:'Knjigovođa',departments:[],status:'Aktivan',lastLogin:'09.07.2026. 14:20',passwordResetAt:''},
+    {id:4,workerId:4,email:'petra.novak@bss.hr',role:'Radnik',departments:[],status:'Aktivan',lastLogin:'08.07.2026. 08:03',passwordResetAt:''},
+    {id:5,workerId:5,email:'tomislav.bognar@bss.hr',role:'Administrator',departments:['Svi'],status:'Aktivan',lastLogin:'10.07.2026. 08:00',passwordResetAt:''},
+    {id:6,workerId:6,email:'josip.juric@bss.hr',role:'Radnik',departments:[],status:'Aktivan',lastLogin:'07.07.2026. 13:48',passwordResetAt:''},
+    {id:7,workerId:7,email:'marija.radic@bss.hr',role:'Radnik',departments:[],status:'Aktivan',lastLogin:'06.07.2026. 07:45',passwordResetAt:''}
+  ],
+  invitations: [
+    {id:1,name:'Lucija Barić',email:'lucija.baric@bss.hr',role:'Radnik',departments:['Prodaja'],status:'Poslana',sentAt:'09.07.2026. 10:30',expiresAt:'12.07.2026. 10:30'}
+  ],
+  security: {inviteValidityHours:72,passwordResetValidityMinutes:30,sessionMinutes:480},
   records: [
     {id: 1, workerId: 1, date: '2026-07-06', start: '07:46', end: '16:01', breakMinutes: 30, status: 'Uredno'},
     {id: 2, workerId: 1, date: '2026-07-07', start: '07:58', end: '16:04', breakMinutes: 30, status: 'Uredno'},
@@ -126,6 +175,7 @@ const ROLE_CONFIG = {
 };
 
 let state = loadState();
+syncDemoRoleConfig();
 let logged = localStorage.getItem(LOGIN_KEY) === '1';
 let currentRole = localStorage.getItem(ROLE_KEY) || 'admin';
 let screen = 'home';
@@ -144,6 +194,9 @@ let attendanceView = 'all';
 let myTimeMonth = '2026-07';
 let correctionDraft = {date: DEMO_TODAY, start: '07:42', end: '16:02'};
 let reportFilters = {month: '2026-07', department: 'Svi', workerId: 'Svi', type: 'summary'};
+let settingsTab = 'overview';
+let accessStatusFilter = 'Svi';
+let auditFilters = {module:'Svi',search:''};
 
 const $ = selector => document.querySelector(selector);
 function clone(value){ return JSON.parse(JSON.stringify(value)); }
@@ -152,13 +205,17 @@ function loadState(){
   try{
     const raw = localStorage.getItem(STORAGE_KEY);
     const parsed = raw ? JSON.parse(raw) : null;
-    return parsed && parsed.version === 7 ? parsed : clone(DEFAULT_STATE);
+    return parsed && parsed.version === 8 ? parsed : clone(DEFAULT_STATE);
   }catch(error){
     return clone(DEFAULT_STATE);
   }
 }
 function saveState(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
-function resetState(){ state = clone(DEFAULT_STATE); saveState(); }
+function syncDemoRoleConfig(){
+  const managerAccess=state?.accessUsers?.find(item=>item.workerId===ROLE_CONFIG.manager.userId);
+  ROLE_CONFIG.manager.departments=managerAccess?.role==='Voditelj'&&managerAccess.status==='Aktivan'?[...(managerAccess.departments||[])]:[];
+}
+function resetState(){ state = clone(DEFAULT_STATE); syncDemoRoleConfig(); saveState(); }
 function escapeHtml(value){
   return String(value ?? '').replace(/[&<>'"]/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[char]));
 }
@@ -194,13 +251,18 @@ function businessDays(start,end){
   let count = 0;
   const cursor = isoToDate(start);
   const finish = isoToDate(end);
+  const holidays=activeHolidayDates(String(start).slice(0,4));
   while(cursor <= finish){
     const iso = cursor.toISOString().slice(0,10);
     const day = cursor.getDay();
-    if(day !== 0 && day !== 6 && !CROATIAN_HOLIDAYS_2026.has(iso)) count += 1;
+    if(day !== 0 && day !== 6 && !holidays.has(iso)) count += 1;
     cursor.setDate(cursor.getDate()+1);
   }
   return count;
+}
+function activeHolidayDates(year=2026){
+  const configured=state?.holidays?.filter(item=>item.active&&item.date.startsWith(String(year))).map(item=>item.date);
+  return new Set(configured?.length?configured:[...CROATIAN_HOLIDAYS_2026].filter(date=>date.startsWith(String(year))));
 }
 function pluralDays(count){ return `${count} ${count === 1 ? 'radni dan' : 'radnih dana'}`; }
 function workerById(id){ return state.workers.find(worker => worker.id === Number(id)); }
@@ -208,7 +270,16 @@ function shiftById(id){ return state.shifts.find(shift => shift.id === Number(id
 function initials(name){ return String(name || '?').split(/\s+/).filter(Boolean).map(part=>part[0]).join('').slice(0,2).toUpperCase(); }
 function role(){ return ROLE_CONFIG[currentRole] || ROLE_CONFIG.admin; }
 function currentWorker(){ return workerById(role().userId) || state.workers[0]; }
-function departmentList(){ return [...new Set(state.workers.filter(w=>w.active).map(w=>w.dept))].sort((a,b)=>a.localeCompare(b,'hr')); }
+function departmentList(includeInactive=false){
+  const configured=(state.departments||[]).filter(item=>includeInactive||item.active).map(item=>item.name);
+  const fallback=state.workers.filter(worker=>includeInactive||worker.active).map(worker=>worker.dept);
+  return [...new Set(configured.length?configured:fallback)].sort((a,b)=>a.localeCompare(b,'hr'));
+}
+function departmentById(id){ return (state.departments||[]).find(item=>item.id===Number(id)); }
+function departmentByName(name){ return (state.departments||[]).find(item=>item.name===name); }
+function jobPositionById(id){ return (state.jobPositions||[]).find(item=>item.id===Number(id)); }
+function accessUserById(id){ return (state.accessUsers||[]).find(item=>item.id===Number(id)); }
+function accessUserByWorker(workerId){ return (state.accessUsers||[]).find(item=>item.workerId===Number(workerId)); }
 function activeWorkers(){ return state.workers.filter(worker=>worker.active); }
 function visibleWorkers(){
   if(currentRole === 'admin') return state.workers;
@@ -333,10 +404,10 @@ function toast(message){
 }
 function pill(status){
   const green = ['Prisutan','Uredno','Ispravljeno','Odobreno','Online','Prijavljen','Odjavljen','Aktivna','Aktivno','Aktivan','Sinkronizirano','Spreman','Ažurno','Uspješno','Prihvaćeno'];
-  const orange = ['Na čekanju','Kasni','Kašnjenje','Nepotpun zapis','Očekuje smjenu','Offline zapis','Čeka sinkronizaciju','Slab signal','Djelomično'];
-  const red = ['Odbijeno','Odsutna','Greška','Offline','Blokirana','Neaktivan','Neaktivna','Duplikat','Nema veze'];
-  const blue = ['Godišnji','Bolovanje','Samo čitanje','Demo'];
-  const gray = ['Poništeno'];
+  const orange = ['Na čekanju','Kasni','Kašnjenje','Nepotpun zapis','Očekuje smjenu','Offline zapis','Čeka sinkronizaciju','Slab signal','Djelomično','Potrebna provjera'];
+  const red = ['Odbijeno','Odsutna','Greška','Offline','Blokirana','Blokiran','Neaktivan','Neaktivna','Neaktivno','Duplikat','Nema veze'];
+  const blue = ['Godišnji','Bolovanje','Samo čitanje','Demo','Poslana'];
+  const gray = ['Poništeno','Poništena'];
   const css = green.includes(status) ? 'green' : orange.includes(status) ? 'orange' : red.includes(status) ? 'red' : blue.includes(status) ? 'blue' : gray.includes(status) ? 'gray' : '';
   return `<span class="pill ${css}">${escapeHtml(status)}</span>`;
 }
@@ -400,6 +471,7 @@ function switchRole(next){
   attendanceView='all';
   myTimeMonth='2026-07';
   reportFilters={month:'2026-07',department:'Svi',workerId:'Svi',type:'summary'};
+  settingsTab='overview';accessStatusFilter='Svi';auditFilters={module:'Svi',search:''};
   screen = 'home';
   render();
   toast(`Aktivni prikaz: ${role().label}.`);
@@ -532,6 +604,7 @@ function login(){
   attendanceView='all';
   myTimeMonth='2026-07';
   reportFilters={month:'2026-07',department:'Svi',workerId:'Svi',type:'summary'};
+  settingsTab='overview';accessStatusFilter='Svi';auditFilters={module:'Svi',search:''};
   screen = 'home';
   render();
   toast(`Dobro došli. Aktivni prikaz: ${role().label}.`);
@@ -551,6 +624,7 @@ function resetDemo(){
   requestSearch='';
   correctionDraft={date:DEMO_TODAY,start:'07:42',end:'16:02'};
   reportFilters={month:'2026-07',department:'Svi',workerId:'Svi',type:'summary'};
+  settingsTab='overview';accessStatusFilter='Svi';auditFilters={module:'Svi',search:''};
   screen = 'home';
   render();
   toast('Početni demo-podaci su vraćeni.');
@@ -807,27 +881,39 @@ function viewWorker(){
   const worker=workerById(activeWorkerId);
   if(!worker || (!workerVisible(worker.id)&&currentRole!=='admin')) return `<div class="notice">Radnik nije dostupan u tvojem opsegu prava.</div>`;
   const isAdmin=currentRole==='admin';
-  const shift=shiftById(worker.shiftId);
+  const shift=shiftById(worker.shiftId),access=accessUserByWorker(worker.id),pendingInvite=(state.invitations||[]).find(item=>item.email===worker.email&&item.status==='Poslana');
   const actions=isAdmin?`<button class="btn secondary" onclick="openWorkerModal(${worker.id})">Uredi</button><button class="btn ${worker.active?'red':'green'}" onclick="toggleWorkerActive(${worker.id})">${worker.active?'Deaktiviraj':'Aktiviraj'}</button>`:'';
   let content='';
   if(workerTab==='Profil') content=`<div class="card"><div class="summary-line"><span>Ime i prezime</span><b>${escapeHtml(worker.name)}</b></div><div class="summary-line"><span>Email</span><b>${escapeHtml(worker.email)}</b></div><div class="summary-line"><span>Odjel</span><b>${escapeHtml(worker.dept)}</b></div><div class="summary-line"><span>Radno mjesto</span><b>${escapeHtml(worker.jobTitle)}</b></div><div class="summary-line"><span>Smjena</span><b>${escapeHtml(shift?.name||'Nije dodijeljena')} · ${escapeHtml(shift?`${shift.start} – ${shift.end}`:'—')}</b></div><div class="summary-line"><span>Status zaposlenja</span><b>${pill(worker.active?'Aktivan':'Neaktivan')}</b></div></div>`;
   if(workerTab==='Evidencija') content=recordTable(state.records.filter(record=>record.workerId===worker.id).sort((a,b)=>b.date.localeCompare(a.date)),`Evidencija: ${worker.name}`);
-  if(workerTab==='RFID kartica') content=`<div class="card"><div class="summary-line"><span>RFID UID</span><b>${escapeHtml(worker.card||'Nije dodijeljena')}</b></div><div class="summary-line"><span>Status kartice</span><b>${pill(worker.cardStatus)}</b></div><div class="summary-line"><span>Zadnja današnja prijava</span><b>${escapeHtml(worker.todayStart||'—')}</b></div>${isAdmin?`<div class="btns"><button class="btn ${worker.cardStatus==='Aktivna'?'red':'green'}" onclick="toggleCard(${worker.id})">${worker.cardStatus==='Aktivna'?'Blokiraj karticu':'Aktiviraj karticu'}</button><button class="btn secondary" onclick="openWorkerModal(${worker.id})">Promijeni UID</button></div>`:''}</div>`;
-  return `${title(worker.name,`${escapeHtml(worker.dept)} · ${escapeHtml(worker.jobTitle)}`,pill(worker.active?worker.status:'Neaktivan'))}<div class="tabs">${['Profil','Evidencija','RFID kartica'].map(tab=>`<button class="tab ${workerTab===tab?'active':''}" onclick="setWorkerDetailTab('${tab}')">${tab}</button>`).join('')}</div>${content}<div class="btns">${actions}<button class="btn secondary" onclick="navigate('workers')">Natrag na radnike</button></div>`;
+  if(workerTab==='RFID kartica') content=`<div class="card"><div class="summary-line"><span>RFID UID</span><b>${escapeHtml(worker.card||'Nije dodijeljena')}</b></div><div class="summary-line"><span>Status kartice</span><b>${pill(worker.cardStatus)}</b></div><div class="summary-line"><span>Zadnja današnja prijava</span><b>${escapeHtml(worker.todayStart||'—')}</b></div>${isAdmin?`<div class="btns">${worker.card?`<button class="btn ${worker.cardStatus==='Aktivna'?'red':'green'}" onclick="toggleCard(${worker.id})">${worker.cardStatus==='Aktivna'?'Blokiraj karticu':'Aktiviraj karticu'}</button>`:''}<button class="btn secondary" onclick="openWorkerModal(${worker.id})">${worker.card?'Promijeni UID':'Dodijeli RFID karticu'}</button></div>`:''}</div>`;
+  if(workerTab==='Korisnički pristup'&&isAdmin) content=access?`<div class="card access-detail-card"><div class="summary-line"><span>Korisnička uloga</span><b>${escapeHtml(access.role)}</b></div><div class="summary-line"><span>Status računa</span><b>${pill(access.status)}</b></div><div class="summary-line"><span>Opseg odjela</span><b>${escapeHtml(access.departments?.length?access.departments.join(', '):'Samo vlastiti podaci')}</b></div><div class="summary-line"><span>Zadnja prijava</span><b>${escapeHtml(access.lastLogin||'Nikad')}</b></div><div class="summary-line"><span>Zadnji reset lozinke</span><b>${escapeHtml(access.passwordResetAt||'Nije zatražen')}</b></div><div class="btns"><button class="btn secondary" onclick="openAccessModal(${access.id})">Uredi ulogu</button><button class="btn secondary" onclick="sendPasswordReset(${access.id})">Pošalji reset lozinke</button><button class="btn ${access.status==='Aktivan'?'red':'green'}" onclick="toggleAccessUser(${access.id})">${access.status==='Aktivan'?'Blokiraj račun':'Aktiviraj račun'}</button></div></div>`:`<div class="card"><div class="notice info">${pendingInvite?`Pozivnica za ${escapeHtml(worker.email)} poslana je ${escapeHtml(pendingInvite.sentAt)}.`:'Radnik još nema korisnički račun ni aktivnu pozivnicu.'}</div>${pendingInvite?'':`<button class="btn" onclick="openInviteModal(${worker.id})">Pošalji pozivnicu</button>`}</div>`;
+  const detailTabs=isAdmin?['Profil','Evidencija','RFID kartica','Korisnički pristup']:['Profil','Evidencija','RFID kartica'];
+  return `${title(worker.name,`${escapeHtml(worker.dept)} · ${escapeHtml(worker.jobTitle)}`,pill(worker.active?worker.status:'Neaktivan'))}<div class="tabs">${detailTabs.map(tab=>`<button class="tab ${workerTab===tab?'active':''}" onclick="setWorkerDetailTab('${tab}')">${tab}</button>`).join('')}</div>${content}<div class="btns">${actions}<button class="btn secondary" onclick="navigate('workers')">Natrag na radnike</button></div>`;
 }
 function shiftSelectOptions(selected){
   return state.shifts.filter(shift=>shift.active||shift.id===Number(selected)).map(shift=>`<option value="${shift.id}" ${shift.id===Number(selected)?'selected':''}>${escapeHtml(shift.name)} · ${escapeHtml(shift.start)}–${escapeHtml(shift.end)}${shift.active?'':' (neaktivna)'}</option>`).join('');
 }
+function departmentSelectOptions(selected){
+  return (state.departments||[]).filter(item=>item.active||item.name===selected).sort((a,b)=>a.name.localeCompare(b.name,'hr')).map(item=>`<option value="${escapeHtml(item.name)}" ${item.name===selected?'selected':''}>${escapeHtml(item.name)}${item.active?'':' (neaktivan)'}</option>`).join('');
+}
+function jobPositionSelectOptions(selected,department){
+  return (state.jobPositions||[]).filter(item=>(item.active||item.name===selected)&&item.department===department).sort((a,b)=>a.name.localeCompare(b.name,'hr')).map(item=>`<option value="${escapeHtml(item.name)}" ${item.name===selected?'selected':''}>${escapeHtml(item.name)}${item.active?'':' (neaktivno)'}</option>`).join('');
+}
+function refreshWorkerJobOptions(department){
+  const select=$('#workerJob');if(!select)return;
+  select.innerHTML=jobPositionSelectOptions('',department);
+}
 function openWorkerModal(id = null){
   if(currentRole!=='admin') return;
   const existing=id?workerById(id):null;
-  const worker=existing||{name:'',email:'',dept:'Proizvodnja',jobTitle:'Operater',shiftId:1,card:'',cardStatus:'Aktivna',vacationAllowance:24};
+  const worker=existing||{name:'',email:'',dept:'Proizvodnja',jobTitle:'Operater',shiftId:1,card:'',cardStatus:'Nije dodijeljena',vacationAllowance:state.company.defaultVacationAllowance??24};
   const modal=$('#modal');
   modal.innerHTML=`<div class="modal-card"><div class="modal-head"><div><h2>${existing?'Uredi radnika':'Dodaj radnika'}</h2><div class="small-muted">RFID UID i email moraju biti jedinstveni.</div></div><button class="close-btn" aria-label="Zatvori" onclick="closeModal()">×</button></div><div class="form form-grid">
     <label>Ime i prezime<input id="workerName" value="${escapeHtml(worker.name)}" autocomplete="off"></label><label>Email<input id="workerEmail" type="email" value="${escapeHtml(worker.email)}"></label>
-    <label>Odjel<input id="workerDept" list="departments" value="${escapeHtml(worker.dept)}"><datalist id="departments">${departmentList().map(dept=>`<option value="${escapeHtml(dept)}">`).join('')}</datalist></label><label>Radno mjesto<input id="workerJob" value="${escapeHtml(worker.jobTitle)}"></label>
+    <label>Odjel<select id="workerDept" onchange="refreshWorkerJobOptions(this.value)">${departmentSelectOptions(worker.dept)}</select></label><label>Radno mjesto<select id="workerJob">${jobPositionSelectOptions(worker.jobTitle,worker.dept)}</select></label>
     <label>Smjena<select id="workerShift">${shiftSelectOptions(worker.shiftId)}</select></label><label>Godišnji fond (radni dani)<input id="workerAllowance" type="number" min="0" max="40" value="${Number(worker.vacationAllowance||0)}"></label>
-    <label>RFID UID<input id="workerCard" value="${escapeHtml(worker.card)}" placeholder="04 12 AB CD"></label><label>Status kartice<select id="workerCardStatus"><option ${worker.cardStatus==='Aktivna'?'selected':''}>Aktivna</option><option ${worker.cardStatus==='Blokirana'?'selected':''}>Blokirana</option></select></label>
+    <label>RFID UID<input id="workerCard" value="${escapeHtml(worker.card)}" placeholder="Ostavi prazno ako kartica nije dodijeljena"></label><label>Status kartice<select id="workerCardStatus"><option ${worker.cardStatus==='Aktivna'?'selected':''}>Aktivna</option><option ${worker.cardStatus==='Blokirana'?'selected':''}>Blokirana</option><option ${worker.cardStatus==='Nije dodijeljena'?'selected':''}>Nije dodijeljena</option></select></label>
     </div><div class="btns"><button class="btn" onclick="saveWorker(${existing?worker.id:'null'})">${existing?'Spremi izmjene':'Dodaj radnika'}</button><button class="btn secondary" onclick="closeModal()">Odustani</button></div></div>`;
   modal.classList.add('open');
 }
@@ -838,19 +924,24 @@ function saveWorker(id){
   const shiftId=Number($('#workerShift').value),vacationAllowance=Number($('#workerAllowance').value),cardStatus=$('#workerCardStatus').value;
   if(!name||!email||!dept||!jobTitle){toast('Popuni ime, email, odjel i radno mjesto.');return;}
   if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){toast('Unesi ispravnu email adresu.');return;}
-  if(!card){toast('Unesi RFID UID ili jasno ukloni dodjelu kroz uređivanje.');return;}
-  if(state.workers.some(worker=>worker.id!==Number(id)&&normalizeCard(worker.card)===card)){toast('RFID kartica je već dodijeljena drugom radniku.');return;}
+  const department=departmentByName(dept),position=(state.jobPositions||[]).find(item=>item.name===jobTitle&&item.department===dept);
+  if(!department||!department.active){toast('Odaberi aktivan odjel iz postavki organizacije.');return;}
+  if(!position||!position.active){toast('Odaberi aktivno radno mjesto koje pripada odjelu.');return;}
+  if(!shiftById(shiftId)){toast('Odaberi postojeću smjenu.');return;}
+  if(card&&state.workers.some(worker=>worker.id!==Number(id)&&normalizeCard(worker.card)===card)){toast('RFID kartica je već dodijeljena drugom radniku.');return;}
   if(state.workers.some(worker=>worker.id!==Number(id)&&worker.email.toLowerCase()===email)){toast('Email je već dodijeljen drugom radniku.');return;}
   if(!Number.isFinite(vacationAllowance)||vacationAllowance<0||vacationAllowance>40){toast('Fond godišnjeg mora biti između 0 i 40 dana.');return;}
-  const data={name,email,dept,jobTitle,shiftId,card,cardStatus,vacationAllowance};
+  const normalizedCardStatus=card?(cardStatus==='Nije dodijeljena'?'Aktivna':cardStatus):'Nije dodijeljena';
+  const data={name,email,dept,jobTitle,shiftId,card,cardStatus:normalizedCardStatus,vacationAllowance};
   if(id){
     const worker=workerById(id); if(!worker) return;
     Object.assign(worker,data);
+    const access=accessUserByWorker(id);if(access)access.email=email;
     audit('Administrator',`Ažuriran profil radnika ${name}.`,'Radnici');
   }else{
     const worker={id:Date.now(),...data,status:'Odsutna',todayStart:'',active:true};
     state.workers.push(worker); activeWorkerId=worker.id;
-    audit('Administrator',`Dodan radnik ${name} i dodijeljena RFID kartica.`,'Radnici');
+    audit('Administrator',`Dodan radnik ${name}${card?' i dodijeljena RFID kartica':' bez RFID kartice'}.`,'Radnici');
   }
   closeModal(); saveState(); screen='workers'; render(); toast(id?'Profil radnika je spremljen.':'Radnik je dodan.');
 }
@@ -858,13 +949,14 @@ function toggleWorkerActive(id){
   if(currentRole!=='admin') return;
   const worker=workerById(id); if(!worker) return;
   worker.active=!worker.active;
-  if(!worker.active){worker.status='Odsutna';worker.cardStatus='Blokirana';worker.todayStart='';}
+  if(!worker.active){worker.status='Odsutna';worker.cardStatus=worker.card?'Blokirana':'Nije dodijeljena';worker.todayStart='';const access=accessUserByWorker(worker.id);if(access)access.status='Blokiran';syncDemoRoleConfig();}
   audit('Administrator',`${worker.active?'Aktiviran':'Deaktiviran'} radnik ${worker.name}.`,'Radnici');
   saveAndRender(worker.active?'Radnik je ponovno aktivan.':'Radnik i njegova kartica su deaktivirani.');
 }
 function toggleCard(id){
   if(currentRole!=='admin') return;
   const worker=workerById(id); if(!worker) return;
+  if(!worker.card){toast('Radniku prvo dodijeli RFID UID.');return;}
   worker.cardStatus=worker.cardStatus==='Aktivna'?'Blokirana':'Aktivna';
   audit('Administrator',`${worker.cardStatus==='Aktivna'?'Aktivirana':'Blokirana'} RFID kartica za ${worker.name}.`,'Radnici');
   saveAndRender(`Kartica je ${worker.cardStatus.toLowerCase()}.`);
@@ -894,6 +986,9 @@ function saveShift(id){
   if(!name||!start||!end){toast('Popuni naziv, početak i završetak smjene.');return;}
   if(state.shifts.some(shift=>shift.id!==Number(id)&&shift.name.toLocaleLowerCase('hr')===name.toLocaleLowerCase('hr'))){toast('Smjena s tim nazivom već postoji.');return;}
   if(!Number.isFinite(breakMinutes)||breakMinutes<0||breakMinutes>180||!Number.isFinite(tolerance)||tolerance<0||tolerance>60){toast('Provjeri pauzu i toleranciju.');return;}
+  const startMinutes=timeToMinutes(start),endMinutes=timeToMinutes(end),duration=(endMinutes<=startMinutes?endMinutes+1440:endMinutes)-startMinutes;
+  if(startMinutes===null||endMinutes===null||startMinutes===endMinutes||duration>960){toast('Smjena mora trajati više od 0 i najviše 16 sati.');return;}
+  if(breakMinutes>=duration){toast('Pauza mora biti kraća od trajanja smjene.');return;}
   if(id){Object.assign(shiftById(id),{name,start,end,breakMinutes,tolerance});audit('Administrator',`Ažurirana smjena ${name}.`,'Smjene');}
   else{state.shifts.push({id:Date.now(),name,start,end,breakMinutes,tolerance,active:true});audit('Administrator',`Dodana smjena ${name}.`,'Smjene');}
   closeModal();saveAndRender('Smjena je spremljena.');
@@ -901,6 +996,8 @@ function saveShift(id){
 function toggleShift(id){
   if(currentRole!=='admin') return;
   const shift=shiftById(id);if(!shift)return;
+  const assigned=state.workers.filter(worker=>worker.active&&worker.shiftId===shift.id).length;
+  if(shift.active&&assigned){toast(`Smjenu koristi ${assigned} aktivnih radnika. Prvo im dodijeli drugu smjenu.`);return;}
   shift.active=!shift.active;audit('Administrator',`${shift.active?'Aktivirana':'Deaktivirana'} smjena ${shift.name}.`,'Smjene');saveAndRender(`Smjena je ${shift.active?'aktivna':'neaktivna'}.`);
 }
 
@@ -1603,28 +1700,236 @@ function viewFlow(){
   ];
   return `${title('Kako radi BSS','Kratki prodajni prikaz procesa; nije dio svakodnevnog rada administratora.',pill('Demo'))}<div class="card">${steps.map((step,index)=>`<div class="timeline-step"><b>${index+1}. ${escapeHtml(step[0])}</b><span>${escapeHtml(step[1])}</span></div>`).join('')}</div><div class="card hero"><h2>Vrijednost za kupca</h2><p>Jedno mjesto za evidenciju, odsutnosti, odobravanja i izvoz, uz terminal koji nastavlja raditi kada veza kratko nestane.</p></div>`;
 }
-function viewRoles(){
-  const roles=[
-    ['Administrator','Vidi cijelu firmu; upravlja radnicima, karticama i smjenama; odobrava zahtjeve; izvozi podatke.'],
-    ['Voditelj','Vidi samo dodijeljene odjele; pregledava evidenciju tima i odlučuje o njihovim zahtjevima.'],
-    ['Radnik','Vidi samo vlastitu evidenciju, godišnji i korekcije; ne može izravno mijenjati službeni zapis.'],
-    ['Knjigovođa','Čita i izvozi izvještaje te vidi samo odobrene odsutnosti; nema prava uređivanja.']
-  ];
-  return `${title('Prava pristupa','Prikaz podataka i dostupne akcije ovise o ulozi.')}<div class="card">${roles.map(item=>row('R',item[0],escapeHtml(item[1]),pill(item[0]==='Knjigovođa'?'Samo čitanje':'Aktivno'))).join('')}</div><div class="notice">U ovom statičnom demu promjena uloge služi prezentaciji. U produkciji uloga mora dolaziti iz autentificirane korisničke sesije i provjeravati se na backendu pri svakom zahtjevu.</div>`;
+const ACCESS_ROLES = {
+  Administrator: {description:'Puna administracija cijele tvrtke.',scope:'Cijela tvrtka'},
+  Voditelj: {description:'Operativni rad samo za dodijeljene odjele.',scope:'Dodijeljeni odjeli'},
+  Radnik: {description:'Vlastiti sati, zahtjevi i godišnji odmor.',scope:'Vlastiti podaci'},
+  Knjigovođa: {description:'Izvještaji i odobrene odsutnosti bez izmjene.',scope:'Cijela tvrtka · čitanje'}
+};
+const ACCESS_MATRIX = [
+  ['Administrator','Da','Da','Da','Da','Da'],
+  ['Voditelj','Tim','Tim','Tim','Ne','Ne'],
+  ['Radnik','Vlastito','Vlastito','Zahtjev','Ne','Ne'],
+  ['Knjigovođa','Čitanje','Odobreno','Ne','Izvoz','Ne']
+];
+function setAccessStatusFilter(status){ if(['Svi','Aktivan','Blokiran'].includes(status)){accessStatusFilter=status;render();} }
+function filteredAccessUsers(){ return (state.accessUsers||[]).filter(item=>accessStatusFilter==='Svi'||item.status===accessStatusFilter); }
+function accessRoleOptions(selected){ return Object.keys(ACCESS_ROLES).map(value=>`<option ${value===selected?'selected':''}>${value}</option>`).join(''); }
+function accessDepartmentChecks(selected=[]){
+  return (state.departments||[]).filter(item=>item.active).sort((a,b)=>a.name.localeCompare(b.name,'hr')).map(item=>`<label class="check-option"><input class="accessDept" type="checkbox" value="${escapeHtml(item.name)}" ${selected.includes(item.name)?'checked':''}><span>${escapeHtml(item.name)}</span></label>`).join('');
 }
+function toggleAccessDepartmentFields(){
+  const roleValue=$('#accessRole')?.value||$('#inviteRole')?.value;
+  const isInvitation=Boolean($('#inviteRole'));
+  const fields=$('.manager-departments');if(fields)fields.classList.toggle('hidden',isInvitation?!['Radnik','Voditelj'].includes(roleValue):roleValue!=='Voditelj');
+}
+function viewRoles(){
+  const users=filteredAccessUsers(),invitations=state.invitations||[];
+  const active=(state.accessUsers||[]).filter(item=>item.status==='Aktivan').length,blocked=(state.accessUsers||[]).filter(item=>item.status==='Blokiran').length,pending=invitations.filter(item=>item.status==='Poslana').length;
+  return `${title('Prava pristupa','Korisnički računi, uloge, pozivnice i sigurnosne radnje.',currentRole==='admin'?'<button class="btn" onclick="openInviteModal()">Pozovi korisnika</button>':'')}
+    <div class="admin-kpis"><div><span>Aktivni računi</span><b>${active}</b></div><div><span>Blokirani</span><b>${blocked}</b></div><div><span>Otvorene pozivnice</span><b>${pending}</b></div><div><span>Uloge</span><b>${Object.keys(ACCESS_ROLES).length}</b></div></div>
+    <section class="card access-users-card"><div class="card-heading"><div><h2>Korisnički računi</h2><p>Uloga i opseg pristupa moraju odgovarati radnom zadatku.</p></div><div class="access-filter">${['Svi','Aktivan','Blokiran'].map(status=>`<button class="${accessStatusFilter===status?'active':''}" onclick="setAccessStatusFilter('${status}')">${status}</button>`).join('')}</div></div><div class="table-wrap"><table class="access-table"><thead><tr><th>Korisnik</th><th>Uloga</th><th>Opseg</th><th>Status</th><th>Zadnja prijava</th><th>Radnje</th></tr></thead><tbody>${users.map(user=>{const worker=workerById(user.workerId);return `<tr><td><b>${escapeHtml(worker?.name||user.email)}</b><br><span class="small-muted">${escapeHtml(user.email)}</span></td><td>${escapeHtml(user.role)}</td><td>${escapeHtml(user.departments?.length?user.departments.join(', '):ACCESS_ROLES[user.role]?.scope||'—')}</td><td>${pill(user.status)}</td><td>${escapeHtml(user.lastLogin||'Nikad')}</td><td><div class="table-actions"><button onclick="openAccessModal(${user.id})">Uloga</button><button onclick="sendPasswordReset(${user.id})">Reset</button><button class="${user.status==='Aktivan'?'danger':''}" onclick="toggleAccessUser(${user.id})">${user.status==='Aktivan'?'Blokiraj':'Aktiviraj'}</button></div></td></tr>`;}).join('')||'<tr><td colspan="6"><div class="empty-state">Nema računa za odabrani status.</div></td></tr>'}</tbody></table></div></section>
+    <div class="admin-two-column"><section class="card"><div class="card-heading"><div><h2>Pozivnice</h2><p>Demo bilježi tijek pozivnice, ali ne šalje stvarni email.</p></div></div><div class="invitation-list">${invitations.map(invite=>`<div class="invitation-item"><div><b>${escapeHtml(invite.name)}</b><span>${escapeHtml(invite.email)} · ${escapeHtml(invite.role)} · ${escapeHtml(invite.departments?.join(', ')||'bez odjela')}</span><small>Poslano ${escapeHtml(invite.sentAt)} · vrijedi do ${escapeHtml(invite.expiresAt)}</small></div><div>${pill(invite.status)}${invite.status==='Poslana'?`<div class="table-actions"><button onclick="resendInvitation(${invite.id})">Pošalji ponovno</button><button class="danger" onclick="cancelInvitation(${invite.id})">Poništi</button></div>`:''}</div></div>`).join('')||'<div class="empty-state compact">Nema pozivnica.</div>'}</div></section><section class="card"><div class="card-heading"><div><h2>Matrica ovlasti</h2><p>Sažetak provjera koje backend mora provoditi.</p></div></div><div class="table-wrap"><table class="permission-table"><thead><tr><th>Uloga</th><th>Evidencija</th><th>Godišnji</th><th>Korekcije</th><th>Izvještaji</th><th>Administracija</th></tr></thead><tbody>${ACCESS_MATRIX.map(values=>`<tr>${values.map((value,index)=>`<td>${index?escapeHtml(value):`<b>${escapeHtml(value)}</b>`}</td>`).join('')}</tr>`).join('')}</tbody></table></div></section></div>
+    <div class="notice info">U produkciji se svaka ovlast provjerava na backendu. Demo ne šalje emailove, ne generira privremene lozinke i ne pohranjuje reset tokene.</div>`;
+}
+function openAccessModal(id){
+  if(currentRole!=='admin')return;
+  const user=accessUserById(id);if(!user)return;
+  const worker=workerById(user.workerId),modal=$('#modal');
+  modal.innerHTML=`<div class="modal-card"><div class="modal-head"><div><h2>Uredi korisnički pristup</h2><div class="small-muted">${escapeHtml(worker?.name||user.email)} · ${escapeHtml(user.email)}</div></div><button class="close-btn" onclick="closeModal()">×</button></div><div class="form form-grid"><label>Uloga<select id="accessRole" onchange="toggleAccessDepartmentFields()">${accessRoleOptions(user.role)}</select></label><label>Status<select id="accessStatus"><option ${user.status==='Aktivan'?'selected':''}>Aktivan</option><option ${user.status==='Blokiran'?'selected':''}>Blokiran</option></select></label></div><div class="manager-departments ${user.role==='Voditelj'?'':'hidden'}"><label>Dodijeljeni odjeli</label><div class="check-grid">${accessDepartmentChecks(user.departments||[])}</div></div><div class="notice info">Promjena vrijedi za demo-podatke i ulazi u audit trag. Aktivna prezentacijska uloga mijenja se samo kroz demo izbornik.</div><div class="btns"><button class="btn" onclick="saveAccessUser(${user.id})">Spremi pristup</button><button class="btn secondary" onclick="closeModal()">Odustani</button></div></div>`;
+  modal.classList.add('open');
+}
+function saveAccessUser(id){
+  if(currentRole!=='admin')return;
+  const user=accessUserById(id);if(!user)return;
+  const roleValue=$('#accessRole').value,status=$('#accessStatus').value,departments=[...document.querySelectorAll('.accessDept:checked')].map(item=>item.value);
+  if(!ACCESS_ROLES[roleValue]||!['Aktivan','Blokiran'].includes(status))return;
+  if(roleValue==='Voditelj'&&!departments.length){toast('Voditelju dodijeli barem jedan odjel.');return;}
+  if(user.workerId===ROLE_CONFIG.admin.userId&&(roleValue!=='Administrator'||status!=='Aktivan')){toast('Glavni demo administrator mora ostati aktivan administrator.');return;}
+  user.role=roleValue;user.status=status;user.departments=roleValue==='Administrator'?['Svi']:roleValue==='Voditelj'?departments:[];
+  syncDemoRoleConfig();
+  audit('Administrator',`Ažuriran pristup za ${user.email}: ${roleValue}, ${status}${user.departments.length?` · ${user.departments.join(', ')}`:''}.`,'Prava pristupa');
+  closeModal();saveAndRender('Korisnički pristup je spremljen.');
+}
+function sendPasswordReset(id){
+  if(currentRole!=='admin')return;
+  const user=accessUserById(id);if(!user)return;
+  if(user.status!=='Aktivan'){toast('Prvo aktiviraj korisnički račun.');return;}
+  user.passwordResetAt=now();
+  audit('Administrator',`Zatražen reset lozinke za ${user.email}; poveznica vrijedi ${state.security.passwordResetValidityMinutes} minuta.`,'Prava pristupa');
+  saveAndRender('Demo reset je evidentiran; stvarni email nije poslan.');
+}
+function toggleAccessUser(id){
+  if(currentRole!=='admin')return;
+  const user=accessUserById(id);if(!user)return;
+  if(user.workerId===ROLE_CONFIG.admin.userId){toast('Glavni demo administrator ne može biti blokiran.');return;}
+  user.status=user.status==='Aktivan'?'Blokiran':'Aktivan';
+  syncDemoRoleConfig();
+  audit('Administrator',`${user.status==='Aktivan'?'Aktiviran':'Blokiran'} korisnički račun ${user.email}.`,'Prava pristupa');
+  saveAndRender(`Račun je ${user.status.toLowerCase()}.`);
+}
+function futureTime(hours){ return new Date(Date.now()+hours*3600000).toLocaleString('hr-HR',{hour:'2-digit',minute:'2-digit',day:'2-digit',month:'2-digit',year:'numeric'}).replace(',', '.'); }
+function openInviteModal(workerId=null){
+  if(currentRole!=='admin')return;
+  const worker=workerId?workerById(workerId):null,selected=worker?[worker.dept]:[];
+  const modal=$('#modal');
+  modal.innerHTML=`<div class="modal-card"><div class="modal-head"><div><h2>Pozovi novog korisnika</h2><div class="small-muted">Pozivnica u demu ne šalje stvarni email.</div></div><button class="close-btn" onclick="closeModal()">×</button></div><div class="form form-grid"><label>Ime i prezime<input id="inviteName" value="${escapeHtml(worker?.name||'')}"></label><label>Email<input id="inviteEmail" type="email" value="${escapeHtml(worker?.email||'')}"></label><label>Uloga<select id="inviteRole" onchange="toggleAccessDepartmentFields()">${accessRoleOptions('Radnik')}</select></label><label>Vrijedi<input value="${state.security.inviteValidityHours} sati" disabled></label></div><div class="manager-departments"><label>Odjel za povezivanje / opseg voditelja</label><div class="check-grid">${accessDepartmentChecks(selected)}</div></div><div class="btns"><button class="btn" onclick="sendInvitation()">Evidentiraj pozivnicu</button><button class="btn secondary" onclick="closeModal()">Odustani</button></div></div>`;
+  modal.classList.add('open');
+}
+function sendInvitation(){
+  if(currentRole!=='admin')return;
+  const name=$('#inviteName').value.trim(),email=$('#inviteEmail').value.trim().toLowerCase(),roleValue=$('#inviteRole').value,departments=[...document.querySelectorAll('.accessDept:checked')].map(item=>item.value);
+  if(!name||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){toast('Unesi ime i ispravnu email adresu.');return;}
+  if(!ACCESS_ROLES[roleValue])return;
+  if(['Radnik','Voditelj'].includes(roleValue)&&!departments.length){toast('Radniku ili voditelju dodijeli barem jedan odjel.');return;}
+  if((state.accessUsers||[]).some(item=>item.email.toLowerCase()===email)){toast('Korisnički račun s tim emailom već postoji.');return;}
+  if((state.invitations||[]).some(item=>item.email.toLowerCase()===email&&item.status==='Poslana')){toast('Aktivna pozivnica za taj email već postoji.');return;}
+  const inviteDepartments=roleValue==='Administrator'?['Svi']:['Radnik','Voditelj'].includes(roleValue)?departments:[];
+  const sentAt=now(),invite={id:Date.now(),name,email,role:roleValue,departments:inviteDepartments,status:'Poslana',sentAt,expiresAt:futureTime(state.security.inviteValidityHours)};
+  state.invitations.unshift(invite);
+  audit('Administrator',`Evidentirana pozivnica za ${email}: ${roleValue}${invite.departments.length?` · ${invite.departments.join(', ')}`:''}.`,'Prava pristupa');
+  closeModal();saveAndRender('Pozivnica je evidentirana; stvarni email nije poslan.');
+}
+function resendInvitation(id){
+  if(currentRole!=='admin')return;
+  const invite=(state.invitations||[]).find(item=>item.id===Number(id));if(!invite||invite.status!=='Poslana')return;
+  invite.sentAt=now();invite.expiresAt=futureTime(state.security.inviteValidityHours);
+  audit('Administrator',`Ponovno evidentirana pozivnica za ${invite.email}.`,'Prava pristupa');saveAndRender('Vrijeme pozivnice je obnovljeno.');
+}
+function cancelInvitation(id){
+  if(currentRole!=='admin')return;
+  const invite=(state.invitations||[]).find(item=>item.id===Number(id));if(!invite||invite.status!=='Poslana')return;
+  invite.status='Poništena';audit('Administrator',`Poništena pozivnica za ${invite.email}.`,'Prava pristupa');saveAndRender('Pozivnica je poništena.');
+}
+
+function filteredAuditEntries(){
+  const search=auditFilters.search.toLocaleLowerCase('hr');
+  return state.audit.filter(item=>(auditFilters.module==='Svi'||item.module===auditFilters.module)&&(!search||`${item.user} ${item.action} ${item.module}`.toLocaleLowerCase('hr').includes(search)));
+}
+function applyAuditFilters(){ auditFilters={module:$('#auditModule').value,search:$('#auditSearch').value.trim()};render(); }
+function clearAuditFilters(){ auditFilters={module:'Svi',search:''};render(); }
 function viewAudit(){
-  return `${title('Audit log','Kronološki trag administrativnih odluka i promjena. ',pill(`${state.audit.length} događaja`))}<div class="card">${state.audit.map(item=>row(initials(item.user),item.action,`${escapeHtml(item.time)} · ${escapeHtml(item.user)} · ${escapeHtml(item.module)}`)).join('')||'<div class="empty-state">Nema evidentiranih događaja.</div>'}</div>`;
+  const entries=filteredAuditEntries(),modules=[...new Set(state.audit.map(item=>item.module))].sort((a,b)=>a.localeCompare(b,'hr'));
+  return `${title('Audit log','Kronološki trag administrativnih odluka i promjena.',pill(`${entries.length} od ${state.audit.length}`))}<section class="card"><div class="audit-filter-bar"><select id="auditModule"><option ${auditFilters.module==='Svi'?'selected':''}>Svi</option>${modules.map(module=>`<option ${auditFilters.module===module?'selected':''}>${escapeHtml(module)}</option>`).join('')}</select><input id="auditSearch" placeholder="Korisnik, radnja ili modul" value="${escapeHtml(auditFilters.search)}"><button class="btn" onclick="applyAuditFilters()">Primijeni</button><button class="btn secondary" onclick="clearAuditFilters()">Očisti</button></div></section><section class="card audit-list">${entries.map(item=>`<div class="audit-item"><span>${initials(item.user)}</span><div><b>${escapeHtml(item.action)}</b><small>${escapeHtml(item.time)} · ${escapeHtml(item.user)} · ${escapeHtml(item.module)}</small></div></div>`).join('')||'<div class="empty-state">Nema događaja za odabrane kriterije.</div>'}</section>`;
+}
+
+const SETTINGS_TABS=['overview','company','organization','holidays'];
+function setSettingsTab(tab){ if(SETTINGS_TABS.includes(tab)){settingsTab=tab;render();} }
+function settingsTabs(){
+  const labels={overview:'Pregled',company:'Tvrtka',organization:'Organizacija',holidays:'Blagdani'};
+  return `<div class="settings-tabs">${SETTINGS_TABS.map(tab=>`<button class="${settingsTab===tab?'active':''}" onclick="setSettingsTab('${tab}')">${labels[tab]}</button>`).join('')}</div>`;
+}
+function settingsOverview(){
+  const activeDepartments=(state.departments||[]).filter(item=>item.active).length,activePositions=(state.jobPositions||[]).filter(item=>item.active).length,activeHolidays=(state.holidays||[]).filter(item=>item.active).length;
+  return `<div class="admin-kpis"><div><span>Aktivni radnici</span><b>${activeWorkers().length}</b></div><div><span>Odjeli</span><b>${activeDepartments}</b></div><div><span>Radna mjesta</span><b>${activePositions}</b></div><div><span>Neradni dani 2026.</span><b>${activeHolidays}</b></div></div><div class="admin-two-column"><section class="card"><div class="card-heading"><div><h2>Konfiguracija organizacije</h2><p>Sažetak elemenata koji se koriste u radnicima, smjenama i godišnjima.</p></div></div><div class="configuration-list"><button onclick="setSettingsTab('company')"><span>Tvrtka i kontakt</span>${pill(state.company.name&&isValidOib(state.company.oib)?'Spreman':'Potrebna provjera')}</button><button onclick="setSettingsTab('organization')"><span>Odjeli i radna mjesta</span>${pill(activeDepartments&&activePositions?'Spreman':'Potrebna provjera')}</button><button onclick="navigate('shifts')"><span>Smjene i pravila</span>${pill(state.shifts.some(item=>item.active)?'Spreman':'Potrebna provjera')}</button><button onclick="setSettingsTab('holidays')"><span>Blagdani i interni neradni dani</span>${pill(activeHolidays?'Spreman':'Potrebna provjera')}</button><button onclick="navigate('roles')"><span>Korisnici i prava pristupa</span>${pill((state.accessUsers||[]).some(item=>item.role==='Administrator'&&item.status==='Aktivan')?'Spreman':'Potrebna provjera')}</button></div></section><section class="card"><div class="card-heading"><div><h2>Sigurnosne granice demoa</h2><p>Što je funkcionalno, a što zahtijeva pravi backend.</p></div></div><div class="quality-item"><i>1</i><span>Uloge, pozivnice i reseti bilježe se lokalno i u audit tragu.</span></div><div class="quality-item"><i>2</i><span>Demo ne šalje email, ne sprema lozinku i ne stvara reset token.</span></div><div class="quality-item"><i>3</i><span>Produkcija mora provjeravati svaku ovlast na backendu.</span></div><div class="quality-item"><i>4</i><span>Podaci se nakon resetiranja demoa vraćaju na početni skup.</span></div></section></div>`;
+}
+function settingsCompany(){
+  const company=state.company,security=state.security;
+  return `<div class="admin-two-column"><section class="card"><div class="card-heading"><div><h2>Podaci tvrtke</h2><p>Prikazuju se u zaglavlju i administrativnim izvještajima.</p></div></div><div class="form form-grid"><label>Naziv firme<input id="setName" value="${escapeHtml(company.name)}"></label><label>OIB<input id="setOib" inputmode="numeric" maxlength="11" value="${escapeHtml(company.oib)}"></label><label>Adresa<input id="setAddress" value="${escapeHtml(company.address)}"></label><label>Kontakt email<input id="setEmail" type="email" value="${escapeHtml(company.contactEmail)}"></label><label>Telefon<input id="setPhone" value="${escapeHtml(company.phone)}"></label><label>Vremenska zona<select id="setTimezone"><option ${company.timezone==='Europe/Zagreb'?'selected':''}>Europe/Zagreb</option><option ${company.timezone==='Europe/Berlin'?'selected':''}>Europe/Berlin</option></select></label><label>Standardno radno vrijeme<input id="setWorkTime" value="${escapeHtml(company.workTime)}"></label><label>Zadani fond godišnjeg<input id="setAllowance" type="number" min="0" max="40" value="${company.defaultVacationAllowance}"></label></div></section><section class="card"><div class="card-heading"><div><h2>Sigurnosni rokovi</h2><p>Demo konfiguracija za buduću autentikaciju.</p></div></div><div class="form"><label>Vrijednost pozivnice (sati)<input id="setInviteHours" type="number" min="1" max="168" value="${security.inviteValidityHours}"></label><label>Reset lozinke (minute)<input id="setResetMinutes" type="number" min="5" max="120" value="${security.passwordResetValidityMinutes}"></label><label>Trajanje sesije (minute)<input id="setSessionMinutes" type="number" min="15" max="1440" value="${security.sessionMinutes}"></label></div><div class="notice info">Ove vrijednosti opisuju buduća backend pravila. Demo ne izdaje stvarne sesije ni tokene.</div></section></div><button class="btn block" onclick="saveSettings()">Spremi postavke tvrtke</button>`;
+}
+function settingsOrganization(){
+  const departments=(state.departments||[]).slice().sort((a,b)=>a.name.localeCompare(b.name,'hr')),positions=(state.jobPositions||[]).slice().sort((a,b)=>a.department.localeCompare(b.department,'hr')||a.name.localeCompare(b.name,'hr'));
+  return `<div class="admin-two-column organization-layout"><section class="card"><div class="card-heading"><div><h2>Odjeli</h2><p>Odjel određuje opseg voditelja i grupiranje izvještaja.</p></div><button class="btn small" onclick="openDepartmentModal()">Dodaj odjel</button></div><div class="organization-list">${departments.map(item=>{const workers=state.workers.filter(worker=>worker.active&&worker.dept===item.name).length,manager=workerById(item.managerId);return `<div class="organization-item"><div><b>${escapeHtml(item.name)}</b><span>${escapeHtml(item.code)} · ${workers} aktivnih radnika · ${manager?`voditelj ${escapeHtml(manager.name)}`:'bez voditelja'}</span></div><div>${pill(item.active?'Aktivan':'Neaktivan')}<div class="table-actions"><button onclick="openDepartmentModal(${item.id})">Uredi</button><button class="${item.active?'danger':''}" onclick="toggleDepartment(${item.id})">${item.active?'Deaktiviraj':'Aktiviraj'}</button></div></div></div>`;}).join('')}</div></section><section class="card"><div class="card-heading"><div><h2>Radna mjesta</h2><p>Radno mjesto mora pripadati jednom aktivnom odjelu.</p></div><button class="btn small" onclick="openJobPositionModal()">Dodaj mjesto</button></div><div class="organization-list">${positions.map(item=>{const workers=state.workers.filter(worker=>worker.active&&worker.dept===item.department&&worker.jobTitle===item.name).length;return `<div class="organization-item"><div><b>${escapeHtml(item.name)}</b><span>${escapeHtml(item.department)} · ${escapeHtml(item.code)} · ${workers} radnika</span></div><div>${pill(item.active?'Aktivno':'Neaktivno')}<div class="table-actions"><button onclick="openJobPositionModal(${item.id})">Uredi</button><button class="${item.active?'danger':''}" onclick="toggleJobPosition(${item.id})">${item.active?'Deaktiviraj':'Aktiviraj'}</button></div></div></div>`;}).join('')}</div></section></div>`;
+}
+function settingsHolidays(){
+  const holidays=(state.holidays||[]).slice().sort((a,b)=>a.date.localeCompare(b.date));
+  return `<section class="card"><div class="card-heading"><div><h2>Neradni dani 2026.</h2><p>Aktivni dani izravno utječu na računanje godišnjeg odmora.</p></div><button class="btn" onclick="openHolidayModal()">Dodaj interni dan</button></div><div class="holiday-list">${holidays.map(item=>`<div class="holiday-item"><time>${escapeHtml(isoLabel(item.date))}<small>${escapeHtml(isoToDate(item.date).toLocaleDateString('hr-HR',{weekday:'long'}))}</small></time><div><b>${escapeHtml(item.name)}</b><span>${escapeHtml(item.type)}</span></div><div>${pill(item.active?'Aktivan':'Neaktivan')}${item.protected?'<small class="locked-label">Zakonski</small>':`<div class="table-actions"><button onclick="openHolidayModal(${item.id})">Uredi</button><button class="${item.active?'danger':''}" onclick="toggleHoliday(${item.id})">${item.active?'Deaktiviraj':'Aktiviraj'}</button></div>`}</div></div>`).join('')}</div></section><div class="notice info">Zakonski blagdani su zaključani u demu. Administrator može dodati ili deaktivirati samo interne neradne dane tvrtke.</div>`;
 }
 function viewSettings(){
-  const company=state.company;
-  return `${title('Postavke firme','Osnovna konfiguracija demo-organizacije.')}<div class="dashboard-grid"><div class="card"><h2>Tvrtka</h2><div class="form form-grid"><label>Naziv firme<input id="setName" value="${escapeHtml(company.name)}"></label><label>OIB<input id="setOib" inputmode="numeric" maxlength="11" value="${escapeHtml(company.oib)}"></label><label>Adresa<input id="setAddress" value="${escapeHtml(company.address)}"></label><label>Standardno radno vrijeme<input id="setWorkTime" value="${escapeHtml(company.workTime)}"></label></div><div class="btns"><button class="btn" onclick="saveSettings()">Spremi postavke</button></div></div><div><div class="card"><h2>Način prikaza</h2><div class="summary-line"><span>Trenutni način</span><b>${state.demoMode?'Prodajni demo':'Čista aplikacija'}</b></div><p class="small-muted">Prodajni demo dodaje simulator terminala, objašnjenje procesa i promjenu uloga. Čista aplikacija skriva te prezentacijske elemente.</p><button class="btn secondary block" onclick="toggleDemoMode()">${state.demoMode?'Isključi prodajne demo-alate':'Uključi prodajne demo-alate'}</button></div><div class="card"><h2>Granica ove verzije</h2><p class="small-muted">Ova objava je kvalitetan statičan demonstrator. Podaci se spremaju u ovaj preglednik; nema stvarne autentikacije, baze ni komunikacije s fizičkim terminalom.</p></div></div></div>`;
+  const content={overview:settingsOverview,company:settingsCompany,organization:settingsOrganization,holidays:settingsHolidays}[settingsTab]();
+  return `${title('Postavke i administracija','Tvrtka, organizacija, radni kalendar i konfiguracijska spremnost.',pill(`Sprint 6`))}${settingsTabs()}${content}`;
+}
+function isValidOib(oib){
+  if(!/^\d{11}$/.test(oib))return false;
+  let value=10;
+  for(const digit of oib.slice(0,10)){value=(value+Number(digit))%10||10;value=value*2%11;}
+  const control=11-value===10?0:11-value;
+  return control===Number(oib[10]);
 }
 function saveSettings(){
   if(currentRole!=='admin')return;
-  const name=$('#setName').value.trim(),oib=$('#setOib').value.trim(),address=$('#setAddress').value.trim(),workTime=$('#setWorkTime').value.trim();
-  if(!name||!address||!workTime){toast('Popuni naziv, adresu i radno vrijeme.');return;}
-  if(!/^\d{11}$/.test(oib)){toast('OIB mora imati 11 znamenki.');return;}
-  Object.assign(state.company,{name,oib,address,workTime});audit('Administrator','Ažurirane postavke firme.','Postavke');saveAndRender('Postavke firme su spremljene.');
+  const name=$('#setName').value.trim(),oib=$('#setOib').value.trim(),address=$('#setAddress').value.trim(),contactEmail=$('#setEmail').value.trim().toLowerCase(),phone=$('#setPhone').value.trim(),timezone=$('#setTimezone').value,workTime=$('#setWorkTime').value.trim(),defaultVacationAllowance=Number($('#setAllowance').value);
+  const inviteValidityHours=Number($('#setInviteHours').value),passwordResetValidityMinutes=Number($('#setResetMinutes').value),sessionMinutes=Number($('#setSessionMinutes').value);
+  if(!name||!address||!workTime||!phone){toast('Popuni naziv, adresu, telefon i radno vrijeme.');return;}
+  if(!isValidOib(oib)){toast('Unesi matematički valjan OIB od 11 znamenki.');return;}
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactEmail)){toast('Unesi ispravan kontakt email.');return;}
+  if(!Number.isFinite(defaultVacationAllowance)||defaultVacationAllowance<0||defaultVacationAllowance>40){toast('Zadani fond godišnjeg mora biti između 0 i 40 dana.');return;}
+  if(inviteValidityHours<1||inviteValidityHours>168||passwordResetValidityMinutes<5||passwordResetValidityMinutes>120||sessionMinutes<15||sessionMinutes>1440){toast('Provjeri sigurnosne rokove.');return;}
+  Object.assign(state.company,{name,oib,address,contactEmail,phone,timezone,workTime,defaultVacationAllowance});
+  Object.assign(state.security,{inviteValidityHours,passwordResetValidityMinutes,sessionMinutes});
+  audit('Administrator','Ažurirane postavke tvrtke i sigurnosni rokovi.','Postavke');saveAndRender('Postavke tvrtke su spremljene.');
+}
+function managerOptions(selected){ return `<option value="">Bez voditelja</option>${state.workers.filter(worker=>worker.active).sort((a,b)=>a.name.localeCompare(b.name,'hr')).map(worker=>`<option value="${worker.id}" ${worker.id===Number(selected)?'selected':''}>${escapeHtml(worker.name)} · ${escapeHtml(worker.dept)}</option>`).join('')}`; }
+function openDepartmentModal(id=null){
+  if(currentRole!=='admin')return;
+  const existing=id?departmentById(id):null,item=existing||{name:'',code:'',managerId:null},modal=$('#modal');
+  modal.innerHTML=`<div class="modal-card"><div class="modal-head"><h2>${existing?'Uredi odjel':'Dodaj odjel'}</h2><button class="close-btn" onclick="closeModal()">×</button></div><div class="form form-grid"><label>Naziv<input id="departmentName" value="${escapeHtml(item.name)}"></label><label>Šifra<input id="departmentCode" maxlength="8" value="${escapeHtml(item.code)}" placeholder="PROD"></label><label>Odgovorna osoba<select id="departmentManager">${managerOptions(item.managerId)}</select></label></div><div class="btns"><button class="btn" onclick="saveDepartment(${existing?item.id:'null'})">Spremi</button><button class="btn secondary" onclick="closeModal()">Odustani</button></div></div>`;modal.classList.add('open');
+}
+function saveDepartment(id){
+  if(currentRole!=='admin')return;
+  const name=$('#departmentName').value.trim(),code=$('#departmentCode').value.trim().toUpperCase(),managerId=Number($('#departmentManager').value)||null;
+  if(!name||!/^[-A-Z0-9]{2,8}$/.test(code)){toast('Unesi naziv i šifru od 2 do 8 znakova.');return;}
+  if((state.departments||[]).some(item=>item.id!==Number(id)&&(item.name.toLocaleLowerCase('hr')===name.toLocaleLowerCase('hr')||item.code===code))){toast('Naziv ili šifra odjela već postoji.');return;}
+  if(id){
+    const item=departmentById(id);if(!item)return;const oldName=item.name;
+    Object.assign(item,{name,code,managerId});
+    state.workers.filter(worker=>worker.dept===oldName).forEach(worker=>worker.dept=name);
+    state.jobPositions.filter(position=>position.department===oldName).forEach(position=>position.department=name);
+    state.accessUsers.forEach(user=>user.departments=user.departments.map(department=>department===oldName?name:department));
+    state.invitations.forEach(invite=>invite.departments=invite.departments.map(department=>department===oldName?name:department));
+    ROLE_CONFIG.manager.departments=ROLE_CONFIG.manager.departments.map(department=>department===oldName?name:department);
+    audit('Administrator',`Ažuriran odjel ${oldName} → ${name} (${code}).`,'Postavke');
+  }else{state.departments.push({id:Date.now(),name,code,managerId,active:true});audit('Administrator',`Dodan odjel ${name} (${code}).`,'Postavke');}
+  closeModal();saveAndRender('Odjel je spremljen.');
+}
+function toggleDepartment(id){
+  if(currentRole!=='admin')return;
+  const item=departmentById(id);if(!item)return;
+  const workers=state.workers.filter(worker=>worker.active&&worker.dept===item.name).length,positions=state.jobPositions.filter(position=>position.active&&position.department===item.name).length;
+  if(item.active&&(workers||positions)){toast(`Odjel koristi ${workers} radnika i ${positions} aktivnih radnih mjesta.`);return;}
+  item.active=!item.active;audit('Administrator',`${item.active?'Aktiviran':'Deaktiviran'} odjel ${item.name}.`,'Postavke');saveAndRender(`Odjel je ${item.active?'aktivan':'neaktivan'}.`);
+}
+function openJobPositionModal(id=null){
+  if(currentRole!=='admin')return;
+  const existing=id?jobPositionById(id):null,item=existing||{name:'',code:'',department:departmentList()[0]},modal=$('#modal');
+  modal.innerHTML=`<div class="modal-card"><div class="modal-head"><h2>${existing?'Uredi radno mjesto':'Dodaj radno mjesto'}</h2><button class="close-btn" onclick="closeModal()">×</button></div><div class="form form-grid"><label>Naziv<input id="positionName" value="${escapeHtml(item.name)}"></label><label>Šifra<input id="positionCode" maxlength="10" value="${escapeHtml(item.code)}"></label><label>Odjel<select id="positionDepartment">${departmentSelectOptions(item.department)}</select></label></div><div class="btns"><button class="btn" onclick="saveJobPosition(${existing?item.id:'null'})">Spremi</button><button class="btn secondary" onclick="closeModal()">Odustani</button></div></div>`;modal.classList.add('open');
+}
+function saveJobPosition(id){
+  if(currentRole!=='admin')return;
+  const name=$('#positionName').value.trim(),code=$('#positionCode').value.trim().toUpperCase(),department=$('#positionDepartment').value;
+  if(!name||!/^[-A-Z0-9]{2,10}$/.test(code)||!departmentByName(department)?.active){toast('Unesi naziv, valjanu šifru i aktivan odjel.');return;}
+  if((state.jobPositions||[]).some(item=>item.id!==Number(id)&&(item.code===code||(item.name.toLocaleLowerCase('hr')===name.toLocaleLowerCase('hr')&&item.department===department)))){toast('Radno mjesto ili šifra već postoji.');return;}
+  if(id){const item=jobPositionById(id);if(!item)return;const oldName=item.name,oldDepartment=item.department,assigned=state.workers.filter(worker=>worker.active&&worker.jobTitle===oldName&&worker.dept===oldDepartment).length;if(oldDepartment!==department&&assigned){toast(`Radno mjesto koristi ${assigned} aktivnih radnika. Prvo im promijeni radno mjesto.`);return;}Object.assign(item,{name,code,department});state.workers.filter(worker=>worker.jobTitle===oldName&&worker.dept===oldDepartment).forEach(worker=>{worker.jobTitle=name;if(oldDepartment!==department)worker.dept=department;});audit('Administrator',`Ažurirano radno mjesto ${oldName} → ${name}.`,'Postavke');}
+  else{state.jobPositions.push({id:Date.now(),name,code,department,active:true});audit('Administrator',`Dodano radno mjesto ${name} u odjel ${department}.`,'Postavke');}
+  closeModal();saveAndRender('Radno mjesto je spremljeno.');
+}
+function toggleJobPosition(id){
+  if(currentRole!=='admin')return;
+  const item=jobPositionById(id);if(!item)return;
+  const workers=state.workers.filter(worker=>worker.active&&worker.dept===item.department&&worker.jobTitle===item.name).length;
+  if(item.active&&workers){toast(`Radno mjesto koristi ${workers} aktivnih radnika.`);return;}
+  item.active=!item.active;audit('Administrator',`${item.active?'Aktivirano':'Deaktivirano'} radno mjesto ${item.name}.`,'Postavke');saveAndRender(`Radno mjesto je ${item.active?'aktivno':'neaktivno'}.`);
+}
+function openHolidayModal(id=null){
+  if(currentRole!=='admin')return;
+  const existing=id?(state.holidays||[]).find(item=>item.id===Number(id)):null;if(existing?.protected)return;
+  const item=existing||{date:'2026-12-24',name:'Interni neradni dan',type:'Interni neradni dan'},modal=$('#modal');
+  modal.innerHTML=`<div class="modal-card"><div class="modal-head"><h2>${existing?'Uredi neradni dan':'Dodaj interni neradni dan'}</h2><button class="close-btn" onclick="closeModal()">×</button></div><div class="form form-grid"><label>Datum<input id="holidayDate" type="date" min="2026-01-01" max="2026-12-31" value="${escapeHtml(item.date)}"></label><label>Naziv<input id="holidayName" value="${escapeHtml(item.name)}"></label><label>Vrsta<select id="holidayType"><option ${item.type==='Interni neradni dan'?'selected':''}>Interni neradni dan</option><option ${item.type==='Kolektivni godišnji'?'selected':''}>Kolektivni godišnji</option></select></label></div><div class="btns"><button class="btn" onclick="saveHoliday(${existing?item.id:'null'})">Spremi</button><button class="btn secondary" onclick="closeModal()">Odustani</button></div></div>`;modal.classList.add('open');
+}
+function saveHoliday(id){
+  if(currentRole!=='admin')return;
+  const date=$('#holidayDate').value,name=$('#holidayName').value.trim(),type=$('#holidayType').value;
+  const parsedDate=new Date(`${date}T12:00:00`),validDate=/^2026-\d{2}-\d{2}$/.test(date)&&!Number.isNaN(parsedDate.getTime())&&parsedDate.toISOString().slice(0,10)===date;
+  if(!validDate||!name){toast('Unesi valjan datum u 2026. i naziv neradnog dana.');return;}
+  if((state.holidays||[]).some(item=>item.id!==Number(id)&&item.date===date)){toast('Neradni dan za taj datum već postoji.');return;}
+  if(id){const item=state.holidays.find(value=>value.id===Number(id));if(!item||item.protected)return;Object.assign(item,{date,name,type});audit('Administrator',`Ažuriran interni neradni dan ${name} · ${isoLabel(date)}.`,'Postavke');}
+  else{state.holidays.push({id:Date.now(),date,name,type,protected:false,active:true});audit('Administrator',`Dodan interni neradni dan ${name} · ${isoLabel(date)}.`,'Postavke');}
+  closeModal();saveAndRender('Neradni dan je spremljen.');
+}
+function toggleHoliday(id){
+  if(currentRole!=='admin')return;
+  const item=(state.holidays||[]).find(value=>value.id===Number(id));if(!item||item.protected)return;
+  item.active=!item.active;audit('Administrator',`${item.active?'Aktiviran':'Deaktiviran'} interni neradni dan ${item.name}.`,'Postavke');saveAndRender(`Neradni dan je ${item.active?'aktivan':'neaktivan'}.`);
 }
 
 render();

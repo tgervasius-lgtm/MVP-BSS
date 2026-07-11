@@ -22,7 +22,7 @@ Demo 3.0 ne uključuje skladište, ERP, GPS/geofencing, AI analitiku, payroll ob
 | 3 | Godišnji odmori | Spremno za pregled |
 | 4 | Izvještaji | Spremno za pregled |
 | 5 | RFID terminal | Spremno za pregled |
-| 6 | Postavke i administracija | Čeka |
+| 6 | Postavke i administracija | Spremno za pregled |
 | 7 | Dizajn i završno poliranje | Čeka |
 
 ## Sprint 1 – kriteriji prihvata
@@ -94,6 +94,24 @@ Demo 3.0 ne uključuje skladište, ERP, GPS/geofencing, AI analitiku, payroll ob
 - Radnik i knjigovođa nemaju pristup ekranu upravljanja terminalom.
 - Prodajni RFID simulator ostaje jasno odvojen od službene evidencije radnog vremena.
 - Online, offline i odbijeni simulirani događaji ažuriraju samo telemetriju, lokalni red i audit trag.
+- Svi postojeći i novi testovi moraju proći prije PR-a.
+
+## Sprint 6 – kriteriji prihvata
+
+- Administrator na jednom mjestu vidi spremnost tvrtke, odjela, radnih mjesta, smjena, neradnih dana te korisničkih računa i uloga.
+- Podaci tvrtke provjeravaju obvezna polja, email, raspon godišnjeg fonda, sigurnosne rokove i matematički kontrolni broj OIB-a.
+- Odjeli i radna mjesta imaju jedinstven naziv i šifru, a radno mjesto uvijek pripada aktivnom odjelu.
+- Odjel se ne može deaktivirati dok ima aktivne radnike ili radna mjesta; radno mjesto se ne može deaktivirati dok ima aktivne radnike.
+- Radnik se bira samo iz konfiguriranih odjela, radnih mjesta i smjena te se može evidentirati i prije dodjele RFID kartice.
+- Deaktiviranje radnika automatski blokira njegov račun i RFID karticu, bez brisanja povijesnih evidencija.
+- Zakonski blagdani za 2026. zaključani su, a interni neradni dani mogu se dodati i deaktivirati te odmah utječu na obračun radnih dana godišnjeg odmora.
+- Korisnički računi imaju četiri uloge, vidljiv opseg, status, zadnju prijavu, reset lozinke i zaštitu glavnog demo administratora.
+- Voditelj mora imati barem jedan dodijeljeni odjel, a promjena njegova opsega odmah ograničava demo prikaz tima i izvještaja.
+- Pozivnice provjeravaju jedinstveni email i odjel radnika ili voditelja te podržavaju ponovno slanje i poništavanje statusa.
+- Demo ne šalje stvarne emailove, ne pohranjuje lozinke i ne izdaje reset tokene; te granice jasno su navedene u sučelju.
+- Audit log se može filtrirati po modulu i pretraživati po korisniku ili radnji.
+- Radnik, voditelj i knjigovođa ne mogu otvoriti administratorske postavke ni upravljanje korisničkim računima.
+- Aktivna smjena ne može se ugasiti dok ima dodijeljene radnike, a trajanje smjene mora biti veće od nule i najviše 16 sati.
 - Svi postojeći i novi testovi moraju proći prije PR-a.
 
 ## Pravilo završetka sprinta

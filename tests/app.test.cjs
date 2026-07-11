@@ -46,10 +46,10 @@ test('evidencija i RFID simulator su odvojeni',()=>{
   assert.ok(document.querySelector('.rfid-ring'));
 });
 
-test('Demo 3.0 dashboard zadržava potpuni operativni pregled u Sprintu 5',()=>{
+test('Demo 3.0 dashboard zadržava potpuni operativni pregled u Sprintu 6',()=>{
   const {window,document,state} = boot('admin');
   assert.match(document.querySelector('.version-chip').textContent,/v3\.0/);
-  assert.match(document.querySelector('.side-footer').textContent,/Sprint 5/);
+  assert.match(document.querySelector('.side-footer').textContent,/Sprint 6/);
   assert.equal(document.querySelectorAll('.dashboard-kpis .kpi-card').length,8);
   assert.equal(document.querySelector('[data-kpi="present"] .kpi-value').textContent,'3');
   assert.equal(document.querySelector('[data-kpi="absent"] .kpi-value').textContent,'1');
@@ -342,6 +342,243 @@ test('odobrena korekcija mijenja zapis i stvara audit događaj',()=>{
   assert.equal(record.end,'16:02');
   assert.equal(record.status,'Ispravljeno');
   assert.match(state().audit[0].action,/Odobrena korekcija/);
+});
+
+test('Sprint 6 daje administratoru cjelovit pregled konfiguracije',()=>{
+  const {window,document,state}=boot('admin');
+  window.navigate('settings');
+  assert.equal(document.querySelectorAll('.settings-tabs button').length,4);
+  assert.equal(document.querySelectorAll('.admin-kpis>div').length,4);
+  assert.equal(state().departments.length,6);
+  assert.equal(state().jobPositions.length,7);
+  assert.equal(state().holidays.length,14);
+  assert.equal(state().accessUsers.length,7);
+  assert.equal(window.isValidOib('12345678903'),true);
+  assert.equal(window.isValidOib('12345678901'),false);
+  assert.match(document.querySelector('#content').textContent,/Demo ne šalje email.*ne sprema lozinku/s);
+});
+
+test('odjeli i radna mjesta imaju kontrolirano dodavanje i deaktivaciju',()=>{
+  const {window,document,state}=boot('admin');
+  window.navigate('settings');
+  window.setSettingsTab('organization');
+
+  window.openDepartmentModal();
+  document.querySelector('#departmentName').value='Logistika';
+  document.querySelector('#departmentCode').value='LOG';
+  window.saveDepartment(null);
+  const department=state().departments.find(item=>item.name==='Logistika');
+  assert.ok(department?.active);
+
+  window.openJobPositionModal();
+  document.querySelector('#positionName').value='Koordinator';
+  document.querySelector('#positionCode').value='KOORD';
+  document.querySelector('#positionDepartment').value='Logistika';
+  window.saveJobPosition(null);
+  const position=state().jobPositions.find(item=>item.name==='Koordinator');
+  assert.ok(position?.active);
+
+  window.toggleDepartment(1);
+  assert.equal(state().departments.find(item=>item.id===1).active,true);
+  assert.match(document.querySelector('#toast').textContent,/radnika.*radnih mjesta/);
+  window.toggleJobPosition(1);
+  assert.equal(state().jobPositions.find(item=>item.id===1).active,true);
+  assert.match(document.querySelector('#toast').textContent,/aktivnih radnika/);
+
+  window.toggleJobPosition(position.id);
+  assert.equal(position.active,false);
+  window.toggleDepartment(department.id);
+  assert.equal(department.active,false);
+});
+
+test('radnik se može dodati bez RFID kartice samo uz konfigurirani odjel i radno mjesto',()=>{
+  const {window,document,state}=boot('admin');
+  window.navigate('workers');
+  window.openWorkerModal();
+  document.querySelector('#workerName').value='Luka Testić';
+  document.querySelector('#workerEmail').value='luka.testic@bss.hr';
+  document.querySelector('#workerCard').value='';
+  const before=state().workers.length;
+  window.saveWorker(null);
+  const worker=state().workers.find(item=>item.email==='luka.testic@bss.hr');
+  assert.equal(state().workers.length,before+1);
+  assert.equal(worker.card,'');
+  assert.equal(worker.cardStatus,'Nije dodijeljena');
+  assert.equal(state().accessUsers.some(item=>item.workerId===worker.id),false);
+});
+
+test('zadani fond tvrtke može biti nula i prenosi se na novog radnika',()=>{
+  const {window,document,state}=boot('admin');
+  state().company.defaultVacationAllowance=0;
+  window.navigate('workers');
+  window.openWorkerModal();
+  assert.equal(document.querySelector('#workerAllowance').value,'0');
+});
+
+test('interni neradni dan mijenja obračun, a zakonski blagdan ostaje zaključan',()=>{
+  const {window,document,state}=boot('admin');
+  window.navigate('settings');
+  window.setSettingsTab('holidays');
+  assert.equal(window.businessDays('2026-12-24','2026-12-28'),2);
+
+  window.openHolidayModal();
+  document.querySelector('#holidayDate').value='2026-12-24';
+  document.querySelector('#holidayName').value='Dan tvrtke';
+  window.saveHoliday(null);
+  const holiday=state().holidays.find(item=>item.date==='2026-12-24');
+  assert.ok(holiday?.active);
+  assert.equal(window.businessDays('2026-12-24','2026-12-28'),1);
+
+  window.toggleHoliday(holiday.id);
+  assert.equal(holiday.active,false);
+  assert.equal(window.businessDays('2026-12-24','2026-12-28'),2);
+  window.toggleHoliday(13);
+  assert.equal(state().holidays.find(item=>item.id===13).active,true);
+
+  const before=state().holidays.length;
+  window.openHolidayModal();
+  document.querySelector('#holidayDate').value='2026-12-25';
+  document.querySelector('#holidayName').value='Duplikat';
+  window.saveHoliday(null);
+  assert.equal(state().holidays.length,before);
+  assert.match(document.querySelector('#toast').textContent,/već postoji/);
+});
+
+test('korisničke uloge, reset i blokiranje imaju zaštitne granice i audit trag',()=>{
+  const {window,document,state,evaluate}=boot('admin');
+  window.navigate('roles');
+  assert.equal(document.querySelectorAll('.access-table tbody tr').length,7);
+  assert.equal(document.querySelectorAll('.invitation-item').length,1);
+  assert.equal(document.querySelectorAll('.permission-table tbody tr').length,4);
+
+  window.sendPasswordReset(1);
+  const workerAccess=state().accessUsers.find(item=>item.id===1);
+  assert.ok(workerAccess.passwordResetAt);
+  assert.equal(Object.hasOwn(workerAccess,'password'),false);
+  assert.equal(Object.hasOwn(workerAccess,'token'),false);
+  assert.equal(state().audit[0].module,'Prava pristupa');
+
+  window.toggleAccessUser(5);
+  assert.equal(state().accessUsers.find(item=>item.id===5).status,'Aktivan');
+  assert.match(document.querySelector('#toast').textContent,/ne može biti blokiran/);
+  window.toggleAccessUser(1);
+  assert.equal(workerAccess.status,'Blokiran');
+
+  window.openAccessModal(2);
+  for(const checkbox of document.querySelectorAll('.accessDept')) checkbox.checked=checkbox.value==='Proizvodnja';
+  window.saveAccessUser(2);
+  assert.equal(evaluate('JSON.stringify(ROLE_CONFIG.manager.departments)'),'["Proizvodnja"]');
+});
+
+test('pozivnica provjerava email i odjel te se može poništiti bez slanja emaila',()=>{
+  const {window,document,state}=boot('admin');
+  window.navigate('roles');
+  const before=state().invitations.length;
+
+  window.openInviteModal();
+  document.querySelector('#inviteName').value='Dupli Korisnik';
+  document.querySelector('#inviteEmail').value='ivan.horvat@bss.hr';
+  document.querySelector('.accessDept[value="Proizvodnja"]').checked=true;
+  window.sendInvitation();
+  assert.equal(state().invitations.length,before);
+  assert.match(document.querySelector('#toast').textContent,/račun.*već postoji/);
+
+  document.querySelector('#inviteEmail').value='nova.radnica@bss.hr';
+  for(const checkbox of document.querySelectorAll('.accessDept')) checkbox.checked=false;
+  window.sendInvitation();
+  assert.equal(state().invitations.length,before);
+  assert.match(document.querySelector('#toast').textContent,/dodijeli barem jedan odjel/);
+
+  document.querySelector('.accessDept[value="Prodaja"]').checked=true;
+  window.sendInvitation();
+  const invitation=state().invitations.find(item=>item.email==='nova.radnica@bss.hr');
+  assert.equal(state().invitations.length,before+1);
+  assert.equal(invitation.status,'Poslana');
+  assert.deepEqual([...invitation.departments],['Prodaja']);
+  window.cancelInvitation(invitation.id);
+  assert.equal(invitation.status,'Poništena');
+
+  window.openInviteModal();
+  document.querySelector('#inviteName').value='Nova Knjigovotkinja';
+  document.querySelector('#inviteEmail').value='nova.knjigovotkinja@bss.hr';
+  document.querySelector('#inviteRole').value='Knjigovođa';
+  document.querySelector('.accessDept[value="Prodaja"]').checked=true;
+  window.sendInvitation();
+  const accountantInvitation=state().invitations.find(item=>item.email==='nova.knjigovotkinja@bss.hr');
+  assert.deepEqual([...accountantInvitation.departments],[]);
+});
+
+test('postavke tvrtke provjeravaju OIB i sigurnosne rokove prije spremanja',()=>{
+  const {window,document,state}=boot('admin');
+  window.navigate('settings');
+  window.setSettingsTab('company');
+  document.querySelector('#setName').value='BSS Nova d.o.o.';
+  document.querySelector('#setOib').value='12345678901';
+  window.saveSettings();
+  assert.equal(state().company.name,'BSS Demo d.o.o.');
+  assert.match(document.querySelector('#toast').textContent,/valjan OIB/);
+
+  document.querySelector('#setOib').value='12345678903';
+  document.querySelector('#setInviteHours').value='48';
+  document.querySelector('#setResetMinutes').value='45';
+  document.querySelector('#setSessionMinutes').value='600';
+  window.saveSettings();
+  assert.equal(state().company.name,'BSS Nova d.o.o.');
+  assert.equal(state().security.inviteValidityHours,48);
+  assert.equal(state().security.passwordResetValidityMinutes,45);
+  assert.equal(state().security.sessionMinutes,600);
+  assert.equal(state().audit[0].module,'Postavke');
+});
+
+test('audit trag filtrira administrativne radnje po modulu i tekstu',()=>{
+  const {window,document}=boot('admin');
+  window.navigate('roles');
+  window.sendPasswordReset(1);
+  window.navigate('audit');
+  document.querySelector('#auditModule').value='Prava pristupa';
+  document.querySelector('#auditSearch').value='reset lozinke';
+  window.applyAuditFilters();
+  const entries=[...document.querySelectorAll('.audit-item')];
+  assert.equal(entries.length,1);
+  assert.match(entries[0].textContent,/reset lozinke.*Prava pristupa/s);
+  window.clearAuditFilters();
+  assert.ok(document.querySelectorAll('.audit-item').length>entries.length);
+});
+
+test('aktivna smjena se ne gasi dok ima radnike, a nova smjena mora imati valjano trajanje',()=>{
+  const {window,document,state}=boot('admin');
+  window.navigate('shifts');
+  window.toggleShift(1);
+  assert.equal(state().shifts.find(item=>item.id===1).active,true);
+  assert.match(document.querySelector('#toast').textContent,/aktivnih radnika/);
+
+  const before=state().shifts.length;
+  window.openShiftModal();
+  document.querySelector('#shiftName').value='Test smjena';
+  document.querySelector('#shiftStart').value='08:00';
+  document.querySelector('#shiftEnd').value='08:00';
+  window.saveShift(null);
+  assert.equal(state().shifts.length,before);
+  assert.match(document.querySelector('#toast').textContent,/više od 0/);
+
+  document.querySelector('#shiftEnd').value='12:00';
+  window.saveShift(null);
+  const shift=state().shifts.find(item=>item.name==='Test smjena');
+  assert.ok(shift?.active);
+  window.toggleShift(shift.id);
+  assert.equal(shift.active,false);
+});
+
+test('administracijski ekrani ostaju nedostupni radniku i voditelju',()=>{
+  for(const selectedRole of ['worker','manager']){
+    const {window,document,evaluate}=boot(selectedRole);
+    window.navigate('settings');
+    assert.equal(evaluate('screen'),'home');
+    assert.equal(document.querySelector('.settings-tabs'),null);
+    window.navigate('roles');
+    assert.equal(evaluate('screen'),'home');
+    assert.equal(document.querySelector('.access-table'),null);
+  }
 });
 
 test('Sprint 5 prikazuje identitet, dijagnostiku i događaje terminala',()=>{
