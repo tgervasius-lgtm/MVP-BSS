@@ -4,6 +4,7 @@ Trenutna razvojna faza:
 - Sprint 1: Dashboard i navigacija – spremno za pregled
 - Sprint 2: Evidencija radnog vremena – spremno za pregled
 - Sprint 3: Godišnji odmori – spremno za pregled
+- Sprint 4: Izvještaji – spremno za pregled
 - produkcijski backend počinje tek nakon završetka svih sedam Demo 3.0 sprintova
 
 Objavljena aplikacija:
@@ -38,7 +39,13 @@ Kako se objavljuje:
 - računanje radnih dana bez vikenda i hrvatskih blagdana u 2026.
 - kontrola vlastitih preklapanja i upozorenje na preklapanja u odjelu
 - zahtjevi za godišnji i korekcije s odobravanjem i audit tragom
-- funkcionalni CSV i stvarni XLSX izvoz prema aktivnim filtrima
+- pet poslovnih izvještaja: mjesečni sažetak, detaljna evidencija, odstupanja, odobrene odsutnosti i korekcije
+- mjesečni sažetak po radniku sa satima, planom, saldom, prekovremenim, odstupanjima i odobrenim odsutnostima
+- isti mjesec, odjel i radnik određuju pregled, CSV i XLSX
+- administrator izvozi cijelu tvrtku, voditelj samo dodijeljene odjele, a knjigovođa ima read-only izvoz
+- UTF-8 CSV s hrvatskim nazivom datoteke te formatirani XLSX sa zamrznutim zaglavljem i automatskim filtrom
+- povijest generiranja i preuzimanja s audit tragom, opsegom i brojem redaka
+- izvještaji ne računaju plaću, poreze ni doprinose
 - status terminala i offline red
 - izolirani RFID simulator koji ne mijenja službenu evidenciju
 - prodajni demo način koji se može isključiti

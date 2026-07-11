@@ -15,7 +15,12 @@ function boot(role='admin'){
   vm.runInContext(source,context);
   dom.window.document.querySelector('#loginRole').value = role;
   dom.window.login();
-  return {window:dom.window,document:dom.window.document,state:()=>vm.runInContext('state',context)};
+  return {
+    window:dom.window,
+    document:dom.window.document,
+    state:()=>vm.runInContext('state',context),
+    evaluate:expression=>vm.runInContext(expression,context)
+  };
 }
 
 test('svaka uloga može otvoriti samo svoje ekrane bez greške',()=>{
@@ -41,10 +46,10 @@ test('evidencija i RFID simulator su odvojeni',()=>{
   assert.ok(document.querySelector('.rfid-ring'));
 });
 
-test('Demo 3.0 dashboard zadržava potpuni operativni pregled u Sprintu 3',()=>{
+test('Demo 3.0 dashboard zadržava potpuni operativni pregled u Sprintu 4',()=>{
   const {window,document,state} = boot('admin');
   assert.match(document.querySelector('.version-chip').textContent,/v3\.0/);
-  assert.match(document.querySelector('.side-footer').textContent,/Sprint 3/);
+  assert.match(document.querySelector('.side-footer').textContent,/Sprint 4/);
   assert.equal(document.querySelectorAll('.dashboard-kpis .kpi-card').length,8);
   assert.equal(document.querySelector('[data-kpi="present"] .kpi-value').textContent,'3');
   assert.equal(document.querySelector('[data-kpi="absent"] .kpi-value').textContent,'1');
@@ -337,6 +342,117 @@ test('odobrena korekcija mijenja zapis i stvara audit događaj',()=>{
   assert.equal(record.end,'16:02');
   assert.equal(record.status,'Ispravljeno');
   assert.match(state().audit[0].action,/Odobrena korekcija/);
+});
+
+test('Sprint 4 nudi pet poslovnih izvještaja iz istog skupa podataka',()=>{
+  const {window,document}=boot('admin');
+  window.navigate('reports');
+  assert.equal(document.querySelectorAll('.report-type').length,5);
+  assert.equal(document.querySelectorAll('.report-kpi').length,4);
+  let data=window.getReportData();
+  assert.equal(data.title,'Mjesečni sažetak');
+  assert.equal(data.rows.length,7);
+  assert.equal(data.rows.reduce((sum,row)=>sum+row[3],0),18);
+  assert.equal(data.filenameBase,'BSS_mjesecni_sazetak_07_2026');
+  assert.match(document.querySelector('.report-boundary').textContent,/Ne izračunava plaću/);
+
+  window.setReportType('attendance');
+  data=window.getReportData();
+  assert.equal(data.rows.length,22);
+  assert.equal(data.headers.length,12);
+  assert.equal(data.filenameBase,'BSS_evidencija_radnog_vremena_07_2026');
+
+  window.setReportType('exceptions');
+  assert.equal(window.getReportData().rows.length,4);
+  window.setReportType('vacations');
+  data=window.getReportData();
+  assert.equal(data.rows.length,1);
+  assert.equal(data.rows[0][5],1);
+  window.setReportType('corrections');
+  assert.equal(window.getReportData().rows.length,2);
+});
+
+test('filtri odjela i radnika jednako ograničavaju pregled i izvoz',()=>{
+  const {window,document,state}=boot('admin');
+  window.navigate('reports');
+  window.setReportType('attendance');
+  window.updateReportDepartment('Proizvodnja');
+  let data=window.getReportData();
+  assert.equal(data.scope,'Odjel: Proizvodnja');
+  assert.equal(data.rows.length,7);
+  assert.ok(data.rows.every(row=>row[1]==='Proizvodnja'));
+  assert.equal(document.querySelectorAll('#reportWorker option').length,3);
+
+  document.querySelector('#reportWorker').value='7';
+  window.applyReportFilters(false);
+  data=window.getReportData();
+  assert.equal(data.rows.length,2);
+  assert.ok(data.rows.every(row=>row[0]==='Marija Radić'));
+  assert.equal(window.csvContent(data).split('\r\n').length,3);
+  assert.equal(state().reportHistory.length,0);
+});
+
+test('izvještaji poštuju prava voditelja, knjigovođe i radnika',()=>{
+  const manager=boot('manager');
+  manager.window.navigate('reports');
+  let data=manager.window.getReportData();
+  assert.equal(data.rows.length,3);
+  assert.ok(data.rows.every(row=>['Sklapanje','Proizvodnja'].includes(row[1])));
+  assert.deepEqual([...manager.document.querySelectorAll('#reportDept option')].map(item=>item.value),['Svi','Proizvodnja','Sklapanje']);
+  manager.evaluate("reportFilters={month:'2026-07',department:'Ured',workerId:'3',type:'attendance'}");
+  data=manager.window.getReportData();
+  assert.ok(data.rows.every(row=>['Sklapanje','Proizvodnja'].includes(row[1])));
+  assert.match(data.scope,/Dodijeljeni odjeli/);
+
+  const accountant=boot('accountant');
+  accountant.window.navigate('reports');
+  assert.equal(accountant.window.getReportData().rows.length,7);
+  assert.match(accountant.document.querySelector('#content').textContent,/Samo čitanje/);
+
+  const worker=boot('worker');
+  const auditBefore=worker.state().audit.length;
+  worker.window.navigate('reports');
+  assert.equal(worker.evaluate('screen'),'home');
+  assert.equal(worker.document.querySelector('.report-hero'),null);
+  worker.window.downloadReport('csv');
+  assert.equal(worker.state().audit.length,auditBefore);
+});
+
+test('generiranje izvještaja ostavlja status, povijest i audit trag',()=>{
+  const {window,state}=boot('admin');
+  window.navigate('reports');
+  const auditBefore=state().audit.length;
+  window.applyReportFilters();
+  assert.equal(state().reportHistory.length,1);
+  assert.equal(state().reportHistory[0].type,'Mjesečni sažetak');
+  assert.equal(state().reportHistory[0].rows,7);
+  assert.match(state().lastReport,/Pregled generiran/);
+  assert.equal(state().audit.length,auditBefore+1);
+  assert.equal(state().audit[0].module,'Izvještaji');
+  assert.match(state().audit[0].action,/Cijela tvrtka.*7 redaka/);
+});
+
+test('CSV je UTF-8, koristi točku-zarez i ispravno štiti navodnike',()=>{
+  const {window}=boot('admin');
+  window.setReportType('attendance');
+  const data=window.getReportData(),csv=window.csvContent(data);
+  assert.ok(csv.startsWith('\ufeff'));
+  assert.match(csv,/"Radnik";"Odjel";"Datum"/);
+  assert.match(csv,/RFID \/ Terminal 01/);
+  assert.equal(csv.split('\r\n').length,23);
+  assert.equal(window.csvContent({headers:['Polje'],rows:[['Vrijednost "BSS"']]}),'\ufeff"Polje"\r\n"Vrijednost ""BSS"""');
+});
+
+test('XLSX izvještaj ima stilove, zamrznuto zaglavlje i automatski filtar',async()=>{
+  const {window}=boot('admin');
+  const data=window.getReportData(),blob=window.buildXlsx(data.headers,data.rows,data.title);
+  const bytes=new Uint8Array(await blob.arrayBuffer()),text=new TextDecoder().decode(bytes);
+  assert.equal(blob.type,'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  assert.deepEqual([...bytes.slice(0,4)],[80,75,3,4]);
+  assert.deepEqual([...bytes.slice(-22,-18)],[80,75,5,6]);
+  assert.match(text,/xl\/styles\.xml/);
+  assert.match(text,/state="frozen"/);
+  assert.match(text,/<autoFilter ref="A1:/);
 });
 
 test('XLSX generator stvara valjani ZIP okvir',()=>{

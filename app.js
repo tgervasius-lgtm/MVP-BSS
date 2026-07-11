@@ -1,10 +1,10 @@
 'use strict';
 
-const STORAGE_KEY = 'bss-demo-state-v5';
+const STORAGE_KEY = 'bss-demo-state-v6';
 const ROLE_KEY = 'bss-demo-role-v3';
 const LOGIN_KEY = 'bss-demo-logged-v3';
 const APP_VERSION = '3.0';
-const APP_STAGE = 'Sprint 3';
+const APP_STAGE = 'Sprint 4';
 const DEMO_TODAY = '2026-07-10';
 const DEMO_NOW = '10:00';
 const CROATIAN_HOLIDAYS_2026 = new Set([
@@ -14,7 +14,7 @@ const CROATIAN_HOLIDAYS_2026 = new Set([
 ]);
 
 const DEFAULT_STATE = {
-  version: 5,
+  version: 6,
   demoMode: true,
   company: {
     name: 'BSS Demo d.o.o.',
@@ -87,7 +87,8 @@ const DEFAULT_STATE = {
   ],
   terminal: {online: true, unsynced: 0, scans: 36, lastSync: 'prije 48 sekundi', version: 'BSS OS 0.9.4'},
   lastScan: {workerId: 2, label: 'Marko Marić', status: 'Prijavljen', time: '08:12', message: 'Prijava prihvaćena.'},
-  lastReport: 'Nije još generiran'
+  lastReport: 'Nije još generiran',
+  reportHistory: []
 };
 
 const ROLE_CONFIG = {
@@ -115,7 +116,7 @@ let attendanceFilters = {month: '2026-07', department: 'Svi', status: 'Svi', sea
 let attendanceView = 'all';
 let myTimeMonth = '2026-07';
 let correctionDraft = {date: DEMO_TODAY, start: '07:42', end: '16:02'};
-let reportFilters = {month: '2026-07', department: 'Svi', workerId: 'Svi', type: 'attendance'};
+let reportFilters = {month: '2026-07', department: 'Svi', workerId: 'Svi', type: 'summary'};
 
 const $ = selector => document.querySelector(selector);
 function clone(value){ return JSON.parse(JSON.stringify(value)); }
@@ -124,7 +125,7 @@ function loadState(){
   try{
     const raw = localStorage.getItem(STORAGE_KEY);
     const parsed = raw ? JSON.parse(raw) : null;
-    return parsed && parsed.version === 5 ? parsed : clone(DEFAULT_STATE);
+    return parsed && parsed.version === 6 ? parsed : clone(DEFAULT_STATE);
   }catch(error){
     return clone(DEFAULT_STATE);
   }
@@ -371,6 +372,7 @@ function switchRole(next){
   attendanceFilters={month:'2026-07',department:'Svi',status:'Svi',search:''};
   attendanceView='all';
   myTimeMonth='2026-07';
+  reportFilters={month:'2026-07',department:'Svi',workerId:'Svi',type:'summary'};
   screen = 'home';
   render();
   toast(`Aktivni prikaz: ${role().label}.`);
@@ -502,6 +504,7 @@ function login(){
   requestSearch='';
   attendanceView='all';
   myTimeMonth='2026-07';
+  reportFilters={month:'2026-07',department:'Svi',workerId:'Svi',type:'summary'};
   screen = 'home';
   render();
   toast(`Dobro došli. Aktivni prikaz: ${role().label}.`);
@@ -520,6 +523,7 @@ function resetDemo(){
   requestStatusFilter='Na čekanju';
   requestSearch='';
   correctionDraft={date:DEMO_TODAY,start:'07:42',end:'16:02'};
+  reportFilters={month:'2026-07',department:'Svi',workerId:'Svi',type:'summary'};
   screen = 'home';
   render();
   toast('Početni demo-podaci su vraćeni.');
@@ -1130,49 +1134,253 @@ function updateCorrection(id,status){
   saveAndRender(`Korekcija je ${decision.toLowerCase()}.`);
 }
 
+const REPORT_TYPE_CONFIG = {
+  summary: {
+    label: 'Mjesečni sažetak',
+    short: 'Sažetak',
+    icon: 'Σ',
+    file: 'mjesecni_sazetak',
+    description: 'Jedan red po radniku: završeni zapisi, sati, plan, saldo, odstupanja i odobrene odsutnosti.'
+  },
+  attendance: {
+    label: 'Detaljna evidencija',
+    short: 'Evidencija',
+    icon: '◷',
+    file: 'evidencija_radnog_vremena',
+    description: 'Dnevni dolasci i odlasci s planom smjene, saldom, statusom i izvorom zapisa.'
+  },
+  exceptions: {
+    label: 'Odstupanja',
+    short: 'Odstupanja',
+    icon: '!',
+    file: 'odstupanja',
+    description: 'Kašnjenja i nepotpuni zapisi koje treba provjeriti prije predaje podataka.'
+  },
+  vacations: {
+    label: 'Odobrene odsutnosti',
+    short: 'Odsutnosti',
+    icon: '▦',
+    file: 'odobrene_odsutnosti',
+    description: 'Samo odobrene odsutnosti koje se preklapaju s odabranim mjesecom.'
+  },
+  corrections: {
+    label: 'Korekcije vremena',
+    short: 'Korekcije',
+    icon: '✎',
+    file: 'korekcije_vremena',
+    description: 'Povijest zahtjeva za promjenu vremena sa starom i novom vrijednošću te statusom.'
+  }
+};
+
 function reportScopeWorkers(){
   if(currentRole==='manager')return visibleWorkers().filter(worker=>worker.active);
+  if(currentRole==='worker')return visibleWorkers().filter(worker=>worker.active);
   return activeWorkers();
+}
+function reportDepartments(){
+  return [...new Set(reportScopeWorkers().map(worker=>worker.dept))].sort((a,b)=>a.localeCompare(b,'hr'));
+}
+function normalizeReportFilters(filters=reportFilters){
+  const month=/^2026-(0[1-9]|1[0-2])$/.test(filters?.month||'')?filters.month:'2026-07';
+  const type=REPORT_TYPE_CONFIG[filters?.type]?filters.type:'summary';
+  const departments=reportDepartments();
+  const department=filters?.department==='Svi'||departments.includes(filters?.department)?filters.department:'Svi';
+  const worker=reportScopeWorkers().find(item=>String(item.id)===String(filters?.workerId));
+  const workerId=worker&&(department==='Svi'||worker.dept===department)?String(worker.id):'Svi';
+  return {month,department,workerId,type};
 }
 function monthBounds(month){
   const [year,index]=month.split('-').map(Number);
   const lastDay=new Date(year,index,0).getDate();
   return {start:`${month}-01`,end:`${month}-${String(lastDay).padStart(2,'0')}`};
 }
-function reportWorkerAllowed(worker){
-  if(!worker)return false;
-  return reportScopeWorkers().some(item=>item.id===worker.id)
-    && (reportFilters.department==='Svi'||worker.dept===reportFilters.department)
-    && (reportFilters.workerId==='Svi'||worker.id===Number(reportFilters.workerId));
+function reportMonthLabel(month){
+  const label=isoToDate(`${month}-01`).toLocaleDateString('hr-HR',{month:'long',year:'numeric'});
+  return label.charAt(0).toUpperCase()+label.slice(1);
 }
-function getReportData(){
-  const {start,end}=monthBounds(reportFilters.month);
-  if(['attendance','exceptions'].includes(reportFilters.type)){
-    const records=state.records.filter(record=>record.date>=start&&record.date<=end&&reportWorkerAllowed(workerById(record.workerId)))
-      .filter(record=>reportFilters.type==='attendance'||!['Uredno','Ispravljeno'].includes(record.status))
-      .sort((a,b)=>a.date.localeCompare(b.date)||a.workerId-b.workerId);
-    return {title:reportFilters.type==='attendance'?'Mjesečna evidencija':'Kašnjenja i nepotpuni zapisi',headers:['Radnik','Odjel','Datum','Dolazak','Odlazak','Pauza (min)','Ukupno','Status'],rows:records.map(record=>{const worker=workerById(record.workerId);return [worker?.name||'',worker?.dept||'',isoLabel(record.date),record.start||'—',record.end||'—',record.breakMinutes||0,record.end?formatMinutes(recordMinutes(record)):'—',record.status];})};
+function reportScopeLabel(filters=reportFilters){
+  const safe=normalizeReportFilters(filters);
+  const worker=safe.workerId==='Svi'?null:workerById(safe.workerId);
+  if(worker)return `${worker.name} · ${worker.dept}`;
+  if(safe.department!=='Svi')return `Odjel: ${safe.department}`;
+  if(currentRole==='manager')return `Dodijeljeni odjeli: ${reportDepartments().join(', ')}`;
+  return 'Cijela tvrtka';
+}
+function reportWorkerAllowed(worker,filters=reportFilters){
+  if(!worker)return false;
+  const safe=normalizeReportFilters(filters);
+  return reportScopeWorkers().some(item=>item.id===worker.id)
+    && (safe.department==='Svi'||worker.dept===safe.department)
+    && (safe.workerId==='Svi'||worker.id===Number(safe.workerId));
+}
+function reportApprovedDays(workerId,start,end){
+  return state.requests
+    .filter(request=>request.workerId===Number(workerId)&&request.status==='Odobreno'&&request.start<=end&&request.end>=start)
+    .reduce((sum,request)=>sum+businessDays(request.start<start?start:request.start,request.end>end?end:request.end),0);
+}
+function reportFilenameBase(type,month){
+  const [year,index]=month.split('-');
+  return `BSS_${REPORT_TYPE_CONFIG[type].file}_${index}_${year}`;
+}
+function makeReportData(filters,headers,rows,metrics,quality){
+  const safe=normalizeReportFilters(filters),config=REPORT_TYPE_CONFIG[safe.type];
+  return {
+    type:safe.type,
+    title:config.label,
+    description:config.description,
+    period:reportMonthLabel(safe.month),
+    scope:reportScopeLabel(safe),
+    filenameBase:reportFilenameBase(safe.type,safe.month),
+    headers,
+    rows,
+    metrics,
+    quality
+  };
+}
+function getReportData(filters=reportFilters){
+  const safe=normalizeReportFilters(filters),{start,end}=monthBounds(safe.month);
+  const records=state.records
+    .filter(record=>record.date>=start&&record.date<=end&&reportWorkerAllowed(workerById(record.workerId),safe))
+    .sort((a,b)=>a.date.localeCompare(b.date)||a.workerId-b.workerId);
+  const recordSummary=attendanceSummary(records);
+
+  if(safe.type==='summary'){
+    const workers=reportScopeWorkers()
+      .filter(worker=>reportWorkerAllowed(worker,safe))
+      .sort((a,b)=>a.dept.localeCompare(b.dept,'hr')||a.name.localeCompare(b.name,'hr'));
+    const rows=workers.map(worker=>{
+      const own=records.filter(record=>record.workerId===worker.id),summary=attendanceSummary(own);
+      return [
+        worker.name,
+        worker.dept,
+        shiftById(worker.shiftId)?.name||'Bez smjene',
+        summary.completed,
+        formatMinutes(summary.workedMinutes),
+        formatMinutes(summary.plannedMinutes),
+        formatSignedMinutes(summary.balanceMinutes),
+        formatMinutes(summary.overtimeMinutes),
+        summary.review,
+        reportApprovedDays(worker.id,start,end)
+      ];
+    });
+    return makeReportData(safe,
+      ['Radnik','Odjel','Smjena','Završeni zapisi','Evidentirano','Plan završenih zapisa','Saldo','Prekovremeno','Za provjeru','Odobrena odsutnost (dani)'],
+      rows,
+      [
+        ['Radnici',rows.length],
+        ['Završeni zapisi',recordSummary.completed],
+        ['Evidentirano',formatMinutes(recordSummary.workedMinutes)],
+        ['Saldo',formatSignedMinutes(recordSummary.balanceMinutes)]
+      ],
+      [`${recordSummary.review} zapisa traži provjeru`,`${recordSummary.active} aktivnih zapisa nije uključeno u sate`,`${recordSummary.corrected} zapisa ima odobrenu korekciju`]
+    );
   }
-  if(reportFilters.type==='vacations'){
-    const requests=state.requests.filter(request=>request.status==='Odobreno'&&request.start<=end&&request.end>=start&&reportWorkerAllowed(workerById(request.workerId))).sort((a,b)=>a.start.localeCompare(b.start));
-    return {title:'Odobrene odsutnosti',headers:['Radnik','Odjel','Vrsta','Od','Do','Radni dani','Status'],rows:requests.map(request=>{const worker=workerById(request.workerId);return [worker?.name||'',worker?.dept||'',request.type,isoLabel(request.start),isoLabel(request.end),businessDays(request.start,request.end),request.status];})};
+
+  if(safe.type==='attendance'){
+    const rows=records.map(record=>{
+      const worker=workerById(record.workerId),shift=shiftById(worker?.shiftId),balance=record.end?recordMinutes(record)-plannedShiftMinutes(record.workerId):null;
+      return [worker?.name||'',worker?.dept||'',isoLabel(record.date),shift?.name||'Bez smjene',record.start||'—',record.end||'—',record.breakMinutes||0,record.end?formatMinutes(recordMinutes(record)):'—',record.end?formatMinutes(plannedShiftMinutes(record.workerId)):'—',balance===null?'—':formatSignedMinutes(balance),record.status,record.status==='Ispravljeno'?'Odobrena korekcija':'RFID / Terminal 01'];
+    });
+    return makeReportData(safe,
+      ['Radnik','Odjel','Datum','Smjena','Dolazak','Odlazak','Pauza (min)','Evidentirano','Plan','Saldo','Status','Izvor'],
+      rows,
+      [['Zapisi',rows.length],['Završeno',recordSummary.completed],['Evidentirano',formatMinutes(recordSummary.workedMinutes)],['Za provjeru',recordSummary.review]],
+      [`${recordSummary.active} aktivnih zapisa`,`${recordSummary.incomplete} nepotpunih zapisa`,`${recordSummary.late} evidentiranih kašnjenja`]
+    );
   }
-  const corrections=state.corrections.filter(correction=>correction.date>=start&&correction.date<=end&&reportWorkerAllowed(workerById(correction.workerId))).sort((a,b)=>a.date.localeCompare(b.date));
-  return {title:'Korekcije vremena',headers:['Radnik','Odjel','Datum','Stara vrijednost','Nova vrijednost','Razlog','Status'],rows:corrections.map(correction=>{const worker=workerById(correction.workerId),values=correctionValues(correction);return [worker?.name||'',worker?.dept||'',isoLabel(correction.date),values.oldValue,values.newValue,correction.reason,correction.status];})};
+
+  if(safe.type==='exceptions'){
+    const exceptions=records.filter(record=>['Kašnjenje','Nepotpun zapis'].includes(record.status));
+    const rows=exceptions.map(record=>{
+      const worker=workerById(record.workerId),shift=shiftById(worker?.shiftId),correction=pendingCorrectionFor(record);
+      return [worker?.name||'',worker?.dept||'',isoLabel(record.date),shift?.name||'Bez smjene',record.start||'—',record.end||'—',record.status,correction?.status||'Nema zahtjeva'];
+    });
+    return makeReportData(safe,
+      ['Radnik','Odjel','Datum','Smjena','Dolazak','Odlazak','Odstupanje','Status korekcije'],
+      rows,
+      [['Ukupno odstupanja',rows.length],['Kašnjenja',exceptions.filter(record=>record.status==='Kašnjenje').length],['Nepotpuni zapisi',exceptions.filter(record=>record.status==='Nepotpun zapis').length],['Otvorene korekcije',exceptions.filter(record=>pendingCorrectionFor(record)).length]],
+      [rows.length?'Provjeri sve retke prije konačnog izvoza':'Nema otvorenih odstupanja za odabrane kriterije','Odobrene korekcije prikazuju se u detaljnoj evidenciji','Izvoz ne donosi automatske odluke']
+    );
+  }
+
+  if(safe.type==='vacations'){
+    const requests=state.requests
+      .filter(request=>request.status==='Odobreno'&&request.start<=end&&request.end>=start&&reportWorkerAllowed(workerById(request.workerId),safe))
+      .sort((a,b)=>a.start.localeCompare(b.start)||a.workerId-b.workerId);
+    const rows=requests.map(request=>{
+      const worker=workerById(request.workerId),from=request.start<start?start:request.start,to=request.end>end?end:request.end;
+      return [worker?.name||'',worker?.dept||'',request.type,isoLabel(request.start),isoLabel(request.end),businessDays(from,to),request.decidedBy||'—',request.decidedAt||'—',request.status];
+    });
+    const days=requests.reduce((sum,request)=>sum+businessDays(request.start<start?start:request.start,request.end>end?end:request.end),0);
+    return makeReportData(safe,
+      ['Radnik','Odjel','Vrsta','Od','Do','Radni dani u mjesecu','Odobrio','Vrijeme odluke','Status'],
+      rows,
+      [['Odobrene odsutnosti',rows.length],['Radni dani',days],['Radnici',new Set(requests.map(request=>request.workerId)).size],['Na čekanju',0]],
+      ['Uključeni su samo odobreni zahtjevi','Dani su ograničeni na odabrani mjesec','Vikendi i hrvatski blagdani nisu radni dani']
+    );
+  }
+
+  const corrections=state.corrections
+    .filter(correction=>correction.date>=start&&correction.date<=end&&reportWorkerAllowed(workerById(correction.workerId),safe))
+    .sort((a,b)=>a.date.localeCompare(b.date)||a.workerId-b.workerId);
+  const rows=corrections.map(correction=>{
+    const worker=workerById(correction.workerId),values=correctionValues(correction);
+    return [worker?.name||'',worker?.dept||'',isoLabel(correction.date),values.oldValue,values.newValue,correction.reason,correction.status];
+  });
+  return makeReportData(safe,
+    ['Radnik','Odjel','Datum','Stara vrijednost','Nova vrijednost','Razlog','Status'],
+    rows,
+    [['Korekcije',rows.length],['Odobreno',corrections.filter(item=>item.status==='Odobreno').length],['Na čekanju',corrections.filter(item=>item.status==='Na čekanju').length],['Odbijeno',corrections.filter(item=>item.status==='Odbijeno').length]],
+    ['Izvorni zapis mijenja se samo nakon odobrenja','Razlog i status ostaju u audit tragu','Izvoz ne omogućuje uređivanje službene evidencije']
+  );
+}
+function recordReportActivity(action,data,format=''){
+  const time=now(),formatLabel=format?format.toUpperCase():'';
+  const entry={id:Date.now(),time,role:role().label,action,type:data.title,period:data.period,scope:data.scope,rows:data.rows.length,format:formatLabel};
+  state.reportHistory=[entry,...(state.reportHistory||[])].slice(0,8);
+  state.lastReport=`${action}${formatLabel?` ${formatLabel}`:''} ${time}`;
+  audit(role().label,`${action}${formatLabel?` ${formatLabel}`:''}: ${data.title} · ${data.period} · ${data.scope} · ${data.rows.length} redaka.`,'Izvještaji');
+}
+function setReportType(type){
+  if(!REPORT_TYPE_CONFIG[type])return;
+  reportFilters=normalizeReportFilters({...reportFilters,type});
+  render();
+}
+function updateReportDepartment(department){
+  const month=$('#reportMonth')?.value||reportFilters.month;
+  reportFilters=normalizeReportFilters({...reportFilters,month,department,workerId:'Svi'});
+  render();
 }
 function applyReportFilters(log=true){
-  reportFilters={month:$('#reportMonth').value,department:$('#reportDept').value,workerId:$('#reportWorker').value,type:$('#reportType').value};
-  if(log){state.lastReport=`Pregled generiran ${now()}`;audit(role().label,`Generiran pregled: ${getReportData().title}.`,'Izvještaji');}
+  if(!['admin','manager','accountant'].includes(currentRole)){navigate('home');return;}
+  reportFilters=normalizeReportFilters({
+    month:$('#reportMonth')?.value,
+    department:$('#reportDept')?.value,
+    workerId:$('#reportWorker')?.value,
+    type:reportFilters.type
+  });
+  const data=getReportData();
+  if(log)recordReportActivity('Pregled generiran',data);
   render();if(log)toast('Pregled izvještaja je ažuriran.');
 }
 function reportPreview(data){
-  return `<div class="card table-card"><div style="padding:15px 15px 8px"><h2>${escapeHtml(data.title)}</h2></div><div class="table-wrap"><table><thead><tr>${data.headers.map(header=>`<th>${escapeHtml(header)}</th>`).join('')}</tr></thead><tbody>${data.rows.map(values=>`<tr>${values.map(value=>`<td>${escapeHtml(value)}</td>`).join('')}</tr>`).join('')||`<tr><td colspan="${data.headers.length}"><div class="empty-state">Nema podataka za odabrane kriterije.</div></td></tr>`}</tbody></table></div><div class="table-summary"><span>${data.rows.length} redaka</span><span>CSV i XLSX koriste ovaj isti rezultat</span></div></div>`;
+  return `<div class="card table-card report-preview"><div class="table-card-heading"><div><h2>${escapeHtml(data.title)}</h2><p>${escapeHtml(data.period)} · ${escapeHtml(data.scope)} · izvoz sadrži isti skup redaka.</p></div>${pill(`${data.rows.length} redaka`)}</div><div class="table-wrap"><table class="report-table"><thead><tr>${data.headers.map(header=>`<th>${escapeHtml(header)}</th>`).join('')}</tr></thead><tbody>${data.rows.map(values=>`<tr>${values.map(value=>`<td>${escapeHtml(value)}</td>`).join('')}</tr>`).join('')||`<tr><td colspan="${data.headers.length}"><div class="empty-state">Nema podataka za odabrane kriterije.</div></td></tr>`}</tbody></table></div><div class="table-summary"><span>${data.rows.length} redaka · ${escapeHtml(data.period)}</span><span>CSV i XLSX koriste ovaj isti rezultat</span></div></div>`;
+}
+function reportHistoryView(){
+  const history=(state.reportHistory||[]).slice(0,5);
+  return `<section class="card report-history"><div class="card-heading"><div><h2>Zadnje aktivnosti</h2><p>Generiranja i preuzimanja ostaju zabilježena u demo audit tragu.</p></div></div>${history.map(item=>`<div class="report-history-item"><span class="report-history-icon">${item.format||'↻'}</span><div><b>${escapeHtml(item.action)}${item.format?` ${escapeHtml(item.format)}`:''} · ${escapeHtml(item.type)}</b><small>${escapeHtml(item.period)} · ${escapeHtml(item.scope)} · ${item.rows} redaka</small></div><time>${escapeHtml(item.time)}</time></div>`).join('')||'<div class="empty-state compact">Još nema generiranih izvještaja.</div>'}</section>`;
 }
 function viewReports(){
-  const workers=reportScopeWorkers(),data=getReportData();
-  return `${title('Izvještaji','Filtri izravno određuju pregled te sadržaj CSV i XLSX datoteke.',pill(`${data.rows.length} redaka`))}
-    <div class="card"><div class="filter-bar"><input id="reportMonth" type="month" value="${reportFilters.month}" aria-label="Mjesec"><select id="reportDept" aria-label="Odjel">${departmentOptions(reportFilters.department)}</select><select id="reportWorker" aria-label="Radnik"><option value="Svi" ${reportFilters.workerId==='Svi'?'selected':''}>Svi radnici</option>${workers.map(worker=>`<option value="${worker.id}" ${String(worker.id)===String(reportFilters.workerId)?'selected':''}>${escapeHtml(worker.name)}</option>`).join('')}</select><select id="reportType" aria-label="Vrsta izvještaja"><option value="attendance" ${reportFilters.type==='attendance'?'selected':''}>Mjesečna evidencija</option><option value="exceptions" ${reportFilters.type==='exceptions'?'selected':''}>Kašnjenja i nepotpuni zapisi</option><option value="vacations" ${reportFilters.type==='vacations'?'selected':''}>Odobrene odsutnosti</option><option value="corrections" ${reportFilters.type==='corrections'?'selected':''}>Korekcije vremena</option></select><button class="btn" onclick="applyReportFilters()">Generiraj</button></div></div>
-    <div class="card"><h2>Preuzimanje</h2><div class="summary-line"><span>CSV</span><b>UTF-8, odvojeno točkom-zarezom</b></div><div class="summary-line"><span>XLSX</span><b>Stvarna Excel radna knjiga, nije preimenovani CSV</b></div><div class="summary-line"><span>Posljednja radnja</span><b>${escapeHtml(state.lastReport)}</b></div><div class="btns"><button class="btn" onclick="downloadReport('csv')">Preuzmi CSV</button><button class="btn secondary" onclick="downloadReport('xlsx')">Preuzmi XLSX</button></div></div>${reportPreview(data)}`;
+  reportFilters=normalizeReportFilters(reportFilters);
+  const scopedWorkers=reportScopeWorkers().filter(worker=>reportFilters.department==='Svi'||worker.dept===reportFilters.department),data=getReportData();
+  const roleText=currentRole==='manager'?'Voditelj može izvoziti samo dodijeljene odjele.':currentRole==='accountant'?'Knjigovođa ima pregled i izvoz bez prava izmjene podataka.':'Administrator može obuhvatiti cijelu tvrtku ili suziti izvještaj.';
+  return `${title('Izvještaji','Kontrolirani podaci za provjeru i predaju knjigovodstvu.',pill(currentRole==='accountant'?'Samo čitanje':`${data.rows.length} redaka`))}
+    <section class="card report-hero"><div><div class="eyebrow">Obračunski paket · ${escapeHtml(data.period)}</div><h2>${escapeHtml(data.title)}</h2><p>${escapeHtml(data.description)}</p><div class="report-context"><span>${escapeHtml(data.scope)}</span><span>${escapeHtml(roleText)}</span></div></div><div class="report-boundary"><b>Granica modula</b><span>BSS priprema evidencijske podatke. Ne izračunava plaću, poreze ni doprinose.</span></div></section>
+    <div class="report-type-grid">${Object.entries(REPORT_TYPE_CONFIG).map(([key,config])=>`<button class="report-type ${reportFilters.type===key?'active':''}" onclick="setReportType('${key}')"><i>${config.icon}</i><span><b>${escapeHtml(config.short)}</b><small>${escapeHtml(config.description)}</small></span></button>`).join('')}</div>
+    <section class="card report-filter-card"><div class="card-heading"><div><h2>Kriteriji izvještaja</h2><p>Odabir se primjenjuje jednako na pregled, CSV i XLSX.</p></div></div><div class="report-filter-bar"><label><span>Mjesec</span><input id="reportMonth" type="month" min="2026-01" max="2026-12" value="${reportFilters.month}"></label><label><span>Odjel</span><select id="reportDept" onchange="updateReportDepartment(this.value)">${departmentOptions(reportFilters.department)}</select></label><label><span>Radnik</span><select id="reportWorker"><option value="Svi" ${reportFilters.workerId==='Svi'?'selected':''}>Svi radnici</option>${scopedWorkers.map(worker=>`<option value="${worker.id}" ${String(worker.id)===String(reportFilters.workerId)?'selected':''}>${escapeHtml(worker.name)}</option>`).join('')}</select></label><button class="btn" onclick="applyReportFilters()">Generiraj pregled</button></div></section>
+    <div class="report-kpis">${data.metrics.map(([label,value])=>`<div class="report-kpi"><span>${escapeHtml(label)}</span><b>${escapeHtml(value)}</b></div>`).join('')}</div>
+    <div class="report-layout"><section class="card report-export"><div class="card-heading"><div><h2>Preuzimanje</h2><p>Datoteke su imenovane po vrsti izvještaja i mjesecu.</p></div></div><div class="export-file"><span>CSV · UTF-8</span><b>${escapeHtml(data.filenameBase)}.csv</b></div><div class="export-file"><span>XLSX · Excel</span><b>${escapeHtml(data.filenameBase)}.xlsx</b></div><div class="btns"><button class="btn" onclick="downloadReport('csv')" ${data.rows.length?'':'disabled'}>Preuzmi CSV</button><button class="btn secondary" onclick="downloadReport('xlsx')" ${data.rows.length?'':'disabled'}>Preuzmi XLSX</button></div><div class="last-report"><span>Posljednja radnja</span><b>${escapeHtml(state.lastReport)}</b></div></section><section class="card report-quality"><div class="card-heading"><div><h2>Kontrola podataka</h2><p>Stavke koje treba razumjeti prije izvoza.</p></div></div>${data.quality.map((item,index)=>`<div class="quality-item"><i>${index+1}</i><span>${escapeHtml(item)}</span></div>`).join('')}</section></div>
+    ${reportPreview(data)}${reportHistoryView()}`;
 }
 function csvContent(data){
   return '\ufeff'+[data.headers,...data.rows].map(row=>row.map(value=>`"${String(value??'').replaceAll('"','""')}"`).join(';')).join('\r\n');
@@ -1182,13 +1390,12 @@ function downloadBlob(blob,filename){
   link.href=url;link.download=filename;document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),500);
 }
 function downloadReport(format){
+  if(!['admin','manager','accountant'].includes(currentRole)||!['csv','xlsx'].includes(format))return;
   const data=getReportData();
   if(!data.rows.length){toast('Nema podataka za preuzimanje.');return;}
-  const base=`BSS_${reportFilters.type}_${reportFilters.month}`;
-  if(format==='csv')downloadBlob(new Blob([csvContent(data)],{type:'text/csv;charset=utf-8'}),`${base}.csv`);
-  else downloadBlob(buildXlsx(data.headers,data.rows,data.title),`${base}.xlsx`);
-  state.lastReport=`${format.toUpperCase()} preuzet ${now()}`;
-  audit(role().label,`Preuzet ${format.toUpperCase()} izvještaj: ${data.title}.`,'Izvještaji');
+  if(format==='csv')downloadBlob(new Blob([csvContent(data)],{type:'text/csv;charset=utf-8'}),`${data.filenameBase}.csv`);
+  else downloadBlob(buildXlsx(data.headers,data.rows,data.title),`${data.filenameBase}.xlsx`);
+  recordReportActivity('Preuzet',data,format);
   render();toast(`${format.toUpperCase()} izvještaj je preuzet.`);
 }
 
@@ -1217,14 +1424,29 @@ function zipStore(files){
   return concatBytes([...locals,centralData,end]);
 }
 function buildXlsx(headers,rows,titleText){
-  const values=[headers,...rows],sheetRows=values.map((rowValues,rowIndex)=>`<row r="${rowIndex+1}">${rowValues.map((value,columnIndex)=>`<c r="${columnName(columnIndex)}${rowIndex+1}" t="inlineStr"><is><t xml:space="preserve">${xmlEscape(value)}</t></is></c>`).join('')}</row>`).join('');
+  const values=[headers,...rows],lastColumn=columnName(Math.max(0,headers.length-1)),lastRow=Math.max(1,values.length);
+  const sheetRows=values.map((rowValues,rowIndex)=>{
+    const style=rowIndex===0?1:(rowIndex%2===0?3:2);
+    const cells=rowValues.map((value,columnIndex)=>{
+      const ref=`${columnName(columnIndex)}${rowIndex+1}`;
+      return typeof value==='number'&&Number.isFinite(value)
+        ?`<c r="${ref}" s="${style}"><v>${value}</v></c>`
+        :`<c r="${ref}" s="${style}" t="inlineStr"><is><t xml:space="preserve">${xmlEscape(value)}</t></is></c>`;
+    }).join('');
+    return `<row r="${rowIndex+1}" ht="${rowIndex===0?26:22}" customHeight="1">${cells}</row>`;
+  }).join('');
+  const columns=headers.map((_,index)=>{
+    const width=Math.min(38,Math.max(11,...values.map(row=>String(row[index]??'').length+2)));
+    return `<col min="${index+1}" max="${index+1}" width="${width}" customWidth="1"/>`;
+  }).join('');
   const sheetName=String(titleText||'Izvještaj').replace(/[\\/*?:[\]]/g,' ').slice(0,31)||'Izvještaj';
   const files=[
-    {name:'[Content_Types].xml',content:'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/></Types>'},
+    {name:'[Content_Types].xml',content:'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>'},
     {name:'_rels/.rels',content:'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>'},
     {name:'xl/workbook.xml',content:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="${xmlEscape(sheetName)}" sheetId="1" r:id="rId1"/></sheets></workbook>`},
-    {name:'xl/_rels/workbook.xml.rels',content:'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/></Relationships>'},
-    {name:'xl/worksheets/sheet1.xml',content:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>${sheetRows}</sheetData></worksheet>`}
+    {name:'xl/_rels/workbook.xml.rels',content:'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>'},
+    {name:'xl/styles.xml',content:'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="2"><font><sz val="11"/><name val="Aptos"/><family val="2"/></font><font><b/><color rgb="FFFFFFFF"/><sz val="11"/><name val="Aptos"/><family val="2"/></font></fonts><fills count="4"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF0F766E"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFF3F8F5"/><bgColor indexed="64"/></patternFill></fill></fills><borders count="2"><border/><border><left/><right/><top/><bottom style="thin"><color rgb="FFDDE8E1"/></bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="4"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment vertical="center" wrapText="1"/></xf><xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1" applyAlignment="1"><alignment vertical="center" wrapText="1"/></xf><xf numFmtId="0" fontId="0" fillId="3" borderId="1" xfId="0" applyFill="1" applyBorder="1" applyAlignment="1"><alignment vertical="center" wrapText="1"/></xf></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>'},
+    {name:'xl/worksheets/sheet1.xml',content:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><dimension ref="A1:${lastColumn}${lastRow}"/><sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><cols>${columns}</cols><sheetData>${sheetRows}</sheetData><autoFilter ref="A1:${lastColumn}${lastRow}"/></worksheet>`}
   ];
   return new Blob([zipStore(files)],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
 }
