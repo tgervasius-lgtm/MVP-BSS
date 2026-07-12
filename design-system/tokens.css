@@ -57,6 +57,7 @@
   --bss-color-text-muted: var(--bss-color-neutral-500);
   --bss-color-text-on-brand: var(--bss-color-neutral-0);
   --bss-color-accent-text: var(--bss-color-brand-600);
+  --bss-color-accent-soft: var(--bss-color-brand-50);
   --bss-color-action-primary: var(--bss-color-brand-600);
   --bss-color-action-primary-hover: var(--bss-color-brand-700);
   --bss-color-action-primary-text: var(--bss-color-neutral-0);
@@ -116,35 +117,13 @@
   --bss-ease-standard: cubic-bezier(0.2, 0, 0, 1);
   --bss-control-min-height: 44px;
   --bss-content-max: 1380px;
+  --bss-safe-area-top: env(safe-area-inset-top);
+  --bss-safe-area-bottom: env(safe-area-inset-bottom);
   --bss-z-navigation: 5;
   --bss-z-drawer: 20;
   --bss-z-modal: 30;
   --bss-z-toast: 50;
 
-  /* Naslijeđeni aliasi Demo 3.0; uklanjaju se tek u BSS Refactoru v1. */
-  --bg: var(--bss-color-bg-canvas);
-  --surface: var(--bss-color-bg-surface);
-  --surface-2: var(--bss-color-bg-subtle);
-  --line: var(--bss-color-border);
-  --line-subtle: var(--bss-color-border-subtle);
-  --text: var(--bss-color-text);
-  --muted: var(--bss-color-text-muted);
-  --teal: var(--bss-color-accent-text);
-  --teal-dark: var(--bss-color-action-primary-hover);
-  --teal-soft: var(--bss-color-brand-50);
-  --green: var(--bss-color-success);
-  --green-soft: var(--bss-color-success-soft);
-  --amber: var(--bss-color-warning);
-  --amber-soft: var(--bss-color-warning-soft);
-  --red: var(--bss-color-danger);
-  --red-soft: var(--bss-color-danger-soft);
-  --blue: var(--bss-color-info);
-  --blue-soft: var(--bss-color-info-soft);
-  --shadow: var(--bss-shadow-md);
-  --shadow-hover: var(--bss-shadow-lg);
-  --radius: var(--bss-radius-xl);
-  --safe: env(safe-area-inset-bottom);
-  --safe-top: env(safe-area-inset-top);
 }
 
 :root[data-theme="dark"] {
@@ -160,6 +139,7 @@
   --bss-color-text: #ecfdf5;
   --bss-color-text-muted: #a8c8bd;
   --bss-color-accent-text: #5eead4;
+  --bss-color-accent-soft: #123d34;
   --bss-color-action-primary: #0f766e;
   --bss-color-action-primary-hover: #0d9488;
   --bss-color-focus: #93c5fd;
@@ -175,5 +155,4 @@
   --bss-shadow-sm: 0 5px 16px rgba(0, 0, 0, 0.18);
   --bss-shadow-md: 0 12px 32px rgba(0, 0, 0, 0.27);
   --bss-shadow-lg: 0 18px 42px rgba(0, 0, 0, 0.38);
-  --teal-soft: #123d34;
 }

@@ -16,11 +16,11 @@ Razdvojiti monolitni frontend u testabilnu domenu, politike, adaptere i prikaze 
 
 | Paket | Sadržaj | Status |
 | --- | --- | --- |
-| R1 | Stabilni ugovori, vrijeme i RBAC/scope politike | Dovršeno u ovoj grani |
-| R2 | Adapteri za pohranu, sat, ID i demo podatke | Dovršeno u ovoj grani |
-| R3 | Use-case funkcije za evidenciju, godišnje i korekcije | Dovršeno u ovoj grani |
-| R4 | Prikazi po ekranima i uklanjanje inline handlera | Dovršeno u ovoj grani |
-| R5 | CSS slojevi i uklanjanje legacy aliasa | Sljedeće |
+| R1 | Stabilni ugovori, vrijeme i RBAC/scope politike | Dovršeno |
+| R2 | Adapteri za pohranu, sat, ID i demo podatke | Dovršeno |
+| R3 | Use-case funkcije za evidenciju, godišnje i korekcije | Dovršeno |
+| R4 | Prikazi po ekranima i uklanjanje inline handlera | Dovršeno |
+| R5 | CSS slojevi i uklanjanje legacy aliasa | Dovršeno u ovoj grani |
 | R6 | Build, lint, browser E2E, axe i Cloudflare sigurnosna ograda | Čeka |
 
 ## R1 – izdvojena jezgra
@@ -89,6 +89,23 @@ R1 namjerno zadržava hrvatske demo oznake statusa i postojeći javni API funkci
 - klik, promjena selecta i tipka Enter zadržavaju postojeće ponašanje;
 - drawer, modal, navigacija, tabovi, obrasci i administrativne radnje prolaze regresiju;
 - svi R1–R3 i postojeći testovi prolaze.
+
+## R5 – CSS slojevi i semantički tokeni
+
+- `styles.css` je stabilna ulazna datoteka koja redom učitava tokene te slojeve `base`, `layouts`, `components`, `screens`, `navigation`, `themes` i `responsive`.
+- Izvorni redoslijed svih 804 CSS blokova ostao je isti kako se ne bi promijenili specifičnost, izgled ni responzivno ponašanje.
+- Poslovni CSS i Brand Book koriste isključivo semantičke `--bss-*` tokene.
+- Privremeni Demo 3.0 aliasi uklonjeni su iz `design-system/tokens.css`.
+- Novi semantički tokeni pokrivaju accent soft pozadinu i iOS safe-area rubove u obje teme.
+- Svi CSS slojevi ulaze u service-worker predmemoriju.
+
+### Kriterij prolaza R5
+
+- ulazna CSS datoteka učitava slojeve stabilnim, testiranim redoslijedom;
+- broj otvarajućih i zatvarajućih CSS blokova jednak je osnovi prije razdvajanja;
+- u tokenima i poslovnim slojevima nema legacy aliasa;
+- svijetla i tamna tema, mobilni i desktop rasporedi ostaju funkcionalno jednaki;
+- svi R1–R4 i postojeći regresijski testovi prolaze.
 
 ## Kriterij prolaza R1
 

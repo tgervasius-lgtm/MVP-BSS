@@ -1,0 +1,43 @@
+/* Prijava */
+.login{min-height:100dvh;padding:calc(48px + var(--bss-safe-area-top)) 22px calc(24px + var(--bss-safe-area-bottom));display:flex;flex-direction:column;justify-content:center;background:linear-gradient(145deg,#0b5e58,#0f766e 55%,#22a55b);color:#fff;position:relative;overflow:auto}
+.login:before,.login:after{content:"";position:absolute;border-radius:50%;background:rgba(255,255,255,.08);pointer-events:none}
+.login:before{width:380px;height:380px;right:-210px;top:-160px}
+.login:after{width:300px;height:300px;left:-180px;bottom:-120px}
+.login-inner{width:min(430px,100%);margin:auto;position:relative;z-index:1}
+.brand{text-align:center;margin-bottom:24px}
+.mark,.mini-logo{display:grid;place-items:center;font-weight:950}
+.mark{width:82px;height:82px;margin:auto;border-radius:27px;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.26);font-size:38px;backdrop-filter:blur(12px)}
+.brand h1{font-size:42px;letter-spacing:-.06em;line-height:1;margin:16px 0 6px}
+.brand small{font-size:11px;font-weight:850;letter-spacing:.3em;text-transform:uppercase;color:rgba(255,255,255,.8)}
+.brand p{font-size:14px;line-height:1.5;color:rgba(255,255,255,.84);max-width:350px;margin:14px auto 0}
+.login-version{display:inline-flex;margin-top:12px;padding:6px 9px;border:1px solid rgba(255,255,255,.2);border-radius:999px;background:rgba(255,255,255,.1);font-size:10px;font-weight:850;letter-spacing:.05em}
+.glass{background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.23);backdrop-filter:blur(16px);border-radius:24px;padding:18px}
+.login .form label{color:rgba(255,255,255,.9)}
+.login .form input,.login .form select{background:rgba(255,255,255,.16);border-color:rgba(255,255,255,.25);color:#fff}
+.login .form select option{color:var(--bss-color-text);background:#fff}
+.login-row{display:flex;justify-content:space-between;gap:10px;font-size:12px;color:rgba(255,255,255,.82);margin:4px 0 17px}
+.primary-login{width:100%;padding:15px;border-radius:16px;background:#fff;color:var(--bss-color-accent-text);font-weight:900;box-shadow:0 14px 28px rgba(7,69,52,.22)}
+.login-note{text-align:center;font-size:11px;line-height:1.5;color:rgba(255,255,255,.78);padding-top:14px}
+
+/* Okvir aplikacije */
+.app-shell{height:100dvh;display:flex;flex-direction:column;min-height:0}
+.topbar{padding:calc(12px + var(--bss-safe-area-top)) 15px 12px;background:linear-gradient(130deg,#0b5e58,#0f766e 62%,#179155);color:#fff;display:flex;align-items:center;gap:11px;box-shadow:0 8px 22px rgba(15,118,110,.17);z-index:5}
+.mini-logo{width:43px;height:43px;border-radius:14px;background:rgba(255,255,255,.17);border:1px solid rgba(255,255,255,.18);font-size:21px;flex:0 0 auto}
+.top-copy{flex:1;min-width:0}
+.top-copy h2{margin:0;font-size:17px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.top-copy p{margin:3px 0 0;font-size:11px;color:rgba(255,255,255,.82);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.topbar-meta{display:none;text-align:right;font-size:10px;color:rgba(255,255,255,.72);line-height:1.4}
+.topbar-meta span,.topbar-meta b{display:block}.topbar-meta b{color:#fff;font-size:11px}
+.system-light{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;background:#94a3b8;box-shadow:0 0 0 3px rgba(148,163,184,.15)}
+.system-light.online{background:#4ade80;box-shadow:0 0 0 3px rgba(74,222,128,.15)}
+.system-light.offline{background:#fb7185;box-shadow:0 0 0 3px rgba(251,113,133,.15)}
+.system-light.online{animation:statusPulse 2.6s ease-in-out infinite}@keyframes statusPulse{0%,100%{box-shadow:0 0 0 3px rgba(74,222,128,.12)}50%{box-shadow:0 0 0 6px rgba(74,222,128,.02)}}
+.role-badge,.menu-btn{background:rgba(255,255,255,.16);color:#fff;border:1px solid rgba(255,255,255,.16);font-weight:900}
+.role-badge{padding:8px 9px;border-radius:999px;font-size:10px;letter-spacing:.04em}
+.menu-btn{width:41px;height:41px;border-radius:13px;font-size:20px}
+.content{flex:1;min-height:0;overflow:auto;padding:18px 15px calc(108px + var(--bss-safe-area-bottom));scroll-behavior:smooth;scrollbar-gutter:stable}
+.content-inner{width:100%;max-width:1380px;margin:auto}
+.screen{animation:fade .18s ease}.screen>*{animation:screenRise .28s ease both}.screen>*:nth-child(2){animation-delay:.025s}.screen>*:nth-child(3){animation-delay:.05s}.screen>*:nth-child(4){animation-delay:.075s}.screen>*:nth-child(n+5){animation-delay:.1s}
+@keyframes fade{from{opacity:.5;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes screenRise{from{opacity:.25;transform:translateY(7px)}to{opacity:1;transform:none}}
+.desktop-sidebar{display:none}

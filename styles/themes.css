@@ -1,0 +1,36 @@
+/* BSS Design System v1.0 · tamna tema */
+:root[data-theme="dark"] .login .form select option{background:var(--bss-color-bg-surface);color:var(--bss-color-text)}
+:root[data-theme="dark"] .quick button,:root[data-theme="dark"] .process-step{background:linear-gradient(145deg,var(--bss-color-bg-surface),var(--bss-color-bg-subtle))}
+:root[data-theme="dark"] .quick button:hover,:root[data-theme="dark"] .attendance-live-item:hover,:root[data-theme="dark"] .drawer-item:hover{background:var(--bss-color-bg-hover);border-color:var(--bss-color-border-strong)}
+:root[data-theme="dark"] .notice{border-color:#765713;background:var(--bss-color-warning-soft);color:#fde68a}
+:root[data-theme="dark"] .notice.info,:root[data-theme="dark"] .leave-request-preview{border-color:#315b84;background:var(--bss-color-info-soft);color:#bfdbfe}
+:root[data-theme="dark"] .pill{border-color:var(--bss-color-border);background:var(--bss-color-bg-subtle)}
+:root[data-theme="dark"] .pill.gray{border-color:var(--bss-color-border);background:var(--bss-color-bg-subtle);color:var(--bss-color-text-muted)}
+:root[data-theme="dark"] .table-wrap::-webkit-scrollbar-thumb{background:var(--bss-color-border-strong);border-color:var(--bss-color-bg-surface)}
+:root[data-theme="dark"] .table-wrap::-webkit-scrollbar-track,:root[data-theme="dark"] th,:root[data-theme="dark"] .table-scroll-hint{background:var(--bss-color-bg-subtle)}
+:root[data-theme="dark"] tbody tr:hover{background:var(--bss-color-bg-hover)}
+:root[data-theme="dark"] .row,:root[data-theme="dark"] .summary-line,:root[data-theme="dark"] .meta-line,:root[data-theme="dark"] td,:root[data-theme="dark"] .audit-item{border-color:var(--bss-color-border-subtle)}
+:root[data-theme="dark"] .attendance-tabs button,:root[data-theme="dark"] .request-tabs button,:root[data-theme="dark"] .calendar-controls button,:root[data-theme="dark"] .view-switch button,:root[data-theme="dark"] .calendar-filter,:root[data-theme="dark"] .mytime-toolbar input{background:var(--bss-color-bg-surface);color:var(--bss-color-text)}
+:root[data-theme="dark"] .attendance-tabs button.active,:root[data-theme="dark"] .request-tabs button.active,:root[data-theme="dark"] .view-switch button.active,:root[data-theme="dark"] .access-filter button.active,:root[data-theme="dark"] .settings-tabs button.active{background:var(--bss-color-action-primary);border-color:var(--bss-color-action-primary);color:var(--bss-color-action-primary-text)}
+:root[data-theme="dark"] .record-review{background:#382f13}
+:root[data-theme="dark"] .table-detail-btn,:root[data-theme="dark"] .table-actions button{border-color:var(--bss-color-border);background:var(--bss-color-bg-subtle)}
+:root[data-theme="dark"] .table-detail-btn:hover{background:var(--bss-color-action-primary);color:var(--bss-color-action-primary-text)}
+:root[data-theme="dark"] .worker-time-hero,:root[data-theme="dark"] .report-hero{background:linear-gradient(135deg,var(--bss-color-bg-subtle),var(--bss-color-bg-surface));border-color:var(--bss-color-border)}
+:root[data-theme="dark"] .worker-shift{background:color-mix(in srgb,var(--bss-color-bg-surface) 78%,transparent)}
+:root[data-theme="dark"] .kpi-card,:root[data-theme="dark"] .leave-request-card,:root[data-theme="dark"] .month-card,:root[data-theme="dark"] .report-type,:root[data-theme="dark"] .report-kpi,:root[data-theme="dark"] .admin-kpis>div,:root[data-theme="dark"] .terminal-kpis>div{background:var(--bss-color-bg-surface)}
+:root[data-theme="dark"] .kpi-card.purple .kpi-icon{background:#3b2351;color:#e9d5ff}
+:root[data-theme="dark"] .request-search input,:root[data-theme="dark"] .report-filter-bar input,:root[data-theme="dark"] .report-filter-bar select,:root[data-theme="dark"] .audit-filter-bar input,:root[data-theme="dark"] .audit-filter-bar select,:root[data-theme="dark"] .check-option,:root[data-theme="dark"] .access-filter button,:root[data-theme="dark"] .settings-tabs button{background:var(--bss-color-bg-surface);color:var(--bss-color-text)}
+:root[data-theme="dark"] .leave-request-body>div{border-color:var(--bss-color-border-subtle)}
+:root[data-theme="dark"] .leave-conflict{border-color:#765713;color:#fde68a}
+:root[data-theme="dark"] .day{background:var(--bss-color-bg-subtle)}
+:root[data-theme="dark"] .day.weekend{background:#0e2a23;color:#77998d}
+:root[data-theme="dark"] .day.has-pending{background:var(--bss-color-warning-soft);color:#fde68a}
+:root[data-theme="dark"] .report-context span{background:var(--bss-color-bg-surface);border-color:var(--bss-color-border);color:var(--bss-color-text)}
+:root[data-theme="dark"] .report-type.active{border-color:var(--bss-color-accent-text);background:var(--bss-color-accent-soft)}
+:root[data-theme="dark"] .report-type.active>i{background:var(--bss-color-action-primary);color:var(--bss-color-action-primary-text)}
+:root[data-theme="dark"] .report-type.active small{color:var(--bss-color-text-muted)}
+:root[data-theme="dark"] .close-btn{background:var(--bss-color-bg-subtle)}
+:root[data-theme="dark"] .proof-icon{background:var(--bss-color-bg-subtle)}
+:root[data-theme="dark"] .demo-story-footer{border-color:var(--bss-color-border);background:var(--bss-color-bg-subtle)}
+:root[data-theme="dark"] .modal,:root[data-theme="dark"] .drawer{background:var(--bss-color-overlay)}
+:root[data-theme="dark"] ::selection{background:#115e59;color:#ecfdf5}

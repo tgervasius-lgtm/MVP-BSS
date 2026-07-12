@@ -21,7 +21,7 @@ Design System v1.0 obuhvaća:
 - smjernice za ikone;
 - živi HTML vodič i pravila korištenja tokena.
 
-Brand Book, nova produkcijska SVG biblioteka ikona i strukturni refaktor JavaScripta pripadaju sljedećim fazama.
+Brand Book v1.0 i njegova SVG biblioteka dovršeni su. Strukturni Refactor v1 nastavlja razdvajanje aplikacije bez promjene Design System ugovora.
 
 ## 2. Načela
 
@@ -38,7 +38,7 @@ Brand Book, nova produkcijska SVG biblioteka ikona i strukturni refaktor JavaScr
 
 - **Primitive** opisuju vrijednost: `--bss-color-brand-600`, `--bss-space-4`.
 - **Semantički tokeni** opisuju namjenu: `--bss-color-bg-surface`, `--bss-color-text-muted`.
-- **Privremeni aliasi** (`--teal`, `--surface`, `--line`) održavaju kompatibilnost Demo 3.0 do BSS Refactora v1.
+- **Poslovni slojevi** koriste isključivo semantička `--bss-*` imena; privremeni Demo 3.0 aliasi uklonjeni su u Refactoru v1 R5.
 
 Nova komponenta ne smije izravno koristiti primitive ako postoji odgovarajući semantički token.
 
@@ -196,6 +196,6 @@ Prije prihvaćanja provjeriti:
 7. koristi li dogovoreni hrvatski naziv;
 8. prolaze li automatski i vizualni regresijski testovi.
 
-## 13. Put prema Refactoru v1
+## 13. Refactor v1
 
-U BSS Refactoru v1 postojeći aliasi (`--teal`, `--surface`, `--line` i slični) postupno se zamjenjuju semantičkim `--bss-*` tokenima. Poslovne komponente tada se izdvajaju iz monolitnog CSS-a i JavaScripta, ali Design System ostaje isti ugovor između modula.
+Refactor v1 R5 dovršio je prijelaz na semantičke `--bss-*` tokene i razdvojio poslovni CSS na slojeve za osnovu, rasporede, komponente, ekrane, navigaciju, teme i responzivna pravila. Redoslijed pravila i Design System ugovor ostali su nepromijenjeni.
