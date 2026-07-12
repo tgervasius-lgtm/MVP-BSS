@@ -1,12 +1,13 @@
 'use strict';
 
 const BSS_CORE = globalThis.BSSCore;
-if(!BSS_CORE?.contracts || !BSS_CORE?.time || !BSS_CORE?.access){
+if(!BSS_CORE?.contracts || !BSS_CORE?.time || !BSS_CORE?.access || !BSS_CORE?.runtime){
   throw new Error('BSS jezgra nije učitana prije aplikacije.');
 }
 const BSS_CONTRACTS = BSS_CORE.contracts;
 const BSS_TIME = BSS_CORE.time;
 const BSS_ACCESS = BSS_CORE.access;
+const BSS_RUNTIME = BSS_CORE.runtime;
 
 const STORAGE_KEY = 'bss-demo-state-v8';
 const ROLE_KEY = 'bss-demo-role-v3';
@@ -187,9 +188,9 @@ const ROLE_CONFIG = {
 
 let state = loadState();
 syncDemoRoleConfig();
-let logged = localStorage.getItem(LOGIN_KEY) === '1';
-let currentRole = localStorage.getItem(ROLE_KEY) || 'admin';
-const savedTheme = localStorage.getItem(THEME_KEY);
+let logged = BSS_RUNTIME.storage.get(LOGIN_KEY) === '1';
+let currentRole = BSS_RUNTIME.storage.get(ROLE_KEY) || 'admin';
+const savedTheme = BSS_RUNTIME.storage.get(THEME_KEY);
 let currentTheme = savedTheme === 'dark' || savedTheme === 'light'
   ? savedTheme
   : (typeof window.matchMedia === 'function' && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
@@ -234,21 +235,15 @@ function applyTheme(){
 }
 function toggleTheme(){
   currentTheme=currentTheme==='dark'?'light':'dark';
-  localStorage.setItem(THEME_KEY,currentTheme);
+  BSS_RUNTIME.storage.set(THEME_KEY,currentTheme);
   applyTheme();
   toast(currentTheme==='dark'?'Uključena je tamna tema.':'Uključena je svijetla tema.');
 }
 
 function loadState(){
-  try{
-    const raw = localStorage.getItem(STORAGE_KEY);
-    const parsed = raw ? JSON.parse(raw) : null;
-    return parsed && parsed.version === 8 ? parsed : clone(DEFAULT_STATE);
-  }catch(error){
-    return clone(DEFAULT_STATE);
-  }
+  return BSS_RUNTIME.state.load(STORAGE_KEY,{version:8,fallback:DEFAULT_STATE});
 }
-function saveState(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+function saveState(){ BSS_RUNTIME.state.save(STORAGE_KEY,state); }
 function syncDemoRoleConfig(){
   const managerAccess=state?.accessUsers?.find(item=>item.workerId===ROLE_CONFIG.manager.userId);
   ROLE_CONFIG.manager.departments=managerAccess?.role==='Voditelj'&&managerAccess.status==='Aktivan'?[...(managerAccess.departments||[])]:[];
@@ -258,8 +253,9 @@ function escapeHtml(value){
   return String(value ?? '').replace(/[&<>'"]/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[char]));
 }
 function now(){
-  return new Date().toLocaleString('hr-HR',{hour:'2-digit',minute:'2-digit',day:'2-digit',month:'2-digit',year:'numeric'}).replace(',', '.');
+  return BSS_RUNTIME.clock.nowLabel();
 }
+function nextId(){ return BSS_RUNTIME.ids.next(); }
 function isoToDate(iso){ return BSS_TIME.isoToDate(iso); }
 function isoLabel(iso, withYear = true){
   if(!iso) return '—';
@@ -470,7 +466,7 @@ function navigate(next){
 function switchRole(next){
   if(!state.demoMode || !ROLE_CONFIG[next]) return;
   currentRole = next;
-  localStorage.setItem(ROLE_KEY,currentRole);
+  BSS_RUNTIME.storage.set(ROLE_KEY,currentRole);
   vacationDepartment = 'Svi';
   calendarMode = currentRole === 'admin' ? 'year' : 'month';
   requestStatusFilter=currentRole==='worker'?'Svi':'Na čekanju';
@@ -611,8 +607,8 @@ function render(){
 }
 function login(){
   if(state.demoMode && $('#loginRole')) currentRole = $('#loginRole').value;
-  localStorage.setItem(ROLE_KEY,currentRole);
-  localStorage.setItem(LOGIN_KEY,'1');
+  BSS_RUNTIME.storage.set(ROLE_KEY,currentRole);
+  BSS_RUNTIME.storage.set(LOGIN_KEY,'1');
   logged = true;
   calendarMode = currentRole === 'admin' ? 'year' : 'month';
   requestStatusFilter=currentRole==='worker'?'Svi':'Na čekanju';
@@ -625,7 +621,7 @@ function login(){
   render();
   toast(`Dobro došli. Aktivni prikaz: ${role().label}.`);
 }
-function logout(){ logged = false; localStorage.removeItem(LOGIN_KEY); screen = 'home'; render(); }
+function logout(){ logged = false; BSS_RUNTIME.storage.remove(LOGIN_KEY); screen = 'home'; render(); }
 let layerReturnFocus=null;
 function focusFirst(layer){
   const first=layer?.querySelector('button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[href],[tabindex]:not([tabindex="-1"])');
@@ -678,7 +674,7 @@ document.addEventListener('keydown',event=>{
 function resetDemo(){
   resetState();
   currentRole = 'admin';
-  localStorage.setItem(ROLE_KEY,currentRole);
+  BSS_RUNTIME.storage.set(ROLE_KEY,currentRole);
   attendanceFilters={month:'2026-07',department:'Svi',status:'Svi',search:''};
   attendanceView='all';
   myTimeMonth='2026-07';
@@ -1001,7 +997,7 @@ function saveWorker(id){
     const access=accessUserByWorker(id);if(access)access.email=email;
     audit('Administrator',`Ažuriran profil radnika ${name}.`,'Radnici');
   }else{
-    const worker={id:Date.now(),...data,status:'Odsutna',todayStart:'',active:true};
+    const worker={id:nextId(),...data,status:'Odsutna',todayStart:'',active:true};
     state.workers.push(worker); activeWorkerId=worker.id;
     audit('Administrator',`Dodan radnik ${name}${card?' i dodijeljena RFID kartica':' bez RFID kartice'}.`,'Radnici');
   }
@@ -1052,7 +1048,7 @@ function saveShift(id){
   if(startMinutes===null||endMinutes===null||startMinutes===endMinutes||duration>960){toast('Smjena mora trajati više od 0 i najviše 16 sati.');return;}
   if(breakMinutes>=duration){toast('Pauza mora biti kraća od trajanja smjene.');return;}
   if(id){Object.assign(shiftById(id),{name,start,end,breakMinutes,tolerance});audit('Administrator',`Ažurirana smjena ${name}.`,'Smjene');}
-  else{state.shifts.push({id:Date.now(),name,start,end,breakMinutes,tolerance,active:true});audit('Administrator',`Dodana smjena ${name}.`,'Smjene');}
+  else{state.shifts.push({id:nextId(),name,start,end,breakMinutes,tolerance,active:true});audit('Administrator',`Dodana smjena ${name}.`,'Smjene');}
   closeModal();saveAndRender('Smjena je spremljena.');
 }
 function toggleShift(id){
@@ -1143,7 +1139,7 @@ function submitVacationRequest(){
     const available=vacationBalanceSummary(worker.id).available;
     if(days>available){toast(`Nema dovoljno raspoloživih dana. Dostupno: ${available}.`);return;}
   }
-  const request={id:Date.now(),workerId:worker.id,type,start,end,note:note||'Bez dodatne napomene.',status:'Na čekanju',submittedAt:now()};
+  const request={id:nextId(),workerId:worker.id,type,start,end,note:note||'Bez dodatne napomene.',status:'Na čekanju',submittedAt:now()};
   state.requests.unshift(request);
   const conflicts=teamConflicts(request).length;
   requestStatusFilter='Na čekanju';
@@ -1281,7 +1277,7 @@ function submitCorrection(){
   const record=state.records.find(item=>item.workerId===worker.id&&item.date===date);
   const oldStart=record?.start||'',oldEnd=record?.end||'';
   if(newStart===oldStart&&newEnd===oldEnd){toast('Novo vrijeme jednako je postojećem zapisu.');return;}
-  state.corrections.unshift({id:Date.now(),workerId:worker.id,date,oldStart,oldEnd,newStart,newEnd,reason,status:'Na čekanju'});
+  state.corrections.unshift({id:nextId(),workerId:worker.id,date,oldStart,oldEnd,newStart,newEnd,reason,status:'Na čekanju'});
   audit('Radnik',`Poslana korekcija: ${worker.name} · ${isoLabel(date)}.`,'Korekcije');
   correctionDraft={date:DEMO_TODAY,start:'07:42',end:'16:02'};
   screen='corrections';saveAndRender('Zahtjev za korekciju je poslan.');
@@ -1307,7 +1303,7 @@ function updateCorrection(id,status){
     let record=state.records.find(item=>item.workerId===correction.workerId&&item.date===correction.date);
     if(!record){
       const shift=shiftById(worker?.shiftId);
-      record={id:Date.now(),workerId:correction.workerId,date:correction.date,start:correction.newStart,end:correction.newEnd,breakMinutes:shift?.breakMinutes||0,status:'Ispravljeno'};
+      record={id:nextId(),workerId:correction.workerId,date:correction.date,start:correction.newStart,end:correction.newEnd,breakMinutes:shift?.breakMinutes||0,status:'Ispravljeno'};
       state.records.push(record);
     }else{
       record.start=correction.newStart;record.end=correction.newEnd;record.status='Ispravljeno';
@@ -1522,7 +1518,7 @@ function getReportData(filters=reportFilters){
 }
 function recordReportActivity(action,data,format=''){
   const time=now(),formatLabel=format?format.toUpperCase():'';
-  const entry={id:Date.now(),time,role:role().label,action,type:data.title,period:data.period,scope:data.scope,rows:data.rows.length,format:formatLabel};
+  const entry={id:nextId(),time,role:role().label,action,type:data.title,period:data.period,scope:data.scope,rows:data.rows.length,format:formatLabel};
   state.reportHistory=[entry,...(state.reportHistory||[])].slice(0,8);
   state.lastReport=`${action}${formatLabel?` ${formatLabel}`:''} ${time}`;
   audit(role().label,`${action}${formatLabel?` ${formatLabel}`:''}: ${data.title} · ${data.period} · ${data.scope} · ${data.rows.length} redaka.`,'Izvještaji');
@@ -1834,7 +1830,7 @@ function toggleAccessUser(id){
   audit('Administrator',`${user.status==='Aktivan'?'Aktiviran':'Blokiran'} korisnički račun ${user.email}.`,'Prava pristupa');
   saveAndRender(`Račun je ${user.status.toLowerCase()}.`);
 }
-function futureTime(hours){ return new Date(Date.now()+hours*3600000).toLocaleString('hr-HR',{hour:'2-digit',minute:'2-digit',day:'2-digit',month:'2-digit',year:'numeric'}).replace(',', '.'); }
+function futureTime(hours){ return BSS_RUNTIME.clock.futureLabel(hours); }
 function openInviteModal(workerId=null){
   if(currentRole!=='admin')return;
   const worker=workerId?workerById(workerId):null,selected=worker?[worker.dept]:[];
@@ -1851,7 +1847,7 @@ function sendInvitation(){
   if((state.accessUsers||[]).some(item=>item.email.toLowerCase()===email)){toast('Korisnički račun s tim emailom već postoji.');return;}
   if((state.invitations||[]).some(item=>item.email.toLowerCase()===email&&item.status==='Poslana')){toast('Aktivna pozivnica za taj email već postoji.');return;}
   const inviteDepartments=roleValue==='Administrator'?['Svi']:['Radnik','Voditelj'].includes(roleValue)?departments:[];
-  const sentAt=now(),invite={id:Date.now(),name,email,role:roleValue,departments:inviteDepartments,status:'Poslana',sentAt,expiresAt:futureTime(state.security.inviteValidityHours)};
+  const sentAt=now(),invite={id:nextId(),name,email,role:roleValue,departments:inviteDepartments,status:'Poslana',sentAt,expiresAt:futureTime(state.security.inviteValidityHours)};
   state.invitations.unshift(invite);
   audit('Administrator',`Evidentirana pozivnica za ${email}: ${roleValue}${invite.departments.length?` · ${invite.departments.join(', ')}`:''}.`,'Prava pristupa');
   closeModal();saveAndRender('Pozivnica je evidentirana; stvarni email nije poslan.');
@@ -1945,7 +1941,7 @@ function saveDepartment(id){
     state.invitations.forEach(invite=>invite.departments=invite.departments.map(department=>department===oldName?name:department));
     ROLE_CONFIG.manager.departments=ROLE_CONFIG.manager.departments.map(department=>department===oldName?name:department);
     audit('Administrator',`Ažuriran odjel ${oldName} → ${name} (${code}).`,'Postavke');
-  }else{state.departments.push({id:Date.now(),name,code,managerId,active:true});audit('Administrator',`Dodan odjel ${name} (${code}).`,'Postavke');}
+  }else{state.departments.push({id:nextId(),name,code,managerId,active:true});audit('Administrator',`Dodan odjel ${name} (${code}).`,'Postavke');}
   closeModal();saveAndRender('Odjel je spremljen.');
 }
 function toggleDepartment(id){
@@ -1966,7 +1962,7 @@ function saveJobPosition(id){
   if(!name||!/^[-A-Z0-9]{2,10}$/.test(code)||!departmentByName(department)?.active){toast('Unesi naziv, valjanu šifru i aktivan odjel.');return;}
   if((state.jobPositions||[]).some(item=>item.id!==Number(id)&&(item.code===code||(item.name.toLocaleLowerCase('hr')===name.toLocaleLowerCase('hr')&&item.department===department)))){toast('Radno mjesto ili šifra već postoji.');return;}
   if(id){const item=jobPositionById(id);if(!item)return;const oldName=item.name,oldDepartment=item.department,assigned=state.workers.filter(worker=>worker.active&&worker.jobTitle===oldName&&worker.dept===oldDepartment).length;if(oldDepartment!==department&&assigned){toast(`Radno mjesto koristi ${assigned} aktivnih radnika. Prvo im promijeni radno mjesto.`);return;}Object.assign(item,{name,code,department});state.workers.filter(worker=>worker.jobTitle===oldName&&worker.dept===oldDepartment).forEach(worker=>{worker.jobTitle=name;if(oldDepartment!==department)worker.dept=department;});audit('Administrator',`Ažurirano radno mjesto ${oldName} → ${name}.`,'Postavke');}
-  else{state.jobPositions.push({id:Date.now(),name,code,department,active:true});audit('Administrator',`Dodano radno mjesto ${name} u odjel ${department}.`,'Postavke');}
+  else{state.jobPositions.push({id:nextId(),name,code,department,active:true});audit('Administrator',`Dodano radno mjesto ${name} u odjel ${department}.`,'Postavke');}
   closeModal();saveAndRender('Radno mjesto je spremljeno.');
 }
 function toggleJobPosition(id){
@@ -1989,7 +1985,7 @@ function saveHoliday(id){
   if(!validDate||!name){toast('Unesi valjan datum u 2026. i naziv neradnog dana.');return;}
   if((state.holidays||[]).some(item=>item.id!==Number(id)&&item.date===date)){toast('Neradni dan za taj datum već postoji.');return;}
   if(id){const item=state.holidays.find(value=>value.id===Number(id));if(!item||item.protected)return;Object.assign(item,{date,name,type});audit('Administrator',`Ažuriran interni neradni dan ${name} · ${isoLabel(date)}.`,'Postavke');}
-  else{state.holidays.push({id:Date.now(),date,name,type,protected:false,active:true});audit('Administrator',`Dodan interni neradni dan ${name} · ${isoLabel(date)}.`,'Postavke');}
+  else{state.holidays.push({id:nextId(),date,name,type,protected:false,active:true});audit('Administrator',`Dodan interni neradni dan ${name} · ${isoLabel(date)}.`,'Postavke');}
   closeModal();saveAndRender('Neradni dan je spremljen.');
 }
 function toggleHoliday(id){
