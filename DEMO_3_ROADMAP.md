@@ -2,6 +2,8 @@
 
 Demo 3.0 izrađuje se prije produkcijskog MVP-a i stvarnog backenda. Objavljeni Demo 2.0 služi kao stabilna baza. Svaki sprint ide kroz zasebnu granu, testove, GitHub PR i Cloudflare Pages razvojni deploy; `main` se ne mijenja bez izričitog Tomislavovog odobrenja.
 
+> **Status 12.07.2026.** Tomislav je odobrio i spojio Demo 3.0, Design System v1.0 i Brand Book v1.0 u `main`; sve tri cjeline aktivne su na produkcijskoj Cloudflare Pages objavi. Sljedeća kontrolna točka je tehnički audit + zamrzavanje MVP opsega, a nakon odobrenja slijedi Refactor v1.
+
 ## Opseg koji ostaje obvezan
 
 - evidencija radnog vremena
@@ -17,13 +19,13 @@ Demo 3.0 ne uključuje skladište, ERP, GPS/geofencing, AI analitiku, payroll ob
 
 | Sprint | Paket | Status |
 | --- | --- | --- |
-| 1 | Dashboard i navigacija | Spremno za pregled |
-| 2 | Evidencija radnog vremena | Spremno za pregled |
-| 3 | Godišnji odmori | Spremno za pregled |
-| 4 | Izvještaji | Spremno za pregled |
-| 5 | RFID terminal | Spremno za pregled |
-| 6 | Postavke i administracija | Spremno za pregled |
-| 7 | Dizajn i završno poliranje | Spremno za pregled |
+| 1 | Dashboard i navigacija | Spojeno u `main` · 12.07.2026. |
+| 2 | Evidencija radnog vremena | Spojeno u `main` · 12.07.2026. |
+| 3 | Godišnji odmori | Spojeno u `main` · 12.07.2026. |
+| 4 | Izvještaji | Spojeno u `main` · 12.07.2026. |
+| 5 | RFID terminal | Spojeno u `main` · 12.07.2026. |
+| 6 | Postavke i administracija | Spojeno u `main` · 12.07.2026. |
+| 7 | Dizajn i završno poliranje | Spojeno u `main` · 12.07.2026. |
 
 ## Sprint 1 – kriteriji prihvata
 
@@ -134,3 +136,15 @@ Demo 3.0 ne uključuje skladište, ERP, GPS/geofencing, AI analitiku, payroll ob
 ## Pravilo završetka sprinta
 
 Sprint je dovršen tek kada su provedene strukturna, sadržajna i jezično-formatna provjera, automatski testovi te vizualna provjera desktopa i mobitela. Razvojna objava ide preko Cloudflare Pages. Produkcijski deploy ili spajanje na `main` nije dio automatskog završetka sprinta.
+
+## Prijelaz u produkcijski MVP
+
+Demo faza završena je odobrenim spajanjem. Daljnji rad vodi se ovim redoslijedom:
+
+1. `BSS_TECHNICAL_AUDIT_V1.md` i `BSS_MVP_SCOPE_FREEZE_V1.md`;
+2. Refactor v1 bez promjene funkcija i dizajna;
+3. OpenAPI, ER dijagram, validacijska pravila i terminalske sekvence;
+4. produkcijski backend, integracija hardvera i pilot;
+5. odluka Product Ownera o lansiranju.
+
+Nove funkcije izvan zaključanog MVP opsega ne ulaze u aktivnu fazu bez nove verzije scope dokumenta i izričitog odobrenja Product Ownera.

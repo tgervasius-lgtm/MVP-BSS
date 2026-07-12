@@ -1,0 +1,107 @@
+{
+  "schemaVersion": 1,
+  "product": "BSS MVP",
+  "version": "1.0",
+  "status": "FROZEN",
+  "frozenAt": "2026-07-12",
+  "owner": "Tomislav Bognar",
+  "baseline": {
+    "repository": "tgervasius-lgtm/MVP-BSS",
+    "branch": "main",
+    "commit": "29353f893b16d7dbd48902320ae1c6837b572815",
+    "productionUrl": "https://mvp-bss.pages.dev/"
+  },
+  "pilot": {
+    "organizations": 1,
+    "workersMin": 10,
+    "workersMax": 30,
+    "terminals": 1,
+    "durationWeeks": 4
+  },
+  "roles": {
+    "admin": {
+      "label": "Administrator",
+      "scope": "organization",
+      "canMutate": true
+    },
+    "manager": {
+      "label": "Voditelj",
+      "scope": "assigned_departments",
+      "canMutate": true
+    },
+    "worker": {
+      "label": "Radnik",
+      "scope": "self",
+      "canMutate": true
+    },
+    "accountant": {
+      "label": "Knjigovođa",
+      "scope": "organization_reports_read_only",
+      "canMutate": false
+    }
+  },
+  "includedModules": [
+    "organization",
+    "departments_jobs",
+    "workers_users",
+    "shifts_holidays",
+    "rfid_cards",
+    "attendance",
+    "leave_requests",
+    "correction_requests",
+    "reports_csv_xlsx",
+    "terminal_offline_sync",
+    "rbac_tenant_isolation",
+    "append_only_audit",
+    "monitoring_backup_recovery",
+    "responsive_web_pwa"
+  ],
+  "excludedCapabilities": [
+    "warehouse",
+    "inventory",
+    "erp",
+    "gps_tracking",
+    "geofencing",
+    "ai_analytics",
+    "biometrics",
+    "payroll_calculation",
+    "door_access_control",
+    "crm",
+    "native_mobile_apps",
+    "kubernetes",
+    "microservices",
+    "marketing_campaigns",
+    "billing_subscriptions"
+  ],
+  "statuses": {
+    "attendanceDay": ["active", "complete", "late", "incomplete", "corrected"],
+    "leaveRequest": ["pending", "approved", "rejected", "cancelled"],
+    "correctionRequest": ["pending", "approved", "rejected", "cancelled"],
+    "terminalEvent": ["queued", "synced", "duplicate", "rejected"],
+    "rfidCard": ["active", "blocked"],
+    "userWorker": ["active", "blocked"]
+  },
+  "invariants": [
+    "server_authority",
+    "organization_isolation",
+    "utc_and_organization_timezone",
+    "maximum_shift_16_hours",
+    "append_only_idempotent_terminal_events",
+    "corrections_preserve_original",
+    "incomplete_days_excluded_from_month_close",
+    "leave_excludes_weekends_and_holidays",
+    "worker_cancels_own_pending_request_only",
+    "append_only_audit",
+    "screen_csv_xlsx_same_dataset",
+    "versioned_reproducible_exports_with_checksum",
+    "no_payroll_calculation",
+    "private_api_responses_never_cached_by_service_worker"
+  ],
+  "nextPhases": [
+    "refactor_v1",
+    "backend_contract",
+    "backend_mvp",
+    "hardware_integration_pilot",
+    "launch_decision"
+  ]
+}
