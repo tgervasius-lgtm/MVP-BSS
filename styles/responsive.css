@@ -47,7 +47,7 @@
   .desktop-nav .drawer-item{color:rgba(255,255,255,.8);background:transparent;padding:11px 12px}
   .desktop-nav .drawer-item:hover{background:rgba(255,255,255,.08)}
   .desktop-nav .drawer-item.active{position:relative;background:rgba(255,255,255,.14);color:#fff}.desktop-nav .drawer-item.active:before{content:"";position:absolute;left:0;top:9px;bottom:9px;width:3px;border-radius:999px;background:#6ee7b7}
-  .side-footer{margin-top:auto;padding:18px 8px 0;font-size:10px;color:rgba(255,255,255,.58);line-height:1.45}
+  .side-footer{margin-top:auto;padding:18px 8px 0;font-size:10px;color:rgba(255,255,255,.72);line-height:1.45}
   .topbar{grid-column:2;grid-row:1;padding:12px 22px}
   .topbar .mini-logo{display:none}
   .topbar-meta{display:block}
@@ -74,7 +74,7 @@
   .month-card{padding:12px}.month-card h3{font-size:14px}.week-row span{font-size:8px}.day{font-size:9px}
   .modal,.drawer,.toast{position:fixed}
   .toast{left:auto;right:24px;bottom:24px;width:370px}
-  .desktop-nav .nav-group-label{color:rgba(255,255,255,.38);padding:10px 12px 3px}
+  .desktop-nav .nav-group-label{color:rgba(255,255,255,.72);padding:10px 12px 3px}
   .desktop-nav .nav-count{background:rgba(251,191,36,.18);color:#fde68a}
 }
 @media(min-width:1280px){

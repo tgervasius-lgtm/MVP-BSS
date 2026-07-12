@@ -972,8 +972,10 @@ test('R5 učitava CSS slojeve istim redoslijedom i sprema ih za offline rad',()=
 });
 
 test('ključni tekst i statusi Design Systema zadovoljavaju WCAG AA kontrast',()=>{
+  assert.match(designTokens,/--bss-color-text-muted: var\(--bss-color-neutral-600\)/);
+  assert.equal(hexToken(designTokens,'--bss-color-success-600'),'#166534');
   const pairs=[
-    ['--bss-color-neutral-500','--bss-color-neutral-50'],
+    ['--bss-color-neutral-600','--bss-color-neutral-50'],
     ['--bss-color-success-600','--bss-color-success-100'],
     ['--bss-color-warning-700','--bss-color-warning-100'],
     ['--bss-color-danger-700','--bss-color-danger-100'],
@@ -1026,6 +1028,11 @@ test('živi Design System vodič dokumentira komponente, responsive i pristupač
     assert.ok(guide.querySelector(`#${id}`),`nedostaje sekcija ${id}`);
   }
   assert.ok(guide.querySelector('[data-theme-switch][role="switch"]'));
+  const scrollRegions=[...guide.querySelectorAll('.ds-swatches,.ds-table-wrap')];
+  assert.equal(scrollRegions.length,2);
+  assert.ok(scrollRegions.every(region=>region.tabIndex===0 && region.getAttribute('role')==='region' && region.getAttribute('aria-label')));
+  assert.doesNotMatch(designGuideStyles,/\.state-disabled\{[^}]*opacity/);
+  assert.match(designGuideStyles,/\.state-disabled\{[^}]*border-style:dashed/);
   assert.equal(guide.documentElement.lang,'hr');
   assert.match(guide.querySelector('title').textContent,/Design System v1\.0/);
   assert.match(designGuideStyles,/@media\(max-width:760px\)/);
