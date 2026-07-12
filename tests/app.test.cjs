@@ -41,10 +41,10 @@ test('evidencija i RFID simulator su odvojeni',()=>{
   assert.ok(document.querySelector('.rfid-ring'));
 });
 
-test('Demo 3.0 Sprint 1 dashboard ima potpuni operativni pregled',()=>{
+test('Demo 3.0 dashboard zadržava potpuni operativni pregled u Sprintu 2',()=>{
   const {window,document,state} = boot('admin');
   assert.match(document.querySelector('.version-chip').textContent,/v3\.0/);
-  assert.match(document.querySelector('.side-footer').textContent,/Sprint 1/);
+  assert.match(document.querySelector('.side-footer').textContent,/Sprint 2/);
   assert.equal(document.querySelectorAll('.dashboard-kpis .kpi-card').length,8);
   assert.equal(document.querySelector('[data-kpi="present"] .kpi-value').textContent,'3');
   assert.equal(document.querySelector('[data-kpi="absent"] .kpi-value').textContent,'1');
@@ -67,10 +67,109 @@ test('navigacija je grupirana i prikazuje brojače otvorenih stavki',()=>{
   assert.ok(badges.every(value=>value>0));
 });
 
-test('Sprint 1 ostaje unutar uskog BSS opsega',()=>{
+test('Demo 3.0 ostaje unutar uskog BSS opsega',()=>{
   const {document}=boot('admin');
   const text=document.querySelector('#app').textContent.toLocaleLowerCase('hr');
   assert.doesNotMatch(text,/skladište|gps|geofencing|ai analitika|obračun plaće|otvaranje vrata|crm/);
+});
+
+test('Sprint 2 evidencija povezuje plan, saldo, aktivne zapise i odstupanja',()=>{
+  const {window,document,state}=boot('admin');
+  window.navigate('attendance');
+  assert.equal(document.querySelectorAll('.attendance-tabs button').length,3);
+  assert.equal(document.querySelectorAll('.attendance-live-item').length,3);
+  assert.equal(document.querySelectorAll('.attendance-table .table-detail-btn').length,22);
+  const summary=window.attendanceSummary(state().records);
+  assert.equal(summary.records,22);
+  assert.equal(summary.completed,18);
+  assert.equal(summary.active,3);
+  assert.equal(summary.review,4);
+  assert.equal(summary.plannedMinutes,8100);
+  assert.equal(summary.workedMinutes,8232);
+  assert.equal(summary.balanceMinutes,132);
+
+  window.setAttendanceView('review');
+  assert.equal(window.filteredAttendanceRecords().length,4);
+  assert.ok(window.filteredAttendanceRecords().every(record=>['Kašnjenje','Nepotpun zapis'].includes(record.status)));
+  assert.equal(document.querySelectorAll('.attendance-table .table-detail-btn').length,4);
+
+  window.setAttendanceView('active');
+  assert.equal(window.filteredAttendanceRecords().length,3);
+  assert.ok(window.filteredAttendanceRecords().every(record=>record.date==='2026-07-10'&&!record.end));
+});
+
+test('detalj zapisa prikazuje smjenu, saldo i kontrolirani put korekcije',()=>{
+  const {window,document}=boot('admin');
+  window.navigate('attendance');
+  window.openAttendanceRecord(8);
+  assert.ok(document.querySelector('#modal').classList.contains('open'));
+  const text=document.querySelector('#modal').textContent;
+  assert.match(text,/Marko Marić/);
+  assert.match(text,/Jutarnja/);
+  assert.match(text,/Nepotpun zapis/);
+  assert.match(text,/Korekcija: Na čekanju/);
+  assert.equal(document.querySelectorAll('.record-detail-grid > div').length,6);
+});
+
+test('radnikova evidencija ostaje privatna i korekcija kreće iz odabranog zapisa',()=>{
+  const {window,document,state}=boot('worker');
+  window.navigate('mytime');
+  assert.equal(document.querySelector('#myTimeMonth').value,'2026-07');
+  assert.equal(document.querySelectorAll('.attendance-table .table-detail-btn').length,5);
+  const summary=window.attendanceSummary(state().records.filter(record=>record.workerId===1&&record.date.startsWith('2026-07')));
+  assert.equal(summary.workedMinutes,1837);
+  assert.equal(summary.plannedMinutes,1800);
+  assert.equal(summary.balanceMinutes,37);
+  assert.doesNotMatch(document.querySelector('#content').textContent,/Marko Marić|Petra Novak/);
+
+  window.openAttendanceRecord(5);
+  window.startCorrectionFromRecord(5);
+  assert.equal(document.querySelector('#corrDate').value,'2026-07-10');
+  assert.equal(document.querySelector('#corrStart').value,'07:42');
+  assert.equal(document.querySelector('#corrEnd').value,'');
+  document.querySelector('#corrEnd').value='16:00';
+  document.querySelector('#corrReason').value='Zaboravljena odjava';
+  const before=state().corrections.length;
+  window.submitCorrection();
+  assert.equal(state().corrections.length,before+1);
+  assert.equal(state().corrections[0].workerId,1);
+  assert.equal(state().corrections[0].status,'Na čekanju');
+  assert.match(state().audit[0].action,/Poslana korekcija/);
+});
+
+test('voditelj u Sprintu 2 ne može otvoriti zapis izvan svojih odjela',()=>{
+  const {window,document}=boot('manager');
+  window.navigate('attendance');
+  const summary=window.attendanceSummary(window.attendanceRecordsForCurrentFilters());
+  assert.equal(summary.records,12);
+  assert.equal(summary.active,2);
+  assert.equal(summary.review,2);
+  const text=document.querySelector('#content').textContent;
+  assert.match(text,/Ivan Horvat|Marko Marić|Marija Radić/);
+  assert.doesNotMatch(text,/Ana Kovač|Petra Novak|Tomislav Bognar|Josip Jurić/);
+  window.openAttendanceRecord(16);
+  assert.equal(document.querySelector('#modal').classList.contains('open'),false);
+});
+
+test('korekcija odbija budući datum i evidenciju dulju od 16 sati',()=>{
+  const {window,document,state}=boot('worker');
+  window.navigate('mytime');
+  const before=state().corrections.length;
+  document.querySelector('#corrDate').value='2026-07-11';
+  document.querySelector('#corrStart').value='07:42';
+  document.querySelector('#corrEnd').value='16:00';
+  document.querySelector('#corrReason').value='Test budućeg datuma';
+  window.submitCorrection();
+  assert.equal(state().corrections.length,before);
+  assert.match(document.querySelector('#toast').textContent,/budući datum/);
+
+  document.querySelector('#corrDate').value='2026-07-09';
+  document.querySelector('#corrStart').value='00:00';
+  document.querySelector('#corrEnd').value='23:00';
+  document.querySelector('#corrReason').value='Test preduge evidencije';
+  window.submitCorrection();
+  assert.equal(state().corrections.length,before);
+  assert.match(document.querySelector('#toast').textContent,/dulje od 16 sati/);
 });
 
 test('administrator ima godišnji pregled, radnik vidi samo sebe',()=>{

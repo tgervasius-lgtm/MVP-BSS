@@ -88,7 +88,7 @@ Svaki endpoint mora iz organizacije i uloge u sesiji izvesti dopušteni opseg. K
 ## 6. Sigurnost i privatnost
 
 - Argon2id za lozinke, obvezan MFA za administratorske račune prije šire produkcije.
-- TLS za sav promet; tajne nikada u frontend repozitoriju ni Netlify varijablama dostupnima klijentu.
+- TLS za sav promet; tajne nikada u frontend repozitoriju ni Cloudflare Pages varijablama dostupnima klijentu.
 - RBAC i opseg odjela provjeravaju se u API-ju, ne samo skrivanjem gumba.
 - Rate limiting za prijavu i terminalske endpointove; zaključavanje i obavijest nakon sumnjivih pokušaja.
 - Šifrirane sigurnosne kopije baze, dokumentiran povrat i redoviti test obnove.

@@ -1,21 +1,26 @@
 BSS Smart Systems – Demo 3.0 u izradi
 
 Trenutna razvojna faza:
-- Sprint 1: Dashboard i navigacija
+- Sprint 1: Dashboard i navigacija – spremno za pregled
+- Sprint 2: Evidencija radnog vremena – spremno za pregled
 - produkcijski backend počinje tek nakon završetka svih sedam Demo 3.0 sprintova
 
 Objavljena aplikacija:
-https://bespoke-cascaron-e4aab9.netlify.app/
+https://mvp-bss.pages.dev/
 
 Kako se objavljuje:
-- GitHub repozitorij je povezan s Netlifyjem.
-- Svaki novi commit na grani main pokreće novu Netlify objavu.
-- Nije potrebno ručno povlačiti mapu u Netlify Drop.
+- GitHub repozitorij povezan je s Cloudflare Pages.
+- Spajanje odobrene promjene na granu main pokreće Cloudflare objavu.
+- Produkcija se ne spaja niti objavljuje bez Tomislavove potvrde.
 
 Što demo stvarno radi:
 - operativni dashboard s KPI-jevima, upozorenjima i tjednim trendom
 - odvojeni prikaz zadnjih prijava i odjava
 - grupirana navigacija i brojači otvorenih odluka
+- operativna evidencija sa zasebnim prikazima svih zapisa, odstupanja i aktivnih prijava
+- izračun plana smjene, završenih sati, salda i prekovremenog rada
+- detalj svakog zapisa s izvorom, smjenom i statusom korekcije
+- osobna mjesečna evidencija radnika i korekcija pokrenuta iz konkretnog zapisa
 - odvojeni prikazi administratora, voditelja, radnika i knjigovođe
 - responzivni desktop administratorski prikaz i mobilna navigacija
 - filtriranje evidencije po mjesecu, odjelu, statusu i radniku
