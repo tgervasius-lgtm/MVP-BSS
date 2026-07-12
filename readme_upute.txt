@@ -1,4 +1,8 @@
-BSS Smart Systems – Demo 2.0
+BSS Smart Systems – Demo 3.0 u izradi
+
+Trenutna razvojna faza:
+- Sprint 1: Dashboard i navigacija
+- produkcijski backend počinje tek nakon završetka svih sedam Demo 3.0 sprintova
 
 Objavljena aplikacija:
 https://bespoke-cascaron-e4aab9.netlify.app/
@@ -9,6 +13,9 @@ Kako se objavljuje:
 - Nije potrebno ručno povlačiti mapu u Netlify Drop.
 
 Što demo stvarno radi:
+- operativni dashboard s KPI-jevima, upozorenjima i tjednim trendom
+- odvojeni prikaz zadnjih prijava i odjava
+- grupirana navigacija i brojači otvorenih odluka
 - odvojeni prikazi administratora, voditelja, radnika i knjigovođe
 - responzivni desktop administratorski prikaz i mobilna navigacija
 - filtriranje evidencije po mjesecu, odjelu, statusu i radniku
