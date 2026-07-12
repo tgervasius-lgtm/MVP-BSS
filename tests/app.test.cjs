@@ -6,6 +6,11 @@ const {JSDOM} = require('jsdom');
 
 const html = fs.readFileSync('index.html','utf8');
 const source = fs.readFileSync('app.js','utf8');
+const coreSources = [
+  'src/domain/contracts.js',
+  'src/domain/time.js',
+  'src/policies/access.js'
+].map(path=>fs.readFileSync(path,'utf8'));
 const styles = fs.readFileSync('styles.css','utf8');
 const manifest = JSON.parse(fs.readFileSync('manifest.json','utf8'));
 const designTokens = fs.readFileSync('design-system/tokens.css','utf8');
@@ -44,6 +49,7 @@ function boot(role='admin',options={}){
   dom.window.Blob = Blob;
   if(options.theme) dom.window.localStorage.setItem('bss-theme-v1',options.theme);
   const context = dom.getInternalVMContext();
+  coreSources.forEach(coreSource=>vm.runInContext(coreSource,context));
   vm.runInContext(source,context);
   dom.window.document.querySelector('#loginRole').value = role;
   dom.window.login();
@@ -998,7 +1004,7 @@ test('aplikacija povezuje vodič i offline predmemorira cijeli Design System',()
   for(const asset of ['design-system/index.html','design-system/tokens.css','design-system/guide.css','design-system/guide.js']){
     assert.match(serviceWorker,new RegExp(asset.replaceAll('.','\\.')));
   }
-  assert.match(serviceWorker,/bss-brand-book-v1/);
+  assert.match(serviceWorker,/bss-refactor-v1-r1/);
 });
 
 test('Brand Book v1.0 pokriva svih devet dogovorenih područja',()=>{
@@ -1058,7 +1064,7 @@ test('aplikacija povezuje Brand Book i cijeli paket radi offline',()=>{
     'bss-presentation-cover.svg','bss-terminal-label.svg',
     'BSS_BRAND-BOOK_v1.0_11.07.2026.pdf'
   ]) assert.match(serviceWorker,new RegExp(asset.replaceAll('.','\\.')));
-  assert.match(serviceWorker,/bss-brand-book-v1/);
+  assert.match(serviceWorker,/bss-refactor-v1-r1/);
   assert.match(serviceWorker,/path\.includes\('\/brand-book'\)/);
 });
 
@@ -1131,4 +1137,55 @@ test('scope dokument i roadmap zaključavaju promjene i vode u Refactor v1',()=>
   assert.match(demoRoadmap,/Demo faza završena je odobrenim spajanjem/);
   assert.match(demoRoadmap,/Refactor v1 bez promjene funkcija i dizajna/);
   assert.deepEqual(scopeFreeze.nextPhases.slice(0,2),['refactor_v1','backend_contract']);
+});
+
+test('Refactor v1 učitava jezgru prije aplikacije i sprema je za offline rad',()=>{
+  const order=[
+    html.indexOf('src/domain/contracts.js'),
+    html.indexOf('src/domain/time.js'),
+    html.indexOf('src/policies/access.js'),
+    html.indexOf('app.js')
+  ];
+  assert.ok(order.every(index=>index>=0));
+  assert.deepEqual(order,[...order].sort((a,b)=>a-b));
+  for(const asset of ['src/domain/contracts.js','src/domain/time.js','src/policies/access.js']){
+    assert.match(serviceWorker,new RegExp(asset.replaceAll('.','\\.')));
+  }
+  assert.match(serviceWorker,/bss-refactor-v1-r1/);
+});
+
+test('domenski ugovor zaključava četiri uloge i hrvatske oznake statusa',()=>{
+  const {evaluate}=boot('admin');
+  const roles=evaluate('BSS_CORE.contracts.roles');
+  assert.deepEqual({...roles},{ADMIN:'admin',MANAGER:'manager',WORKER:'worker',ACCOUNTANT:'accountant'});
+  assert.deepEqual([...evaluate('BSS_CORE.contracts.requestStatus.labels')],['Na čekanju','Odobreno','Odbijeno','Poništeno']);
+  assert.deepEqual([...evaluate('REQUEST_STATUSES')],[...evaluate('BSS_CORE.contracts.requestStatus.labels')]);
+});
+
+test('izdvojena vremenska domena čuva noćne smjene, pauzu i aktivni demo zapis',()=>{
+  const {evaluate}=boot('admin');
+  assert.equal(evaluate("BSS_CORE.time.plannedShiftMinutes({start:'22:00',end:'06:00',breakMinutes:30})"),450);
+  assert.equal(evaluate("BSS_CORE.time.recordMinutes({date:'2026-07-09',start:'22:00',end:'06:00',breakMinutes:30})"),450);
+  assert.equal(evaluate("BSS_CORE.time.recordMinutes({date:'2026-07-10',start:'08:00',end:'',breakMinutes:0},{includeActive:true,today:'2026-07-10',now:'10:00'})"),120);
+  assert.equal(evaluate("BSS_CORE.time.formatMinutes(450)"),'7:30 h');
+});
+
+test('izdvojena vremenska domena računa radne dane i preklapanja bez stanja UI-ja',()=>{
+  const {evaluate}=boot('admin');
+  assert.equal(evaluate("BSS_CORE.time.businessDays('2026-04-03','2026-04-07',new Set(['2026-04-06']))"),2);
+  assert.equal(evaluate("BSS_CORE.time.intervalsOverlap('2026-08-17','2026-08-21','2026-08-21','2026-08-25')"),true);
+  assert.equal(evaluate("BSS_CORE.time.intervalsOverlap('2026-08-17','2026-08-20','2026-08-21','2026-08-25')"),false);
+});
+
+test('izdvojene access politike provode admin, voditelj, radnik i knjigovođa granice',()=>{
+  const {evaluate}=boot('admin');
+  const expression=role=>`BSS_CORE.access.visibleWorkers('${role}',state.workers,ROLE_CONFIG['${role}']).map(worker=>worker.id)`;
+  assert.deepEqual([...evaluate(expression('admin'))],[1,2,3,4,5,6,7]);
+  assert.deepEqual([...evaluate(expression('manager'))],[1,2,7]);
+  assert.deepEqual([...evaluate(expression('worker'))],[1]);
+  assert.deepEqual([...evaluate(expression('accountant'))],[]);
+  assert.equal(evaluate("BSS_CORE.access.canViewScopedEntity('accountant',7,state.workers,ROLE_CONFIG.accountant)"),true);
+  assert.equal(evaluate("BSS_CORE.access.canViewScopedEntity('manager',3,state.workers,ROLE_CONFIG.manager)"),false);
+  assert.equal(evaluate("BSS_CORE.access.canApprove('worker')"),false);
+  assert.equal(evaluate("BSS_CORE.access.canApprove('manager')"),true);
 });
