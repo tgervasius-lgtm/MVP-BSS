@@ -38,6 +38,6 @@
 .content{flex:1;min-height:0;overflow:auto;padding:18px 15px calc(108px + var(--bss-safe-area-bottom));scroll-behavior:smooth;scrollbar-gutter:stable}
 .content-inner{width:100%;max-width:1380px;margin:auto}
 .screen{animation:fade .18s ease}.screen>*{animation:screenRise .28s ease both}.screen>*:nth-child(2){animation-delay:.025s}.screen>*:nth-child(3){animation-delay:.05s}.screen>*:nth-child(4){animation-delay:.075s}.screen>*:nth-child(n+5){animation-delay:.1s}
-@keyframes fade{from{opacity:.5;transform:translateY(8px)}to{opacity:1;transform:none}}
-@keyframes screenRise{from{opacity:.25;transform:translateY(7px)}to{opacity:1;transform:none}}
+@keyframes fade{from{transform:translateY(8px)}to{transform:none}}
+@keyframes screenRise{from{transform:translateY(7px)}to{transform:none}}
 .desktop-sidebar{display:none}

@@ -727,6 +727,7 @@ test('mobilni, desktop, animacijski i PWA završni sloj imaju zaštitna pravila'
   assert.match(styles,/@media\(min-width:960px\)/);
   assert.match(styles,/@media\(prefers-reduced-motion:reduce\)/);
   assert.match(styles,/@keyframes rfidPulse/);
+  assert.doesNotMatch(styles,/@keyframes (?:fade|screenRise)\{[^}]*opacity/);
   assert.match(styles,/\.skip-link/);
   assert.equal(manifest.display,'standalone');
   assert.equal(manifest.lang,'hr');
@@ -1064,6 +1065,10 @@ test('Brand Book v1.0 pokriva svih devet dogovorenih područja',()=>{
   assert.match(guide.querySelector('.bb-hero').textContent,/Od podatka na terenu do jasne odluke/);
   assert.match(guide.querySelector('#governance').textContent,/Product Ownera/);
   assert.equal(guide.querySelectorAll('.application-grid > a').length,4);
+  assert.ok(guide.querySelector('.brand-color-grid .signal-color'));
+  assert.match(brandBookStyles,/\.signal-color\{color:#062a26/);
+  assert.match(brandBookStyles,/\.ratio\.signal\{background:#14b8a6;color:#062a26/);
+  assert.doesNotMatch(brandBookStyles,/\.brand-color-grid small\{[^}]*opacity/);
   assert.match(brandBookDoc,/Bognar Smart Systems \(BSS\)/);
   assert.match(brandBookDoc,/tehnički audit i zamrzavanje funkcionalnog opsega/);
 });
