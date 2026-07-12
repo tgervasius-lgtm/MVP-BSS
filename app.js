@@ -1,13 +1,15 @@
 'use strict';
 
 const BSS_CORE = globalThis.BSSCore;
-if(!BSS_CORE?.contracts || !BSS_CORE?.time || !BSS_CORE?.access || !BSS_CORE?.runtime){
+if(!BSS_CORE?.contracts || !BSS_CORE?.time || !BSS_CORE?.access || !BSS_CORE?.runtime ||
+  !BSS_CORE?.useCases?.attendance || !BSS_CORE?.useCases?.leave || !BSS_CORE?.useCases?.corrections){
   throw new Error('BSS jezgra nije učitana prije aplikacije.');
 }
 const BSS_CONTRACTS = BSS_CORE.contracts;
 const BSS_TIME = BSS_CORE.time;
 const BSS_ACCESS = BSS_CORE.access;
 const BSS_RUNTIME = BSS_CORE.runtime;
+const BSS_USE_CASES = BSS_CORE.useCases;
 
 const STORAGE_KEY = 'bss-demo-state-v8';
 const ROLE_KEY = 'bss-demo-role-v3';
@@ -334,22 +336,7 @@ function formatSignedMinutes(minutes){
   return `${sign}${formatMinutes(Math.abs(value))}`;
 }
 function attendanceSummary(records){
-  const completed=records.filter(record=>record.end);
-  const workedMinutes=completed.reduce((sum,record)=>sum+recordMinutes(record),0);
-  const plannedMinutes=completed.reduce((sum,record)=>sum+plannedShiftMinutes(record.workerId),0);
-  return {
-    records:records.length,
-    completed:completed.length,
-    active:records.filter(record=>record.date===DEMO_TODAY&&!record.end).length,
-    late:records.filter(record=>record.status==='Kašnjenje').length,
-    incomplete:records.filter(record=>record.status==='Nepotpun zapis').length,
-    corrected:records.filter(record=>record.status==='Ispravljeno').length,
-    review:records.filter(record=>['Kašnjenje','Nepotpun zapis'].includes(record.status)).length,
-    workedMinutes,
-    plannedMinutes,
-    balanceMinutes:workedMinutes-plannedMinutes,
-    overtimeMinutes:overtimeMinutes(completed)
-  };
+  return BSS_USE_CASES.attendance.summarize(records,{today:DEMO_TODAY,recordMinutes,plannedShiftMinutes});
 }
 function pendingCorrectionFor(record){
   return state.corrections.find(correction=>correction.workerId===record.workerId&&correction.date===record.date&&correction.status==='Na čekanju');
@@ -1128,18 +1115,23 @@ function viewRequests(){
 function submitVacationRequest(){
   if(currentRole!=='worker')return;
   const worker=currentWorker(),type=$('#vacType').value,start=$('#vacStart').value,end=$('#vacEnd').value,note=$('#vacNote').value.trim();
-  if(!start||!end||end<start){toast('Provjeri početni i završni datum.');return;}
-  if(start<=DEMO_TODAY){toast('Novi zahtjev mora početi nakon današnjeg dana.');return;}
-  if(!start.startsWith('2026-')||!end.startsWith('2026-')){toast('Demo 3.0 podržava zahtjeve unutar 2026. godine.');return;}
-  const days=businessDays(start,end);
-  if(days===0){toast('Odabrano razdoblje nema radnih dana.');return;}
-  const ownOverlap=state.requests.find(request=>request.workerId===worker.id&&activeLeaveRequest(request)&&intervalsOverlap(start,end,request.start,request.end));
-  if(ownOverlap){toast(`Zahtjev se preklapa s razdobljem ${rangeLabel(ownOverlap.start,ownOverlap.end)}.`);return;}
-  if(type==='Godišnji odmor'){
-    const available=vacationBalanceSummary(worker.id).available;
-    if(days>available){toast(`Nema dovoljno raspoloživih dana. Dostupno: ${available}.`);return;}
+  const validation=BSS_USE_CASES.leave.validateSubmission({
+    workerId:worker.id,type,start,end,today:DEMO_TODAY,year:'2026',requests:state.requests,
+    availableDays:vacationBalanceSummary(worker.id).available,businessDays,intervalsOverlap
+  });
+  if(!validation.ok){
+    const messages={
+      INVALID_RANGE:'Provjeri početni i završni datum.',
+      NOT_FUTURE:'Novi zahtjev mora početi nakon današnjeg dana.',
+      OUTSIDE_YEAR:'Demo 3.0 podržava zahtjeve unutar 2026. godine.',
+      NO_WORKING_DAYS:'Odabrano razdoblje nema radnih dana.',
+      INSUFFICIENT_BALANCE:`Nema dovoljno raspoloživih dana. Dostupno: ${validation.available}.`
+    };
+    toast(validation.code==='OVERLAP'?`Zahtjev se preklapa s razdobljem ${rangeLabel(validation.overlap.start,validation.overlap.end)}.`:messages[validation.code]);
+    return;
   }
-  const request={id:nextId(),workerId:worker.id,type,start,end,note:note||'Bez dodatne napomene.',status:'Na čekanju',submittedAt:now()};
+  const days=validation.days;
+  const request=BSS_USE_CASES.leave.createRequest({id:nextId(),workerId:worker.id,type,start,end,note,submittedAt:now()});
   state.requests.unshift(request);
   const conflicts=teamConflicts(request).length;
   requestStatusFilter='Na čekanju';
@@ -1160,8 +1152,9 @@ function decideRequest(id,status,noteOverride=''){
   const request=state.requests.find(item=>item.id===Number(id));
   if(!request||!requestVisible(request)||request.status!=='Na čekanju')return;
   const note=noteOverride||$('#requestDecisionNote')?.value.trim()||'';
-  if(status==='Odbijeno'&&!note){toast('Kod odbijanja upiši razlog ili prijedlog izmjene.');return;}
-  request.status=status;request.decidedBy=role().label;request.decidedAt=now();request.decisionNote=note||(status==='Odobreno'?'Odobreno bez dodatne napomene.':'');
+  const result=BSS_USE_CASES.leave.decide(request,{status,note,actor:role().label,decidedAt:now()});
+  if(!result.ok){if(result.code==='REJECTION_NOTE_REQUIRED')toast('Kod odbijanja upiši razlog ili prijedlog izmjene.');return;}
+  Object.assign(request,result.request);
   const worker=workerById(request.workerId),decision=status==='Odobreno'?'Odobren':'Odbijen';
   audit(role().label,`${decision} zahtjev: ${worker?.name||'Radnik'} · ${rangeLabel(request.start,request.end)} · ${request.decisionNote}`,'Zahtjevi');
   closeModal();saveAndRender(`Zahtjev je ${decision.toLowerCase()}.`);
@@ -1179,7 +1172,9 @@ function cancelVacationRequest(id){
   if(currentRole!=='worker')return;
   const request=state.requests.find(item=>item.id===Number(id));
   if(!request||request.workerId!==currentWorker().id||request.status!=='Na čekanju')return;
-  request.status='Poništeno';request.decidedBy='Radnik';request.decidedAt=now();request.decisionNote='Zahtjev je poništio radnik.';
+  const result=BSS_USE_CASES.leave.cancel(request,{workerId:currentWorker().id,decidedAt:now()});
+  if(!result.ok)return;
+  Object.assign(request,result.request);
   audit('Radnik',`Poništen zahtjev: ${currentWorker().name} · ${rangeLabel(request.start,request.end)}.`,'Zahtjevi');
   closeModal();saveAndRender('Zahtjev je poništen, a rezervirani dani su vraćeni.');
 }
@@ -1263,21 +1258,25 @@ function correctionValues(correction){
 function submitCorrection(){
   if(currentRole!=='worker')return;
   const worker=currentWorker(),date=$('#corrDate').value,newStart=$('#corrStart').value,newEnd=$('#corrEnd').value,reason=$('#corrReason').value.trim();
-  if(!date||(!newStart&&!newEnd)||!reason){toast('Unesi datum, ispravno vrijeme i razlog.');return;}
-  if(date>DEMO_TODAY){toast('Korekcija se ne može poslati za budući datum.');return;}
-  const startMinutes=timeToMinutes(newStart),endMinutes=timeToMinutes(newEnd);
-  if((newStart&&startMinutes===null)||(newEnd&&endMinutes===null)){toast('Vrijeme nije u valjanom formatu.');return;}
-  if(newStart&&newEnd&&startMinutes===endMinutes){toast('Dolazak i odlazak ne mogu biti isti.');return;}
-  if(newStart&&newEnd){
-    const duration=(endMinutes<startMinutes?endMinutes+1440:endMinutes)-startMinutes;
-    if(duration>960){toast('Evidencija ne može trajati dulje od 16 sati.');return;}
+  const validation=BSS_USE_CASES.corrections.validateSubmission({
+    workerId:worker.id,date,newStart,newEnd,reason,today:DEMO_TODAY,
+    records:state.records,corrections:state.corrections,timeToMinutes
+  });
+  if(!validation.ok){
+    const messages={
+      REQUIRED_FIELDS:'Unesi datum, ispravno vrijeme i razlog.',
+      FUTURE_DATE:'Korekcija se ne može poslati za budući datum.',
+      INVALID_TIME:'Vrijeme nije u valjanom formatu.',
+      EQUAL_TIMES:'Dolazak i odlazak ne mogu biti isti.',
+      TOO_LONG:'Evidencija ne može trajati dulje od 16 sati.',
+      DUPLICATE_PENDING:'Za taj datum već postoji korekcija na čekanju.',
+      UNCHANGED:'Novo vrijeme jednako je postojećem zapisu.'
+    };
+    toast(messages[validation.code]);return;
   }
-  const duplicate=state.corrections.find(correction=>correction.workerId===worker.id&&correction.date===date&&correction.status==='Na čekanju');
-  if(duplicate){toast('Za taj datum već postoji korekcija na čekanju.');return;}
-  const record=state.records.find(item=>item.workerId===worker.id&&item.date===date);
-  const oldStart=record?.start||'',oldEnd=record?.end||'';
-  if(newStart===oldStart&&newEnd===oldEnd){toast('Novo vrijeme jednako je postojećem zapisu.');return;}
-  state.corrections.unshift({id:nextId(),workerId:worker.id,date,oldStart,oldEnd,newStart,newEnd,reason,status:'Na čekanju'});
+  state.corrections.unshift(BSS_USE_CASES.corrections.createRequest({
+    id:nextId(),workerId:worker.id,date,oldStart:validation.oldStart,oldEnd:validation.oldEnd,newStart,newEnd,reason
+  }));
   audit('Radnik',`Poslana korekcija: ${worker.name} · ${isoLabel(date)}.`,'Korekcije');
   correctionDraft={date:DEMO_TODAY,start:'07:42',end:'16:02'};
   screen='corrections';saveAndRender('Zahtjev za korekciju je poslan.');
@@ -1297,18 +1296,18 @@ function updateCorrection(id,status){
   if(!['admin','manager'].includes(currentRole))return;
   const correction=state.corrections.find(item=>item.id===Number(id));
   if(!correction||!correctionVisible(correction)||!['Odobreno','Odbijeno'].includes(status))return;
-  correction.status=status;
   const worker=workerById(correction.workerId);
-  if(status==='Odobreno'){
-    let record=state.records.find(item=>item.workerId===correction.workerId&&item.date===correction.date);
-    if(!record){
-      const shift=shiftById(worker?.shiftId);
-      record={id:nextId(),workerId:correction.workerId,date:correction.date,start:correction.newStart,end:correction.newEnd,breakMinutes:shift?.breakMinutes||0,status:'Ispravljeno'};
-      state.records.push(record);
-    }else{
-      record.start=correction.newStart;record.end=correction.newEnd;record.status='Ispravljeno';
-      if(record.end&&!record.breakMinutes)record.breakMinutes=shiftById(worker?.shiftId)?.breakMinutes||0;
-    }
+  const record=state.records.find(item=>item.workerId===correction.workerId&&item.date===correction.date);
+  const result=BSS_USE_CASES.corrections.decide(correction,{
+    status,record,workerId:correction.workerId,
+    shiftBreakMinutes:shiftById(worker?.shiftId)?.breakMinutes||0,
+    id:record?.id||(status==='Odobreno'?nextId():null)
+  });
+  if(!result.ok)return;
+  Object.assign(correction,result.correction);
+  if(result.record){
+    if(result.created)state.records.push(result.record);
+    else Object.assign(record,result.record);
   }
   const values=correctionValues(correction);
   const decision=status==='Odobreno'?'Odobrena':'Odbijena';
