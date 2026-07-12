@@ -1,10 +1,10 @@
 'use strict';
 
-const STORAGE_KEY = 'bss-demo-state-v6';
+const STORAGE_KEY = 'bss-demo-state-v7';
 const ROLE_KEY = 'bss-demo-role-v3';
 const LOGIN_KEY = 'bss-demo-logged-v3';
 const APP_VERSION = '3.0';
-const APP_STAGE = 'Sprint 4';
+const APP_STAGE = 'Sprint 5';
 const DEMO_TODAY = '2026-07-10';
 const DEMO_NOW = '10:00';
 const CROATIAN_HOLIDAYS_2026 = new Set([
@@ -14,7 +14,7 @@ const CROATIAN_HOLIDAYS_2026 = new Set([
 ]);
 
 const DEFAULT_STATE = {
-  version: 6,
+  version: 7,
   demoMode: true,
   company: {
     name: 'BSS Demo d.o.o.',
@@ -85,8 +85,35 @@ const DEFAULT_STATE = {
     {time: '10.07.2026. 07:42', user: 'Sustav', module: 'Terminal', action: 'RFID prijava Ivana Horvata na terminalu 01.'},
     {time: '09.07.2026. 16:20', user: 'Administrator', module: 'Korekcije', action: 'Zaprimljen zahtjev za dopunu odjave Marka Marića.'}
   ],
-  terminal: {online: true, unsynced: 0, scans: 36, lastSync: 'prije 48 sekundi', version: 'BSS OS 0.9.4'},
-  lastScan: {workerId: 2, label: 'Marko Marić', status: 'Prijavljen', time: '08:12', message: 'Prijava prihvaćena.'},
+  terminal: {
+    id: 'BSS-T01',
+    name: 'BSS Terminal 01',
+    serial: 'BSS-T01-2026-0001',
+    location: 'Ulaz proizvodnje',
+    hardware: 'Raspberry Pi 5 · RC522 · Nextion 4.3″',
+    online: true,
+    unsynced: 0,
+    scans: 36,
+    lastSync: 'prije 48 sekundi',
+    lastHeartbeat: 'prije 18 sekundi',
+    version: 'BSS OS 0.9.4',
+    firmwareStatus: 'Ažurno',
+    readerStatus: 'Spreman',
+    buzzerStatus: 'Spreman',
+    wifiSignal: -57,
+    storageUsed: 12,
+    queue: [],
+    syncedEventIds: ['T01-20260710-0034','T01-20260710-0035','T01-20260710-0036'],
+    recentEvents: [
+      {eventId:'T01-20260710-0036',workerId:2,label:'Marko Marić',type:'Prijava',time:'08:12',mode:'Online',status:'Sinkronizirano'},
+      {eventId:'T01-20260710-0035',workerId:5,label:'Tomislav Bognar',type:'Prijava',time:'08:05',mode:'Online',status:'Sinkronizirano'},
+      {eventId:'T01-20260710-0034',workerId:1,label:'Ivan Horvat',type:'Prijava',time:'07:42',mode:'Online',status:'Sinkronizirano'}
+    ],
+    syncRuns: [
+      {time:'10.07.2026. 08:12',received:1,accepted:1,duplicates:0,status:'Uspješno'}
+    ]
+  },
+  lastScan: {eventId:'T01-20260710-0036',workerId:2,label:'Marko Marić',status:'Prijavljen',time:'08:12',message:'Prijava prihvaćena i sinkronizirana.'},
   lastReport: 'Nije još generiran',
   reportHistory: []
 };
@@ -125,7 +152,7 @@ function loadState(){
   try{
     const raw = localStorage.getItem(STORAGE_KEY);
     const parsed = raw ? JSON.parse(raw) : null;
-    return parsed && parsed.version === 6 ? parsed : clone(DEFAULT_STATE);
+    return parsed && parsed.version === 7 ? parsed : clone(DEFAULT_STATE);
   }catch(error){
     return clone(DEFAULT_STATE);
   }
@@ -305,9 +332,9 @@ function toast(message){
   window.__bssToast = setTimeout(()=>element.classList.remove('show'),2600);
 }
 function pill(status){
-  const green = ['Prisutan','Uredno','Ispravljeno','Odobreno','Online','Prijavljen','Aktivna','Aktivno','Aktivan','Sinkronizirano'];
-  const orange = ['Na čekanju','Kasni','Kašnjenje','Nepotpun zapis','Očekuje smjenu','Offline zapis'];
-  const red = ['Odbijeno','Odsutna','Greška','Offline','Blokirana','Neaktivan','Neaktivna'];
+  const green = ['Prisutan','Uredno','Ispravljeno','Odobreno','Online','Prijavljen','Odjavljen','Aktivna','Aktivno','Aktivan','Sinkronizirano','Spreman','Ažurno','Uspješno','Prihvaćeno'];
+  const orange = ['Na čekanju','Kasni','Kašnjenje','Nepotpun zapis','Očekuje smjenu','Offline zapis','Čeka sinkronizaciju','Slab signal','Djelomično'];
+  const red = ['Odbijeno','Odsutna','Greška','Offline','Blokirana','Neaktivan','Neaktivna','Duplikat','Nema veze'];
   const blue = ['Godišnji','Bolovanje','Samo čitanje','Demo'];
   const gray = ['Poništeno'];
   const css = green.includes(status) ? 'green' : orange.includes(status) ? 'orange' : red.includes(status) ? 'red' : blue.includes(status) ? 'blue' : gray.includes(status) ? 'gray' : '';
@@ -1451,29 +1478,120 @@ function buildXlsx(headers,rows,titleText){
   return new Blob([zipStore(files)],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
 }
 
+function terminalCanControl(){ return currentRole==='admin'; }
+function terminalEventVisible(event){
+  if(currentRole==='admin')return true;
+  if(currentRole==='manager')return !event.workerId||workerVisible(event.workerId);
+  return false;
+}
+function terminalNextTime(){
+  const minutes=8*60+14+Math.max(0,state.terminal.scans-36)*2;
+  return `${String(Math.floor(minutes/60)%24).padStart(2,'0')}:${String(minutes%60).padStart(2,'0')}`;
+}
+function nextTerminalEventId(){ return `T01-20260710-${String(state.terminal.scans+1).padStart(4,'0')}`; }
+function addRecentTerminalEvent(event){
+  state.terminal.recentEvents=[event,...(state.terminal.recentEvents||[])].slice(0,12);
+}
+function queueTerminalEvent(workerId,type='Prijava',eventId=''){
+  const worker=workerById(workerId);
+  if(!worker||!worker.active||worker.cardStatus==='Blokirana')return null;
+  const event={eventId:eventId||nextTerminalEventId(),workerId:worker.id,label:worker.name,type,time:terminalNextTime(),mode:'Offline',status:'Čeka sinkronizaciju'};
+  state.terminal.scans+=1;
+  state.terminal.queue=[...(state.terminal.queue||[]),event];
+  state.terminal.unsynced=state.terminal.queue.length;
+  addRecentTerminalEvent(event);
+  return event;
+}
+function acceptTerminalEvent(workerId,type='Prijava'){
+  const worker=workerById(workerId);
+  if(!worker||!worker.active||worker.cardStatus==='Blokirana')return null;
+  const event={eventId:nextTerminalEventId(),workerId:worker.id,label:worker.name,type,time:terminalNextTime(),mode:'Online',status:'Sinkronizirano'};
+  state.terminal.scans+=1;
+  state.terminal.syncedEventIds=[event.eventId,...(state.terminal.syncedEventIds||[])].slice(0,80);
+  state.terminal.lastSync='upravo sada';state.terminal.lastHeartbeat='upravo sada';
+  state.terminal.syncRuns=[{time:now(),received:1,accepted:1,duplicates:0,status:'Uspješno'},...(state.terminal.syncRuns||[])].slice(0,8);
+  addRecentTerminalEvent(event);
+  return event;
+}
+function rejectTerminalCard(){
+  const event={eventId:nextTerminalEventId(),workerId:null,label:'UID 04 FF •• 2B',type:'Nepoznata kartica',time:terminalNextTime(),mode:'Lokalna provjera',status:'Odbijeno'};
+  state.terminal.scans+=1;addRecentTerminalEvent(event);return event;
+}
+function terminalEventRow(event){
+  return `<tr><td><b>${escapeHtml(event.eventId)}</b></td><td>${escapeHtml(event.time)}</td><td>${escapeHtml(event.label)}</td><td>${escapeHtml(event.type)}</td><td>${escapeHtml(event.mode)}</td><td>${pill(event.status)}</td></tr>`;
+}
+function terminalEventsTable(events,emptyText){
+  return `<div class="table-wrap"><table class="terminal-event-table"><thead><tr><th>ID događaja</th><th>Vrijeme</th><th>Radnik / kartica</th><th>Radnja</th><th>Način</th><th>Status</th></tr></thead><tbody>${events.map(terminalEventRow).join('')||`<tr><td colspan="6"><div class="empty-state compact">${escapeHtml(emptyText)}</div></td></tr>`}</tbody></table></div>`;
+}
 function viewTerminal(){
-  return `${title('Status terminala','Nadzor veze, verzije i redova za sinkronizaciju.',pill(state.terminal.online?'Online':'Offline'))}<div class="card hero"><div class="eyebrow" style="color:rgba(255,255,255,.74)">Uređaj 01</div><h2 style="font-size:23px">BSS Terminal 01</h2><p>Ulaz proizvodnje · RFID/NFC prijava i odjava</p><div class="meta-line"><span>Zadnja sinkronizacija</span><b>${escapeHtml(state.terminal.lastSync)}</b></div></div><div class="dashboard-grid"><div class="card"><h2>Telemetrija uređaja</h2><div class="summary-line"><span>Današnja očitanja</span><b>${state.terminal.scans}</b></div><div class="summary-line"><span>Neposlani zapisi</span><b>${state.terminal.unsynced}</b></div><div class="summary-line"><span>Mreža</span><b>${state.terminal.online?'Wi‑Fi online':'Wi‑Fi offline'}</b></div><div class="summary-line"><span>Verzija</span><b>${escapeHtml(state.terminal.version)}</b></div><div class="btns"><button class="btn secondary" onclick="simulateTerminalOffline()">Simuliraj prekid veze</button><button class="btn" onclick="restoreTerminal()">Vrati vezu i sinkroniziraj</button></div></div><div class="card"><h2>Offline pravilo</h2><p class="small-muted">Terminal lokalno sprema očitanja kada nema veze. Nakon povratka mreže, backend mora prihvatiti zapise idempotentno kako se ista prijava ne bi spremila dvaput.</p><div class="summary-line"><span>Lokalni red</span><b>${state.terminal.unsynced} zapisa</b></div><div class="summary-line"><span>Stanje</span><b>${state.terminal.unsynced?'Čeka sinkronizaciju':'Sinkronizirano'}</b></div></div></div>`;
+  const terminal=state.terminal,allQueue=terminal.queue||[],queue=allQueue.filter(terminalEventVisible),events=(terminal.recentEvents||[]).filter(terminalEventVisible),runs=terminal.syncRuns||[];
+  const signal=terminal.online?`${terminal.wifiSignal} dBm`:'Nema veze';
+  const control=terminalCanControl()?`<div class="terminal-controls" data-terminal-controls><button class="btn secondary" onclick="simulateTerminalOffline()" ${terminal.online?'':'disabled'}>Simuliraj prekid veze</button><button class="btn" onclick="restoreTerminal()" ${terminal.online&&!allQueue.length?'disabled':''}>Vrati vezu i sinkroniziraj</button></div>`:`<div class="notice info terminal-readonly">Voditelj vidi samo događaje dodijeljenih odjela, bez prava upravljanja vezom ili sinkronizacijom.</div>`;
+  return `${title('Status terminala','Nadzor uređaja, lokalnog reda i sinkronizacije bez izmjene službene evidencije.',pill(terminal.online?'Online':'Offline'))}
+    <section class="card terminal-hero"><div><div class="eyebrow">${escapeHtml(terminal.id)} · ${escapeHtml(terminal.location)}</div><h2>${escapeHtml(terminal.name)}</h2><p>RFID/NFC prijava i odjava · ${escapeHtml(terminal.hardware)}</p><div class="terminal-hero-meta"><span>Serijski broj <b>${escapeHtml(terminal.serial)}</b></span><span>Verzija <b>${escapeHtml(terminal.version)}</b></span></div></div><div class="terminal-live ${terminal.online?'online':'offline'}"><i></i><span>${terminal.online?'Uređaj šalje heartbeat':'Veza s uređajem je prekinuta'}</span><b>${escapeHtml(terminal.lastHeartbeat)}</b></div></section>
+    <div class="terminal-kpis"><div><span>Stanje veze</span><b>${terminal.online?'Online':'Offline'}</b><small>${signal}</small></div><div><span>Lokalni red</span><b>${allQueue.length}</b><small>${allQueue.length?'čeka sinkronizaciju':'nema neposlanih zapisa'}</small></div><div><span>Današnja očitanja</span><b>${terminal.scans}</b><small>prihvaćena i odbijena</small></div><div><span>Zadnja sinkronizacija</span><b>${escapeHtml(terminal.lastSync)}</b><small>${runs[0]?`${runs[0].accepted} prihvaćeno · ${runs[0].duplicates} duplikata`:'nema podataka'}</small></div></div>
+    <div class="terminal-layout"><section class="card"><div class="card-heading"><div><h2>Dijagnostika uređaja</h2><p>Stanja osnovnih komponenti MVP terminala.</p></div></div><div class="terminal-health-grid"><div><span>RFID čitač</span>${pill(terminal.readerStatus)}</div><div><span>Zvučna potvrda</span>${pill(terminal.buzzerStatus)}</div><div><span>Firmware</span>${pill(terminal.firmwareStatus)}</div><div><span>Lokalna pohrana</span><b>${terminal.storageUsed}% zauzeto</b></div></div><div class="terminal-identity"><span>Lokacija</span><b>${escapeHtml(terminal.location)}</b><span>Hardver</span><b>${escapeHtml(terminal.hardware)}</b><span>Zadnji heartbeat</span><b>${escapeHtml(terminal.lastHeartbeat)}</b></div>${control}</section><section class="card terminal-rule"><div class="card-heading"><div><h2>Offline pravilo</h2><p>Zaštita od gubitka i dvostrukog spremanja događaja.</p></div></div><ol><li><b>1</b><span>Čitač lokalno potvrđuje poznatu aktivnu karticu.</span></li><li><b>2</b><span>Bez mreže događaj dobiva jedinstveni ID i ostaje u redu.</span></li><li><b>3</b><span>Nakon povratka veze backend prihvaća svaki ID samo jednom.</span></li></ol><div class="terminal-rule-status">${pill(allQueue.length?'Čeka sinkronizaciju':'Sinkronizirano')}<span>${allQueue.length?`${allQueue.length} događaja sigurno spremljeno lokalno`:'Lokalni red je prazan'}</span></div></section></div>
+    <section class="card table-card terminal-queue"><div class="table-card-heading"><div><h2>Lokalni red uređaja</h2><p>Događaji nastali bez veze; službena demo-evidencija ostaje nepromijenjena.</p></div>${pill(`${queue.length} u opsegu`)}</div>${terminalEventsTable(queue,'Nema događaja u tvojem opsegu koji čekaju sinkronizaciju.')}<div class="table-summary"><span>${queue.length} vidljivih događaja · ${allQueue.length} ukupno u uređaju</span><span>Red se prazni tek nakon potvrđenog prihvata ili detekcije duplikata</span></div></section>
+    <div class="terminal-layout"><section class="card table-card"><div class="table-card-heading"><div><h2>Zadnji događaji</h2><p>Operativni trag terminala, uključujući lokalno odbijene kartice.</p></div>${pill(`${events.length} prikazano`)}</div>${terminalEventsTable(events.slice(0,8),'Još nema događaja terminala.')}</section><section class="card"><div class="card-heading"><div><h2>Zadnje sinkronizacije</h2><p>Broj primljenih, prihvaćenih i ponovljenih događaja.</p></div></div><div class="sync-run-list">${runs.slice(0,5).map(run=>`<div class="sync-run"><div>${pill(run.status)}<time>${escapeHtml(run.time)}</time></div><dl><dt>Primljeno</dt><dd>${run.received}</dd><dt>Prihvaćeno</dt><dd>${run.accepted}</dd><dt>Duplikati</dt><dd>${run.duplicates}</dd></dl></div>`).join('')||'<div class="empty-state compact">Nema zabilježenih sinkronizacija.</div>'}</div></section></div>`;
 }
 function simulateTerminalOffline(){
+  if(!terminalCanControl())return;
   if(!state.terminal.online){toast('Terminal je već offline.');return;}
-  state.terminal.online=false;state.terminal.unsynced+=3;state.terminal.lastSync='prije 12 minuta';
-  audit('Terminal',`Prekid veze: ${state.terminal.unsynced} zapisa čeka sinkronizaciju.`,'Terminal');saveAndRender('Terminal je offline; zapisi ostaju u lokalnom redu.');
+  state.terminal.online=false;state.terminal.lastHeartbeat='nema veze 12 min';state.terminal.wifiSignal=0;
+  audit('Administrator','Simuliran prekid veze terminala BSS-T01. Lokalno spremanje ostaje aktivno.','Terminal');
+  saveAndRender('Terminal je offline; nova poznata očitanja spremat će se lokalno.');
 }
 function restoreTerminal(){
-  const count=state.terminal.unsynced;state.terminal.online=true;state.terminal.unsynced=0;state.terminal.lastSync='upravo sada';
-  audit('Terminal',`Veza vraćena; sinkronizirano ${count} lokalnih zapisa.`,'Terminal');saveAndRender(`Veza je vraćena i sinkronizirano je ${count} zapisa.`);
+  if(!terminalCanControl())return;
+  const terminal=state.terminal,queue=[...(terminal.queue||[])];
+  if(terminal.online&&!queue.length){toast('Terminal je već online i sinkroniziran.');return;}
+  const known=new Set(terminal.syncedEventIds||[]),duplicateIds=new Set();let accepted=0,duplicates=0;
+  for(const queued of queue){
+    const recent=(terminal.recentEvents||[]).find(event=>event.eventId===queued.eventId&&event.status==='Čeka sinkronizaciju');
+    if(known.has(queued.eventId)){
+      duplicates+=1;duplicateIds.add(queued.eventId);if(recent)recent.status='Duplikat';
+    }else{
+      accepted+=1;known.add(queued.eventId);if(recent)recent.status='Sinkronizirano';
+    }
+  }
+  terminal.syncedEventIds=[...known].slice(-80);
+  terminal.queue=[];terminal.unsynced=0;terminal.online=true;terminal.lastSync='upravo sada';terminal.lastHeartbeat='upravo sada';terminal.wifiSignal=-57;
+  const run={time:now(),received:queue.length,accepted,duplicates,status:duplicates?'Djelomično':'Uspješno'};
+  terminal.syncRuns=[run,...(terminal.syncRuns||[])].slice(0,8);
+  if(state.lastScan.eventId&&queue.some(event=>event.eventId===state.lastScan.eventId)){
+    const duplicate=duplicateIds.has(state.lastScan.eventId);
+    state.lastScan.status=duplicate?'Greška':'Sinkronizirano';
+    state.lastScan.message=duplicate?'Ponovljeni događaj nije spremljen drugi put.':'Lokalni događaj je sinkroniziran; službena demo-evidencija nije promijenjena.';
+  }
+  audit('Administrator',`Sinkronizacija terminala BSS-T01: primljeno ${queue.length}, prihvaćeno ${accepted}, duplikati ${duplicates}.`,'Terminal');
+  saveAndRender(`Terminal je online; prihvaćeno ${accepted}, duplikata ${duplicates}.`);
 }
 function viewTerminalDemo(){
-  const scan=state.lastScan;
-  return `${title('RFID simulator','Prodajni demo odvojen od službene evidencije. Promjene ovdje ne mijenjaju zapise radnog vremena.',pill('Demo'))}<div class="notice info">Ovo je izolirani simulator ponašanja terminala. Za operativne dolaske i odlaske koristi ekran Evidencija.</div><div class="card rfid-box"><span class="pill green">Simulirani terminal · Ulaz proizvodnje</span><div class="rfid-ring"><div class="rfid-card">≋</div></div><h2 style="margin:0;font-size:21px">Prislonite RFID karticu</h2><p class="small-muted" style="max-width:420px">Isprobaj uspješno očitanje, nepoznatu karticu i lokalni offline zapis bez promjene službene evidencije.</p><div class="result"><div class="summary-line"><span>Radnik / kartica</span><b>${escapeHtml(scan.label)}</b></div><div class="summary-line"><span>Status</span><b>${pill(scan.status)}</b></div><div class="summary-line"><span>Vrijeme</span><b>${escapeHtml(scan.time)}</b></div><div class="summary-line"><span>Poruka</span><b>${escapeHtml(scan.message)}</b></div></div><div class="btns"><button class="btn" onclick="demoScan()">Simuliraj očitanje</button><button class="btn secondary" onclick="demoUnknownCard()">Nepoznata kartica</button><button class="btn secondary" onclick="demoOfflineScan()">Offline zapis</button></div></div>`;
+  const scan=state.lastScan,terminal=state.terminal,events=(terminal.recentEvents||[]).filter(terminalEventVisible);
+  return `${title('RFID simulator','Prodajni demo odvojen od službene evidencije radnog vremena.',`${pill('Demo')} ${pill(terminal.online?'Online':'Offline')}`)}<div class="notice info">Simulator mijenja samo telemetriju i red terminala. Ne dodaje, ne briše i ne mijenja službene dolaske ili odlaske.</div><div class="card rfid-box"><span class="pill ${terminal.online?'green':'red'}">${escapeHtml(terminal.name)} · ${terminal.online?'mreža dostupna':'offline način'}</span><div class="rfid-ring ${terminal.online?'':'offline'}"><div class="rfid-card">≋</div></div><h2 style="margin:0;font-size:21px">Prislonite RFID karticu</h2><p class="small-muted" style="max-width:520px">Poznata kartica dobiva jedinstveni ID. Bez veze ostaje u lokalnom redu; nepoznata kartica odbija se odmah.</p><div class="result terminal-result"><div class="summary-line"><span>ID događaja</span><b>${escapeHtml(scan.eventId||'Nije dodijeljen')}</b></div><div class="summary-line"><span>Radnik / kartica</span><b>${escapeHtml(scan.label)}</b></div><div class="summary-line"><span>Status</span><b>${pill(scan.status)}</b></div><div class="summary-line"><span>Vrijeme</span><b>${escapeHtml(scan.time)}</b></div><div class="summary-line"><span>Poruka</span><b>${escapeHtml(scan.message)}</b></div></div><div class="btns terminal-demo-actions"><button class="btn" onclick="demoScan()">Poznata kartica</button><button class="btn secondary" onclick="demoUnknownCard()">Nepoznata kartica</button><button class="btn secondary" onclick="demoOfflineScan()">Offline očitanje</button></div></div><section class="card table-card simulator-events"><div class="table-card-heading"><div><h2>Zadnji simulirani događaji</h2><p>Ovaj prikaz omogućuje demonstraciju reda i statusa bez utjecaja na evidenciju.</p></div>${pill(`${terminal.unsynced} neposlano`)}</div>${terminalEventsTable(events.slice(0,5),'Nema simuliranih događaja.')}</section>`;
 }
 function demoScan(){
-  const signingOut=state.lastScan.status==='Prijavljen';
-  state.lastScan={workerId:2,label:'Marko Marić',status:signingOut?'Odjavljen':'Prijavljen',time:signingOut?'16:05':'08:12',message:signingOut?'Odjava prihvaćena. Demo evidencija nije promijenjena.':'Prijava prihvaćena. Demo evidencija nije promijenjena.'};
-  state.terminal.scans+=1;saveAndRender(`Simulator: ${state.lastScan.status.toLowerCase()}.`);
+  const signingOut=state.lastScan.workerId===2&&state.lastScan.status==='Prijavljen',type=signingOut?'Odjava':'Prijava';
+  const event=state.terminal.online?acceptTerminalEvent(2,type):queueTerminalEvent(2,type);
+  if(!event)return;
+  state.lastScan={eventId:event.eventId,workerId:2,label:'Marko Marić',status:state.terminal.online?(type==='Odjava'?'Odjavljen':'Prijavljen'):'Offline zapis',time:event.time,message:state.terminal.online?`${type} je prihvaćena i sinkronizirana. Demo evidencija nije promijenjena.`:`${type} je spremljena lokalno i čeka sinkronizaciju.`};
+  audit('Demo simulator',`${type} Marka Marića · ${event.eventId} · ${event.mode}. Službena evidencija nije promijenjena.`,'Terminal');
+  saveAndRender(`Simulator: ${state.lastScan.status.toLowerCase()}.`);
 }
-function demoUnknownCard(){ state.lastScan={workerId:null,label:'UID 04 FF 91 2B',status:'Greška',time:'08:14',message:'Kartica nije dodijeljena aktivnom radniku.'};saveAndRender('Simulator je odbio nepoznatu karticu.'); }
-function demoOfflineScan(){ state.lastScan={workerId:1,label:'Ivan Horvat',status:'Offline zapis',time:'07:42',message:'Zapis je spremljen u simulirani lokalni red.'};saveAndRender('Simulator je prikazao lokalno offline spremanje.'); }
+function demoUnknownCard(){
+  const event=rejectTerminalCard();
+  state.lastScan={eventId:event.eventId,workerId:null,label:event.label,status:'Greška',time:event.time,message:'Kartica nije dodijeljena aktivnom radniku i nije poslana backendu.'};
+  audit('Demo simulator',`Nepoznata RFID kartica lokalno je odbijena · ${event.eventId}.`,'Terminal');
+  saveAndRender('Simulator je lokalno odbio nepoznatu karticu.');
+}
+function demoOfflineScan(){
+  if(state.terminal.online){state.terminal.online=false;state.terminal.lastHeartbeat='nema veze 1 min';state.terminal.wifiSignal=0;}
+  const event=queueTerminalEvent(1,'Prijava');
+  if(!event)return;
+  state.lastScan={eventId:event.eventId,workerId:1,label:'Ivan Horvat',status:'Offline zapis',time:event.time,message:'Događaj je sigurno spremljen u lokalni red i čeka sinkronizaciju.'};
+  audit('Demo simulator',`Offline RFID događaj ${event.eventId} spremljen je u lokalni red terminala BSS-T01.`,'Terminal');
+  saveAndRender('Simulator je dodao jedno offline očitanje u lokalni red.');
+}
 
 function viewFlow(){
   const steps=[

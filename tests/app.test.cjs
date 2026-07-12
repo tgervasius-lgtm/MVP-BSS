@@ -46,10 +46,10 @@ test('evidencija i RFID simulator su odvojeni',()=>{
   assert.ok(document.querySelector('.rfid-ring'));
 });
 
-test('Demo 3.0 dashboard zadržava potpuni operativni pregled u Sprintu 4',()=>{
+test('Demo 3.0 dashboard zadržava potpuni operativni pregled u Sprintu 5',()=>{
   const {window,document,state} = boot('admin');
   assert.match(document.querySelector('.version-chip').textContent,/v3\.0/);
-  assert.match(document.querySelector('.side-footer').textContent,/Sprint 4/);
+  assert.match(document.querySelector('.side-footer').textContent,/Sprint 5/);
   assert.equal(document.querySelectorAll('.dashboard-kpis .kpi-card').length,8);
   assert.equal(document.querySelector('[data-kpi="present"] .kpi-value').textContent,'3');
   assert.equal(document.querySelector('[data-kpi="absent"] .kpi-value').textContent,'1');
@@ -342,6 +342,99 @@ test('odobrena korekcija mijenja zapis i stvara audit događaj',()=>{
   assert.equal(record.end,'16:02');
   assert.equal(record.status,'Ispravljeno');
   assert.match(state().audit[0].action,/Odobrena korekcija/);
+});
+
+test('Sprint 5 prikazuje identitet, dijagnostiku i događaje terminala',()=>{
+  const {window,document,state}=boot('admin');
+  window.navigate('terminal');
+  assert.match(document.querySelector('.terminal-hero').textContent,/BSS-T01.*Ulaz proizvodnje/);
+  assert.equal(document.querySelectorAll('.terminal-kpis>div').length,4);
+  assert.equal(document.querySelectorAll('.terminal-health-grid>div').length,4);
+  assert.ok(document.querySelector('[data-terminal-controls]'));
+  assert.equal(document.querySelectorAll('.terminal-event-table')[1].querySelectorAll('tbody tr').length,3);
+  assert.equal(state().terminal.queue.length,0);
+  assert.equal(state().terminal.unsynced,0);
+});
+
+test('offline očitanje ulazi u lokalni red i sinkronizira se bez promjene evidencije',()=>{
+  const {window,state}=boot('admin');
+  const recordsBefore=JSON.stringify(state().records);
+  window.navigate('terminal');
+  window.simulateTerminalOffline();
+  assert.equal(state().terminal.online,false);
+  assert.equal(state().terminal.queue.length,0);
+
+  window.navigate('terminalDemo');
+  window.demoOfflineScan();
+  const queued=state().terminal.queue[0];
+  assert.match(queued.eventId,/^T01-20260710-/);
+  assert.equal(queued.status,'Čeka sinkronizaciju');
+  assert.equal(state().terminal.unsynced,1);
+  assert.equal(JSON.stringify(state().records),recordsBefore);
+
+  window.navigate('terminal');
+  window.restoreTerminal();
+  assert.equal(state().terminal.online,true);
+  assert.equal(state().terminal.unsynced,0);
+  assert.equal(state().terminal.queue.length,0);
+  assert.equal(state().terminal.syncRuns[0].received,1);
+  assert.equal(state().terminal.syncRuns[0].accepted,1);
+  assert.equal(state().terminal.syncRuns[0].duplicates,0);
+  assert.equal(state().terminal.recentEvents.find(event=>event.eventId===queued.eventId).status,'Sinkronizirano');
+  assert.equal(JSON.stringify(state().records),recordsBefore);
+});
+
+test('nepoznata RFID kartica odbija se lokalno i ne puni offline red',()=>{
+  const {window,state}=boot('admin');
+  const scansBefore=state().terminal.scans,recordsBefore=JSON.stringify(state().records);
+  window.navigate('terminalDemo');
+  window.demoUnknownCard();
+  assert.equal(state().terminal.scans,scansBefore+1);
+  assert.equal(state().terminal.queue.length,0);
+  assert.equal(state().terminal.unsynced,0);
+  assert.equal(state().terminal.recentEvents[0].status,'Odbijeno');
+  assert.equal(state().lastScan.status,'Greška');
+  assert.equal(JSON.stringify(state().records),recordsBefore);
+});
+
+test('sinkronizacija prepoznaje ponovljeni ID i ne prihvaća ga dvaput',()=>{
+  const {window,state}=boot('admin');
+  const existingId=state().terminal.syncedEventIds[0],recordsBefore=JSON.stringify(state().records);
+  window.navigate('terminal');
+  window.simulateTerminalOffline();
+  const duplicate=window.queueTerminalEvent(1,'Prijava',existingId);
+  assert.equal(state().terminal.unsynced,1);
+  window.restoreTerminal();
+  assert.equal(state().terminal.syncRuns[0].received,1);
+  assert.equal(state().terminal.syncRuns[0].accepted,0);
+  assert.equal(state().terminal.syncRuns[0].duplicates,1);
+  assert.equal(state().terminal.recentEvents.find(event=>event===duplicate).status,'Duplikat');
+  assert.equal(JSON.stringify(state().records),recordsBefore);
+});
+
+test('online simulator dodaje jedinstven sinkronizirani događaj, ne službeni zapis',()=>{
+  const {window,state}=boot('admin');
+  const recordsBefore=JSON.stringify(state().records),eventsBefore=state().terminal.recentEvents.length;
+  window.navigate('terminalDemo');
+  window.demoScan();
+  assert.equal(state().terminal.queue.length,0);
+  assert.equal(state().terminal.recentEvents.length,eventsBefore+1);
+  assert.equal(state().terminal.recentEvents[0].status,'Sinkronizirano');
+  assert.ok(state().terminal.syncedEventIds.includes(state().terminal.recentEvents[0].eventId));
+  assert.equal(JSON.stringify(state().records),recordsBefore);
+});
+
+test('voditelj ima samo čitanje na operativnom ekranu terminala',()=>{
+  const {window,document,state}=boot('manager');
+  window.navigate('terminal');
+  assert.equal(document.querySelector('[data-terminal-controls]'),null);
+  assert.match(document.querySelector('.terminal-readonly').textContent,/bez prava upravljanja/);
+  assert.match(document.querySelector('#content').textContent,/Ivan Horvat|Marko Marić/);
+  assert.doesNotMatch(document.querySelector('#content').textContent,/Tomislav Bognar/);
+  window.simulateTerminalOffline();
+  assert.equal(state().terminal.online,true);
+  window.restoreTerminal();
+  assert.equal(state().terminal.syncRuns.length,1);
 });
 
 test('Sprint 4 nudi pet poslovnih izvještaja iz istog skupa podataka',()=>{

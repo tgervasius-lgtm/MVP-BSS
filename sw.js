@@ -1,4 +1,4 @@
-const CACHE_NAME = 'bss-demo-3-sprint-4';
+const CACHE_NAME = 'bss-demo-3-sprint-5';
 const ASSETS = ['./','./index.html','./styles.css','./app.js','./manifest.json','./icons/icon.svg'];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE_NAME).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting()));

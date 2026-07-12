@@ -21,7 +21,7 @@ Demo 3.0 ne uključuje skladište, ERP, GPS/geofencing, AI analitiku, payroll ob
 | 2 | Evidencija radnog vremena | Spremno za pregled |
 | 3 | Godišnji odmori | Spremno za pregled |
 | 4 | Izvještaji | Spremno za pregled |
-| 5 | RFID terminal | Čeka |
+| 5 | RFID terminal | Spremno za pregled |
 | 6 | Postavke i administracija | Čeka |
 | 7 | Dizajn i završno poliranje | Čeka |
 
@@ -79,6 +79,21 @@ Demo 3.0 ne uključuje skladište, ERP, GPS/geofencing, AI analitiku, payroll ob
 - XLSX je stvarna formatirana Excel radna knjiga sa stiliziranim zaglavljem, prilagođenim širinama stupaca, zamrznutim prvim retkom i automatskim filtrom.
 - Generiranje i preuzimanje bilježe ulogu, opseg, razdoblje, vrstu i broj redaka u povijesti i audit tragu.
 - Izvještaji pripremaju evidencijske podatke, ali ne računaju plaću, poreze ni doprinose.
+- Svi postojeći i novi testovi moraju proći prije PR-a.
+
+## Sprint 5 – kriteriji prihvata
+
+- Operativni ekran prikazuje identitet, serijski broj, lokaciju, hardver, verziju, heartbeat, signal, lokalnu pohranu i broj očitanja terminala.
+- Dijagnostika odvojeno prikazuje RFID čitač, zvučnu potvrdu, firmware i zauzeće lokalne pohrane.
+- Prekid mreže sam po sebi ne stvara lažne evidencije; tek poznato offline očitanje ulazi u lokalni red.
+- Svako prihvaćeno očitanje dobiva jedinstveni ID događaja, vrijeme, radnika, radnju, način rada i status sinkronizacije.
+- Nepoznata kartica odbija se lokalno, ne ulazi u offline red i ne mijenja službenu evidenciju.
+- Nakon povratka veze lokalni se red obrađuje, a rezultat prikazuje primljene, prihvaćene i ponovljene događaje.
+- Idempotentna sinkronizacija prepoznaje već prihvaćen ID i ne sprema isti događaj drugi put.
+- Administrator može simulirati prekid veze i pokrenuti sinkronizaciju; voditelj bez tih kontrola vidi samo događaje dodijeljenih odjela.
+- Radnik i knjigovođa nemaju pristup ekranu upravljanja terminalom.
+- Prodajni RFID simulator ostaje jasno odvojen od službene evidencije radnog vremena.
+- Online, offline i odbijeni simulirani događaji ažuriraju samo telemetriju, lokalni red i audit trag.
 - Svi postojeći i novi testovi moraju proći prije PR-a.
 
 ## Pravilo završetka sprinta

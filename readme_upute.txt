@@ -5,6 +5,7 @@ Trenutna razvojna faza:
 - Sprint 2: Evidencija radnog vremena – spremno za pregled
 - Sprint 3: Godišnji odmori – spremno za pregled
 - Sprint 4: Izvještaji – spremno za pregled
+- Sprint 5: RFID terminal – spremno za pregled
 - produkcijski backend počinje tek nakon završetka svih sedam Demo 3.0 sprintova
 
 Objavljena aplikacija:
@@ -46,7 +47,12 @@ Kako se objavljuje:
 - UTF-8 CSV s hrvatskim nazivom datoteke te formatirani XLSX sa zamrznutim zaglavljem i automatskim filtrom
 - povijest generiranja i preuzimanja s audit tragom, opsegom i brojem redaka
 - izvještaji ne računaju plaću, poreze ni doprinose
-- status terminala i offline red
+- identitet, heartbeat, signal, firmware i dijagnostika RFID terminala
+- lokalni offline red sa stvarnim događajima i jedinstvenim ID-evima
+- sinkronizacija s brojem primljenih, prihvaćenih i ponovljenih događaja
+- idempotentna zaštita koja isti ID ne sprema dvaput
+- lokalno odbijanje nepoznate kartice bez punjenja offline reda
+- administratorske kontrole veze i read-only pregled događaja dodijeljenih odjela za voditelja
 - izolirani RFID simulator koji ne mijenja službenu evidenciju
 - prodajni demo način koji se može isključiti
 - lokalno spremanje demo-podataka u preglednik
