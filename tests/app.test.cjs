@@ -10,7 +10,10 @@ const coreSources = [
   'src/adapters/runtime.js',
   'src/domain/contracts.js',
   'src/domain/time.js',
-  'src/policies/access.js'
+  'src/policies/access.js',
+  'src/use-cases/attendance.js',
+  'src/use-cases/leave.js',
+  'src/use-cases/corrections.js'
 ].map(path=>fs.readFileSync(path,'utf8'));
 const styles = fs.readFileSync('styles.css','utf8');
 const manifest = JSON.parse(fs.readFileSync('manifest.json','utf8'));
@@ -1005,7 +1008,7 @@ test('aplikacija povezuje vodič i offline predmemorira cijeli Design System',()
   for(const asset of ['design-system/index.html','design-system/tokens.css','design-system/guide.css','design-system/guide.js']){
     assert.match(serviceWorker,new RegExp(asset.replaceAll('.','\\.')));
   }
-  assert.match(serviceWorker,/bss-refactor-v1-r2/);
+  assert.match(serviceWorker,/bss-refactor-v1-r3/);
 });
 
 test('Brand Book v1.0 pokriva svih devet dogovorenih područja',()=>{
@@ -1065,7 +1068,7 @@ test('aplikacija povezuje Brand Book i cijeli paket radi offline',()=>{
     'bss-presentation-cover.svg','bss-terminal-label.svg',
     'BSS_BRAND-BOOK_v1.0_11.07.2026.pdf'
   ]) assert.match(serviceWorker,new RegExp(asset.replaceAll('.','\\.')));
-  assert.match(serviceWorker,/bss-refactor-v1-r2/);
+  assert.match(serviceWorker,/bss-refactor-v1-r3/);
   assert.match(serviceWorker,/path\.includes\('\/brand-book'\)/);
 });
 
@@ -1146,14 +1149,20 @@ test('Refactor v1 učitava jezgru prije aplikacije i sprema je za offline rad',(
     html.indexOf('src/domain/contracts.js'),
     html.indexOf('src/domain/time.js'),
     html.indexOf('src/policies/access.js'),
+    html.indexOf('src/use-cases/attendance.js'),
+    html.indexOf('src/use-cases/leave.js'),
+    html.indexOf('src/use-cases/corrections.js'),
     html.indexOf('app.js')
   ];
   assert.ok(order.every(index=>index>=0));
   assert.deepEqual(order,[...order].sort((a,b)=>a-b));
-  for(const asset of ['src/adapters/runtime.js','src/domain/contracts.js','src/domain/time.js','src/policies/access.js']){
+  for(const asset of [
+    'src/adapters/runtime.js','src/domain/contracts.js','src/domain/time.js','src/policies/access.js',
+    'src/use-cases/attendance.js','src/use-cases/leave.js','src/use-cases/corrections.js'
+  ]){
     assert.match(serviceWorker,new RegExp(asset.replaceAll('.','\\.')));
   }
-  assert.match(serviceWorker,/bss-refactor-v1-r2/);
+  assert.match(serviceWorker,/bss-refactor-v1-r3/);
 });
 
 test('domenski ugovor zaključava četiri uloge i hrvatske oznake statusa',()=>{
@@ -1255,4 +1264,76 @@ test('aplikacija koristi runtime granicu za pohranu, sat i nove ID-eve',()=>{
   assert.match(source,/BSS_RUNTIME\.clock\.nowLabel/);
   assert.match(source,/BSS_RUNTIME\.ids\.next/);
   assert.doesNotMatch(html,/localStorage\.getItem/);
+});
+
+test('attendance use-case računa isti sažetak i čisto primjenjuje korekciju',()=>{
+  const {evaluate}=boot('admin');
+  const summary=evaluate(`BSS_CORE.useCases.attendance.summarize([
+    {workerId:1,date:'2026-07-10',start:'08:00',end:'16:00',breakMinutes:30,status:'Uredno'},
+    {workerId:1,date:'2026-07-10',start:'08:10',end:'',breakMinutes:0,status:'Kašnjenje'}
+  ],{today:'2026-07-10',recordMinutes:r=>BSS_CORE.time.recordMinutes(r),plannedShiftMinutes:()=>450})`);
+  assert.equal(summary.records,2);
+  assert.equal(summary.completed,1);
+  assert.equal(summary.active,1);
+  assert.equal(summary.late,1);
+  assert.equal(summary.workedMinutes,450);
+  assert.equal(summary.balanceMinutes,0);
+  const applied=evaluate(`BSS_CORE.useCases.attendance.applyApprovedCorrection({
+    correction:{date:'2026-07-09',newStart:'08:00',newEnd:'16:00'},record:null,workerId:7,shiftBreakMinutes:30,id:99
+  })`);
+  assert.equal(applied.created,true);
+  assert.deepEqual({...applied.record},{id:99,workerId:7,date:'2026-07-09',start:'08:00',end:'16:00',breakMinutes:30,status:'Ispravljeno'});
+});
+
+test('leave use-case vraća stabilne kodove za granice novog zahtjeva',()=>{
+  const {evaluate}=boot('admin');
+  const codes=evaluate(`(()=>{
+    const useCase=BSS_CORE.useCases.leave;
+    const base={workerId:1,type:'Godišnji odmor',start:'2026-08-17',end:'2026-08-21',today:'2026-07-10',year:'2026',requests:[],availableDays:5,businessDays:()=>5,intervalsOverlap:BSS_CORE.time.intervalsOverlap};
+    return [
+      useCase.validateSubmission({...base,end:'2026-08-16'}).code,
+      useCase.validateSubmission({...base,start:'2026-07-10'}).code,
+      useCase.validateSubmission({...base,start:'2027-01-01',end:'2027-01-02'}).code,
+      useCase.validateSubmission({...base,businessDays:()=>0}).code,
+      useCase.validateSubmission({...base,availableDays:4}).code,
+      useCase.validateSubmission({...base,requests:[{workerId:1,start:'2026-08-20',end:'2026-08-22',status:'Odobreno'}]}).code
+    ];
+  })()`);
+  assert.deepEqual([...codes],['INVALID_RANGE','NOT_FUTURE','OUTSIDE_YEAR','NO_WORKING_DAYS','INSUFFICIENT_BALANCE','OVERLAP']);
+});
+
+test('leave use-case provodi nepromjenjive prijelaze odluke i poništavanja',()=>{
+  const {evaluate}=boot('admin');
+  const result=evaluate(`(()=>{
+    const useCase=BSS_CORE.useCases.leave;
+    const original=useCase.createRequest({id:1,workerId:7,type:'Godišnji odmor',start:'2026-08-17',end:'2026-08-21',note:'',submittedAt:'sada'});
+    const missing=useCase.decide(original,{status:'Odbijeno',note:'',actor:'Voditelj',decidedAt:'kasnije'});
+    const approved=useCase.decide(original,{status:'Odobreno',note:'',actor:'Voditelj',decidedAt:'kasnije'});
+    const cancelled=useCase.cancel(original,{workerId:7,decidedAt:'kasnije'});
+    return [original.status,missing.code,approved.request.status,approved.request.decisionNote,cancelled.request.status];
+  })()`);
+  assert.deepEqual([...result],['Na čekanju','REJECTION_NOTE_REQUIRED','Odobreno','Odobreno bez dodatne napomene.','Poništeno']);
+});
+
+test('correction use-case validira zahtjev i odobrenjem mijenja jedan zapis',()=>{
+  const {evaluate}=boot('admin');
+  const result=evaluate(`(()=>{
+    const useCase=BSS_CORE.useCases.corrections;
+    const base={workerId:1,date:'2026-07-09',newStart:'08:00',newEnd:'16:00',reason:'Ispravak',today:'2026-07-10',records:[],corrections:[],timeToMinutes:BSS_CORE.time.timeToMinutes};
+    const equal=useCase.validateSubmission({...base,newEnd:'08:00'}).code;
+    const long=useCase.validateSubmission({...base,newEnd:'01:00'}).code;
+    const valid=useCase.validateSubmission(base);
+    const request=useCase.createRequest({id:2,...base,oldStart:valid.oldStart,oldEnd:valid.oldEnd});
+    const decision=useCase.decide(request,{status:'Odobreno',record:null,workerId:1,shiftBreakMinutes:30,id:3});
+    return [equal,long,request.status,decision.correction.status,decision.created,decision.record.status];
+  })()`);
+  assert.deepEqual([...result],['EQUAL_TIMES','TOO_LONG','Na čekanju','Odobreno',true,'Ispravljeno']);
+});
+
+test('UI funkcije delegiraju poslovne odluke izdvojenim R3 use-caseovima',()=>{
+  assert.match(source,/BSS_USE_CASES\.attendance\.summarize/);
+  assert.match(source,/BSS_USE_CASES\.leave\.validateSubmission/);
+  assert.match(source,/BSS_USE_CASES\.leave\.decide/);
+  assert.match(source,/BSS_USE_CASES\.corrections\.validateSubmission/);
+  assert.match(source,/BSS_USE_CASES\.corrections\.decide/);
 });
