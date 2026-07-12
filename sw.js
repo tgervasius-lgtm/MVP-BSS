@@ -1,7 +1,7 @@
-const CACHE_NAME = 'bss-refactor-v1-r1';
+const CACHE_NAME = 'bss-refactor-v1-r2';
 const ASSETS = [
   './','./index.html','./styles.css','./app.js','./manifest.json','./icons/icon.svg',
-  './src/domain/contracts.js','./src/domain/time.js','./src/policies/access.js',
+  './src/adapters/runtime.js','./src/domain/contracts.js','./src/domain/time.js','./src/policies/access.js',
   './design-system/index.html','./design-system/tokens.css','./design-system/guide.css','./design-system/guide.js',
   './brand-book/index.html','./brand-book/brand.css','./brand-book/brand.js',
   './brand-book/assets/bss-symbol.svg','./brand-book/assets/bss-logo-primary.svg','./brand-book/assets/bss-logo-reversed.svg','./brand-book/assets/bss-logo-monochrome.svg',
