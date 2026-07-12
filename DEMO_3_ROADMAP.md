@@ -20,7 +20,7 @@ Demo 3.0 ne uključuje skladište, ERP, GPS/geofencing, AI analitiku, payroll ob
 | 1 | Dashboard i navigacija | Spremno za pregled |
 | 2 | Evidencija radnog vremena | Spremno za pregled |
 | 3 | Godišnji odmori | Spremno za pregled |
-| 4 | Izvještaji | Čeka |
+| 4 | Izvještaji | Spremno za pregled |
 | 5 | RFID terminal | Čeka |
 | 6 | Postavke i administracija | Čeka |
 | 7 | Dizajn i završno poliranje | Čeka |
@@ -64,6 +64,21 @@ Demo 3.0 ne uključuje skladište, ERP, GPS/geofencing, AI analitiku, payroll ob
 - Radni dani računaju se bez vikenda i hrvatskih blagdana u 2026.
 - Novi zahtjev odbija prošli datum, nevaljano razdoblje, vlastito preklapanje i prekoračenje raspoloživog fonda.
 - Upozorenje preklapanja pomaže planiranju kapaciteta, ali ne donosi automatsku odluku umjesto voditelja.
+- Svi postojeći i novi testovi moraju proći prije PR-a.
+
+## Sprint 4 – kriteriji prihvata
+
+- Modul ima pet jasno odvojenih izvještaja: mjesečni sažetak, detaljnu evidenciju, odstupanja, odobrene odsutnosti i korekcije vremena.
+- Mjesečni sažetak daje jedan red po radniku te iz istih zapisa računa završene evidencije, evidentirane sate, plan, saldo, prekovremeno, stavke za provjeru i odobrene dane odsutnosti.
+- Administrator može obuhvatiti cijelu tvrtku ili filtrirati odjel i radnika.
+- Voditelj vidi i izvozi samo dodijeljene odjele; nevaljani filtar izvan njegova opsega automatski se odbacuje.
+- Knjigovođa ima pregled i CSV/XLSX izvoz cijele tvrtke bez prava izmjene službenih podataka.
+- Radnik nema pristup poslovnim izvještajima; osobne sate i odsutnosti i dalje vidi na vlastitim ekranima.
+- Mjesec, odjel, radnik i vrsta izvještaja određuju isti skup redaka na ekranu, u CSV-u i u XLSX-u.
+- CSV je UTF-8, koristi točku-zarez i pravilno štiti navodnike; naziv datoteke jasno sadrži vrstu, mjesec i godinu.
+- XLSX je stvarna formatirana Excel radna knjiga sa stiliziranim zaglavljem, prilagođenim širinama stupaca, zamrznutim prvim retkom i automatskim filtrom.
+- Generiranje i preuzimanje bilježe ulogu, opseg, razdoblje, vrstu i broj redaka u povijesti i audit tragu.
+- Izvještaji pripremaju evidencijske podatke, ali ne računaju plaću, poreze ni doprinose.
 - Svi postojeći i novi testovi moraju proći prije PR-a.
 
 ## Pravilo završetka sprinta
