@@ -19,8 +19,8 @@ Razdvojiti monolitni frontend u testabilnu domenu, politike, adaptere i prikaze 
 | R1 | Stabilni ugovori, vrijeme i RBAC/scope politike | Dovršeno u ovoj grani |
 | R2 | Adapteri za pohranu, sat, ID i demo podatke | Dovršeno u ovoj grani |
 | R3 | Use-case funkcije za evidenciju, godišnje i korekcije | Dovršeno u ovoj grani |
-| R4 | Prikazi po ekranima i uklanjanje inline handlera | Sljedeće |
-| R5 | CSS slojevi i uklanjanje legacy aliasa | Čeka |
+| R4 | Prikazi po ekranima i uklanjanje inline handlera | Dovršeno u ovoj grani |
+| R5 | CSS slojevi i uklanjanje legacy aliasa | Sljedeće |
 | R6 | Build, lint, browser E2E, axe i Cloudflare sigurnosna ograda | Čeka |
 
 ## R1 – izdvojena jezgra
@@ -71,6 +71,24 @@ R1 namjerno zadržava hrvatske demo oznake statusa i postojeći javni API funkci
 - odobrena korekcija čuva audit te stvara ili ažurira točno jedan dnevni zapis;
 - sažeci evidencije ostaju brojčano jednaki Demo 3.0 rezultatu;
 - svi R1, R2 i postojeći regresijski testovi prolaze.
+
+## R4 – registry prikaza i događaja
+
+- `src/views/registry.js` zaključava dopuštene ekrane i jedini bira pripadajuću view funkciju.
+- `src/views/events.js` centralno obrađuje klik, promjenu vrijednosti i tipku Enter kroz delegirane događaje.
+- Dopušten je samo eksplicitni popis akcija; ne koristi se `eval`, `Function` ni izvršavanje proizvoljnog atributa.
+- Argumenti akcije podržavaju samo string, broj, boolean, `null` i kontroliranu vrijednost aktivnog polja.
+- Sve `onclick`, `onchange` i `onkeydown` veze zamijenjene su `data-bss-*` atributima.
+- Drawer i modal zatvaraju se preko zasebne backdrop akcije, samo kada je pogođena sama pozadina.
+
+### Kriterij prolaza R4
+
+- izvor i renderirani DOM nemaju inline JavaScript event atribute;
+- nepoznata akcija i izraz izvan dopuštene gramatike ne mogu se izvršiti;
+- svi dopušteni ekrani prolaze kroz screen registry, a nepoznat ekran sigurno pada na početni prikaz;
+- klik, promjena selecta i tipka Enter zadržavaju postojeće ponašanje;
+- drawer, modal, navigacija, tabovi, obrasci i administrativne radnje prolaze regresiju;
+- svi R1–R3 i postojeći testovi prolaze.
 
 ## Kriterij prolaza R1
 
