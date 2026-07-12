@@ -7,6 +7,7 @@ const {JSDOM} = require('jsdom');
 const html = fs.readFileSync('index.html','utf8');
 const source = fs.readFileSync('app.js','utf8');
 const coreSources = [
+  'src/adapters/runtime.js',
   'src/domain/contracts.js',
   'src/domain/time.js',
   'src/policies/access.js'
@@ -1004,7 +1005,7 @@ test('aplikacija povezuje vodič i offline predmemorira cijeli Design System',()
   for(const asset of ['design-system/index.html','design-system/tokens.css','design-system/guide.css','design-system/guide.js']){
     assert.match(serviceWorker,new RegExp(asset.replaceAll('.','\\.')));
   }
-  assert.match(serviceWorker,/bss-refactor-v1-r1/);
+  assert.match(serviceWorker,/bss-refactor-v1-r2/);
 });
 
 test('Brand Book v1.0 pokriva svih devet dogovorenih područja',()=>{
@@ -1064,7 +1065,7 @@ test('aplikacija povezuje Brand Book i cijeli paket radi offline',()=>{
     'bss-presentation-cover.svg','bss-terminal-label.svg',
     'BSS_BRAND-BOOK_v1.0_11.07.2026.pdf'
   ]) assert.match(serviceWorker,new RegExp(asset.replaceAll('.','\\.')));
-  assert.match(serviceWorker,/bss-refactor-v1-r1/);
+  assert.match(serviceWorker,/bss-refactor-v1-r2/);
   assert.match(serviceWorker,/path\.includes\('\/brand-book'\)/);
 });
 
@@ -1141,6 +1142,7 @@ test('scope dokument i roadmap zaključavaju promjene i vode u Refactor v1',()=>
 
 test('Refactor v1 učitava jezgru prije aplikacije i sprema je za offline rad',()=>{
   const order=[
+    html.indexOf('src/adapters/runtime.js'),
     html.indexOf('src/domain/contracts.js'),
     html.indexOf('src/domain/time.js'),
     html.indexOf('src/policies/access.js'),
@@ -1148,10 +1150,10 @@ test('Refactor v1 učitava jezgru prije aplikacije i sprema je za offline rad',(
   ];
   assert.ok(order.every(index=>index>=0));
   assert.deepEqual(order,[...order].sort((a,b)=>a-b));
-  for(const asset of ['src/domain/contracts.js','src/domain/time.js','src/policies/access.js']){
+  for(const asset of ['src/adapters/runtime.js','src/domain/contracts.js','src/domain/time.js','src/policies/access.js']){
     assert.match(serviceWorker,new RegExp(asset.replaceAll('.','\\.')));
   }
-  assert.match(serviceWorker,/bss-refactor-v1-r1/);
+  assert.match(serviceWorker,/bss-refactor-v1-r2/);
 });
 
 test('domenski ugovor zaključava četiri uloge i hrvatske oznake statusa',()=>{
@@ -1188,4 +1190,69 @@ test('izdvojene access politike provode admin, voditelj, radnik i knjigovođa gr
   assert.equal(evaluate("BSS_CORE.access.canViewScopedEntity('manager',3,state.workers,ROLE_CONFIG.manager)"),false);
   assert.equal(evaluate("BSS_CORE.access.canApprove('worker')"),false);
   assert.equal(evaluate("BSS_CORE.access.canApprove('manager')"),true);
+});
+
+test('runtime adapter sprema tekst i JSON bez izravne ovisnosti o localStorageu',()=>{
+  const {evaluate}=boot('admin');
+  const result=evaluate(`(()=>{
+    const memory=BSS_CORE.runtime.createMemoryStorage();
+    const runtime=BSS_CORE.runtime.create({storage:memory,now:()=>new Date('2026-07-12T08:00:00Z')});
+    runtime.storage.set('tekst','BSS');
+    runtime.storage.setJson('json',{version:1,value:7});
+    return [runtime.storage.get('tekst'),runtime.storage.getJson('json').value];
+  })()`);
+  assert.deepEqual([...result],['BSS',7]);
+});
+
+test('runtime adapter prelazi na memoriju kada preglednik odbije pohranu',()=>{
+  const {evaluate}=boot('admin');
+  const result=evaluate(`(()=>{
+    const blocked={
+      getItem(){throw new Error('blocked');},
+      setItem(){throw new Error('blocked');},
+      removeItem(){throw new Error('blocked');}
+    };
+    const runtime=BSS_CORE.runtime.create({storage:blocked});
+    runtime.storage.set('session','aktivna');
+    const saved=runtime.storage.get('session');
+    runtime.storage.remove('session');
+    return [saved,runtime.storage.get('session')];
+  })()`);
+  assert.deepEqual([...result],['aktivna',null]);
+});
+
+test('state adapter prihvaća samo očekivanu verziju i klonira fallback',()=>{
+  const {evaluate}=boot('admin');
+  const result=evaluate(`(()=>{
+    const memory=BSS_CORE.runtime.createMemoryStorage({'state':'{"version":7,"value":"staro"}'});
+    const runtime=BSS_CORE.runtime.create({storage:memory});
+    const fallback={version:8,nested:{value:'novo'}};
+    const first=runtime.state.load('state',{version:8,fallback});
+    first.nested.value='promijenjeno';
+    const second=runtime.state.load('state',{version:8,fallback});
+    runtime.state.save('state',{version:8,nested:{value:'spremljeno'}});
+    const stored=runtime.state.load('state',{version:8,fallback});
+    return [second.nested.value,stored.nested.value];
+  })()`);
+  assert.deepEqual([...result],['novo','spremljeno']);
+});
+
+test('zamjenjivi sat i monotoni ID generator daju determinističan rezultat',()=>{
+  const {evaluate}=boot('admin');
+  const result=evaluate(`(()=>{
+    const fixed=new Date('2026-07-12T08:00:00.000Z');
+    const runtime=BSS_CORE.runtime.create({storage:BSS_CORE.runtime.createMemoryStorage(),now:()=>fixed});
+    return [runtime.clock.nowMs(),runtime.clock.futureDate(2).getTime(),runtime.ids.next(),runtime.ids.next(),runtime.ids.next()];
+  })()`);
+  assert.equal(result[1]-result[0],7200000);
+  assert.deepEqual([...result.slice(2)],[result[0],result[0]+1,result[0]+2]);
+});
+
+test('aplikacija koristi runtime granicu za pohranu, sat i nove ID-eve',()=>{
+  assert.doesNotMatch(source,/\blocalStorage\b/);
+  assert.doesNotMatch(source,/Date\.now\s*\(/);
+  assert.match(source,/BSS_RUNTIME\.state\.load/);
+  assert.match(source,/BSS_RUNTIME\.clock\.nowLabel/);
+  assert.match(source,/BSS_RUNTIME\.ids\.next/);
+  assert.doesNotMatch(html,/localStorage\.getItem/);
 });
