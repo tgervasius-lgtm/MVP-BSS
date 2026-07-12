@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="920" height="240" viewBox="0 0 920 240" role="img" aria-labelledby="title desc">
+  <title id="title">BSS jednobojni logotip</title>
+  <desc id="desc">Jednobojna crna varijanta BSS logotipa.</desc>
+  <rect x="20" y="20" width="200" height="200" rx="56" fill="#111111"/>
+  <path fill="#FFFFFF" d="M70 52h55c28 0 45 13 45 35 0 15-8 25-21 31 17 5 26 16 26 33 0 25-19 39-50 39H70V52Zm35 29v25h17c9 0 15-5 15-13s-6-12-15-12h-17Zm0 53v27h19c11 0 17-5 17-14s-6-13-17-13h-19Z"/>
+  <text x="270" y="112" fill="#111111" font-family="Noto Sans, Arial, sans-serif" font-size="64" font-weight="800" letter-spacing="-2">BSS</text>
+  <text x="272" y="166" fill="#111111" font-family="Noto Sans, Arial, sans-serif" font-size="34" font-weight="600">Bognar Smart Systems</text>
+</svg>
