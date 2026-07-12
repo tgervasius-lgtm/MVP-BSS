@@ -478,7 +478,7 @@ def build_story(st):
         ], [31 * mm, 79 * mm, 55 * mm], st),
         Spacer(1, 7 * mm),
         p("Primarni dokazni niz", st["h2"]),
-        p("RFID/NFC očitanje → evidencija vremena → pregled prema ulozi → odobravanje → kontrolirani izvještaj.", st["quote"]),
+        p("RFID/NFC očitanje, evidencija vremena, pregled prema ulozi, odobravanje i kontrolirani izvještaj.", st["quote"]),
         p("Ovaj niz smije se koristiti u prodajnoj priči jer odgovara stvarnom Demo 3.0 opsegu.", st["body"]),
         PageBreak(),
     ]
