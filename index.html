@@ -17,9 +17,7 @@
   <link rel="apple-touch-icon" href="icons/icon.svg">
   <link rel="stylesheet" href="styles.css">
   <script src="src/adapters/runtime.js"></script>
-  <script>
-    (()=>{try{const saved=globalThis.BSSCore.runtime.storage.get('bss-theme-v1');const dark=matchMedia('(prefers-color-scheme: dark)').matches;document.documentElement.dataset.theme=saved==='dark'||saved==='light'?saved:(dark?'dark':'light');}catch(_){document.documentElement.dataset.theme='light';}})();
-  </script>
+  <script src="src/adapters/theme-bootstrap.js"></script>
 </head>
 <body>
   <div id="root"></div>

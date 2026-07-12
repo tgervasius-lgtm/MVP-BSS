@@ -4,9 +4,19 @@
   "private": true,
   "scripts": {
     "test": "node --test tests/app.test.cjs",
-    "check": "npm test"
+    "build": "node scripts/build.mjs",
+    "serve:dist": "node scripts/serve-dist.mjs",
+    "lint": "eslint .",
+    "pretest:e2e": "npm run build",
+    "test:e2e": "playwright test",
+    "check": "npm run lint && npm test && npm run build",
+    "ci": "npm run lint && npm test && npm run test:e2e"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.12.1",
+    "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.61.1",
+    "eslint": "^10.7.0",
     "jsdom": "26.1.0"
   }
 }

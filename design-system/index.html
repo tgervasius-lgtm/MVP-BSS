@@ -10,9 +10,7 @@
   <link rel="icon" type="image/svg+xml" href="../icons/icon.svg">
   <link rel="stylesheet" href="tokens.css">
   <link rel="stylesheet" href="guide.css">
-  <script>
-    (()=>{try{const saved=localStorage.getItem('bss-theme-v1');const dark=matchMedia('(prefers-color-scheme: dark)').matches;document.documentElement.dataset.theme=saved==='dark'||saved==='light'?saved:(dark?'dark':'light');}catch(_){document.documentElement.dataset.theme='light';}})();
-  </script>
+  <script src="../src/adapters/theme-bootstrap.js"></script>
 </head>
 <body>
   <a class="ds-skip" href="#main">Preskoči na sadržaj</a>
@@ -167,7 +165,7 @@
         <p class="ds-note">Za produkciju koristiti jednu SVG biblioteku: 20–24 px, potez 1.75–2 px, <code>currentColor</code>, dekorativne ikone <code>aria-hidden="true"</code>. Emoji nisu konačni produkcijski asseti.</p>
       </section>
 
-      <footer class="ds-footer"><span>BSS Design System v1.0</span><span>Brand Book v1.0 · sljedeće: tehnički audit i zamrzavanje opsega</span></footer>
+      <footer class="ds-footer"><span>BSS Design System v1.0</span><span>Brand Book v1.0 · Refactor v1 dovršen</span></footer>
     </main>
   </div>
   <script src="guide.js"></script>

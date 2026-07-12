@@ -10,9 +10,7 @@
   <link rel="icon" type="image/svg+xml" href="assets/bss-symbol.svg">
   <link rel="stylesheet" href="../design-system/tokens.css">
   <link rel="stylesheet" href="brand.css">
-  <script>
-    (()=>{try{const saved=localStorage.getItem('bss-theme-v1');const dark=matchMedia('(prefers-color-scheme: dark)').matches;document.documentElement.dataset.theme=saved==='dark'||saved==='light'?saved:(dark?'dark':'light');}catch(_){document.documentElement.dataset.theme='light';}})();
-  </script>
+  <script src="../src/adapters/theme-bootstrap.js"></script>
 </head>
 <body>
   <a class="bb-skip" href="#main">Preskoči na sadržaj</a>
@@ -129,7 +127,7 @@
       <div class="source-links"><a href="../design-system/">Otvori Design System v1.0</a><a href="https://www.figma.com/design/HI03ocj8PdwblksreWuDvk" target="_blank" rel="noopener">Otvori Figma Brand Book</a><a href="../output/pdf/BSS_BRAND-BOOK_v1.0_11.07.2026.pdf">Otvori službeni PDF</a></div>
     </section>
 
-    <footer class="bb-footer"><span>BSS Brand Book v1.0 · 11.07.2026.</span><span>Sljedeće: tehnički audit i zamrzavanje funkcionalnog opsega</span></footer>
+    <footer class="bb-footer"><span>BSS Brand Book v1.0 · 11.07.2026.</span><span>Design System v1.0 · Refactor v1 dovršen</span></footer>
   </main>
   <script src="brand.js"></script>
 </body>
