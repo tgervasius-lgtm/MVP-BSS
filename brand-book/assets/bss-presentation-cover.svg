@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" role="img" aria-labelledby="title desc">
+  <title id="title">BSS naslovnica prezentacije</title><desc id="desc">Minimalistička BSS naslovnica prezentacije omjera 16 prema 9.</desc>
+  <defs><linearGradient id="g" x1="0" y1="0" x2="1600" y2="900"><stop stop-color="#062A26"/><stop offset=".65" stop-color="#0C4F49"/><stop offset="1" stop-color="#0F766E"/></linearGradient></defs>
+  <rect width="1600" height="900" fill="url(#g)"/>
+  <rect x="110" y="100" width="116" height="116" rx="32" fill="#14B8A6"/>
+  <text x="148" y="182" fill="#fff" font-family="Noto Sans, Arial, sans-serif" font-size="68" font-weight="800">B</text>
+  <text x="110" y="420" fill="#fff" font-family="Noto Sans, Arial, sans-serif" font-size="84" font-weight="800" letter-spacing="-2">NASLOV PREZENTACIJE</text>
+  <text x="110" y="490" fill="#A7F3D0" font-family="Noto Sans, Arial, sans-serif" font-size="34" font-weight="600">Kratki podnaslov ili poslovni kontekst</text>
+  <line x1="110" y1="650" x2="1490" y2="650" stroke="#5EEAD4" stroke-opacity=".35" stroke-width="2"/>
+  <text x="110" y="726" fill="#A8C8BD" font-family="Noto Sans, Arial, sans-serif" font-size="24">Bognar Smart Systems · SaaS + IoT</text>
+  <text x="1490" y="726" text-anchor="end" fill="#A8C8BD" font-family="Noto Sans, Arial, sans-serif" font-size="24">MM.GGGG.</text>
+</svg>

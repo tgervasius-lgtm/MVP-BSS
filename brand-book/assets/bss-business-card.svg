@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1720" height="550" viewBox="0 0 1720 550" role="img" aria-labelledby="title desc">
+  <title id="title">BSS predložak posjetnice</title><desc id="desc">Prednja i stražnja strana BSS posjetnice u mjerilu 85 puta 55 milimetara.</desc>
+  <rect x="10" y="10" width="840" height="530" rx="24" fill="#062A26"/>
+  <rect x="78" y="76" width="116" height="116" rx="32" fill="#0F766E"/>
+  <path fill="#fff" d="M105 94h34c17 0 28 8 28 22 0 9-5 16-13 19 11 3 16 10 16 20 0 16-11 24-31 24h-34V94Zm22 18v15h10c6 0 9-3 9-8 0-4-3-7-9-7h-10Zm0 32v17h12c6 0 10-3 10-9s-4-8-10-8h-12Z"/>
+  <text x="78" y="286" fill="#fff" font-family="Noto Sans, Arial, sans-serif" font-size="52" font-weight="800">Bognar Smart Systems</text>
+  <text x="78" y="338" fill="#A7F3D0" font-family="Noto Sans, Arial, sans-serif" font-size="24" font-weight="600">Podaci s terena. Jasne odluke.</text>
+  <text x="78" y="466" fill="#A8C8BD" font-family="Noto Sans, Arial, sans-serif" font-size="18" letter-spacing="2">BSS · ĐAKOVO · HRVATSKA</text>
+  <rect x="870" y="10" width="840" height="530" rx="24" fill="#fff" stroke="#DCE8E1" stroke-width="2"/>
+  <text x="938" y="126" fill="#17352B" font-family="Noto Sans, Arial, sans-serif" font-size="42" font-weight="800">IME PREZIME</text>
+  <text x="938" y="170" fill="#0F766E" font-family="Noto Sans, Arial, sans-serif" font-size="22" font-weight="700">Funkcija / odjel</text>
+  <line x1="938" y1="218" x2="1638" y2="218" stroke="#DCE8E1" stroke-width="2"/>
+  <text x="938" y="286" fill="#315348" font-family="Noto Sans, Arial, sans-serif" font-size="22">+385 00 000 000</text>
+  <text x="938" y="334" fill="#315348" font-family="Noto Sans, Arial, sans-serif" font-size="22">ime@bss.hr</text>
+  <text x="938" y="382" fill="#315348" font-family="Noto Sans, Arial, sans-serif" font-size="22">bss.hr</text>
+  <rect x="1514" y="376" width="124" height="124" rx="34" fill="#0F766E"/><text x="1554" y="460" fill="#fff" font-family="Noto Sans, Arial, sans-serif" font-size="64" font-weight="800">B</text>
+</svg>

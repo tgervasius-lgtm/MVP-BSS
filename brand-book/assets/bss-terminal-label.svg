@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="500" viewBox="0 0 900 500" role="img" aria-labelledby="title desc">
+  <title id="title">BSS oznaka terminala</title><desc id="desc">Predložak identifikacijske naljepnice za BSS RFID terminal.</desc>
+  <rect x="8" y="8" width="884" height="484" rx="28" fill="#F8FBF9" stroke="#0F766E" stroke-width="6"/>
+  <rect x="52" y="52" width="112" height="112" rx="31" fill="#0F766E"/>
+  <text x="89" y="132" fill="#fff" font-family="Noto Sans, Arial, sans-serif" font-size="66" font-weight="800">B</text>
+  <text x="202" y="98" fill="#17352B" font-family="Noto Sans, Arial, sans-serif" font-size="44" font-weight="800">BSS TERMINAL</text>
+  <text x="204" y="140" fill="#5F796F" font-family="Noto Sans, Arial, sans-serif" font-size="22">Bognar Smart Systems · RFID/NFC evidencija</text>
+  <line x1="52" y1="206" x2="848" y2="206" stroke="#DCE8E1" stroke-width="3"/>
+  <text x="52" y="275" fill="#5F796F" font-family="Noto Sans, Arial, sans-serif" font-size="20" font-weight="700">MODEL</text><text x="250" y="275" fill="#17352B" font-family="Noto Sans, Arial, sans-serif" font-size="25" font-weight="800">BSS-T01</text>
+  <text x="52" y="335" fill="#5F796F" font-family="Noto Sans, Arial, sans-serif" font-size="20" font-weight="700">SERIJSKI BROJ</text><text x="250" y="335" fill="#17352B" font-family="Noto Sans, Arial, sans-serif" font-size="25" font-weight="800">BSS-T01-GGGG-0001</text>
+  <text x="52" y="395" fill="#5F796F" font-family="Noto Sans, Arial, sans-serif" font-size="20" font-weight="700">PODRŠKA</text><text x="250" y="395" fill="#17352B" font-family="Noto Sans, Arial, sans-serif" font-size="25" font-weight="800">podrska@bss.hr</text>
+  <text x="848" y="455" text-anchor="end" fill="#0F766E" font-family="Noto Sans, Arial, sans-serif" font-size="18" font-weight="800" letter-spacing="2">POVEZANI SUSTAV</text>
+</svg>

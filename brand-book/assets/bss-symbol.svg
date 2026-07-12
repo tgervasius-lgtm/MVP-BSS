@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" role="img" aria-labelledby="title desc">
+  <title id="title">BSS znak</title>
+  <desc id="desc">Bijelo slovo B u zaobljenom kvadratu BSS teal boje.</desc>
+  <defs>
+    <linearGradient id="brand" x1="24" y1="20" x2="232" y2="236" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0C3F3A"/>
+      <stop offset="0.58" stop-color="#0F766E"/>
+      <stop offset="1" stop-color="#14B8A6"/>
+    </linearGradient>
+  </defs>
+  <rect x="16" y="16" width="224" height="224" rx="64" fill="url(#brand)"/>
+  <path fill="#FFFFFF" d="M72 52h61c30 0 48 14 48 39 0 16-8 28-23 34 19 5 29 18 29 36 0 28-20 43-54 43H72V52Zm39 32v27h18c10 0 16-5 16-14s-6-13-16-13h-18Zm0 58v30h21c11 0 18-5 18-15s-7-15-18-15h-21Z"/>
+</svg>
