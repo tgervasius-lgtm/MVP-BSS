@@ -5,8 +5,9 @@ const ROLE_KEY = 'bss-demo-role-v3';
 const LOGIN_KEY = 'bss-demo-logged-v3';
 const THEME_KEY = 'bss-theme-v1';
 const APP_VERSION = '3.0';
-const APP_STAGE = 'Sprint 7 · DS v1.0';
+const APP_STAGE = 'Sprint 7 · DS + Brand v1.0';
 const DESIGN_SYSTEM_VERSION = '1.0';
+const BRAND_BOOK_VERSION = '1.0';
 const DEMO_TODAY = '2026-07-10';
 const DEMO_NOW = '10:00';
 const CROATIAN_HOLIDAYS_2026 = new Set([
@@ -607,6 +608,7 @@ function shell(){
         <div class="demo-panel"><div><label>Prodajni demo</label><p>${state.demoMode?'Simulator i promjena uloga su vidljivi.':'Čisti prikaz aplikacije.'}</p></div><button class="switch ${state.demoMode?'on':''}" type="button" role="switch" aria-checked="${state.demoMode}" aria-label="Promijeni demo način" onclick="toggleDemoMode()"><i aria-hidden="true"></i></button></div>
         ${navList(true)}
         <a class="drawer-item design-system-link" href="./design-system/" target="_blank" rel="noopener"><span aria-hidden="true">◈</span><span class="nav-label">Design System v${DESIGN_SYSTEM_VERSION}</span><span aria-hidden="true">↗</span></a>
+        <a class="drawer-item brand-book-link" href="./brand-book/" target="_blank" rel="noopener"><span aria-hidden="true">◆</span><span class="nav-label">Brand Book v${BRAND_BOOK_VERSION}</span><span aria-hidden="true">↗</span></a>
         ${state.demoMode?'<button class="drawer-item" onclick="openResetDemoDialog()"><span aria-hidden="true">↻</span>Vrati početne demo-podatke</button>':''}
         <button class="drawer-item" onclick="logout()"><span>⇥</span>Odjava</button>
       </div></div>

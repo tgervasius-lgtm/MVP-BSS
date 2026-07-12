@@ -13,6 +13,11 @@ const designGuideHtml = fs.readFileSync('design-system/index.html','utf8');
 const designGuideStyles = fs.readFileSync('design-system/guide.css','utf8');
 const designGuideScript = fs.readFileSync('design-system/guide.js','utf8');
 const designSystemDoc = fs.readFileSync('BSS_DESIGN_SYSTEM_V1.md','utf8');
+const brandBookHtml = fs.readFileSync('brand-book/index.html','utf8');
+const brandBookStyles = fs.readFileSync('brand-book/brand.css','utf8');
+const brandBookScript = fs.readFileSync('brand-book/brand.js','utf8');
+const brandBookDoc = fs.readFileSync('BSS_BRAND_BOOK_V1.md','utf8');
+const brandBookPdf = fs.readFileSync('output/pdf/BSS_BRAND-BOOK_v1.0_11.07.2026.pdf');
 const serviceWorker = fs.readFileSync('sw.js','utf8');
 
 function hexToken(css,name){
@@ -989,5 +994,75 @@ test('aplikacija povezuje vodič i offline predmemorira cijeli Design System',()
   for(const asset of ['design-system/index.html','design-system/tokens.css','design-system/guide.css','design-system/guide.js']){
     assert.match(serviceWorker,new RegExp(asset.replaceAll('.','\\.')));
   }
-  assert.match(serviceWorker,/bss-design-system-v1/);
+  assert.match(serviceWorker,/bss-brand-book-v1/);
+});
+
+test('Brand Book v1.0 pokriva svih devet dogovorenih područja',()=>{
+  const guide = new JSDOM(brandBookHtml).window.document;
+  for(const id of ['brand','logo','colors','type','voice','imagery','device','applications','governance']){
+    assert.ok(guide.querySelector(`#${id}`),`nedostaje Brand Book sekcija ${id}`);
+  }
+  assert.equal(guide.documentElement.lang,'hr');
+  assert.match(guide.querySelector('title').textContent,/BSS Brand Book v1\.0/);
+  assert.match(guide.querySelector('.bb-hero').textContent,/Od podatka na terenu do jasne odluke/);
+  assert.match(guide.querySelector('#governance').textContent,/Product Ownera/);
+  assert.equal(guide.querySelectorAll('.application-grid > a').length,4);
+  assert.match(brandBookDoc,/Bognar Smart Systems \(BSS\)/);
+  assert.match(brandBookDoc,/tehnički audit i zamrzavanje funkcionalnog opsega/);
+});
+
+test('Brand Book ima ručno izrađene, pristupačne SVG assete',()=>{
+  const assets=[
+    'bss-symbol.svg','bss-logo-primary.svg','bss-logo-reversed.svg',
+    'bss-logo-monochrome.svg','bss-business-card.svg',
+    'bss-presentation-cover.svg','bss-terminal-label.svg'
+  ];
+  for(const asset of assets){
+    const svg=fs.readFileSync(`brand-book/assets/${asset}`,'utf8');
+    assert.match(svg,/^<svg[^>]+viewBox=/);
+    assert.match(svg,/<title(?:\s|>)/);
+    assert.match(svg,/<desc(?:\s|>)/);
+    assert.doesNotMatch(svg,/<image\b|href=["'](?:data:image|https?:)/);
+  }
+});
+
+test('tema Brand Booka je pristupačna i spremljena',()=>{
+  const dom=new JSDOM(brandBookHtml,{url:'https://bss.test/brand-book/',runScripts:'outside-only'});
+  dom.window.document.documentElement.dataset.theme='light';
+  vm.runInContext(brandBookScript,dom.getInternalVMContext());
+  const control=dom.window.document.querySelector('[data-theme-switch]');
+  assert.equal(control.getAttribute('role'),'switch');
+  assert.equal(control.getAttribute('aria-checked'),'false');
+  control.click();
+  assert.equal(dom.window.document.documentElement.dataset.theme,'dark');
+  assert.equal(dom.window.localStorage.getItem('bss-theme-v1'),'dark');
+  assert.equal(control.getAttribute('aria-checked'),'true');
+  assert.match(brandBookStyles,/@media\(max-width:680px\)/);
+  assert.match(brandBookStyles,/@media\(prefers-reduced-motion:reduce\)/);
+  assert.match(brandBookStyles,/@media\(prefers-contrast:more\)/);
+});
+
+test('aplikacija povezuje Brand Book i cijeli paket radi offline',()=>{
+  const {window,document}=boot('admin');
+  window.openDrawer();
+  const link=document.querySelector('.brand-book-link');
+  assert.equal(link.getAttribute('href'),'./brand-book/');
+  assert.match(link.textContent,/Brand Book v1\.0/);
+  for(const asset of [
+    'brand-book/index.html','brand-book/brand.css','brand-book/brand.js',
+    'bss-symbol.svg','bss-logo-primary.svg','bss-business-card.svg',
+    'bss-presentation-cover.svg','bss-terminal-label.svg',
+    'BSS_BRAND-BOOK_v1.0_11.07.2026.pdf'
+  ]) assert.match(serviceWorker,new RegExp(asset.replaceAll('.','\\.')));
+  assert.match(serviceWorker,/bss-brand-book-v1/);
+  assert.match(serviceWorker,/path\.includes\('\/brand-book'\)/);
+});
+
+test('službeni Brand Book PDF nosi PDF\/A-2u oznaku i ugrađene metapodatke',()=>{
+  assert.ok(brandBookPdf.length>70000);
+  const raw=brandBookPdf.toString('latin1');
+  assert.ok(raw.startsWith('%PDF-1.7'));
+  assert.match(raw,/pdfaid:part="2"/);
+  assert.match(raw,/pdfaid:conformance="U"/);
+  assert.match(raw,/Bognar Smart Systems/);
 });
