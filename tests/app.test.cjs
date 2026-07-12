@@ -18,6 +18,10 @@ const brandBookStyles = fs.readFileSync('brand-book/brand.css','utf8');
 const brandBookScript = fs.readFileSync('brand-book/brand.js','utf8');
 const brandBookDoc = fs.readFileSync('BSS_BRAND_BOOK_V1.md','utf8');
 const brandBookPdf = fs.readFileSync('output/pdf/BSS_BRAND-BOOK_v1.0_11.07.2026.pdf');
+const technicalAudit = fs.readFileSync('BSS_TECHNICAL_AUDIT_V1.md','utf8');
+const scopeFreezeDoc = fs.readFileSync('BSS_MVP_SCOPE_FREEZE_V1.md','utf8');
+const scopeFreeze = JSON.parse(fs.readFileSync('bss-mvp-scope-v1.json','utf8'));
+const demoRoadmap = fs.readFileSync('DEMO_3_ROADMAP.md','utf8');
 const serviceWorker = fs.readFileSync('sw.js','utf8');
 
 function hexToken(css,name){
@@ -1065,4 +1069,66 @@ test('službeni Brand Book PDF nosi PDF\/A-2u oznaku i ugrađene metapodatke',()
   assert.match(raw,/pdfaid:part="2"/);
   assert.match(raw,/pdfaid:conformance="U"/);
   assert.match(raw,/Bognar Smart Systems/);
+});
+
+test('MVP scope v1.0 je zaključan na odobrenoj produkcijskoj osnovi',()=>{
+  assert.equal(scopeFreeze.version,'1.0');
+  assert.equal(scopeFreeze.status,'FROZEN');
+  assert.equal(scopeFreeze.frozenAt,'2026-07-12');
+  assert.equal(scopeFreeze.owner,'Tomislav Bognar');
+  assert.equal(scopeFreeze.baseline.branch,'main');
+  assert.equal(scopeFreeze.baseline.commit,'29353f893b16d7dbd48902320ae1c6837b572815');
+  assert.equal(scopeFreeze.baseline.productionUrl,'https://mvp-bss.pages.dev/');
+  assert.deepEqual(Object.keys(scopeFreeze.roles).sort(),['accountant','admin','manager','worker']);
+});
+
+test('scope manifest ima jedinstvene MVP module bez presjeka s isključenim funkcijama',()=>{
+  assert.equal(new Set(scopeFreeze.includedModules).size,scopeFreeze.includedModules.length);
+  assert.equal(new Set(scopeFreeze.excludedCapabilities).size,scopeFreeze.excludedCapabilities.length);
+  for(const module of [
+    'attendance','leave_requests','correction_requests','reports_csv_xlsx',
+    'terminal_offline_sync','rbac_tenant_isolation','append_only_audit'
+  ]) assert.ok(scopeFreeze.includedModules.includes(module),`nedostaje MVP modul ${module}`);
+  assert.deepEqual(
+    scopeFreeze.includedModules.filter(item=>scopeFreeze.excludedCapabilities.includes(item)),
+    []
+  );
+});
+
+test('scope manifest izričito sprječava dogovoreno širenje MVP-a',()=>{
+  for(const capability of [
+    'warehouse','inventory','erp','gps_tracking','geofencing','ai_analytics',
+    'biometrics','payroll_calculation','door_access_control','crm','native_mobile_apps'
+  ]) assert.ok(scopeFreeze.excludedCapabilities.includes(capability),`nedostaje isključenje ${capability}`);
+  assert.ok(scopeFreeze.invariants.includes('no_payroll_calculation'));
+  assert.ok(scopeFreeze.invariants.includes('private_api_responses_never_cached_by_service_worker'));
+});
+
+test('statusni kodovi scope manifesta su stabilni i bez duplikata',()=>{
+  for(const values of Object.values(scopeFreeze.statuses)){
+    assert.equal(new Set(values).size,values.length);
+    assert.ok(values.every(value=>/^[a-z][a-z_]*$/.test(value)));
+  }
+  assert.deepEqual(scopeFreeze.statuses.leaveRequest,['pending','approved','rejected','cancelled']);
+  assert.deepEqual(scopeFreeze.statuses.correctionRequest,scopeFreeze.statuses.leaveRequest);
+  assert.deepEqual(scopeFreeze.statuses.terminalEvent,['queued','synced','duplicate','rejected']);
+});
+
+test('tehnički audit bilježi izmjerenu osnovu, prioritete i izlaz iz Refactora v1',()=>{
+  for(const evidence of ['2.025 redaka','255','146','15','60/60']) assert.match(technicalAudit,new RegExp(evidence.replace('.','\\.')));
+  assert.match(technicalAudit,/P0 – blokira stvarne podatke i pilot/);
+  assert.match(technicalAudit,/P1 – mora biti riješeno prije pilota/);
+  assert.match(technicalAudit,/Cloudflare i konfiguracija repozitorija nisu usklađeni/);
+  assert.match(technicalAudit,/Kriteriji završetka Refactora v1/);
+  assert.match(technicalAudit,/ne smiju unositi stvarni podaci radnika/);
+});
+
+test('scope dokument i roadmap zaključavaju promjene i vode u Refactor v1',()=>{
+  assert.match(scopeFreezeDoc,/Status \| \*\*FROZEN\*\*/);
+  assert.match(scopeFreezeDoc,/Kontrola promjene opsega/);
+  assert.match(scopeFreezeDoc,/Tomislava Bognara/);
+  assert.match(scopeFreezeDoc,/Refactor v1 ne smije promijeniti zaključani opseg/);
+  assert.match(demoRoadmap,/Demo faza završena je odobrenim spajanjem/);
+  assert.match(demoRoadmap,/Refactor v1 bez promjene funkcija i dizajna/);
+  assert.deepEqual(scopeFreeze.nextPhases.slice(0,2),['refactor_v1','backend_contract']);
 });
