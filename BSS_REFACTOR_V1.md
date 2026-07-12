@@ -18,8 +18,8 @@ Razdvojiti monolitni frontend u testabilnu domenu, politike, adaptere i prikaze 
 | --- | --- | --- |
 | R1 | Stabilni ugovori, vrijeme i RBAC/scope politike | Dovršeno u ovoj grani |
 | R2 | Adapteri za pohranu, sat, ID i demo podatke | Dovršeno u ovoj grani |
-| R3 | Use-case funkcije za evidenciju, godišnje i korekcije | Sljedeće |
-| R4 | Prikazi po ekranima i uklanjanje inline handlera | Čeka |
+| R3 | Use-case funkcije za evidenciju, godišnje i korekcije | Dovršeno u ovoj grani |
+| R4 | Prikazi po ekranima i uklanjanje inline handlera | Sljedeće |
 | R5 | CSS slojevi i uklanjanje legacy aliasa | Čeka |
 | R6 | Build, lint, browser E2E, axe i Cloudflare sigurnosna ograda | Čeka |
 
@@ -53,6 +53,24 @@ R1 namjerno zadržava hrvatske demo oznake statusa i postojeći javni API funkci
 - zamrznuti sat daje ponovljive oznake vremena i budući rok pozivnice;
 - više uzastopnih ID-a ostaje jedinstveno;
 - svi R1 i postojeći regresijski testovi prolaze.
+
+## R3 – poslovni use-caseovi
+
+- `src/use-cases/attendance.js` izračunava jedinstveni sažetak evidencije i čisto primjenjuje odobrenu korekciju na postojeći ili novi dnevni zapis.
+- `src/use-cases/leave.js` validira, stvara, odobrava/odbija i poništava zahtjev bez ovisnosti o DOM-u.
+- `src/use-cases/corrections.js` validira zahtjev, čuva izvorne vrijednosti i provodi odluku kroz attendance use-case.
+- Poslovna greška vraća stabilan kod; `app.js` kod prevodi u postojeću hrvatsku poruku.
+- UI funkcije čitaju polja, provjeravaju ulogu/opseg, pozivaju use-case i renderiraju rezultat.
+
+### Kriterij prolaza R3
+
+- godišnji odbija nevaljano/prošlo razdoblje, drugu godinu, neradne dane, vlastito preklapanje i prekoračenje fonda;
+- samo zahtjev na čekanju može biti odobren, odbijen ili poništen;
+- odbijanje godišnjeg i dalje zahtijeva razlog;
+- korekcija odbija budući datum, nevaljano/jednako vrijeme, više od 16 sati, duplikat i nepromijenjenu vrijednost;
+- odobrena korekcija čuva audit te stvara ili ažurira točno jedan dnevni zapis;
+- sažeci evidencije ostaju brojčano jednaki Demo 3.0 rezultatu;
+- svi R1, R2 i postojeći regresijski testovi prolaze.
 
 ## Kriterij prolaza R1
 
