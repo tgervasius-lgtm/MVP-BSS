@@ -19,7 +19,7 @@ Demo 3.0 ne uključuje skladište, ERP, GPS/geofencing, AI analitiku, payroll ob
 | --- | --- | --- |
 | 1 | Dashboard i navigacija | Spremno za pregled |
 | 2 | Evidencija radnog vremena | Spremno za pregled |
-| 3 | Godišnji odmori | Čeka |
+| 3 | Godišnji odmori | Spremno za pregled |
 | 4 | Izvještaji | Čeka |
 | 5 | RFID terminal | Čeka |
 | 6 | Postavke i administracija | Čeka |
@@ -50,6 +50,21 @@ Demo 3.0 ne uključuje skladište, ERP, GPS/geofencing, AI analitiku, payroll ob
 - Budući datumi, jednaka vremena, duplikati i evidencije dulje od 16 sati odbijaju se prije slanja korekcije.
 - RFID simulator ostaje odvojen od službene evidencije.
 - Svi testovi uloga, privatnosti, izračuna i postojećih funkcija moraju proći prije PR-a.
+
+## Sprint 3 – kriteriji prihvata
+
+- Administrator vidi godišnji pregled cijele firme, svih 12 mjeseci i filtar odjela.
+- Voditelj vidi samo zahtjeve i kalendar dodijeljenih odjela.
+- Radnik vidi isključivo svoje zahtjeve, razdoblja, fond i odluke; imena kolega iz preklapanja nisu mu otkrivena.
+- Zahtjevi imaju statuse Na čekanju, Odobreno, Odbijeno i Poništeno te potpunu povijest odluke.
+- Odbijanje zahtjeva zahtijeva razlog ili prijedlog izmjene; odluka bilježi ulogu, vrijeme i napomenu u audit tragu.
+- Radnik može poništiti samo vlastiti zahtjev na čekanju, nakon čega se rezervirani dani vraćaju u raspoloživi fond.
+- Odobreni i zahtjevi na čekanju prikazuju se u kalendaru; odbijeni i poništeni ostaju samo u povijesti.
+- Fond razlikuje odobrene, rezervirane, preostale i stvarno dostupne dane za novi zahtjev.
+- Radni dani računaju se bez vikenda i hrvatskih blagdana u 2026.
+- Novi zahtjev odbija prošli datum, nevaljano razdoblje, vlastito preklapanje i prekoračenje raspoloživog fonda.
+- Upozorenje preklapanja pomaže planiranju kapaciteta, ali ne donosi automatsku odluku umjesto voditelja.
+- Svi postojeći i novi testovi moraju proći prije PR-a.
 
 ## Pravilo završetka sprinta
 

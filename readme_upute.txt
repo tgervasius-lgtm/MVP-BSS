@@ -3,6 +3,7 @@ BSS Smart Systems – Demo 3.0 u izradi
 Trenutna razvojna faza:
 - Sprint 1: Dashboard i navigacija – spremno za pregled
 - Sprint 2: Evidencija radnog vremena – spremno za pregled
+- Sprint 3: Godišnji odmori – spremno za pregled
 - produkcijski backend počinje tek nakon završetka svih sedam Demo 3.0 sprintova
 
 Objavljena aplikacija:
@@ -29,6 +30,11 @@ Kako se objavljuje:
 - dodavanje i uređivanje smjena te dodjela smjene radniku
 - godišnji kalendar: administrator vidi cijelu firmu i cijelu godinu
 - radnik vidi isključivo vlastite odsutnosti
+- statusi zahtjeva Na čekanju, Odobreno, Odbijeno i Poništeno
+- odluka s napomenom, vremenom, ulogom donositelja i audit tragom
+- fond godišnjeg odvojen na odobreno, rezervirano i dostupno
+- upozorenja preklapanja za administratora i voditelja bez otkrivanja kolega radniku
+- poništavanje vlastitog zahtjeva na čekanju i vraćanje rezerviranih dana
 - računanje radnih dana bez vikenda i hrvatskih blagdana u 2026.
 - kontrola vlastitih preklapanja i upozorenje na preklapanja u odjelu
 - zahtjevi za godišnji i korekcije s odobravanjem i audit tragom
