@@ -13,7 +13,9 @@ const coreSources = [
   'src/policies/access.js',
   'src/use-cases/attendance.js',
   'src/use-cases/leave.js',
-  'src/use-cases/corrections.js'
+  'src/use-cases/corrections.js',
+  'src/views/registry.js',
+  'src/views/events.js'
 ].map(path=>fs.readFileSync(path,'utf8'));
 const styles = fs.readFileSync('styles.css','utf8');
 const manifest = JSON.parse(fs.readFileSync('manifest.json','utf8'));
@@ -69,7 +71,7 @@ test('svaka uloga može otvoriti samo svoje ekrane bez greške',()=>{
   for(const role of ['admin','manager','worker','accountant']){
     const {window,document} = boot(role);
     const targets = [...new Set([...document.querySelectorAll('.desktop-nav .drawer-item')]
-      .map(item=>item.getAttribute('onclick').match(/'([^']+)'/)?.[1]).filter(Boolean))];
+      .map(item=>item.getAttribute('data-bss-action').match(/'([^']+)'/)?.[1]).filter(Boolean))];
     assert.ok(targets.length >= 3);
     for(const target of targets){
       window.navigate(target);
@@ -1008,7 +1010,7 @@ test('aplikacija povezuje vodič i offline predmemorira cijeli Design System',()
   for(const asset of ['design-system/index.html','design-system/tokens.css','design-system/guide.css','design-system/guide.js']){
     assert.match(serviceWorker,new RegExp(asset.replaceAll('.','\\.')));
   }
-  assert.match(serviceWorker,/bss-refactor-v1-r3/);
+  assert.match(serviceWorker,/bss-refactor-v1-r4/);
 });
 
 test('Brand Book v1.0 pokriva svih devet dogovorenih područja',()=>{
@@ -1068,7 +1070,7 @@ test('aplikacija povezuje Brand Book i cijeli paket radi offline',()=>{
     'bss-presentation-cover.svg','bss-terminal-label.svg',
     'BSS_BRAND-BOOK_v1.0_11.07.2026.pdf'
   ]) assert.match(serviceWorker,new RegExp(asset.replaceAll('.','\\.')));
-  assert.match(serviceWorker,/bss-refactor-v1-r3/);
+  assert.match(serviceWorker,/bss-refactor-v1-r4/);
   assert.match(serviceWorker,/path\.includes\('\/brand-book'\)/);
 });
 
@@ -1152,17 +1154,20 @@ test('Refactor v1 učitava jezgru prije aplikacije i sprema je za offline rad',(
     html.indexOf('src/use-cases/attendance.js'),
     html.indexOf('src/use-cases/leave.js'),
     html.indexOf('src/use-cases/corrections.js'),
+    html.indexOf('src/views/registry.js'),
+    html.indexOf('src/views/events.js'),
     html.indexOf('app.js')
   ];
   assert.ok(order.every(index=>index>=0));
   assert.deepEqual(order,[...order].sort((a,b)=>a-b));
   for(const asset of [
     'src/adapters/runtime.js','src/domain/contracts.js','src/domain/time.js','src/policies/access.js',
-    'src/use-cases/attendance.js','src/use-cases/leave.js','src/use-cases/corrections.js'
+    'src/use-cases/attendance.js','src/use-cases/leave.js','src/use-cases/corrections.js',
+    'src/views/registry.js','src/views/events.js'
   ]){
     assert.match(serviceWorker,new RegExp(asset.replaceAll('.','\\.')));
   }
-  assert.match(serviceWorker,/bss-refactor-v1-r3/);
+  assert.match(serviceWorker,/bss-refactor-v1-r4/);
 });
 
 test('domenski ugovor zaključava četiri uloge i hrvatske oznake statusa',()=>{
@@ -1336,4 +1341,77 @@ test('UI funkcije delegiraju poslovne odluke izdvojenim R3 use-caseovima',()=>{
   assert.match(source,/BSS_USE_CASES\.leave\.decide/);
   assert.match(source,/BSS_USE_CASES\.corrections\.validateSubmission/);
   assert.match(source,/BSS_USE_CASES\.corrections\.decide/);
+});
+
+test('R4 source i renderirani DOM nemaju inline JavaScript handlere',()=>{
+  assert.doesNotMatch(source,/\son(?:click|change|input|keydown|submit)\s*=/i);
+  for(const role of ['admin','manager','worker','accountant']){
+    const {document}=boot(role);
+    assert.equal(document.querySelectorAll('[onclick],[onchange],[oninput],[onkeydown],[onsubmit]').length,0);
+    assert.ok(document.querySelectorAll('[data-bss-action]').length>5);
+  }
+});
+
+test('screen registry zaključava sve BSS ekrane i sigurno vraća početni prikaz',()=>{
+  const {evaluate}=boot('admin');
+  const screens=evaluate('BSS_CORE.views.registry.screens');
+  assert.deepEqual(Object.keys(screens).sort(),[
+    'attendance','audit','corrections','flow','home','mytime','reports','requests','roles','settings',
+    'shifts','terminal','terminalDemo','vacations','worker','workers'
+  ]);
+  assert.equal(evaluate("BSS_CORE.views.registry.has('reports')"),true);
+  assert.equal(evaluate("BSS_CORE.views.registry.has('__proto__')"),false);
+  assert.match(evaluate("BSS_CORE.views.registry.render('nepoznato',globalThis)"),/Operativni dashboard/);
+});
+
+test('event registry parsira samo dopuštene akcije bez evala',()=>{
+  const {evaluate}=boot('admin');
+  const parsed=evaluate(`(()=>{
+    const element={value:'manager'};
+    const first=BSS_CORE.views.events.parse("navigate('reports')",element);
+    const second=BSS_CORE.views.events.parse('switchRole(this.value)',element);
+    return [first.name,first.args[0],second.name,second.args[0]];
+  })()`);
+  assert.deepEqual([...parsed],['navigate','reports','switchRole','manager']);
+  assert.equal(evaluate("BSS_CORE.views.events.parse(\"constructor.constructor('return 1')()\",{})"),null);
+  assert.equal(evaluate("BSS_CORE.views.events.parse(\"unknownAction()\",{})"),null);
+  assert.doesNotMatch(fs.readFileSync('src/views/events.js','utf8'),/\beval\s*\(|new Function|Function\s*\(/);
+});
+
+test('delegirani click i change zadržavaju navigaciju i promjenu uloge',()=>{
+  const {window,document,evaluate}=boot('admin');
+  document.querySelector('[data-bss-action="navigate(\'reports\')"]').click();
+  assert.equal(evaluate('screen'),'reports');
+  document.querySelector('.role-badge').click();
+  const select=document.querySelector('.role-panel select');
+  select.value='manager';
+  select.dispatchEvent(new window.Event('change',{bubbles:true}));
+  assert.equal(evaluate('currentRole'),'manager');
+});
+
+test('delegirana tipka Enter aktivira red, a backdrop samo vlastitu pozadinu',()=>{
+  const {window,document,evaluate}=boot('manager');
+  const workerRow=document.querySelector('.row[role="button"][data-bss-action]');
+  workerRow.dispatchEvent(new window.KeyboardEvent('keydown',{key:'Enter',bubbles:true,cancelable:true}));
+  assert.equal(evaluate('screen'),'worker');
+  window.openDrawer();
+  const drawer=document.querySelector('#drawer');
+  drawer.querySelector('.drawer-panel').dispatchEvent(new window.MouseEvent('click',{bubbles:true}));
+  assert.ok(drawer.classList.contains('open'));
+  drawer.dispatchEvent(new window.MouseEvent('click',{bubbles:true}));
+  assert.equal(drawer.classList.contains('open'),false);
+});
+
+test('svaka renderirana akcija svakog dopuštenog ekrana pripada R4 registryju',()=>{
+  for(const role of ['admin','manager','worker','accountant']){
+    const app=boot(role);
+    const screens=[...app.evaluate('allowedScreens()')];
+    for(const target of screens){
+      app.window.navigate(target);
+      const invalid=app.evaluate(`[...document.querySelectorAll('[data-bss-action],[data-bss-change]')]
+        .filter(element=>!BSS_CORE.views.events.parse(element.dataset.bssAction||element.dataset.bssChange,element))
+        .map(element=>element.dataset.bssAction||element.dataset.bssChange)`);
+      assert.deepEqual([...invalid],[],`${role}/${target}: nevaljane akcije`);
+    }
+  }
 });
