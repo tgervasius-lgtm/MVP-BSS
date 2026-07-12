@@ -3,7 +3,8 @@
   "version": "3.0.0",
   "private": true,
   "scripts": {
-    "test": "node --test tests/app.test.cjs"
+    "test": "node --test tests/app.test.cjs",
+    "check": "npm test"
   },
   "devDependencies": {
     "jsdom": "26.1.0"

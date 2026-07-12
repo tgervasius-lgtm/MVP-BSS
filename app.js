@@ -1,5 +1,13 @@
 'use strict';
 
+const BSS_CORE = globalThis.BSSCore;
+if(!BSS_CORE?.contracts || !BSS_CORE?.time || !BSS_CORE?.access){
+  throw new Error('BSS jezgra nije učitana prije aplikacije.');
+}
+const BSS_CONTRACTS = BSS_CORE.contracts;
+const BSS_TIME = BSS_CORE.time;
+const BSS_ACCESS = BSS_CORE.access;
+
 const STORAGE_KEY = 'bss-demo-state-v8';
 const ROLE_KEY = 'bss-demo-role-v3';
 const LOGIN_KEY = 'bss-demo-logged-v3';
@@ -252,43 +260,23 @@ function escapeHtml(value){
 function now(){
   return new Date().toLocaleString('hr-HR',{hour:'2-digit',minute:'2-digit',day:'2-digit',month:'2-digit',year:'numeric'}).replace(',', '.');
 }
-function isoToDate(iso){ return new Date(`${iso}T12:00:00`); }
+function isoToDate(iso){ return BSS_TIME.isoToDate(iso); }
 function isoLabel(iso, withYear = true){
   if(!iso) return '—';
   return isoToDate(iso).toLocaleDateString('hr-HR',withYear?{day:'2-digit',month:'2-digit',year:'numeric'}:{day:'2-digit',month:'2-digit'});
 }
 function rangeLabel(start,end){ return start === end ? isoLabel(start,false) : `${isoLabel(start,false)} – ${isoLabel(end,false)}`; }
 function timeToMinutes(value){
-  if(!/^\d{2}:\d{2}$/.test(value || '')) return null;
-  const [hour,minute] = value.split(':').map(Number);
-  return hour * 60 + minute;
+  return BSS_TIME.timeToMinutes(value);
 }
 function recordMinutes(record, includeActive = false){
-  const start = timeToMinutes(record.start);
-  let end = timeToMinutes(record.end);
-  if(start === null) return 0;
-  if(end === null && includeActive && record.date === DEMO_TODAY) end = timeToMinutes(DEMO_NOW);
-  if(end === null) return 0;
-  if(end < start) end += 1440;
-  return Math.max(0, end - start - Number(record.breakMinutes || 0));
+  return BSS_TIME.recordMinutes(record,{includeActive,today:DEMO_TODAY,now:DEMO_NOW});
 }
 function formatMinutes(minutes){
-  const value = Math.max(0, Math.round(Number(minutes) || 0));
-  return `${Math.floor(value/60)}:${String(value%60).padStart(2,'0')} h`;
+  return BSS_TIME.formatMinutes(minutes);
 }
 function businessDays(start,end){
-  if(!start || !end || end < start) return 0;
-  let count = 0;
-  const cursor = isoToDate(start);
-  const finish = isoToDate(end);
-  const holidays=activeHolidayDates(String(start).slice(0,4));
-  while(cursor <= finish){
-    const iso = cursor.toISOString().slice(0,10);
-    const day = cursor.getDay();
-    if(day !== 0 && day !== 6 && !holidays.has(iso)) count += 1;
-    cursor.setDate(cursor.getDate()+1);
-  }
-  return count;
+  return BSS_TIME.businessDays(start,end,activeHolidayDates(String(start).slice(0,4)));
 }
 function activeHolidayDates(year=2026){
   const configured=state?.holidays?.filter(item=>item.active&&item.date.startsWith(String(year))).map(item=>item.date);
@@ -312,21 +300,16 @@ function accessUserById(id){ return (state.accessUsers||[]).find(item=>item.id==
 function accessUserByWorker(workerId){ return (state.accessUsers||[]).find(item=>item.workerId===Number(workerId)); }
 function activeWorkers(){ return state.workers.filter(worker=>worker.active); }
 function visibleWorkers(){
-  if(currentRole === 'admin') return state.workers;
-  if(currentRole === 'manager') return state.workers.filter(worker=>role().departments.includes(worker.dept));
-  if(currentRole === 'worker') return state.workers.filter(worker=>worker.id === role().userId);
-  return [];
+  return BSS_ACCESS.visibleWorkers(currentRole,state.workers,role());
 }
-function workerVisible(workerId){ return visibleWorkers().some(worker=>worker.id === Number(workerId)); }
+function workerVisible(workerId){ return BSS_ACCESS.canViewWorker(currentRole,workerId,state.workers,role()); }
 function requestVisible(request){
-  if(currentRole === 'admin' || currentRole === 'accountant') return true;
-  return workerVisible(request.workerId);
+  return BSS_ACCESS.canViewScopedEntity(currentRole,request.workerId,state.workers,role());
 }
 function recordVisible(record){
-  if(currentRole === 'admin' || currentRole === 'accountant') return true;
-  return workerVisible(record.workerId);
+  return BSS_ACCESS.canViewScopedEntity(currentRole,record.workerId,state.workers,role());
 }
-function correctionVisible(correction){ return currentRole === 'admin' || currentRole === 'accountant' ? true : workerVisible(correction.workerId); }
+function correctionVisible(correction){ return BSS_ACCESS.canViewScopedEntity(currentRole,correction.workerId,state.workers,role()); }
 function workerMonthMinutes(workerId, month = '2026-07'){
   return state.records.filter(record=>record.workerId === Number(workerId) && record.date.startsWith(month)).reduce((sum,record)=>sum+recordMinutes(record),0);
 }
@@ -343,12 +326,7 @@ function pendingCount(){
   return requests + corrections;
 }
 function plannedShiftMinutes(workerId){
-  const shift=shiftById(workerById(workerId)?.shiftId);
-  if(!shift)return 0;
-  const start=timeToMinutes(shift.start),rawEnd=timeToMinutes(shift.end);
-  if(start===null||rawEnd===null)return 0;
-  const end=rawEnd<=start?rawEnd+1440:rawEnd;
-  return Math.max(0,end-start-Number(shift.breakMinutes||0));
+  return BSS_TIME.plannedShiftMinutes(shiftById(workerById(workerId)?.shiftId));
 }
 function overtimeMinutes(records){
   return records.reduce((sum,record)=>sum+Math.max(0,recordMinutes(record)-plannedShiftMinutes(record.workerId)),0);
@@ -1085,9 +1063,9 @@ function toggleShift(id){
   shift.active=!shift.active;audit('Administrator',`${shift.active?'Aktivirana':'Deaktivirana'} smjena ${shift.name}.`,'Smjene');saveAndRender(`Smjena je ${shift.active?'aktivna':'neaktivna'}.`);
 }
 
-const REQUEST_STATUSES=['Na čekanju','Odobreno','Odbijeno','Poništeno'];
-function intervalsOverlap(startA,endA,startB,endB){ return startA<=endB && startB<=endA; }
-function activeLeaveRequest(request){ return ['Na čekanju','Odobreno'].includes(request.status); }
+const REQUEST_STATUSES=BSS_CONTRACTS.requestStatus.labels;
+function intervalsOverlap(startA,endA,startB,endB){ return BSS_TIME.intervalsOverlap(startA,endA,startB,endB); }
+function activeLeaveRequest(request){ return BSS_CONTRACTS.requestStatus.activeLabels.includes(request.status); }
 function teamConflicts(request){
   const worker=workerById(request.workerId);
   if(!worker||!activeLeaveRequest(request))return[];
