@@ -4,7 +4,7 @@ const STORAGE_KEY = 'bss-demo-state-v8';
 const ROLE_KEY = 'bss-demo-role-v3';
 const LOGIN_KEY = 'bss-demo-logged-v3';
 const APP_VERSION = '3.0';
-const APP_STAGE = 'Sprint 6';
+const APP_STAGE = 'Sprint 7';
 const DEMO_TODAY = '2026-07-10';
 const DEMO_NOW = '10:00';
 const CROATIAN_HOLIDAYS_2026 = new Set([
@@ -457,7 +457,7 @@ function navigate(next){
   closeDrawer();
   render();
   const content = $('#content');
-  if(content) content.scrollTop = 0;
+  if(content){content.scrollTop = 0;content.focus({preventScroll:true});}
 }
 function switchRole(next){
   if(!state.demoMode || !ROLE_CONFIG[next]) return;
@@ -497,17 +497,18 @@ function topCopy(){
     terminal: ['Terminali','Status uređaja i sinkronizacije'],
     terminalDemo: ['RFID simulator','Odvojeni prodajni demo terminala'],
     flow: ['Kako radi BSS','Prodajni prikaz procesa'],
-    roles: ['Prava pristupa','Ovlasti po ulozi'],
-    audit: ['Audit log','Trag važnih aktivnosti'],
-    settings: ['Postavke','Tvrtka i način prikaza']
+    roles: ['Prava pristupa','Korisnici, uloge i opseg podataka'],
+    audit: ['Audit log','Trag važnih aktivnosti i odluka'],
+    settings: ['Postavke i administracija','Tvrtka, organizacija i radni kalendar']
   };
   return map[screen] || map.home;
 }
 function navButton(item,kind = 'drawer'){
   const [id,icon,label] = item;
   const count=navBadge(id);
-  if(kind === 'bottom') return `<button class="nav-item ${screen===id?'active':''}" onclick="navigate('${id}')"><span class="ico">${icon}${count?`<i class="nav-dot">${count}</i>`:''}</span>${escapeHtml(label)}</button>`;
-  return `<button class="drawer-item ${screen===id?'active':''}" onclick="navigate('${id}')"><span class="nav-icon">${icon}</span><span class="nav-label">${escapeHtml(label)}</span>${count?`<span class="nav-count">${count}</span>`:''}</button>`;
+  const isActive=screen===id||(screen==='worker'&&id==='workers');
+  if(kind === 'bottom') return `<button class="nav-item ${isActive?'active':''}" ${isActive?'aria-current="page"':''} aria-label="${escapeHtml(label)}${count?`, ${count} otvoreno`:''}" onclick="navigate('${id}')"><span class="ico" aria-hidden="true">${icon}${count?`<i class="nav-dot">${count}</i>`:''}</span><span>${escapeHtml(label)}</span></button>`;
+  return `<button class="drawer-item ${isActive?'active':''}" ${isActive?'aria-current="page"':''} onclick="navigate('${id}')"><span class="nav-icon" aria-hidden="true">${icon}</span><span class="nav-label">${escapeHtml(label)}</span>${count?`<span class="nav-count" aria-label="${count} otvoreno">${count}</span>`:''}</button>`;
 }
 function bottomNavigation(){
   const picks = {
@@ -564,19 +565,20 @@ function shell(){
       </div>
     </section>
     <div id="app" class="app-shell ${logged?'':'hidden'}">
+      <a class="skip-link" href="#content">Preskoči na glavni sadržaj</a>
       ${desktopSidebar()}
-      <header class="topbar"><div class="mini-logo">B</div><div class="top-copy"><h2>${escapeHtml(heading)}</h2><p>${escapeHtml(subtitle)}</p></div><div class="topbar-meta"><span>10. srpnja 2026.</span><b><i class="system-light ${state.terminal.online?'online':'offline'}"></i>${state.terminal.online?'Sustav online':'Potrebna provjera'}</b></div><button class="role-badge" onclick="openDrawer()">${escapeHtml(role().short)}</button><button class="menu-btn" aria-label="Otvori izbornik" onclick="openDrawer()">☰</button></header>
-      <main class="content" id="content"><div class="content-inner"></div></main>
+      <header class="topbar"><div class="mini-logo" aria-hidden="true">B</div><div class="top-copy" aria-live="polite"><h2>${escapeHtml(heading)}</h2><p>${escapeHtml(subtitle)}</p></div><div class="topbar-meta"><span>10. srpnja 2026.</span><b><i class="system-light ${state.terminal.online?'online':'offline'}" aria-hidden="true"></i>${state.terminal.online?'Sustav online':'Potrebna provjera'}</b></div><button class="role-badge" aria-label="Otvori izbornik. Aktivni prikaz: ${escapeHtml(role().label)}" aria-controls="drawer" aria-expanded="false" onclick="openDrawer()">${escapeHtml(role().short)}</button><button id="drawerButton" class="menu-btn" aria-label="Otvori izbornik" aria-controls="drawer" aria-expanded="false" onclick="openDrawer()">☰</button></header>
+      <main class="content" id="content" tabindex="-1"><div class="content-inner"></div></main>
       ${bottomNavigation()}
-      <div class="drawer" id="drawer" onclick="if(event.target.id==='drawer')closeDrawer()"><div class="drawer-panel">
+      <div class="drawer" id="drawer" role="dialog" aria-modal="true" aria-label="BSS izbornik" aria-hidden="true" onclick="if(event.target.id==='drawer')closeDrawer()"><div class="drawer-panel">
         <div class="modal-head"><div><h2>BSS izbornik</h2><div class="small-muted">${escapeHtml(currentWorker().name)} · ${escapeHtml(role().label)}</div></div><button class="close-btn" aria-label="Zatvori" onclick="closeDrawer()">×</button></div>
         ${roleControl}
         <div class="demo-panel"><div><label>Prodajni demo</label><p>${state.demoMode?'Simulator i promjena uloga su vidljivi.':'Čisti prikaz aplikacije.'}</p></div><button class="switch ${state.demoMode?'on':''}" aria-label="Promijeni demo način" onclick="toggleDemoMode()"><i></i></button></div>
         ${navList(true)}
-        ${state.demoMode?'<button class="drawer-item" onclick="resetDemo()"><span>↻</span>Vrati početne demo-podatke</button>':''}
+        ${state.demoMode?'<button class="drawer-item" onclick="openResetDemoDialog()"><span aria-hidden="true">↻</span>Vrati početne demo-podatke</button>':''}
         <button class="drawer-item" onclick="logout()"><span>⇥</span>Odjava</button>
       </div></div>
-      <div class="modal" id="modal" onclick="if(event.target.id==='modal')closeModal()"></div>
+      <div class="modal" id="modal" role="dialog" aria-modal="true" aria-hidden="true" onclick="if(event.target.id==='modal')closeModal()"></div>
       <div class="toast" id="toast" role="status" aria-live="polite"></div>
     </div>
   </div>`;
@@ -592,6 +594,7 @@ function render(){
   };
   const target = $('#content .content-inner');
   target.innerHTML = `<div class="screen">${(views[screen] || viewHome)()}</div>`;
+  enhanceRenderedUi();
 }
 function login(){
   if(state.demoMode && $('#loginRole')) currentRole = $('#loginRole').value;
@@ -610,9 +613,55 @@ function login(){
   toast(`Dobro došli. Aktivni prikaz: ${role().label}.`);
 }
 function logout(){ logged = false; localStorage.removeItem(LOGIN_KEY); screen = 'home'; render(); }
-function openDrawer(){ $('#drawer')?.classList.add('open'); }
-function closeDrawer(){ $('#drawer')?.classList.remove('open'); }
-function closeModal(){ $('#modal')?.classList.remove('open'); }
+let layerReturnFocus=null;
+function focusFirst(layer){
+  const first=layer?.querySelector('button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[href],[tabindex]:not([tabindex="-1"])');
+  window.setTimeout(()=>first?.focus(),0);
+}
+function openDrawer(){
+  const drawer=$('#drawer');if(!drawer)return;
+  layerReturnFocus=document.activeElement;drawer.classList.add('open');drawer.setAttribute('aria-hidden','false');document.querySelectorAll('[aria-controls="drawer"]').forEach(button=>button.setAttribute('aria-expanded','true'));focusFirst(drawer);
+}
+function closeDrawer(restoreFocus=false){
+  const drawer=$('#drawer');if(!drawer)return;
+  drawer.classList.remove('open');drawer.setAttribute('aria-hidden','true');document.querySelectorAll('[aria-controls="drawer"]').forEach(button=>button.setAttribute('aria-expanded','false'));
+  if(restoreFocus)layerReturnFocus?.focus?.();
+}
+function showModal(modal){
+  if(!modal)return;
+  const heading=modal.querySelector('h2');if(heading){heading.id='activeModalTitle';modal.setAttribute('aria-labelledby',heading.id);}
+  layerReturnFocus=document.activeElement;modal.classList.add('open');modal.setAttribute('aria-hidden','false');focusFirst(modal);
+}
+function closeModal(){
+  const modal=$('#modal');if(!modal)return;
+  modal.classList.remove('open');modal.setAttribute('aria-hidden','true');layerReturnFocus?.focus?.();
+}
+function openResetDemoDialog(){
+  const trigger=layerReturnFocus||document.activeElement;closeDrawer();
+  const modal=$('#modal');
+  modal.innerHTML=`<div class="modal-card confirm-card"><div class="confirm-symbol" aria-hidden="true">↻</div><h2>Vratiti početne demo-podatke?</h2><p>Sve lokalne izmjene u radnicima, zahtjevima, terminalu i postavkama bit će zamijenjene početnim Demo 3.0 skupom.</p><div class="btns"><button class="btn red" onclick="resetDemo()">Da, vrati podatke</button><button class="btn secondary" onclick="closeModal()">Odustani</button></div></div>`;
+  showModal(modal);layerReturnFocus=trigger;
+}
+function enhanceRenderedUi(){
+  const [heading]=topCopy();document.title=`${heading} | BSS Demo ${APP_VERSION}`;
+  document.querySelectorAll('.table-wrap').forEach((wrapper,index)=>{
+    const tableTitle=wrapper.closest('.card')?.querySelector('h2')?.textContent?.trim()||`Tablični prikaz ${index+1}`;
+    wrapper.tabIndex=0;wrapper.setAttribute('role','region');wrapper.setAttribute('aria-label',`${tableTitle}; na užem ekranu pomakni vodoravno za dodatne stupce.`);
+    const hint=document.createElement('div');hint.className='table-scroll-hint';hint.setAttribute('aria-hidden','true');hint.textContent='Povuci vodoravno za dodatne stupce →';wrapper.before(hint);
+  });
+}
+function trapLayerFocus(event,layer){
+  const items=[...layer.querySelectorAll('button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[href],[tabindex]:not([tabindex="-1"])')].filter(item=>item.getClientRects().length||item===document.activeElement);
+  if(!items.length)return;
+  const first=items[0],last=items[items.length-1];
+  if(event.shiftKey&&document.activeElement===first){event.preventDefault();last.focus();}
+  else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first.focus();}
+}
+document.addEventListener('keydown',event=>{
+  const modal=$('#modal.open'),drawer=$('#drawer.open'),layer=modal||drawer;
+  if(event.key==='Escape'&&layer){event.preventDefault();modal?closeModal():closeDrawer(true);return;}
+  if(event.key==='Tab'&&layer)trapLayerFocus(event,layer);
+});
 function resetDemo(){
   resetState();
   currentRole = 'admin';
@@ -800,7 +849,7 @@ function openAttendanceRecord(id){
   const workerAction=currentRole==='worker'?`<button class="btn" onclick="startCorrectionFromRecord(${record.id})">Zatraži korekciju</button>`:['admin','manager'].includes(currentRole)?'<button class="btn" onclick="openCorrectionsFromRecord()">Otvori korekcije</button>':'';
   const modal=$('#modal');
   modal.innerHTML=`<div class="modal-card attendance-record-modal"><div class="modal-head"><div><div class="eyebrow">Detalj evidencije</div><h2>${escapeHtml(worker?.name||'Nepoznat radnik')}</h2><div class="small-muted">${escapeHtml(worker?.dept||'—')} · ${escapeHtml(isoLabel(record.date))}</div></div><button class="close-btn" aria-label="Zatvori" onclick="closeModal()">×</button></div><div class="record-detail-status">${pill(record.status)}<span>${escapeHtml(shift?.name||'Bez smjene')} · ${escapeHtml(shift?`${shift.start} – ${shift.end}`:'Bez plana')}</span></div><div class="record-detail-grid"><div><span>Dolazak</span><b>${escapeHtml(record.start||'—')}</b></div><div><span>Odlazak</span><b>${escapeHtml(record.end||'—')}</b></div><div><span>Pauza</span><b>${record.breakMinutes?`${record.breakMinutes} min`:'—'}</b></div><div><span>Evidentirano</span><b>${record.end||record.date===DEMO_TODAY?formatMinutes(worked):'—'}</b></div><div><span>Plan smjene</span><b>${formatMinutes(planned)}</b></div><div><span>Saldo</span><b class="${balance===null?'neutral':balance<0?'negative':'positive'}">${balance===null?'U tijeku':formatSignedMinutes(balance)}</b></div></div><div class="record-source"><span>Izvor demo-zapisa</span><b>${record.status==='Ispravljeno'?'Odobrena korekcija':'RFID / Terminal 01'}</b></div>${correctionBlock}<div class="btns">${workerAction}<button class="btn secondary" onclick="closeModal()">Zatvori</button></div></div>`;
-  modal.classList.add('open');
+  showModal(modal);
 }
 function openCorrectionsFromRecord(){ closeModal();navigate('corrections'); }
 function startCorrectionFromRecord(id){
@@ -915,7 +964,7 @@ function openWorkerModal(id = null){
     <label>Smjena<select id="workerShift">${shiftSelectOptions(worker.shiftId)}</select></label><label>Godišnji fond (radni dani)<input id="workerAllowance" type="number" min="0" max="40" value="${Number(worker.vacationAllowance||0)}"></label>
     <label>RFID UID<input id="workerCard" value="${escapeHtml(worker.card)}" placeholder="Ostavi prazno ako kartica nije dodijeljena"></label><label>Status kartice<select id="workerCardStatus"><option ${worker.cardStatus==='Aktivna'?'selected':''}>Aktivna</option><option ${worker.cardStatus==='Blokirana'?'selected':''}>Blokirana</option><option ${worker.cardStatus==='Nije dodijeljena'?'selected':''}>Nije dodijeljena</option></select></label>
     </div><div class="btns"><button class="btn" onclick="saveWorker(${existing?worker.id:'null'})">${existing?'Spremi izmjene':'Dodaj radnika'}</button><button class="btn secondary" onclick="closeModal()">Odustani</button></div></div>`;
-  modal.classList.add('open');
+  showModal(modal);
 }
 function normalizeCard(value){ return String(value||'').trim().toUpperCase().replace(/\s+/g,' '); }
 function saveWorker(id){
@@ -978,7 +1027,7 @@ function openShiftModal(id=null){
   const shift=existing||{name:'',start:'08:00',end:'16:00',breakMinutes:30,tolerance:5};
   const modal=$('#modal');
   modal.innerHTML=`<div class="modal-card"><div class="modal-head"><h2>${existing?'Uredi smjenu':'Dodaj smjenu'}</h2><button class="close-btn" onclick="closeModal()">×</button></div><div class="form form-grid"><label>Naziv<input id="shiftName" value="${escapeHtml(shift.name)}"></label><label>Početak<input id="shiftStart" type="time" value="${escapeHtml(shift.start)}"></label><label>Završetak<input id="shiftEnd" type="time" value="${escapeHtml(shift.end)}"></label><label>Pauza (min)<input id="shiftBreak" type="number" min="0" max="180" value="${shift.breakMinutes}"></label><label>Tolerancija kašnjenja (min)<input id="shiftTolerance" type="number" min="0" max="60" value="${shift.tolerance}"></label></div><div class="btns"><button class="btn" onclick="saveShift(${existing?shift.id:'null'})">Spremi</button><button class="btn secondary" onclick="closeModal()">Odustani</button></div></div>`;
-  modal.classList.add('open');
+  showModal(modal);
 }
 function saveShift(id){
   if(currentRole!=='admin') return;
@@ -1095,7 +1144,7 @@ function openRequestDecision(id){
   const worker=workerById(request.workerId),conflicts=teamConflicts(request),balance=vacationBalanceSummary(request.workerId);
   const modal=$('#modal');
   modal.innerHTML=`<div class="modal-card request-decision-modal"><div class="modal-head"><div><div class="eyebrow">Odluka o zahtjevu</div><h2>${escapeHtml(worker?.name||'Nepoznat radnik')}</h2><div class="small-muted">${escapeHtml(worker?.dept||'—')} · ${escapeHtml(request.type)}</div></div><button class="close-btn" aria-label="Zatvori" onclick="closeModal()">×</button></div><div class="record-detail-grid"><div><span>Od</span><b>${escapeHtml(isoLabel(request.start))}</b></div><div><span>Do</span><b>${escapeHtml(isoLabel(request.end))}</b></div><div><span>Radni dani</span><b>${businessDays(request.start,request.end)}</b></div><div><span>Odobreno dosad</span><b>${balance.used}</b></div><div><span>Rezervirano</span><b>${balance.reserved}</b></div><div><span>Preklapanja</span><b class="${conflicts.length?'negative':'positive'}">${conflicts.length}</b></div></div><div class="muted-box">${escapeHtml(request.note||'Bez dodatne napomene.')}</div>${conflicts.length?`<div class="notice"><b>Preklapanje u odjelu:</b> ${conflicts.map(item=>escapeHtml(workerById(item.workerId)?.name||'Radnik')).join(', ')}</div>`:'<div class="notice info">Nema preklapanja s aktivnim zahtjevima u odjelu.</div>'}<div class="form"><label>Napomena odluke<textarea id="requestDecisionNote" rows="3" placeholder="Obvezna kod odbijanja; preporučena kod odobrenja"></textarea></label></div><div class="btns"><button class="btn green" onclick="decideRequest(${request.id},'Odobreno')">Odobri</button><button class="btn red" onclick="decideRequest(${request.id},'Odbijeno')">Odbij / traži izmjenu</button><button class="btn secondary" onclick="closeModal()">Odustani</button></div></div>`;
-  modal.classList.add('open');
+  showModal(modal);
 }
 function decideRequest(id,status,noteOverride=''){
   if(!['admin','manager'].includes(currentRole)||!['Odobreno','Odbijeno'].includes(status))return;
@@ -1115,7 +1164,7 @@ function openCancelRequest(id){
   if(!request||request.workerId!==currentWorker().id||request.status!=='Na čekanju')return;
   const modal=$('#modal');
   modal.innerHTML=`<div class="modal-card"><div class="modal-head"><div><h2>Poništi zahtjev?</h2><div class="small-muted">${escapeHtml(rangeLabel(request.start,request.end))} · ${pluralDays(businessDays(request.start,request.end))}</div></div><button class="close-btn" aria-label="Zatvori" onclick="closeModal()">×</button></div><p class="small-muted">Zahtjev će ostati vidljiv u povijesti sa statusom Poništeno, a rezervirani dani vratit će se u raspoloživi fond.</p><div class="btns"><button class="btn red" onclick="cancelVacationRequest(${request.id})">Da, poništi</button><button class="btn secondary" onclick="closeModal()">Odustani</button></div></div>`;
-  modal.classList.add('open');
+  showModal(modal);
 }
 function cancelVacationRequest(id){
   if(currentRole!=='worker')return;
@@ -1168,7 +1217,7 @@ function showVacationDay(iso){
   if(!events.length)return;
   const modal=$('#modal');
   modal.innerHTML=`<div class="modal-card"><div class="modal-head"><div><h2>${escapeHtml(isoToDate(iso).toLocaleDateString('hr-HR',{day:'numeric',month:'long',year:'numeric'}))}</h2><div class="small-muted">Odsutnosti za odabrani datum</div></div><button class="close-btn" aria-label="Zatvori" onclick="closeModal()">×</button></div><div class="leave-request-grid compact">${events.map(request=>requestCard(request,false)).join('')}</div></div>`;
-  modal.classList.add('open');
+  showModal(modal);
 }
 function departmentLeaveSummary(requests){
   const departments=[...new Set(visibleWorkers().filter(worker=>worker.active&&(vacationDepartment==='Svi'||worker.dept===vacationDepartment)).map(worker=>worker.dept))].sort((a,b)=>a.localeCompare(b,'hr'));
@@ -1692,13 +1741,17 @@ function demoOfflineScan(){
 
 function viewFlow(){
   const steps=[
-    ['Radnik prisloni RFID karticu','Terminal provjeri karticu i aktivni status radnika.'],
-    ['Uređaj potvrdi očitanje','Radnik odmah dobiva zvučnu i vizualnu potvrdu.'],
-    ['Zapis stiže u backend','Jedinstveni ID sprečava dvostruko spremanje nakon offline rada.'],
-    ['Voditelj rješava iznimke','Kašnjenja, nepotpuni dani i korekcije ulaze u kontrolirani tijek.'],
-    ['Knjigovodstvo izvozi podatke','Filtrirani CSV ili XLSX koristi isti provjereni skup zapisa.']
+    {icon:'≋',title:'Radnik prisloni RFID karticu',text:'Terminal provjerava poznatu karticu i aktivni status radnika.',tag:'1 · Očitanje'},
+    {icon:'✓',title:'Terminal odmah potvrdi događaj',text:'Zvučna i vizualna potvrda daje radniku jasan rezultat bez čekanja.',tag:'2 · Potvrda'},
+    {icon:'↺',title:'Događaj se sigurno sinkronizira',text:'Jedinstveni ID čuva offline zapis i sprečava dvostruko spremanje.',tag:'3 · Sinkronizacija'},
+    {icon:'!',title:'Voditelj rješava samo iznimke',text:'Kašnjenja, nepotpuni dani i korekcije ulaze u kontrolirani tijek odluke.',tag:'4 · Kontrola'},
+    {icon:'⇩',title:'Knjigovodstvo preuzima isti skup',text:'Filtrirani CSV i XLSX koriste provjerene podatke prikazane u aplikaciji.',tag:'5 · Izvoz'}
   ];
-  return `${title('Kako radi BSS','Kratki prodajni prikaz procesa; nije dio svakodnevnog rada administratora.',pill('Demo'))}<div class="card">${steps.map((step,index)=>`<div class="timeline-step"><b>${index+1}. ${escapeHtml(step[0])}</b><span>${escapeHtml(step[1])}</span></div>`).join('')}</div><div class="card hero"><h2>Vrijednost za kupca</h2><p>Jedno mjesto za evidenciju, odsutnosti, odobravanja i izvoz, uz terminal koji nastavlja raditi kada veza kratko nestane.</p></div>`;
+  return `${title('Kako radi BSS','Pet povezanih koraka od kartice radnika do provjerenog mjesečnog izvještaja.',pill(`Demo ${APP_VERSION} · završni prikaz`))}
+    <section class="card hero demo-story-hero"><div><div class="eyebrow">BSS Smart Systems</div><h2>Jedan događaj, jedan provjeren trag</h2><p>Hardver, evidencija, odobravanja i izvoz rade kao jedan uski sustav. Terminal nastavlja bilježiti poznata očitanja i kada veza kratko nestane.</p><div class="btns"><button class="btn demo-light" onclick="navigate('terminalDemo')">Pokreni RFID simulator</button><button class="btn demo-ghost" onclick="navigate('reports')">Otvori izvještaje</button></div></div><div class="demo-story-proof"><span>Aktivni radnici<b>${activeWorkers().length}</b></span><span>RFID terminali<b>1</b></span><span>Vrste izvještaja<b>5</b></span></div></section>
+    <section class="process-flow" aria-label="BSS proces u pet koraka">${steps.map(step=>`<article class="process-step"><div class="process-icon" aria-hidden="true">${step.icon}</div><span>${escapeHtml(step.tag)}</span><h2>${escapeHtml(step.title)}</h2><p>${escapeHtml(step.text)}</p></article>`).join('')}</section>
+    <section class="demo-proof-grid"><article class="card"><div class="proof-icon" aria-hidden="true">◎</div><h2>Manje ručnog rada</h2><p>Radnik evidentira događaj na terminalu, a voditelj se bavi samo zapisima koji traže odluku.</p></article><article class="card"><div class="proof-icon" aria-hidden="true">◇</div><h2>Jasne ovlasti</h2><p>Administrator vidi cijelu firmu, voditelj dodijeljene odjele, radnik samo sebe, a knjigovođa provjeren izvoz.</p></article><article class="card"><div class="proof-icon" aria-hidden="true">✓</div><h2>Trag koji se može objasniti</h2><p>Korekcije, odluke, terminalski događaji i generiranje izvještaja ostaju u audit zapisu.</p></article></section>
+    <div class="demo-story-footer"><div><b>Demo 3.0 granica</b><span>RFID/NFC, radnici, smjene, odsutnosti, korekcije, izvještaji, administracija i audit.</span></div><button class="btn" onclick="navigate('home')">Natrag na dashboard</button></div>`;
 }
 const ACCESS_ROLES = {
   Administrator: {description:'Puna administracija cijele tvrtke.',scope:'Cijela tvrtka'},
@@ -1737,7 +1790,7 @@ function openAccessModal(id){
   const user=accessUserById(id);if(!user)return;
   const worker=workerById(user.workerId),modal=$('#modal');
   modal.innerHTML=`<div class="modal-card"><div class="modal-head"><div><h2>Uredi korisnički pristup</h2><div class="small-muted">${escapeHtml(worker?.name||user.email)} · ${escapeHtml(user.email)}</div></div><button class="close-btn" onclick="closeModal()">×</button></div><div class="form form-grid"><label>Uloga<select id="accessRole" onchange="toggleAccessDepartmentFields()">${accessRoleOptions(user.role)}</select></label><label>Status<select id="accessStatus"><option ${user.status==='Aktivan'?'selected':''}>Aktivan</option><option ${user.status==='Blokiran'?'selected':''}>Blokiran</option></select></label></div><div class="manager-departments ${user.role==='Voditelj'?'':'hidden'}"><label>Dodijeljeni odjeli</label><div class="check-grid">${accessDepartmentChecks(user.departments||[])}</div></div><div class="notice info">Promjena vrijedi za demo-podatke i ulazi u audit trag. Aktivna prezentacijska uloga mijenja se samo kroz demo izbornik.</div><div class="btns"><button class="btn" onclick="saveAccessUser(${user.id})">Spremi pristup</button><button class="btn secondary" onclick="closeModal()">Odustani</button></div></div>`;
-  modal.classList.add('open');
+  showModal(modal);
 }
 function saveAccessUser(id){
   if(currentRole!=='admin')return;
@@ -1774,7 +1827,7 @@ function openInviteModal(workerId=null){
   const worker=workerId?workerById(workerId):null,selected=worker?[worker.dept]:[];
   const modal=$('#modal');
   modal.innerHTML=`<div class="modal-card"><div class="modal-head"><div><h2>Pozovi novog korisnika</h2><div class="small-muted">Pozivnica u demu ne šalje stvarni email.</div></div><button class="close-btn" onclick="closeModal()">×</button></div><div class="form form-grid"><label>Ime i prezime<input id="inviteName" value="${escapeHtml(worker?.name||'')}"></label><label>Email<input id="inviteEmail" type="email" value="${escapeHtml(worker?.email||'')}"></label><label>Uloga<select id="inviteRole" onchange="toggleAccessDepartmentFields()">${accessRoleOptions('Radnik')}</select></label><label>Vrijedi<input value="${state.security.inviteValidityHours} sati" disabled></label></div><div class="manager-departments"><label>Odjel za povezivanje / opseg voditelja</label><div class="check-grid">${accessDepartmentChecks(selected)}</div></div><div class="btns"><button class="btn" onclick="sendInvitation()">Evidentiraj pozivnicu</button><button class="btn secondary" onclick="closeModal()">Odustani</button></div></div>`;
-  modal.classList.add('open');
+  showModal(modal);
 }
 function sendInvitation(){
   if(currentRole!=='admin')return;
@@ -1837,7 +1890,7 @@ function settingsHolidays(){
 }
 function viewSettings(){
   const content={overview:settingsOverview,company:settingsCompany,organization:settingsOrganization,holidays:settingsHolidays}[settingsTab]();
-  return `${title('Postavke i administracija','Tvrtka, organizacija, radni kalendar i konfiguracijska spremnost.',pill(`Sprint 6`))}${settingsTabs()}${content}`;
+  return `${title('Postavke i administracija','Tvrtka, organizacija, radni kalendar i konfiguracijska spremnost.',pill(APP_STAGE))}${settingsTabs()}${content}`;
 }
 function isValidOib(oib){
   if(!/^\d{11}$/.test(oib))return false;
@@ -1863,7 +1916,7 @@ function managerOptions(selected){ return `<option value="">Bez voditelja</optio
 function openDepartmentModal(id=null){
   if(currentRole!=='admin')return;
   const existing=id?departmentById(id):null,item=existing||{name:'',code:'',managerId:null},modal=$('#modal');
-  modal.innerHTML=`<div class="modal-card"><div class="modal-head"><h2>${existing?'Uredi odjel':'Dodaj odjel'}</h2><button class="close-btn" onclick="closeModal()">×</button></div><div class="form form-grid"><label>Naziv<input id="departmentName" value="${escapeHtml(item.name)}"></label><label>Šifra<input id="departmentCode" maxlength="8" value="${escapeHtml(item.code)}" placeholder="PROD"></label><label>Odgovorna osoba<select id="departmentManager">${managerOptions(item.managerId)}</select></label></div><div class="btns"><button class="btn" onclick="saveDepartment(${existing?item.id:'null'})">Spremi</button><button class="btn secondary" onclick="closeModal()">Odustani</button></div></div>`;modal.classList.add('open');
+  modal.innerHTML=`<div class="modal-card"><div class="modal-head"><h2>${existing?'Uredi odjel':'Dodaj odjel'}</h2><button class="close-btn" onclick="closeModal()">×</button></div><div class="form form-grid"><label>Naziv<input id="departmentName" value="${escapeHtml(item.name)}"></label><label>Šifra<input id="departmentCode" maxlength="8" value="${escapeHtml(item.code)}" placeholder="PROD"></label><label>Odgovorna osoba<select id="departmentManager">${managerOptions(item.managerId)}</select></label></div><div class="btns"><button class="btn" onclick="saveDepartment(${existing?item.id:'null'})">Spremi</button><button class="btn secondary" onclick="closeModal()">Odustani</button></div></div>`;showModal(modal);
 }
 function saveDepartment(id){
   if(currentRole!=='admin')return;
@@ -1892,7 +1945,7 @@ function toggleDepartment(id){
 function openJobPositionModal(id=null){
   if(currentRole!=='admin')return;
   const existing=id?jobPositionById(id):null,item=existing||{name:'',code:'',department:departmentList()[0]},modal=$('#modal');
-  modal.innerHTML=`<div class="modal-card"><div class="modal-head"><h2>${existing?'Uredi radno mjesto':'Dodaj radno mjesto'}</h2><button class="close-btn" onclick="closeModal()">×</button></div><div class="form form-grid"><label>Naziv<input id="positionName" value="${escapeHtml(item.name)}"></label><label>Šifra<input id="positionCode" maxlength="10" value="${escapeHtml(item.code)}"></label><label>Odjel<select id="positionDepartment">${departmentSelectOptions(item.department)}</select></label></div><div class="btns"><button class="btn" onclick="saveJobPosition(${existing?item.id:'null'})">Spremi</button><button class="btn secondary" onclick="closeModal()">Odustani</button></div></div>`;modal.classList.add('open');
+  modal.innerHTML=`<div class="modal-card"><div class="modal-head"><h2>${existing?'Uredi radno mjesto':'Dodaj radno mjesto'}</h2><button class="close-btn" onclick="closeModal()">×</button></div><div class="form form-grid"><label>Naziv<input id="positionName" value="${escapeHtml(item.name)}"></label><label>Šifra<input id="positionCode" maxlength="10" value="${escapeHtml(item.code)}"></label><label>Odjel<select id="positionDepartment">${departmentSelectOptions(item.department)}</select></label></div><div class="btns"><button class="btn" onclick="saveJobPosition(${existing?item.id:'null'})">Spremi</button><button class="btn secondary" onclick="closeModal()">Odustani</button></div></div>`;showModal(modal);
 }
 function saveJobPosition(id){
   if(currentRole!=='admin')return;
@@ -1914,7 +1967,7 @@ function openHolidayModal(id=null){
   if(currentRole!=='admin')return;
   const existing=id?(state.holidays||[]).find(item=>item.id===Number(id)):null;if(existing?.protected)return;
   const item=existing||{date:'2026-12-24',name:'Interni neradni dan',type:'Interni neradni dan'},modal=$('#modal');
-  modal.innerHTML=`<div class="modal-card"><div class="modal-head"><h2>${existing?'Uredi neradni dan':'Dodaj interni neradni dan'}</h2><button class="close-btn" onclick="closeModal()">×</button></div><div class="form form-grid"><label>Datum<input id="holidayDate" type="date" min="2026-01-01" max="2026-12-31" value="${escapeHtml(item.date)}"></label><label>Naziv<input id="holidayName" value="${escapeHtml(item.name)}"></label><label>Vrsta<select id="holidayType"><option ${item.type==='Interni neradni dan'?'selected':''}>Interni neradni dan</option><option ${item.type==='Kolektivni godišnji'?'selected':''}>Kolektivni godišnji</option></select></label></div><div class="btns"><button class="btn" onclick="saveHoliday(${existing?item.id:'null'})">Spremi</button><button class="btn secondary" onclick="closeModal()">Odustani</button></div></div>`;modal.classList.add('open');
+  modal.innerHTML=`<div class="modal-card"><div class="modal-head"><h2>${existing?'Uredi neradni dan':'Dodaj interni neradni dan'}</h2><button class="close-btn" onclick="closeModal()">×</button></div><div class="form form-grid"><label>Datum<input id="holidayDate" type="date" min="2026-01-01" max="2026-12-31" value="${escapeHtml(item.date)}"></label><label>Naziv<input id="holidayName" value="${escapeHtml(item.name)}"></label><label>Vrsta<select id="holidayType"><option ${item.type==='Interni neradni dan'?'selected':''}>Interni neradni dan</option><option ${item.type==='Kolektivni godišnji'?'selected':''}>Kolektivni godišnji</option></select></label></div><div class="btns"><button class="btn" onclick="saveHoliday(${existing?item.id:'null'})">Spremi</button><button class="btn secondary" onclick="closeModal()">Odustani</button></div></div>`;showModal(modal);
 }
 function saveHoliday(id){
   if(currentRole!=='admin')return;
