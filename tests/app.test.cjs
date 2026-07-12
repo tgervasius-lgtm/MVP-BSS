@@ -17,7 +17,18 @@ const coreSources = [
   'src/views/registry.js',
   'src/views/events.js'
 ].map(path=>fs.readFileSync(path,'utf8'));
-const styles = fs.readFileSync('styles.css','utf8');
+const styleEntry = fs.readFileSync('styles.css','utf8');
+const styleLayerPaths = [
+  'styles/base.css',
+  'styles/layouts.css',
+  'styles/components.css',
+  'styles/screens.css',
+  'styles/navigation.css',
+  'styles/themes.css',
+  'styles/responsive.css'
+];
+const styleLayers = styleLayerPaths.map(path=>fs.readFileSync(path,'utf8'));
+const styles = [styleEntry,...styleLayers].join('\n');
 const manifest = JSON.parse(fs.readFileSync('manifest.json','utf8'));
 const designTokens = fs.readFileSync('design-system/tokens.css','utf8');
 const designGuideHtml = fs.readFileSync('design-system/index.html','utf8');
@@ -924,17 +935,29 @@ test('XLSX generator stvara valjani ZIP okvir',()=>{
 });
 
 test('Design System v1.0 ima jedinstvene primitive i semantičke tokene za obje teme',()=>{
-  assert.ok(styles.trimStart().startsWith('@import url("./design-system/tokens.css")'));
+  assert.ok(styleEntry.trimStart().startsWith('@import url("./design-system/tokens.css")'));
   for(const token of [
     '--bss-color-brand-600','--bss-color-bg-surface','--bss-color-text-muted',
-    '--bss-color-action-primary','--bss-font-sans','--bss-space-4',
-    '--bss-radius-lg','--bss-shadow-md','--bss-duration-normal','--bss-control-min-height'
+    '--bss-color-accent-soft','--bss-color-action-primary','--bss-font-sans','--bss-space-4',
+    '--bss-radius-lg','--bss-shadow-md','--bss-duration-normal','--bss-control-min-height',
+    '--bss-safe-area-top','--bss-safe-area-bottom'
   ]) assert.match(designTokens,new RegExp(`${token}:`));
   assert.match(designTokens,/:root\[data-theme="dark"\]/);
   assert.match(designTokens,/--bss-color-bg-canvas: var\(--bss-color-neutral-950\)/);
-  assert.match(designTokens,/Naslijeđeni aliasi Demo 3\.0/);
+  assert.doesNotMatch([designTokens,...styleLayers,designGuideStyles,brandBookStyles].join('\n'),/--(?:bg|surface(?:-2)?|line(?:-subtle)?|text|muted|teal(?:-dark|-soft)?|green(?:-soft)?|amber(?:-soft)?|red(?:-soft)?|blue(?:-soft)?|shadow(?:-hover)?|radius|safe(?:-top)?)(?=\s*[:)])/);
   assert.match(designSystemDoc,/Quality gate za novu komponentu/);
-  assert.match(designSystemDoc,/Brand Book.*BSS Refactor(?:a|u)? v1/s);
+  assert.match(designSystemDoc,/Refactor v1 R5 dovršio je prijelaz na semantičke/);
+});
+
+test('R5 učitava CSS slojeve istim redoslijedom i sprema ih za offline rad',()=>{
+  const imports=['./design-system/tokens.css',...styleLayerPaths.map(path=>`./${path}`)];
+  const positions=imports.map(path=>styleEntry.indexOf(`@import url("${path}")`));
+  assert.ok(positions.every(position=>position>=0));
+  assert.deepEqual(positions,[...positions].sort((a,b)=>a-b));
+  assert.doesNotMatch(styleEntry,/[{}]/);
+  assert.equal(styleLayers.reduce((sum,css)=>sum+(css.match(/{/g)||[]).length,0),804);
+  assert.equal(styleLayers.reduce((sum,css)=>sum+(css.match(/}/g)||[]).length,0),804);
+  for(const path of styleLayerPaths) assert.match(serviceWorker,new RegExp(path.replaceAll('.','\\.')));
 });
 
 test('ključni tekst i statusi Design Systema zadovoljavaju WCAG AA kontrast',()=>{
@@ -1010,7 +1033,7 @@ test('aplikacija povezuje vodič i offline predmemorira cijeli Design System',()
   for(const asset of ['design-system/index.html','design-system/tokens.css','design-system/guide.css','design-system/guide.js']){
     assert.match(serviceWorker,new RegExp(asset.replaceAll('.','\\.')));
   }
-  assert.match(serviceWorker,/bss-refactor-v1-r4/);
+  assert.match(serviceWorker,/bss-refactor-v1-r5/);
 });
 
 test('Brand Book v1.0 pokriva svih devet dogovorenih područja',()=>{
@@ -1070,7 +1093,7 @@ test('aplikacija povezuje Brand Book i cijeli paket radi offline',()=>{
     'bss-presentation-cover.svg','bss-terminal-label.svg',
     'BSS_BRAND-BOOK_v1.0_11.07.2026.pdf'
   ]) assert.match(serviceWorker,new RegExp(asset.replaceAll('.','\\.')));
-  assert.match(serviceWorker,/bss-refactor-v1-r4/);
+  assert.match(serviceWorker,/bss-refactor-v1-r5/);
   assert.match(serviceWorker,/path\.includes\('\/brand-book'\)/);
 });
 
@@ -1167,7 +1190,7 @@ test('Refactor v1 učitava jezgru prije aplikacije i sprema je za offline rad',(
   ]){
     assert.match(serviceWorker,new RegExp(asset.replaceAll('.','\\.')));
   }
-  assert.match(serviceWorker,/bss-refactor-v1-r4/);
+  assert.match(serviceWorker,/bss-refactor-v1-r5/);
 });
 
 test('domenski ugovor zaključava četiri uloge i hrvatske oznake statusa',()=>{
