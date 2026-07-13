@@ -56,6 +56,11 @@ const cloudflareConfig = fs.readFileSync('wrangler.toml','utf8');
 const cloudflareHeaders = fs.readFileSync('_headers','utf8');
 const cloudflareDeployment = fs.readFileSync('CLOUDFLARE_DEPLOYMENT.md','utf8');
 const qualityWorkflow = fs.readFileSync('.github/workflows/quality.yml','utf8');
+const frontendFinalReview = fs.readFileSync('BSS_FRONTEND_FINAL_REVIEW_V1.md','utf8');
+const backendHandoff = fs.readFileSync('BSS_BACKEND_HANDOFF_V1.md','utf8');
+const reportingProfile = fs.readFileSync('BSS_REPORTING_PROFILE_V1.md','utf8');
+const frontendHandoff = JSON.parse(fs.readFileSync('bss-frontend-handoff-v1.json','utf8'));
+const apiContractDraft = fs.readFileSync('openapi/bss-mvp-api-v1.yaml','utf8');
 
 function hexToken(css,name){
   const match=css.match(new RegExp(`${name}:\\s*(#[0-9a-f]{6})`,'i'));
@@ -1499,4 +1504,38 @@ test('svaka renderirana akcija svakog dopuštenog ekrana pripada R4 registryju',
       assert.deepEqual([...invalid],[],`${role}/${target}: nevaljane akcije`);
     }
   }
+});
+
+test('završni frontend handoff pokriva sve ekrane, uloge i granice MVP-a',()=>{
+  const expectedScreens=[
+    'attendance','audit','corrections','flow','home','mytime','reports','requests','roles','settings',
+    'shifts','terminal','terminalDemo','vacations','worker','workers'
+  ];
+  assert.deepEqual(frontendHandoff.screens.map(item=>item.id).sort(),expectedScreens);
+  assert.deepEqual(Object.keys(frontendHandoff.roles).sort(),['accountant','admin','manager','worker']);
+  assert.equal(frontendHandoff.baseline.commit,'ec4b92c4c0dcc1e067caa8ff9c2fb6ce803540ea');
+  assert.deepEqual(frontendHandoff.approvedExportFormats,['csv','xlsx']);
+  assert.deepEqual(frontendHandoff.proposedExportFormatsRequiringScopeApproval,['pdf_pdfa_2u']);
+  assert.ok(frontendHandoff.excludedCapabilities.includes('payroll_calculation'));
+  assert.ok(frontendHandoff.excludedCapabilities.includes('gps_tracking'));
+  assert.equal(frontendHandoff.screens.find(item=>item.id==='terminalDemo').mode,'demo_only');
+  assert.equal(frontendHandoff.screens.find(item=>item.id==='flow').mode,'demo_only');
+});
+
+test('pregled, reporting profil i API nacrt zaključavaju tablični smjer bez backend implementacije',()=>{
+  assert.match(frontendFinalReview,/Preglednost ispred kompleksnosti/);
+  assert.match(frontendFinalReview,/Graf zamijeniti tablicom/);
+  assert.match(frontendFinalReview,/cjelogodišnji kalendar ostaje primarni/i);
+  assert.match(backendHandoff,/Ovaj paket ne sadrži backend implementaciju/);
+  assert.match(backendHandoff,/server je jedini autoritet/i);
+  assert.match(reportingProfile,/pravi Office Open XML `\.xlsx`/);
+  assert.match(reportingProfile,/PDF\/A-2u/);
+  assert.match(reportingProfile,/ne računa plaću, poreze ni doprinose/i);
+  for(const path of [
+    '/auth/login:','/workers:','/attendance:','/leave-requests:','/correction-requests:',
+    '/report-exports:','/audit-events:','/terminals:','/terminal/v1/events/batch:'
+  ]) assert.match(apiContractDraft,new RegExp(path.replaceAll('/','\\/')));
+  assert.match(apiContractDraft,/enum: \[csv, xlsx\]/);
+  assert.match(apiContractDraft,/PDF\/PDF-A is intentionally absent/);
+  assert.doesNotMatch(apiContractDraft,/payroll-calculation|gps-tracking|door-access-control/i);
 });

@@ -1,0 +1,226 @@
+{
+  "schemaVersion": 1,
+  "product": "BSS MVP",
+  "status": "READY_FOR_BACKEND_CONTRACT_REVIEW",
+  "reviewedAt": "2026-07-13",
+  "baseline": {
+    "repository": "tgervasius-lgtm/MVP-BSS",
+    "branch": "main",
+    "commit": "ec4b92c4c0dcc1e067caa8ff9c2fb6ce803540ea",
+    "productionUrl": "https://mvp-bss.pages.dev/"
+  },
+  "principles": [
+    "clarity_before_complexity",
+    "tables_before_charts",
+    "maximum_four_primary_kpis",
+    "one_primary_purpose_per_screen",
+    "server_is_business_authority",
+    "same_dataset_screen_csv_xlsx",
+    "no_silent_scope_expansion"
+  ],
+  "roles": {
+    "admin": "organization",
+    "manager": "assigned_departments",
+    "worker": "self",
+    "accountant": "organization_reports_read_only"
+  },
+  "screens": [
+    {
+      "id": "home",
+      "roles": ["admin", "manager", "worker", "accountant"],
+      "mode": "runtime",
+      "reads": ["dashboard_summary", "attendance_exceptions", "pending_counts"],
+      "commands": [],
+      "simplification": "At most four KPIs; replace weekly chart with a compact daily table; remove navigation-duplicate quick actions.",
+      "priority": "P1"
+    },
+    {
+      "id": "attendance",
+      "roles": ["admin", "manager"],
+      "mode": "runtime",
+      "reads": ["attendance_days", "workers", "shifts", "departments"],
+      "commands": [],
+      "simplification": "Keep the main table; merge duplicate summaries and expose active/review states as filters.",
+      "priority": "P1"
+    },
+    {
+      "id": "mytime",
+      "roles": ["worker", "admin"],
+      "mode": "runtime",
+      "reads": ["own_attendance", "own_attendance_summary"],
+      "commands": ["create_own_correction_request"],
+      "simplification": "Remove the Worker column and open correction from the selected attendance row.",
+      "priority": "P1"
+    },
+    {
+      "id": "workers",
+      "roles": ["admin", "manager"],
+      "mode": "runtime",
+      "reads": ["workers", "departments", "shifts", "rfid_cards"],
+      "commands": ["admin_create_worker", "admin_update_worker"],
+      "simplification": "Use a desktop table and compact mobile rows instead of large cards.",
+      "priority": "P1"
+    },
+    {
+      "id": "worker",
+      "roles": ["admin", "manager"],
+      "mode": "runtime",
+      "reads": ["worker", "worker_attendance", "worker_leave", "worker_rfid_card"],
+      "commands": ["admin_update_worker", "admin_assign_or_block_rfid_card"],
+      "simplification": "Keep the existing profile, attendance, leave and card tabs.",
+      "priority": "KEEP"
+    },
+    {
+      "id": "shifts",
+      "roles": ["admin", "manager"],
+      "mode": "runtime",
+      "reads": ["shifts", "shift_assignment_counts"],
+      "commands": ["admin_create_shift", "admin_update_shift"],
+      "simplification": "Replace summary cards and shift cards with one table.",
+      "priority": "P1"
+    },
+    {
+      "id": "requests",
+      "roles": ["admin", "manager", "worker"],
+      "mode": "runtime",
+      "reads": ["leave_requests", "leave_balances", "leave_conflicts"],
+      "commands": ["worker_create_leave_request", "worker_cancel_own_pending_leave_request", "admin_or_manager_approve_leave_request", "admin_or_manager_reject_leave_request"],
+      "simplification": "Use a desktop status table with detail dialog; keep one controlled worker form.",
+      "priority": "P1"
+    },
+    {
+      "id": "vacations",
+      "roles": ["admin", "manager", "worker", "accountant"],
+      "mode": "runtime",
+      "reads": ["leave_calendar", "leave_balances", "department_capacity", "holidays"],
+      "commands": [],
+      "simplification": "Preserve the admin full-year calendar; move capacity, balances and planned absences into compact table views that are not all expanded at once.",
+      "priority": "P0_UX_DECISION"
+    },
+    {
+      "id": "corrections",
+      "roles": ["admin", "manager", "worker"],
+      "mode": "runtime",
+      "reads": ["correction_requests", "attendance_days"],
+      "commands": ["worker_create_correction_request", "worker_cancel_own_pending_correction_request", "admin_or_manager_approve_correction_request", "admin_or_manager_reject_correction_request"],
+      "simplification": "Keep history and decisions here; start a new request only from a selected attendance row.",
+      "priority": "P1"
+    },
+    {
+      "id": "reports",
+      "roles": ["admin", "manager", "accountant"],
+      "mode": "runtime",
+      "reads": ["report_preview", "report_exports"],
+      "commands": ["create_report_export", "download_ready_report_export"],
+      "simplification": "One filter row, report-type tabs, table preview and primary XLSX output; keep CSV technical and move export history to a table.",
+      "priority": "P0_CONTRACT"
+    },
+    {
+      "id": "terminal",
+      "roles": ["admin", "manager"],
+      "mode": "runtime",
+      "reads": ["terminals", "terminal_heartbeats", "terminal_sync_events"],
+      "commands": ["admin_pair_terminal", "admin_revoke_terminal"],
+      "simplification": "Use one terminal table and one sync-event table; show a card only for a real alert.",
+      "priority": "P1"
+    },
+    {
+      "id": "terminalDemo",
+      "roles": ["admin", "manager"],
+      "mode": "demo_only",
+      "reads": ["demo_seed"],
+      "commands": ["simulate_local_rfid_event"],
+      "simplification": "Never connect to the official API, audit stream or production navigation.",
+      "priority": "P0_BOUNDARY"
+    },
+    {
+      "id": "flow",
+      "roles": ["admin", "manager"],
+      "mode": "demo_only",
+      "reads": ["static_demo_content"],
+      "commands": [],
+      "simplification": "Keep as sales-only static content outside production navigation.",
+      "priority": "P0_BOUNDARY"
+    },
+    {
+      "id": "roles",
+      "roles": ["admin"],
+      "mode": "runtime",
+      "reads": ["users", "role_scope_matrix"],
+      "commands": ["admin_invite_user", "admin_update_user_role", "admin_block_user"],
+      "simplification": "Keep user and permission tables; move invitation into a dialog and remove count-only KPIs.",
+      "priority": "P1"
+    },
+    {
+      "id": "audit",
+      "roles": ["admin"],
+      "mode": "runtime",
+      "reads": ["audit_events"],
+      "commands": [],
+      "simplification": "Use a time-actor-action-module-entity-result table with immutable detail.",
+      "priority": "P0_CONTRACT"
+    },
+    {
+      "id": "settings",
+      "roles": ["admin"],
+      "mode": "runtime",
+      "reads": ["organization", "departments", "holidays", "system_settings"],
+      "commands": ["admin_update_organization", "admin_manage_departments", "admin_manage_holidays"],
+      "simplification": "Use clear organization, departments, work-calendar and system sections; remove decorative readiness KPIs.",
+      "priority": "P1"
+    }
+  ],
+  "serverAuthority": [
+    "identity",
+    "organization",
+    "role_and_department_scope",
+    "workers_users_departments_shifts_cards",
+    "terminal_events_and_sync",
+    "attendance_events_and_days",
+    "leave_balances_requests_and_working_days",
+    "correction_requests_and_application",
+    "audit_events",
+    "official_totals_month_close_and_exports"
+  ],
+  "clientAuthority": [
+    "active_screen",
+    "modal_and_drawer_state",
+    "theme",
+    "unsaved_filters",
+    "unsent_form_draft",
+    "explicit_local_demo_state"
+  ],
+  "reportTypes": [
+    "monthly_summary",
+    "attendance_journal",
+    "exceptions",
+    "approved_absences",
+    "correction_log"
+  ],
+  "approvedExportFormats": ["csv", "xlsx"],
+  "proposedExportFormatsRequiringScopeApproval": ["pdf_pdfa_2u"],
+  "requiredUiStates": ["loading", "empty", "error", "forbidden", "stale"],
+  "excludedCapabilities": [
+    "warehouse",
+    "inventory",
+    "erp",
+    "gps_tracking",
+    "geofencing",
+    "ai_analytics",
+    "biometrics",
+    "payroll_calculation",
+    "door_access_control",
+    "crm",
+    "native_mobile_apps",
+    "marketing_campaigns",
+    "billing_subscriptions"
+  ],
+  "handoffDocuments": [
+    "BSS_FRONTEND_FINAL_REVIEW_V1.md",
+    "BSS_BACKEND_HANDOFF_V1.md",
+    "BSS_REPORTING_PROFILE_V1.md",
+    "BSS_MVP_SCOPE_FREEZE_V1.md",
+    "BACKEND_MVP_PLAN.md",
+    "openapi/bss-mvp-api-v1.yaml"
+  ]
+}
