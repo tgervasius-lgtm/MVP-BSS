@@ -1,6 +1,6 @@
-const CACHE_NAME = 'bss-refactor-v1-r6';
+const CACHE_NAME = 'bss-refactor-v1-r7';
 const ASSETS = [
-  './','./index.html','./styles.css','./app.js','./manifest.json','./icons/icon.svg',
+  './index.html','./styles.css','./app.js','./manifest.json','./icons/icon.svg',
   './styles/base.css','./styles/layouts.css','./styles/components.css','./styles/screens.css',
   './styles/navigation.css','./styles/themes.css','./styles/responsive.css',
   './src/adapters/runtime.js','./src/adapters/theme-bootstrap.js','./src/domain/contracts.js','./src/domain/time.js','./src/policies/access.js',
@@ -12,26 +12,44 @@ const ASSETS = [
   './brand-book/assets/bss-business-card.svg','./brand-book/assets/bss-presentation-cover.svg','./brand-book/assets/bss-terminal-label.svg',
   './output/pdf/BSS_BRAND-BOOK_v1.0_11.07.2026.pdf'
 ];
-self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE_NAME).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting()));
+
+function offlineDocument(request){
+  const path = new URL(request.url).pathname;
+  if(path.includes('/brand-book')) return caches.match('./brand-book/index.html');
+  if(path.includes('/design-system')) return caches.match('./design-system/index.html');
+  return caches.match('./index.html');
+}
+
+async function networkFirstDocument(request){
+  try{
+    return await fetch(new Request(request,{cache:'no-store'}));
+  }catch{
+    const cached = await caches.match(request,{ignoreSearch:true});
+    return cached || offlineDocument(request);
+  }
+}
+
+self.addEventListener('install', event => {
+  event.waitUntil((async()=>{
+    const cache = await caches.open(CACHE_NAME);
+    const freshAssets = ASSETS.map(asset=>new Request(asset,{cache:'reload'}));
+    await cache.addAll(freshAssets);
+    await self.skipWaiting();
+  })());
 });
-self.addEventListener('activate', e => {
-  e.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))).then(() => self.clients.claim()));
+self.addEventListener('activate', event => {
+  event.waitUntil((async()=>{
+    const keys = await caches.keys();
+    await Promise.all(keys.filter(key=>key!==CACHE_NAME).map(key=>caches.delete(key)));
+    await self.clients.claim();
+  })());
 });
-self.addEventListener('fetch', e => {
-  if (e.request.method !== 'GET') return;
-  if (e.request.mode === 'navigate') {
-    e.respondWith(fetch(e.request).then(response => {
-      const copy = response.clone();
-      caches.open(CACHE_NAME).then(cache => cache.put(e.request, copy));
-      return response;
-    }).catch(() => caches.match(e.request).then(cached => {
-      if (cached) return cached;
-      const path = new URL(e.request.url).pathname;
-      if (path.includes('/brand-book')) return caches.match('./brand-book/index.html');
-      return caches.match(path.includes('/design-system') ? './design-system/index.html' : './index.html');
-    })));
+self.addEventListener('fetch', event => {
+  if(event.request.method!=='GET') return;
+  const path = new URL(event.request.url).pathname;
+  if(event.request.mode==='navigate' || path.endsWith('/index.html')){
+    event.respondWith(networkFirstDocument(event.request));
     return;
   }
-  e.respondWith(caches.match(e.request).then(cached => cached || fetch(e.request)));
+  event.respondWith(caches.match(event.request).then(cached=>cached||fetch(event.request)));
 });

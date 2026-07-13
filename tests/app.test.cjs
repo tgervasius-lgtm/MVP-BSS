@@ -1187,7 +1187,7 @@ test('aplikacija povezuje vodič i offline predmemorira cijeli Design System',()
   for(const asset of ['design-system/index.html','design-system/tokens.css','design-system/guide.css','design-system/guide.js']){
     assert.match(serviceWorker,new RegExp(asset.replaceAll('.','\\.')));
   }
-  assert.match(serviceWorker,/bss-refactor-v1-r6/);
+  assert.match(serviceWorker,/bss-refactor-v1-r7/);
 });
 
 test('Brand Book v1.0 pokriva svih devet dogovorenih područja',()=>{
@@ -1251,7 +1251,7 @@ test('aplikacija povezuje Brand Book i cijeli paket radi offline',()=>{
     'bss-presentation-cover.svg','bss-terminal-label.svg',
     'BSS_BRAND-BOOK_v1.0_11.07.2026.pdf'
   ]) assert.match(serviceWorker,new RegExp(asset.replaceAll('.','\\.')));
-  assert.match(serviceWorker,/bss-refactor-v1-r6/);
+  assert.match(serviceWorker,/bss-refactor-v1-r7/);
   assert.match(serviceWorker,/path\.includes\('\/brand-book'\)/);
 });
 
@@ -1349,7 +1349,75 @@ test('Refactor v1 učitava jezgru prije aplikacije i sprema je za offline rad',(
   ]){
     assert.match(serviceWorker,new RegExp(asset.replaceAll('.','\\.')));
   }
-  assert.match(serviceWorker,/bss-refactor-v1-r6/);
+  assert.match(serviceWorker,/bss-refactor-v1-r7/);
+});
+
+test('cache invalidation hotfix osvježava app shell i odmah preuzima otvorene klijente',()=>{
+  assert.match(serviceWorker,/const CACHE_NAME = 'bss-refactor-v1-r7'/);
+  assert.match(serviceWorker,/new Request\(asset,\{cache:'reload'\}\)/);
+  assert.match(serviceWorker,/new Request\(request,\{cache:'no-store'\}\)/);
+  assert.match(serviceWorker,/request\.mode==='navigate'/);
+  assert.match(serviceWorker,/path\.endsWith\('\/index\.html'\)/);
+  assert.match(serviceWorker,/keys\.filter\(key=>key!==CACHE_NAME\).*caches\.delete/s);
+  assert.match(serviceWorker,/self\.skipWaiting\(\)/);
+  assert.match(serviceWorker,/self\.clients\.claim\(\)/);
+  assert.match(source,/serviceWorker\.register\('\.\/sw\.js',\{updateViaCache:'none'\}\)/);
+  assert.match(cloudflareHeaders,/\/sw\.js[\s\S]*Cache-Control: no-store, no-cache, must-revalidate, max-age=0/);
+  assert.match(cloudflareHeaders,/\/index\.html[\s\S]*Cache-Control: no-store, no-cache, must-revalidate, max-age=0/);
+  assert.match(cloudflareHeaders,/\n\/[\r\n]+\s+Cache-Control: no-store, no-cache, must-revalidate, max-age=0/);
+});
+
+test('Service Worker izvršava fresh precache, briše legacy cache i koristi mrežu za navigaciju',async()=>{
+  const listeners={},deleted=[],precacheRequests=[],matched=[];
+  let skipped=false,claimed=false,networkRequest=null;
+  class MockRequest{
+    constructor(input,init={}){
+      const source=typeof input==='string'?{}:input;
+      this.url=typeof input==='string'?input:input.url;
+      this.method=init.method||source.method||'GET';
+      this.mode=init.mode||source.mode||'same-origin';
+      this.cache=init.cache||source.cache||'default';
+    }
+  }
+  const context={
+    URL,
+    Request:MockRequest,
+    self:{
+      addEventListener:(type,handler)=>{listeners[type]=handler;},
+      skipWaiting:async()=>{skipped=true;},
+      clients:{claim:async()=>{claimed=true;}}
+    },
+    caches:{
+      open:async()=>({addAll:async requests=>{precacheRequests.push(...requests);}}),
+      keys:async()=>['bss-refactor-v1-r6','bss-brand-book-v1','bss-refactor-v1-r7'],
+      delete:async key=>{deleted.push(key);return true;},
+      match:async request=>{matched.push(typeof request==='string'?request:request.url);return {source:'offline'};}
+    },
+    fetch:async request=>{networkRequest=request;return {source:'network'};}
+  };
+  vm.runInNewContext(serviceWorker,vm.createContext(context));
+
+  let installPromise;
+  listeners.install({waitUntil:promise=>{installPromise=promise;}});
+  await installPromise;
+  assert.equal(skipped,true);
+  assert.ok(precacheRequests.length>30);
+  assert.ok(precacheRequests.every(request=>request.cache==='reload'));
+
+  let activatePromise;
+  listeners.activate({waitUntil:promise=>{activatePromise=promise;}});
+  await activatePromise;
+  assert.deepEqual(deleted.sort(),['bss-brand-book-v1','bss-refactor-v1-r6']);
+  assert.equal(claimed,true);
+
+  let navigationResponse;
+  listeners.fetch({
+    request:new MockRequest('https://mvp-bss.pages.dev/',{mode:'navigate'}),
+    respondWith:promise=>{navigationResponse=promise;}
+  });
+  assert.equal((await navigationResponse).source,'network');
+  assert.equal(networkRequest.cache,'no-store');
+  assert.deepEqual(matched,[]);
 });
 
 test('R6 uklanja inline skripte i zaključava temu prije prikaza stranice',()=>{
