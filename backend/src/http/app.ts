@@ -1,0 +1,117 @@
+import cookie from "@fastify/cookie";
+import rateLimit from "@fastify/rate-limit";
+import Fastify, { type FastifyInstance, type FastifyRequest } from "fastify";
+import type { AppConfig } from "../config.js";
+import { AppError } from "../domain/errors.js";
+import type { ActorContext, SessionContext } from "../domain/types.js";
+import type { AuthService, PhaseAService } from "../services/contracts.js";
+import { registerAuthRoutes } from "./routes/auth.js";
+import { registerPhaseARoutes } from "./routes/phase-a.js";
+
+export type AppDependencies = Readonly<{
+  config: AppConfig;
+  authService: AuthService;
+  phaseAService: PhaseAService;
+  logger?: boolean;
+}>;
+
+export type Authenticate = (request: FastifyRequest) => Promise<{ actor: ActorContext; context: SessionContext }>;
+
+function unsafeMethod(method: string): boolean {
+  return !["GET", "HEAD", "OPTIONS"].includes(method);
+}
+
+export async function buildApp(dependencies: AppDependencies): Promise<FastifyInstance> {
+  const { config, authService, phaseAService } = dependencies;
+  const app = Fastify({
+    logger: dependencies.logger ?? {
+      level: config.logLevel,
+      redact: {
+        paths: ["req.headers.cookie", "req.headers.authorization", "res.headers['set-cookie']"],
+        censor: "[REDACTED]"
+      }
+    },
+    trustProxy: config.trustProxy,
+    bodyLimit: 1_048_576,
+    ajv: { customOptions: { removeAdditional: false } },
+    requestIdHeader: "x-request-id",
+    genReqId: () => crypto.randomUUID()
+  });
+
+  await app.register(cookie);
+  await app.register(rateLimit, {
+    global: false,
+    max: 10,
+    timeWindow: "1 minute",
+    errorResponseBuilder: (request) => ({
+      code: "RATE_LIMITED",
+      message: "Previše pokušaja. Pokušajte ponovno kasnije.",
+      requestId: request.id
+    })
+  });
+
+  app.addHook("onRequest", async (request) => {
+    if (!request.url.startsWith("/api/v1") || !unsafeMethod(request.method)) return;
+    if (["/api/v1/auth/login", "/api/v1/auth/refresh"].includes(request.url.split("?")[0] ?? "")) return;
+    const origin = request.headers.origin;
+    if (origin !== config.publicOrigin) {
+      throw new AppError("FORBIDDEN", "Zahtjev nije poslan s dopuštenog izvora.");
+    }
+  });
+
+  app.addHook("onSend", async (request, reply, payload) => {
+    reply.header("X-Content-Type-Options", "nosniff");
+    reply.header("X-Frame-Options", "DENY");
+    reply.header("Referrer-Policy", "no-referrer");
+    if (request.url.startsWith("/api/")) {
+      reply.header("Cache-Control", "no-store, private");
+      reply.header("Pragma", "no-cache");
+    }
+    return payload;
+  });
+
+  const authenticate: Authenticate = async (request) => {
+    const token = request.cookies.bss_session;
+    if (!token) throw new AppError("UNAUTHENTICATED", "Nedostaje sigurna sesija.");
+    return authService.resolveAccessToken(token);
+  };
+
+  await registerAuthRoutes(app, { config, authService, authenticate });
+  await registerPhaseARoutes(app, { phaseAService, authenticate });
+
+  app.get("/healthz", async () => ({ status: "ok" }));
+
+  app.setErrorHandler((error, request, reply) => {
+    if (error instanceof AppError) {
+      return reply.status(error.statusCode).send({
+        code: error.code,
+        message: error.message,
+        requestId: request.id,
+        ...(error.fieldErrors ? { fieldErrors: error.fieldErrors } : {})
+      });
+    }
+    const validation = typeof error === "object" && error !== null && "validation" in error
+      ? (error as { validation?: Array<{ message?: string }> }).validation
+      : undefined;
+    if (validation) {
+      return reply.status(422).send({
+        code: "VALIDATION_FAILED",
+        message: "Zahtjev sadrži neispravna polja.",
+        requestId: request.id,
+        fieldErrors: { request: validation.map((entry) => entry.message ?? "Neispravna vrijednost.") }
+      });
+    }
+    request.log.error({ err: error, requestId: request.id }, "Unhandled request error");
+    return reply.status(500).send({
+      code: "INTERNAL_ERROR",
+      message: "Došlo je do interne pogreške.",
+      requestId: request.id
+    });
+  });
+
+  app.setNotFoundHandler((request, reply) => {
+    return reply.status(404).send({ code: "NOT_FOUND", message: "Ruta nije pronađena.", requestId: request.id });
+  });
+
+  return app;
+}

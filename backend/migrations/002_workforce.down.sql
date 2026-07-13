@@ -1,0 +1,5 @@
+DROP TABLE IF EXISTS rfid_cards;
+DROP TABLE IF EXISTS holidays;
+DROP TABLE IF EXISTS workers;
+DROP TABLE IF EXISTS shifts;
+DROP TABLE IF EXISTS departments;

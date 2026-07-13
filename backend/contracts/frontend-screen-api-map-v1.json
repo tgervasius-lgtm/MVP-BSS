@@ -1,0 +1,128 @@
+{
+  "schemaVersion": 1,
+  "reviewedAt": "2026-07-13",
+  "frontendRelease": "v1.0.0",
+  "frontendBaseline": "91323c7cdbbbbf7b965c4926c94a11af6d31bf62",
+  "repositoryBaseline": "e35b53af848b855c986e467a6efacdea4dde777e",
+  "openapi": {
+    "file": "openapi/bss-mvp-api-v1.yaml",
+    "sha256": "9b6a6881056a12de6b33519ba408c3e7d82234e424b79a893839b3e66cd4c128",
+    "version": "0.1.0-draft",
+    "paths": 33,
+    "operations": 43,
+    "phaseAImplementedOperations": 22
+  },
+  "statusLegend": {
+    "covered": "Current OpenAPI has the required operation shape.",
+    "derived": "The screen can be composed from current operations; server-side aggregation semantics must be fixed before integration.",
+    "partial": "At least one frozen screen read or command has no complete current operation.",
+    "excluded": "Demo-only or separately proposed scope; it must not call the production v1 API."
+  },
+  "screens": [
+    {
+      "id": "home",
+      "status": "derived",
+      "operations": ["listAttendance", "listLeaveRequests", "listCorrectionRequests"],
+      "gap": "No dedicated dashboard summary; totals and pending counts must be derived server-side from the same scoped queries."
+    },
+    {
+      "id": "attendance",
+      "status": "covered",
+      "operations": ["listAttendance", "listWorkers", "listShifts", "listDepartments"]
+    },
+    {
+      "id": "mytime",
+      "status": "covered",
+      "operations": ["getWorkerAttendance", "createCorrectionRequest"]
+    },
+    {
+      "id": "workers",
+      "status": "partial",
+      "operations": ["listWorkers", "createWorker", "updateWorker", "listDepartments", "listShifts", "blockRfidCard"],
+      "gap": "RFID read and assignment operations are missing; only blocking is defined."
+    },
+    {
+      "id": "worker",
+      "status": "partial",
+      "operations": ["getWorker", "getWorkerAttendance", "listLeaveRequests", "blockRfidCard"],
+      "gap": "Worker RFID read/assignment is not represented by an operation."
+    },
+    {
+      "id": "shifts",
+      "status": "covered",
+      "operations": ["listShifts", "createShift", "updateShift"]
+    },
+    {
+      "id": "requests",
+      "status": "partial",
+      "operations": ["listLeaveRequests", "createLeaveRequest", "approveLeaveRequest", "rejectLeaveRequest", "cancelOwnLeaveRequest"],
+      "gap": "The response does not define authoritative leave balance or conflict/capacity summaries."
+    },
+    {
+      "id": "vacations",
+      "status": "partial",
+      "operations": ["listLeaveRequests", "listHolidays"],
+      "gap": "Annual balance, calendar aggregation and department capacity are not defined."
+    },
+    {
+      "id": "sharedLeave",
+      "status": "excluded",
+      "operations": [],
+      "gap": "Frontend demonstration and MVP Scope v1.1 proposal only."
+    },
+    {
+      "id": "corrections",
+      "status": "covered",
+      "operations": ["listCorrectionRequests", "createCorrectionRequest", "approveCorrectionRequest", "rejectCorrectionRequest", "cancelOwnCorrectionRequest"]
+    },
+    {
+      "id": "reports",
+      "status": "partial",
+      "operations": ["listReportExports", "createReportExport", "getReportExport"],
+      "gap": "The frozen screen reads report_preview, but no preview operation/schema exists."
+    },
+    {
+      "id": "terminal",
+      "status": "partial",
+      "operations": ["listTerminals", "pairTerminal", "revokeTerminal", "ingestTerminalEventBatch", "terminalHeartbeat"],
+      "gap": "Terminal sync-event history has no read operation; deviceSignature remains an HMAC/mTLS decision gate."
+    },
+    {
+      "id": "terminalDemo",
+      "status": "excluded",
+      "operations": [],
+      "gap": "Local simulator must never write production attendance or audit data."
+    },
+    {
+      "id": "flow",
+      "status": "excluded",
+      "operations": [],
+      "gap": "Static sales/demo content."
+    },
+    {
+      "id": "roles",
+      "status": "partial",
+      "operations": ["listUsers", "inviteUser", "updateUser"],
+      "gap": "Invitation acceptance/password setup and delivery contract are missing."
+    },
+    {
+      "id": "audit",
+      "status": "covered",
+      "operations": ["listAuditEvents"]
+    },
+    {
+      "id": "settings",
+      "status": "partial",
+      "operations": ["getOrganization", "updateOrganization", "listDepartments", "createDepartment", "listHolidays", "replaceHolidaysForYear"],
+      "gap": "Department update/block is missing and holiday-calendar If-Match has no explicit aggregate revision field."
+    }
+  ],
+  "contractGatesBeforeLaterPhases": [
+    "Version and approve invitation acceptance/password setup.",
+    "Version RFID read/assign operations used by the frozen worker screens.",
+    "Define leave balances, conflicts and department-capacity summaries.",
+    "Define report preview from the same query as export.",
+    "Define terminal sync-event read model and choose HMAC or mTLS.",
+    "Define department mutation and aggregate holiday-calendar revision semantics."
+  ]
+}

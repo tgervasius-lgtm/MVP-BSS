@@ -1,0 +1,78 @@
+import type { FastifyInstance, FastifyRequest } from "fastify";
+import type { AppConfig } from "../../config.js";
+import { AppError } from "../../domain/errors.js";
+import type { AuthService, RequestMetadata } from "../../services/contracts.js";
+import type { Authenticate } from "../app.js";
+
+type Dependencies = Readonly<{
+  config: AppConfig;
+  authService: AuthService;
+  authenticate: Authenticate;
+}>;
+
+const loginBodySchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["email", "password"],
+  properties: {
+    email: { type: "string", format: "email", maxLength: 320 },
+    password: { type: "string", minLength: 12, maxLength: 1024 }
+  }
+} as const;
+
+function requestMetadata(request: FastifyRequest): RequestMetadata {
+  const metadata: { requestId: string; ip: string; userAgent?: string } = { requestId: request.id, ip: request.ip };
+  if (request.headers["user-agent"]) metadata.userAgent = request.headers["user-agent"];
+  return metadata;
+}
+
+export async function registerAuthRoutes(app: FastifyInstance, dependencies: Dependencies): Promise<void> {
+  const { config, authService, authenticate } = dependencies;
+  const accessCookie = {
+    path: "/",
+    httpOnly: true,
+    secure: config.cookieSecure,
+    sameSite: "strict" as const,
+    maxAge: config.accessTokenTtlSeconds
+  };
+  const refreshCookie = {
+    path: "/api/v1/auth",
+    httpOnly: true,
+    secure: config.cookieSecure,
+    sameSite: "strict" as const,
+    maxAge: config.refreshTokenTtlSeconds
+  };
+
+  app.post<{ Body: { email: string; password: string } }>(
+    "/api/v1/auth/login",
+    { schema: { body: loginBodySchema }, config: { rateLimit: { max: 5, timeWindow: "1 minute" } } },
+    async (request, reply) => {
+      const result = await authService.login(request.body.email, request.body.password, requestMetadata(request));
+      reply.setCookie("bss_session", result.tokens.accessToken, accessCookie);
+      reply.setCookie("bss_refresh", result.tokens.refreshToken, refreshCookie);
+      return reply.send(result.context);
+    }
+  );
+
+  app.post("/api/v1/auth/refresh", async (request, reply) => {
+    const refreshToken = request.cookies.bss_refresh;
+    if (!refreshToken) throw new AppError("UNAUTHENTICATED", "Nedostaje refresh sesija.");
+    const tokens = await authService.rotate(refreshToken, requestMetadata(request));
+    reply.setCookie("bss_session", tokens.accessToken, accessCookie);
+    reply.setCookie("bss_refresh", tokens.refreshToken, refreshCookie);
+    return reply.status(204).send();
+  });
+
+  app.post("/api/v1/auth/logout", async (request, reply) => {
+    const { actor } = await authenticate(request);
+    await authService.logout(actor, request.id);
+    reply.clearCookie("bss_session", { path: "/" });
+    reply.clearCookie("bss_refresh", { path: "/api/v1/auth" });
+    return reply.status(204).send();
+  });
+
+  app.get("/api/v1/me", async (request) => {
+    const { context } = await authenticate(request);
+    return context;
+  });
+}
