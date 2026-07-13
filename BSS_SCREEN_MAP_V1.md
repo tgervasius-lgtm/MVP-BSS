@@ -20,7 +20,7 @@ Ova mapa definira stabilne screen ID-eve koje backend integracija mora sačuvati
 | `shifts` | Smjene | admin, manager | runtime | smjene i dodjele | tablični pregled; voditelj nema admin mutacije |
 | `requests` | Zahtjevi | admin, manager, worker | runtime | leave requests i odluke | radnik vidi vlastite; odluke samo u dopuštenom opsegu |
 | `vacations` | Godišnji / Odsutnosti | sve | runtime | leave calendar, fond, blagdani | admin/voditelj godišnji pregled; radnik samo vlastite podatke |
-| `sharedLeave` | Zajednički godišnji | sve | frontend demo | nema rute u v1 API nacrtu | samo ime i odobreni godišnji; bez privatnih razloga/statusa |
+| `sharedLeave` | Zajednički godišnji | sve | frontend demo | nema rute u odobrenom v1 API ugovoru | samo ime i odobreni godišnji; bez privatnih razloga/statusa |
 | `corrections` | Korekcije | admin, manager, worker | runtime | correction requests | povijest i odluke; izvorni attendance događaj ostaje neizmjenjiv |
 | `reports` | Izvještaji | admin, manager, accountant | runtime | report preview i exports | XLSX poslovni, CSV tehnički; server daje službeni dataset |
 | `terminal` | Terminali | admin, manager | runtime | terminali, heartbeat, sync | voditelj čita; administratorske mutacije provjerava server |

@@ -2,18 +2,18 @@
 
 | Stavka | Vrijednost |
 | --- | --- |
-| Status | **FRONTEND FROZEN — SPREMAN ZA BACKEND CONTRACT REVIEW** |
+| Status | **FRONTEND FROZEN — BACKEND OPENAPI v1 ODOBREN** |
 | Release | `v1.0.0` |
 | Git tag | `frontend-v1.0.0` |
 | Postojeća package/demo oznaka | `3.0.0` ostaje interna oznaka demonstratora; službeni freeze identificira Git tag |
 | Datum freezea | 13.07.2026. |
 | Provjereni aplikacijski baseline | `main` na `91323c7cdbbbbf7b965c4926c94a11af6d31bf62` |
 | Produkcija | `https://mvp-bss.pages.dev/` |
-| Sljedeći korak | Backend Contract Review; backend implementacija još nije započeta |
+| Sljedeći korak | Pregled Backend Faze A; frontend UX/UI ostaje zamrznut |
 
 ## 1. Svrha releasea
 
-Ovaj release zaključava BSS frontend demonstrator kao stabilnu referencu za predaju backend programeru. Release ne uvodi nove funkcije, ne mijenja UX/UI i ne sadrži backend implementaciju. Aplikacijski kod ostaje jednak provjerenom produkcijskom baselineu `91323c7`; promjene u freeze paketu ograničene su na release i handoff dokumentaciju te njihove automatske provjere.
+Ovaj release zaključava BSS frontend demonstrator kao stabilnu referencu za predaju backend programeru. Sam tag `frontend-v1.0.0` ne uvodi nove funkcije, ne mijenja UX/UI i ne sadrži backend implementaciju. Backend Faza A razvija se zasebno prema odobrenom OpenAPI v1 ugovoru, bez promjene provjerenog frontend baselinea `91323c7`.
 
 Frontend je referentni prikaz korisničkih tokova, uloga, statusa, tablica, filtara, odobravanja, izvještaja i RFID/NFC terminalskog toka. Poslovni podaci u ovoj verziji su demonstracijski i nisu serverski autoritet.
 
@@ -73,9 +73,9 @@ Detaljna mapa ekrana i uloga nalazi se u `BSS_SCREEN_MAP_V1.md` i `bss-frontend-
 
 ## 4. Stavke koje preuzima backend
 
-Backend rad započinje contract reviewom, ne izravnom implementacijom nasumičnih endpointa.
+Backend Contract Review je završen statusom `FULL PASS`; rad se nastavlja verzioniranim vertikalama, ne nasumičnim endpointima.
 
-1. Zaključati OpenAPI nacrt: error envelope, paginaciju, revizije/ETag, datume, vrijeme i timezone.
+1. Održavati zaključani OpenAPI `1.0.0`: error envelope, paginaciju, revizije/ETag, datume, vrijeme i timezone.
 2. Implementirati identitet, session cookie, organizacijski tenant, uloge i opseg odjela.
 3. Uvesti PostgreSQL modele, migracije, seed samo za razvoj i serverske validacije.
 4. Postaviti server kao jedini autoritet za radnike, smjene, RFID kartice, evidenciju, fond godišnjeg, zahtjeve i korekcije.
@@ -91,7 +91,7 @@ Backend rad započinje contract reviewom, ne izravnom implementacijom nasumični
 | Dokument | Uloga u predaji |
 | --- | --- |
 | `BSS_BACKEND_HANDOFF_V1.md` | arhitektura, vlasništvo podataka, redoslijed backend integracije i sigurnosne blokade |
-| `openapi/bss-mvp-api-v1.yaml` | nacrt API ugovora: 33 putanje i 43 operacije, bez backend implementacije |
+| `openapi/bss-mvp-api-v1.yaml` | odobren API ugovor `1.0.0`: 40 putanja i 51 operacija; Faza A implementira 30 |
 | `BSS_REPORTING_PROFILE_V1.md` | poslovni format XLSX/CSV, metapodaci, zbrojevi i kontrolne provjere |
 | `BSS_DESIGN_SYSTEM_V1.md` | zaključani tokeni, komponente, responsive i accessibility ugovor |
 | `BSS_SCREEN_MAP_V1.md` | ljudski čitljiva mapa 17 ekrana, uloga, načina rada i backend domena |
@@ -126,4 +126,4 @@ Nakon taga `frontend-v1.0.0`:
 
 ## 8. Release odluka
 
-`frontend-v1.0.0` označava stabilan frontend demonstrator i službenu referencu za backend programera. Ne označava dovršen backend ni produkcijski sustav za stvarne osobne podatke. Prvi sljedeći razvojni korak je Backend Contract Review nad dokumentima iz ovog paketa.
+`frontend-v1.0.0` označava stabilan frontend demonstrator i službenu referencu za backend programera. Ne označava dovršen cijeli backend ni produkcijski sustav za stvarne osobne podatke. Contract Review je završen; sljedeći korak je pregled Backend Faze A.

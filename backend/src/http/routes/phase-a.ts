@@ -2,7 +2,7 @@ import type { FastifyInstance, FastifyReply } from "fastify";
 import { requireRevision } from "../../domain/errors.js";
 import type { EntityStatus, Role } from "../../domain/types.js";
 import { requireDepartmentScope, requirePermission } from "../../security/rbac.js";
-import type { PhaseAService, ShiftWrite, WorkerWrite } from "../../services/contracts.js";
+import type { PhaseAService, ReportPreviewWrite, ShiftWrite, TerminalSyncEventView, WorkerWrite } from "../../services/contracts.js";
 import type { Authenticate } from "../app.js";
 
 type Dependencies = Readonly<{ phaseAService: PhaseAService; authenticate: Authenticate }>;
@@ -43,6 +43,12 @@ const shiftBody = {
     toleranceMinutes: { type: "integer", minimum: 0, maximum: 240 }
   }
 } as const;
+const dateRangeProperties = {
+  from: { type: "string", format: "date" },
+  to: { type: "string", format: "date" }
+} as const;
+const reportTypes = ["monthly_summary", "attendance_journal", "exceptions", "approved_absences", "correction_log"] as const;
+const attendanceStatuses = ["active", "complete", "late", "incomplete", "corrected"] as const;
 
 function etag(reply: FastifyReply, revision: string): void {
   reply.header("ETag", `"${revision}"`);
@@ -50,6 +56,24 @@ function etag(reply: FastifyReply, revision: string): void {
 
 export async function registerPhaseARoutes(app: FastifyInstance, dependencies: Dependencies): Promise<void> {
   const { phaseAService: service, authenticate } = dependencies;
+
+  app.get<{ Querystring: { date: string } }>(
+    "/api/v1/dashboard-summary",
+    {
+      schema: {
+        querystring: {
+          type: "object",
+          additionalProperties: false,
+          required: ["date"],
+          properties: { date: { type: "string", format: "date" } }
+        }
+      }
+    },
+    async (request) => {
+      const { actor } = await authenticate(request);
+      return service.getDashboardSummary(actor, request.query.date);
+    }
+  );
 
   app.get("/api/v1/organization", async (request, reply) => {
     const { actor } = await authenticate(request);
@@ -115,6 +139,42 @@ export async function registerPhaseARoutes(app: FastifyInstance, dependencies: D
     }
   );
 
+  app.patch<{
+    Params: { departmentId: string };
+    Headers: { "if-match": string };
+    Body: { name?: string; status?: EntityStatus };
+  }>(
+    "/api/v1/departments/:departmentId",
+    {
+      schema: {
+        params: idParams("departmentId"),
+        headers: revisionHeader,
+        body: {
+          type: "object",
+          additionalProperties: false,
+          minProperties: 1,
+          properties: {
+            name: { type: "string", minLength: 2, maxLength: 120 },
+            status: { type: "string", enum: ["active", "blocked"] }
+          }
+        }
+      }
+    },
+    async (request, reply) => {
+      const { actor } = await authenticate(request);
+      requirePermission(actor, "departments", "write");
+      const result = await service.updateDepartment(
+        actor,
+        request.params.departmentId,
+        request.body,
+        requireRevision(request.headers["if-match"]),
+        request.id
+      );
+      etag(reply, result.revision);
+      return result;
+    }
+  );
+
   app.get<{ Querystring: { year: number } }>(
     "/api/v1/holidays",
     {
@@ -127,10 +187,12 @@ export async function registerPhaseARoutes(app: FastifyInstance, dependencies: D
         }
       }
     },
-    async (request) => {
+    async (request, reply) => {
       const { actor } = await authenticate(request);
       requirePermission(actor, "holidays", "read");
-      return service.listHolidays(actor, request.query.year);
+      const result = await service.listHolidays(actor, request.query.year);
+      etag(reply, result.revision);
+      return result.items;
     }
   );
 
@@ -164,10 +226,12 @@ export async function registerPhaseARoutes(app: FastifyInstance, dependencies: D
         }
       }
     },
-    async (request) => {
+    async (request, reply) => {
       const { actor } = await authenticate(request);
       requirePermission(actor, "holidays", "write");
-      return service.replaceHolidays(actor, request.query.year, request.body, requireRevision(request.headers["if-match"]), request.id);
+      const result = await service.replaceHolidays(actor, request.query.year, request.body, requireRevision(request.headers["if-match"]), request.id);
+      etag(reply, result.revision);
+      return result.items;
     }
   );
 
@@ -356,6 +420,41 @@ export async function registerPhaseARoutes(app: FastifyInstance, dependencies: D
     }
   );
 
+  app.get<{ Params: { workerId: string } }>(
+    "/api/v1/workers/:workerId/rfid-cards",
+    { schema: { params: idParams("workerId") } },
+    async (request) => {
+      const { actor } = await authenticate(request);
+      requirePermission(actor, "workers", "read");
+      return service.listWorkerRfidCards(actor, request.params.workerId);
+    }
+  );
+
+  app.post<{ Params: { workerId: string }; Body: { uid: string; validFrom?: string } }>(
+    "/api/v1/workers/:workerId/rfid-cards",
+    {
+      schema: {
+        params: idParams("workerId"),
+        body: {
+          type: "object",
+          additionalProperties: false,
+          required: ["uid"],
+          properties: {
+            uid: { type: "string", minLength: 8, maxLength: 128 },
+            validFrom: { type: "string", format: "date-time" }
+          }
+        }
+      }
+    },
+    async (request, reply) => {
+      const { actor } = await authenticate(request);
+      requirePermission(actor, "workers", "write");
+      const result = await service.assignWorkerRfidCard(actor, request.params.workerId, request.body, request.id);
+      etag(reply, result.revision);
+      return reply.status(201).send(result);
+    }
+  );
+
   app.post<{ Params: { cardId: string } }>(
     "/api/v1/rfid-cards/:cardId/block",
     { schema: { params: idParams("cardId") } },
@@ -365,6 +464,93 @@ export async function registerPhaseARoutes(app: FastifyInstance, dependencies: D
       const result = await service.blockRfidCard(actor, request.params.cardId, request.id);
       etag(reply, result.revision);
       return result;
+    }
+  );
+
+  app.get<{
+    Querystring: { year: number; departmentId?: string; workerId?: string; cursor?: string; limit?: number };
+  }>(
+    "/api/v1/leave-balances",
+    {
+      schema: {
+        querystring: {
+          type: "object",
+          additionalProperties: false,
+          required: ["year"],
+          properties: {
+            year: { type: "integer", minimum: 2020, maximum: 2100 },
+            departmentId: { type: "string", pattern: "^[0-9a-fA-F-]{36}$" },
+            workerId: { type: "string", pattern: "^[0-9a-fA-F-]{36}$" },
+            cursor: { type: "string" },
+            limit: { type: "integer", minimum: 1, maximum: 200, default: 50 }
+          }
+        }
+      }
+    },
+    async (request) => {
+      const { actor } = await authenticate(request);
+      requirePermission(actor, "leave", "read");
+      if (request.query.departmentId && actor.role === "manager") requireDepartmentScope(actor, request.query.departmentId);
+      return service.listLeaveBalances(actor, { ...request.query, limit: request.query.limit ?? 50 });
+    }
+  );
+
+  app.post<{ Body: ReportPreviewWrite }>(
+    "/api/v1/report-previews",
+    {
+      schema: {
+        body: {
+          type: "object",
+          additionalProperties: false,
+          required: ["reportType", "periodFrom", "periodTo"],
+          properties: {
+            reportType: { type: "string", enum: reportTypes },
+            periodFrom: { type: "string", format: "date" },
+            periodTo: { type: "string", format: "date" },
+            departmentId: { anyOf: [{ type: "string", pattern: "^[0-9a-fA-F-]{36}$" }, { type: "null" }] },
+            workerId: { anyOf: [{ type: "string", pattern: "^[0-9a-fA-F-]{36}$" }, { type: "null" }] },
+            attendanceStatus: { anyOf: [{ type: "string", enum: attendanceStatuses }, { type: "null" }] },
+            limit: { type: "integer", minimum: 1, maximum: 200, default: 100 }
+          }
+        }
+      }
+    },
+    async (request) => {
+      const { actor } = await authenticate(request);
+      requirePermission(actor, "reports", "read");
+      if (request.body.departmentId && actor.role === "manager") requireDepartmentScope(actor, request.body.departmentId);
+      return service.createReportPreview(actor, request.body);
+    }
+  );
+
+  app.get<{
+    Params: { terminalId: string };
+    Querystring: { from: string; to: string; eventStatus?: TerminalSyncEventView["status"]; cursor?: string; limit?: number };
+  }>(
+    "/api/v1/terminals/:terminalId/sync-events",
+    {
+      schema: {
+        params: idParams("terminalId"),
+        querystring: {
+          type: "object",
+          additionalProperties: false,
+          required: ["from", "to"],
+          properties: {
+            ...dateRangeProperties,
+            eventStatus: { type: "string", enum: ["queued", "synced", "duplicate", "rejected"] },
+            cursor: { type: "string" },
+            limit: { type: "integer", minimum: 1, maximum: 200, default: 50 }
+          }
+        }
+      }
+    },
+    async (request) => {
+      const { actor } = await authenticate(request);
+      requirePermission(actor, "terminals", "read");
+      return service.listTerminalSyncEvents(actor, request.params.terminalId, {
+        ...request.query,
+        limit: request.query.limit ?? 50
+      });
     }
   );
 }

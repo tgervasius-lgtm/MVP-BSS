@@ -2,17 +2,17 @@
 
 | Stavka | Vrijednost |
 | --- | --- |
-| Status | **FRONTEND FROZEN — SPREMAN ZA BACKEND CONTRACT REVIEW** |
+| Status | **FRONTEND FROZEN — BACKEND OPENAPI v1 APPROVED / FULL PASS** |
 | Aplikacijski baseline | `main` na `91323c7cdbbbbf7b965c4926c94a11af6d31bf62` |
 | Frontend release | `v1.0.0` / tag `frontend-v1.0.0` |
 | Release bilješke | `BSS_FRONTEND_RELEASE_V1.md` |
 | Frontend pregled | `BSS_FRONTEND_FINAL_REVIEW_V1.md` |
 | Strojni manifest | `bss-frontend-handoff-v1.json` |
 | Mapa ekrana | `BSS_SCREEN_MAP_V1.md` |
-| API nacrt | `openapi/bss-mvp-api-v1.yaml` |
+| API ugovor | `openapi/bss-mvp-api-v1.yaml` (`1.0.0`, `FULL_PASS_APPROVED`) |
 | Izvještaji | `BSS_REPORTING_PROFILE_V1.md` |
 | Opseg | `BSS_MVP_SCOPE_FREEZE_V1.md` + `bss-mvp-scope-v1.json` |
-| Važno | Ovaj paket ne sadrži backend implementaciju ni produkcijski deploy |
+| Važno | Repozitorij sadrži Backend Fazu A, ali nema produkcijski backend deploy |
 
 ## 1. Što backend programer preuzima
 
@@ -21,7 +21,7 @@ BSS frontend je statičan, responzivan demonstracijski runtime s četiri uloge, 
 Zadatak backenda nije prepisati cijeli frontend, nego:
 
 1. postaviti serverski autoritet za identitet, opseg, podatke i poslovna pravila;
-2. implementirati ugovor iz OpenAPI nacrta nakon zajedničkog contract reviewa;
+2. implementirati odobreni i verzionirani OpenAPI v1 ugovor;
 3. zamijeniti demo repozitorije/adapterske granice HTTP implementacijama;
 4. sačuvati postojeće uloge, tokove, statuse i zabrane iz FROZEN opsega;
 5. osigurati idempotenciju terminala, append-only audit i reproducibilne izvještaje.
@@ -142,12 +142,12 @@ Ovo nisu nove poslovne funkcije, nego nužna stanja stvarne mrežne aplikacije:
 
 ## 9. Redoslijed integracije
 
-### B0 – contract review
+### B0 – contract review (završen)
 
 - Frontend Freeze v1.0.0 potvrđuje završni pregled i zaključane P0 UI/demonstracijske granice;
-- backend i frontend programer prolaze `openapi/bss-mvp-api-v1.yaml`;
-- zaključavaju error envelope, paginaciju, revizije i vremenske formate;
-- dodaju automatsku OpenAPI validaciju i generated client ili tipizirani ručni adapter.
+- `openapi/bss-mvp-api-v1.yaml` odobren je kao verzija `1.0.0`;
+- error envelope, paginacija, revizije, vremenski formati i screen/API matrica su zaključani;
+- automatska contract provjera dio je backend quality gatea.
 - `sharedLeave` i PDF/PDF-A ostaju izvan backend v1 ugovora dok Product Owner zasebno ne odobri Scope v1.1.
 
 ### B1 – identitet i read-only master podaci
@@ -179,7 +179,7 @@ Ovo nisu nove poslovne funkcije, nego nužna stanja stvarne mrežne aplikacije:
 
 ### B5 – terminal
 
-- pair/revoke, uređajni identitet, HMAC/mTLS odluka i rotacija tajne;
+- pair/revoke, zaključani HMAC-SHA256 v1 uređajni identitet i rotacija/enkripcija tajne;
 - batch idempotencija po `(terminal_id, device_event_id)`;
 - heartbeat, offline red, dvostruko slanje i odstupanje sata;
 - test najmanje 24 sata simuliranog offline rada.
@@ -214,16 +214,13 @@ Backend mora spremiti najmanje:
 
 ## 12. Otvorene tehničke odluke
 
-Ove odluke moraju biti zapisane ADR-om prije implementacije odgovarajućeg dijela:
+Arhitektura, sesije, PostgreSQL model i HMAC-SHA256 v1 terminalski ugovor su zaključani. Preostale operativne odluke prije odgovarajućeg deploya su:
 
-1. Fastify ili NestJS unutar već odabranog Node.js/TypeScript smjera;
-2. hosting API-ja i PostgreSQL-a te način upravljanja tajnama;
-3. session-cookie/BFF detalji i MFA plan za administratore;
-4. queue i privatna objektna pohrana za izvoze;
-5. HMAC ili mTLS identitet terminala;
-6. hrvatski kalendar blagdana i organizacijske iznimke;
-7. retention/anonymization rokovi i ugovorna GDPR pravila;
-8. ulazi li PDF/A-2u u Scope v1.1.
+1. hosting API-ja/PostgreSQL-a i platform secret/KMS store;
+2. queue i privatna objektna pohrana za izvoze;
+3. MFA rollout za administratore;
+4. retention/anonymization rokovi i ugovorna GDPR pravila;
+5. ulazi li PDF/A-2u u Scope v1.1.
 
 Frontend ne treba samostalno odabrati ove infrastrukturne odluke.
 
@@ -233,10 +230,10 @@ Predaja je prihvaćena kada backend programer može:
 
 - podići frontend i pokrenuti cijeli quality gate;
 - iz manifesta odrediti koji ekran čita i mijenja koji resurs;
-- iz OpenAPI nacrta napraviti contract review bez nagađanja uloga i statusa;
+- iz odobrenog OpenAPI v1 ugovora implementirati adapter bez nagađanja uloga i statusa;
 - objasniti koja je vrijednost serverski, a koja klijentski autoritet;
 - implementirati prvu read-only vertikalu bez izravne izmjene view HTML-a;
 - napisati tenant/scope negativne testove prije stvarnih podataka;
 - potvrditi da demo alati, produkcija i backend tajne ostaju strogo odvojeni.
 
-Nakon prihvata ovog paketa sljedeći korak je contract review, ne automatsko spajanje backenda u `main` ili produkciju.
+Backend Readiness je `FULL PASS`; sljedeći korak je pregled PR-a Faze A, ne automatsko spajanje u `main` ili produkciju.

@@ -5,6 +5,7 @@
 | Stil | modularni monolit |
 | Runtime | Node.js 22 LTS + TypeScript 5.9 |
 | HTTP | Fastify 5, REST `/api/v1` |
+| Ugovor | OpenAPI `1.0.0`, status `FULL_PASS_APPROVED` |
 | Baza | PostgreSQL 16, eksplicitni SQL + `pg` |
 | Tenant model | shared DB/schema + obvezni `organization_id` + FORCE RLS |
 | Autentikacija | opaque rotirajuće sesije u sigurnim kolačićima |
@@ -41,11 +42,11 @@ Frontend se ne autorizira sam. HTTP sloj mapira ugovor, security sloj stvara pro
 | `http` | da | OpenAPI rute, request ID, validacija, Problem envelope, no-store |
 | `security` | da | Argon2id, token hash, refresh rotacija, RBAC, Origin zaštita |
 | `db` | da | pool, tenant transakcija, migracije/checksum/advisory lock |
-| `identity` | da | login, `/me`, sesije, korisnici i scope odjela |
-| `organization/workforce` | da | organizacija, odjeli, radnici, smjene, blagdani, kartica block |
-| `attendance/terminal` | samo schema | raw događaji, idempotencija, izvedeni dan i heartbeat u Fazi B/B5 |
-| `leave/corrections` | samo schema | zahtjevi i atomske odluke u Fazi C/B3 |
-| `reporting/audit` | schema + audit zapisi mutacija A | izvozi i čitanje audita u B4 |
+| `identity` | da | login, invitation accept, `/me`, sesije, korisnici i scope odjela |
+| `organization/workforce` | da | organizacija, odjeli, radnici, smjene, blagdani i RFID lifecycle |
+| `attendance/terminal` | schema + sync read model | raw događaji, idempotencija i sync timeline; procesiranje u B2/B5 |
+| `leave/corrections` | schema + fond godišnjeg | authoritative allowance/balance; zahtjevi i atomske odluke u B3 |
+| `reporting/audit` | preview + audit zapisi mutacija A | bounded preview sada; export worker i audit read u B4 |
 
 ## 4. Tenant isolation
 
@@ -98,6 +99,8 @@ sequenceDiagram
 
 Access token traje 15 minuta, refresh 30 dana. Logout opoziva server-side sesiju. Refresh token se koristi jednom; reuse pokreće opoziv aktivnih sesija. IP i user-agent pohranjuju se samo kao hash za sigurnosnu korelaciju.
 
+Invitation accept koristi security-definer lookup samo za hash one-time tokena. Unutar tenant transakcije provjerava expiry/revocation, sprema Argon2id lozinku, aktivira račun, opoziva druge pozivnice i otvara prvu sesiju. Token i lozinka nikada ne ulaze u audit.
+
 MVP e-mail je globalno jedinstven jer postojeći login body nema tenant selector. To nije cross-tenant lookup iz frontenda: security-definer funkcija vraća točno jedan identitet, a zatim se sve odvija unutar njegovog tenant konteksta.
 
 ## 7. Model korekcija i audita
@@ -108,7 +111,7 @@ Audit događaj sadrži tenant, tip/ID/ulogu actora, radnju, entitet, before/afte
 
 ## 8. Migracije i kompatibilnost
 
-Migracije `001`–`005` odvajaju foundation, workforce, identity, operational model i RLS. Svaka ima development `down`, ali produkcijski rollback je aplikacijski rollback uz kompatibilnu forward migraciju. Pravila:
+Migracije `001`–`006` odvajaju foundation, workforce, identity, operational model, RLS i dovršetak v1 ugovora. Migracija 006 dodaje aggregate reviziju kalendara, replay nonceve, append-only sync timeline, polja za enkripciju uređajne tajne i invitation lookup. Svaka ima development `down`, ali produkcijski rollback je aplikacijski rollback uz kompatibilnu forward migraciju. Pravila:
 
 - nikad mijenjati checksum primijenjene migracije;
 - prvo dodati nullable/kompatibilnu strukturu, zatim backfill, pa tek u zasebnom izdanju ograničiti;
@@ -118,15 +121,25 @@ Migracije `001`–`005` odvajaju foundation, workforce, identity, operational mo
 
 ## 9. API i konkurentnost
 
-- OpenAPI je jedini HTTP ugovor; Phase A implementira 22 postojeće operacije.
+- OpenAPI je jedini HTTP ugovor; Faza A implementira 30 od 51 odobrene operacije.
 - JSON je `camelCase`; SQL je `snake_case` i mapira se u service sloju.
 - Body odbija dodatna polja; klijentski `organizationId` nije tiho prihvaćen.
 - Mutacije koriste `If-Match` i neprozirnu `revision`; stale zapis vraća `409`.
 - Error envelope je stabilan: `code`, sigurna `message`, `requestId`, opcionalni `fieldErrors`.
 - Privatni odgovor je `no-store`; service worker ga ne smije cacheirati.
 - Paginacija koristi neprozirni cursor i maksimalno 200 redaka.
+- Dashboard vraća najviše četiri KPI-ja, a svaki sadrži target ekran i normalizirane filtre.
+- Fond godišnjeg i preview izvještaja vraćaju serverske zbrojeve i deterministički `datasetVersion`.
 
-## 10. Observability i tajne
+## 10. Dovršeni v1 read/command ugovori
+
+- RFID UID se normalizira, HMAC-SHA256 hashira s tajnim pepperom i vraća samo kao maska.
+- Fond godišnjeg računa approved/planned/remaining/available radne dane, bez vikenda i tenant blagdana.
+- Report preview podržava pet zaključanih tipova, limit 200, role/department scope i authoritative totals.
+- Terminal sync timeline koristi newest-first `(received_at, id)` keyset pagination i append-only tablicu.
+- Device HMAC-SHA256 v1 potpis koristi canonical method/path/body-hash/timestamp/nonce, ±300 s i jednokratni nonce.
+
+## 11. Observability i tajne
 
 Fastify generira/prihvaća request ID, strukturirano logira i redaktira cookie/authorization/set-cookie. Produkcijski minimum prije pilota:
 
@@ -135,24 +148,25 @@ Fastify generira/prihvaća request ID, strukturirano logira i redaktira cookie/a
 - DB pool saturation i migration status;
 - kasnije: terminal last-seen/queue/clock offset, rejected event i export queue metrike.
 
-DATABASE URL, cookie/device tajne i storage ključevi idu u platform secret store. Nema tajni u frontendu, GitHubu, Cloudflare Pages public envu ili logovima.
+DATABASE URL, `RFID_UID_PEPPER`, cookie/device tajne, encryption key i storage ključevi idu u platform secret store. Nema tajni u frontendu, GitHubu, Cloudflare Pages public envu ili logovima.
 
-## 11. Faza A – isporučeno i granica
+## 12. Faza A – isporučeno i granica
 
 Isporučeno:
 
-- pet migracijskih koraka i puni relacijski MVP model;
+- šest migracijskih koraka i puni relacijski MVP model;
 - FORCE RLS + tenant FK-ovi;
-- login/refresh/logout/`me`, Argon2id i rotirajuće sesije;
+- login/invitation accept/refresh/logout/`me`, Argon2id i rotirajuće sesije;
 - RBAC matrica i manager department scope;
-- REST za organizaciju, odjele, blagdane, korisnike, radnike, smjene i RFID block;
+- REST za dashboard, organizaciju, odjele, blagdane, korisnike, radnike, smjene i cijeli RFID assignment/block tok;
+- authoritative fond godišnjeg, report preview i terminal sync-event timeline;
 - optimistic concurrency i audit mutacija;
 - unit, HTTP contract i stvarni PostgreSQL integration test;
 - GitHub quality gate s PostgreSQL 16 servisom;
 - backup/restore/rollback runbook.
 
-Nije isporučeno u Fazi A: povezivanje frontenda, attendance/terminal processing, leave/correction odluke, export worker, object storage, MFA UX i produkcijski deploy. To je namjerna fazna granica, ne skriveni nedovršeni frontend posao.
+Nije isporučeno u Fazi A: povezivanje frontenda, attendance/terminal processing, leave/correction odluke, export worker, object storage, MFA UX i produkcijski deploy. Njihovi v1 API ugovori su zaključani; implementacija je namjerna granica kasnijih faza, ne otvorena readiness odluka.
 
-## 12. Sljedeći gate
+## 13. Sljedeći gate
 
-Nakon pregleda i odobrenja Faze A slijedi read-only attendance vertikala. Prije svake kasnije vertikale mora se verzionirati samo relevantna praznina iz `BACKEND_READINESS_REPORT.md`; ne smije se paralelno širiti UX/UI ili poslovni opseg.
+Readiness je `FULL PASS`. Nakon pregleda i odobrenja Faze A slijedi read-only attendance vertikala prema već odobrenom OpenAPI v1. Svaka buduća promjena sheme mora povećati verziju ugovora; ne smije se paralelno širiti UX/UI ili poslovni opseg.

@@ -1,31 +1,49 @@
 openapi: 3.1.0
 info:
   title: BSS MVP API
-  version: 0.1.0-draft
-  summary: Contract draft for the frozen BSS attendance MVP.
+  version: 1.0.0
+  summary: Approved backend contract for the frozen BSS Frontend v1.0.0.
   description: |
-    Review draft only; it is not a deployed backend. The server derives organization,
+    Approved versioned contract for backend implementation; deployment remains a separate
+    operational decision. The server derives organization,
     role and department scope from the verified session/device identity. Client-supplied
     scope is never authorization evidence. CSV and XLSX are the currently approved export
     formats. PDF/PDF-A requires a separate scope decision.
-  x-bss-status: DRAFT_FOR_CONTRACT_REVIEW
+  x-bss-status: FULL_PASS_APPROVED
+  x-bss-contract-reviewed-at: 2026-07-13
   x-bss-frontend-release: frontend-v1.0.0
   x-bss-baseline-commit: 91323c7cdbbbbf7b965c4926c94a11af6d31bf62
+  license:
+    name: Proprietary
+    identifier: LicenseRef-Proprietary
 servers:
   - url: /api/v1
     description: Same-origin application API
 tags:
   - name: Auth
+    description: Browser authentication, invitation acceptance and secure sessions.
+  - name: Dashboard
+    description: Role-scoped KPI summaries with deterministic drill-down targets.
   - name: Organization
+    description: Organization settings, departments and working calendars.
   - name: Users
+    description: User accounts, invitations, roles and department scope.
   - name: Workers
+    description: Workers and privacy-safe RFID assignment lifecycle.
   - name: Shifts
+    description: Shift configuration and assignment counts.
   - name: Attendance
+    description: Scoped attendance evidence, derived days and totals.
   - name: Leave
+    description: Leave requests, decisions and authoritative annual balances.
   - name: Corrections
+    description: Auditable requests to correct derived attendance records.
   - name: Reports
+    description: Bounded previews and professional CSV/XLSX export jobs.
   - name: Audit
+    description: Append-only administrative evidence.
   - name: Terminals
+    description: Terminal identity, synchronization, event ingestion and heartbeat.
 security:
   - sessionCookie: []
 paths:
@@ -33,6 +51,7 @@ paths:
     post:
       tags: [Auth]
       operationId: login
+      summary: Login
       security: []
       requestBody:
         required: true
@@ -55,23 +74,51 @@ paths:
     post:
       tags: [Auth]
       operationId: refreshSession
+      summary: Refresh Session
       security: []
       responses:
         '204':
           description: Session cookie rotated.
         '401':
           $ref: '#/components/responses/Unauthenticated'
+  /auth/invitations/accept:
+    post:
+      tags: [Auth]
+      operationId: acceptInvitation
+      summary: Accept Invitation
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InvitationAcceptRequest'
+      responses:
+        '200':
+          description: Invitation accepted, password set and secure session created atomically.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionContext'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
   /auth/logout:
     post:
       tags: [Auth]
       operationId: logout
+      summary: Logout
       responses:
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
         '204':
           description: Session invalidated and cookie cleared.
   /me:
     get:
       tags: [Auth]
       operationId: getSessionContext
+      summary: Get Session Context
       responses:
         '200':
           description: Verified user, organization and effective scope.
@@ -81,10 +128,33 @@ paths:
                 $ref: '#/components/schemas/SessionContext'
         '401':
           $ref: '#/components/responses/Unauthenticated'
+  /dashboard-summary:
+    get:
+      tags: [Dashboard]
+      operationId: getDashboardSummary
+      summary: Get Dashboard Summary
+      x-bss-roles: [admin, manager, worker, accountant]
+      parameters:
+        - name: date
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+      responses:
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '200':
+          description: At most four role-scoped KPI values; every KPI includes a deterministic drill-down target.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardSummary'
   /organization:
     get:
       tags: [Organization]
       operationId: getOrganization
+      summary: Get Organization
       x-bss-roles: [admin]
       responses:
         '200':
@@ -98,6 +168,7 @@ paths:
     patch:
       tags: [Organization]
       operationId: updateOrganization
+      summary: Update Organization
       x-bss-roles: [admin]
       parameters:
         - $ref: '#/components/parameters/IfMatch'
@@ -120,8 +191,11 @@ paths:
     get:
       tags: [Organization]
       operationId: listDepartments
+      summary: List Departments
       x-bss-roles: [admin, manager]
       responses:
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
         '200':
           description: Departments inside the effective scope.
           content:
@@ -133,6 +207,7 @@ paths:
     post:
       tags: [Organization]
       operationId: createDepartment
+      summary: Create Department
       x-bss-roles: [admin]
       requestBody:
         required: true
@@ -149,15 +224,47 @@ paths:
                 $ref: '#/components/schemas/Department'
         '422':
           $ref: '#/components/responses/ValidationFailed'
+  /departments/{departmentId}:
+    patch:
+      tags: [Organization]
+      operationId: updateDepartment
+      summary: Update Department
+      x-bss-roles: [admin]
+      parameters:
+        - $ref: '#/components/parameters/DepartmentIdPath'
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DepartmentPatch'
+      responses:
+        '200':
+          description: Department updated or blocked while historical relations remain retained.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Department'
+        '409':
+          $ref: '#/components/responses/Conflict'
   /holidays:
     get:
       tags: [Organization]
       operationId: listHolidays
+      summary: List Holidays
       parameters:
         - $ref: '#/components/parameters/Year'
       responses:
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
         '200':
           description: Organization holidays used for working-day calculations.
+          headers:
+            ETag:
+              description: Aggregate revision of the requested organization/year calendar.
+              schema:
+                type: string
           content:
             application/json:
               schema:
@@ -167,6 +274,7 @@ paths:
     put:
       tags: [Organization]
       operationId: replaceHolidaysForYear
+      summary: Replace Holidays For Year
       x-bss-roles: [admin]
       parameters:
         - $ref: '#/components/parameters/Year'
@@ -182,6 +290,11 @@ paths:
       responses:
         '200':
           description: Stored holiday calendar.
+          headers:
+            ETag:
+              description: New aggregate revision of the organization/year calendar.
+              schema:
+                type: string
           content:
             application/json:
               schema:
@@ -194,11 +307,14 @@ paths:
     get:
       tags: [Users]
       operationId: listUsers
+      summary: List Users
       x-bss-roles: [admin]
       parameters:
         - $ref: '#/components/parameters/Cursor'
         - $ref: '#/components/parameters/Limit'
       responses:
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
         '200':
           description: Organization user accounts.
           content:
@@ -208,6 +324,7 @@ paths:
     post:
       tags: [Users]
       operationId: inviteUser
+      summary: Invite User
       x-bss-roles: [admin]
       requestBody:
         required: true
@@ -228,6 +345,7 @@ paths:
     patch:
       tags: [Users]
       operationId: updateUser
+      summary: Update User
       x-bss-roles: [admin]
       parameters:
         - $ref: '#/components/parameters/UserId'
@@ -251,6 +369,7 @@ paths:
     get:
       tags: [Workers]
       operationId: listWorkers
+      summary: List Workers
       x-bss-roles: [admin, manager]
       parameters:
         - $ref: '#/components/parameters/Cursor'
@@ -263,6 +382,8 @@ paths:
             type: string
             maxLength: 100
       responses:
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
         '200':
           description: Workers inside the verified effective scope.
           content:
@@ -272,6 +393,7 @@ paths:
     post:
       tags: [Workers]
       operationId: createWorker
+      summary: Create Worker
       x-bss-roles: [admin]
       requestBody:
         required: true
@@ -292,6 +414,7 @@ paths:
     get:
       tags: [Workers]
       operationId: getWorker
+      summary: Get Worker
       x-bss-roles: [admin, manager]
       parameters:
         - $ref: '#/components/parameters/WorkerId'
@@ -307,6 +430,7 @@ paths:
     patch:
       tags: [Workers]
       operationId: updateWorker
+      summary: Update Worker
       x-bss-roles: [admin]
       parameters:
         - $ref: '#/components/parameters/WorkerId'
@@ -330,11 +454,14 @@ paths:
     post:
       tags: [Workers]
       operationId: deactivateWorker
+      summary: Deactivate Worker
       x-bss-roles: [admin]
       parameters:
         - $ref: '#/components/parameters/WorkerId'
         - $ref: '#/components/parameters/IfMatch'
       responses:
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
         '200':
           description: Worker blocked while historical records are retained.
           content:
@@ -345,8 +472,11 @@ paths:
     get:
       tags: [Shifts]
       operationId: listShifts
+      summary: List Shifts
       x-bss-roles: [admin, manager]
       responses:
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
         '200':
           description: Organization shifts with assignment counts.
           content:
@@ -358,6 +488,7 @@ paths:
     post:
       tags: [Shifts]
       operationId: createShift
+      summary: Create Shift
       x-bss-roles: [admin]
       requestBody:
         required: true
@@ -378,6 +509,7 @@ paths:
     patch:
       tags: [Shifts]
       operationId: updateShift
+      summary: Update Shift
       x-bss-roles: [admin]
       parameters:
         - $ref: '#/components/parameters/ShiftId'
@@ -401,20 +533,65 @@ paths:
     post:
       tags: [Workers]
       operationId: blockRfidCard
+      summary: Block Rfid Card
       x-bss-roles: [admin]
       parameters:
         - $ref: '#/components/parameters/CardId'
       responses:
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
         '200':
           description: Card blocked; historical assignments remain available.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/RfidCard'
+  /workers/{workerId}/rfid-cards:
+    get:
+      tags: [Workers]
+      operationId: listWorkerRfidCards
+      summary: List Worker Rfid Cards
+      x-bss-roles: [admin, manager]
+      parameters:
+        - $ref: '#/components/parameters/WorkerId'
+      responses:
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '200':
+          description: Masked RFID assignments for a worker inside effective scope; raw UID is never returned.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RfidCard'
+    post:
+      tags: [Workers]
+      operationId: assignWorkerRfidCard
+      summary: Assign Worker Rfid Card
+      x-bss-roles: [admin]
+      parameters:
+        - $ref: '#/components/parameters/WorkerId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RfidCardAssign'
+      responses:
+        '201':
+          description: RFID UID normalized, peppered/HMAC-hashed and assigned; response contains only a masked UID.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RfidCard'
+        '409':
+          $ref: '#/components/responses/Conflict'
   /attendance:
     get:
       tags: [Attendance]
       operationId: listAttendance
+      summary: List Attendance
       x-bss-roles: [admin, manager]
       parameters:
         - $ref: '#/components/parameters/FromDate'
@@ -428,6 +605,8 @@ paths:
         - $ref: '#/components/parameters/Cursor'
         - $ref: '#/components/parameters/Limit'
       responses:
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
         '200':
           description: Attendance rows and server-authoritative totals inside effective scope.
           content:
@@ -438,6 +617,7 @@ paths:
     get:
       tags: [Attendance]
       operationId: getWorkerAttendance
+      summary: Get Worker Attendance
       x-bss-roles: [admin, manager, worker]
       description: Worker may request only self; server ignores client identity claims and checks the session.
       parameters:
@@ -457,6 +637,7 @@ paths:
     get:
       tags: [Leave]
       operationId: listLeaveRequests
+      summary: List Leave Requests
       x-bss-roles: [admin, manager, worker, accountant]
       parameters:
         - $ref: '#/components/parameters/FromDate'
@@ -467,6 +648,8 @@ paths:
           schema:
             $ref: '#/components/schemas/RequestStatus'
       responses:
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
         '200':
           description: Leave requests inside effective role scope.
           content:
@@ -476,6 +659,7 @@ paths:
     post:
       tags: [Leave]
       operationId: createLeaveRequest
+      summary: Create Leave Request
       x-bss-roles: [worker]
       requestBody:
         required: true
@@ -492,10 +676,32 @@ paths:
                 $ref: '#/components/schemas/LeaveRequest'
         '422':
           $ref: '#/components/responses/ValidationFailed'
+  /leave-balances:
+    get:
+      tags: [Leave]
+      operationId: listLeaveBalances
+      summary: List Leave Balances
+      x-bss-roles: [admin, manager, worker, accountant]
+      parameters:
+        - $ref: '#/components/parameters/Year'
+        - $ref: '#/components/parameters/DepartmentId'
+        - $ref: '#/components/parameters/WorkerIdQuery'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '200':
+          description: Server-authoritative annual allowance, approved, planned and available working days in effective scope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LeaveBalancePage'
   /leave-requests/{requestId}/approve:
     post:
       tags: [Leave]
       operationId: approveLeaveRequest
+      summary: Approve Leave Request
       x-bss-roles: [admin, manager]
       parameters:
         - $ref: '#/components/parameters/RequestId'
@@ -515,6 +721,7 @@ paths:
     post:
       tags: [Leave]
       operationId: rejectLeaveRequest
+      summary: Reject Leave Request
       x-bss-roles: [admin, manager]
       parameters:
         - $ref: '#/components/parameters/RequestId'
@@ -522,6 +729,8 @@ paths:
       requestBody:
         $ref: '#/components/requestBodies/RequiredDecision'
       responses:
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
         '200':
           description: Rejected request with mandatory decision note.
           content:
@@ -532,6 +741,7 @@ paths:
     post:
       tags: [Leave]
       operationId: cancelOwnLeaveRequest
+      summary: Cancel Own Leave Request
       x-bss-roles: [worker]
       parameters:
         - $ref: '#/components/parameters/RequestId'
@@ -549,6 +759,7 @@ paths:
     get:
       tags: [Corrections]
       operationId: listCorrectionRequests
+      summary: List Correction Requests
       x-bss-roles: [admin, manager, worker]
       parameters:
         - $ref: '#/components/parameters/FromDate'
@@ -558,6 +769,8 @@ paths:
           schema:
             $ref: '#/components/schemas/RequestStatus'
       responses:
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
         '200':
           description: Correction requests inside effective role scope.
           content:
@@ -567,6 +780,7 @@ paths:
     post:
       tags: [Corrections]
       operationId: createCorrectionRequest
+      summary: Create Correction Request
       x-bss-roles: [worker]
       requestBody:
         required: true
@@ -587,6 +801,7 @@ paths:
     post:
       tags: [Corrections]
       operationId: approveCorrectionRequest
+      summary: Approve Correction Request
       x-bss-roles: [admin, manager]
       parameters:
         - $ref: '#/components/parameters/RequestId'
@@ -606,6 +821,7 @@ paths:
     post:
       tags: [Corrections]
       operationId: rejectCorrectionRequest
+      summary: Reject Correction Request
       x-bss-roles: [admin, manager]
       parameters:
         - $ref: '#/components/parameters/RequestId'
@@ -613,6 +829,8 @@ paths:
       requestBody:
         $ref: '#/components/requestBodies/RequiredDecision'
       responses:
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
         '200':
           description: Rejected correction; original attendance remains unchanged.
           content:
@@ -623,11 +841,14 @@ paths:
     post:
       tags: [Corrections]
       operationId: cancelOwnCorrectionRequest
+      summary: Cancel Own Correction Request
       x-bss-roles: [worker]
       parameters:
         - $ref: '#/components/parameters/RequestId'
         - $ref: '#/components/parameters/IfMatch'
       responses:
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
         '200':
           description: Own pending correction request cancelled.
           content:
@@ -638,11 +859,14 @@ paths:
     get:
       tags: [Reports]
       operationId: listReportExports
+      summary: List Report Exports
       x-bss-roles: [admin, manager, accountant]
       parameters:
         - $ref: '#/components/parameters/Cursor'
         - $ref: '#/components/parameters/Limit'
       responses:
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
         '200':
           description: Export history inside effective role scope.
           content:
@@ -652,6 +876,7 @@ paths:
     post:
       tags: [Reports]
       operationId: createReportExport
+      summary: Create Report Export
       x-bss-roles: [admin, manager, accountant]
       requestBody:
         required: true
@@ -668,10 +893,32 @@ paths:
                 $ref: '#/components/schemas/ReportExport'
         '422':
           $ref: '#/components/responses/ValidationFailed'
+  /report-previews:
+    post:
+      tags: [Reports]
+      operationId: createReportPreview
+      summary: Create Report Preview
+      x-bss-roles: [admin, manager, accountant]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReportPreviewWrite'
+      responses:
+        '200':
+          description: Bounded preview generated by the same normalized filters and scoped query family used for export.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportPreview'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
   /report-exports/{exportId}:
     get:
       tags: [Reports]
       operationId: getReportExport
+      summary: Get Report Export
       x-bss-roles: [admin, manager, accountant]
       parameters:
         - $ref: '#/components/parameters/ExportId'
@@ -688,6 +935,7 @@ paths:
     get:
       tags: [Audit]
       operationId: listAuditEvents
+      summary: List Audit Events
       x-bss-roles: [admin]
       parameters:
         - $ref: '#/components/parameters/FromDate'
@@ -703,6 +951,8 @@ paths:
         - $ref: '#/components/parameters/Cursor'
         - $ref: '#/components/parameters/Limit'
       responses:
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
         '200':
           description: Append-only audit events; no mutation endpoint exists.
           content:
@@ -713,8 +963,11 @@ paths:
     get:
       tags: [Terminals]
       operationId: listTerminals
+      summary: List Terminals
       x-bss-roles: [admin, manager]
       responses:
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
         '200':
           description: Terminal state and latest heartbeat; manager is read-only.
           content:
@@ -727,6 +980,7 @@ paths:
     post:
       tags: [Terminals]
       operationId: pairTerminal
+      summary: Pair Terminal
       x-bss-roles: [admin]
       requestBody:
         required: true
@@ -747,23 +1001,56 @@ paths:
     post:
       tags: [Terminals]
       operationId: revokeTerminal
+      summary: Revoke Terminal
       x-bss-roles: [admin]
       parameters:
         - $ref: '#/components/parameters/TerminalId'
         - $ref: '#/components/parameters/IfMatch'
       responses:
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
         '200':
           description: Terminal identity revoked without deleting historical events.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Terminal'
+  /terminals/{terminalId}/sync-events:
+    get:
+      tags: [Terminals]
+      operationId: listTerminalSyncEvents
+      summary: List Terminal Sync Events
+      x-bss-roles: [admin, manager]
+      parameters:
+        - $ref: '#/components/parameters/TerminalId'
+        - $ref: '#/components/parameters/FromDate'
+        - $ref: '#/components/parameters/ToDate'
+        - name: eventStatus
+          in: query
+          schema:
+            $ref: '#/components/schemas/TerminalEventStatus'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '200':
+          description: Terminal synchronization evidence in effective tenant scope, newest first.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TerminalSyncEventPage'
   /terminal/v1/events/batch:
     post:
       tags: [Terminals]
       operationId: ingestTerminalEventBatch
+      summary: Ingest Terminal Event Batch
       security:
         - deviceSignature: []
+      parameters:
+        - $ref: '#/components/parameters/DeviceId'
+        - $ref: '#/components/parameters/DeviceTimestamp'
+        - $ref: '#/components/parameters/DeviceNonce'
       requestBody:
         required: true
         content:
@@ -785,8 +1072,13 @@ paths:
     post:
       tags: [Terminals]
       operationId: terminalHeartbeat
+      summary: Terminal Heartbeat
       security:
         - deviceSignature: []
+      parameters:
+        - $ref: '#/components/parameters/DeviceId'
+        - $ref: '#/components/parameters/DeviceTimestamp'
+        - $ref: '#/components/parameters/DeviceNonce'
       requestBody:
         required: true
         content:
@@ -794,6 +1086,8 @@ paths:
             schema:
               $ref: '#/components/schemas/TerminalHeartbeat'
       responses:
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
         '204':
           description: Heartbeat accepted.
 components:
@@ -807,7 +1101,11 @@ components:
       type: apiKey
       in: header
       name: X-BSS-Signature
-      description: Draft device authentication placeholder; HMAC or mTLS is an ADR decision.
+      description: |
+        HMAC-SHA256 v1. The terminal signs UTF-8 bytes of
+        METHOD + "\n" + PATH + "\n" + SHA256_HEX(BODY) + "\n" + X-BSS-Timestamp + "\n" + X-BSS-Nonce.
+        The signature is lowercase hexadecimal. Server resolves X-BSS-Device-Id inside the tenant-owned
+        encrypted credential store, permits at most 300 seconds clock skew and atomically consumes each nonce.
   parameters:
     IfMatch:
       name: If-Match
@@ -854,6 +1152,12 @@ components:
     DepartmentId:
       name: departmentId
       in: query
+      schema:
+        type: string
+    DepartmentIdPath:
+      name: departmentId
+      in: path
+      required: true
       schema:
         type: string
     Status:
@@ -909,6 +1213,30 @@ components:
       required: true
       schema:
         type: string
+    DeviceId:
+      name: X-BSS-Device-Id
+      in: header
+      required: true
+      schema:
+        type: string
+        format: uuid
+    DeviceTimestamp:
+      name: X-BSS-Timestamp
+      in: header
+      required: true
+      description: RFC 3339 UTC timestamp; maximum accepted clock skew is 300 seconds.
+      schema:
+        type: string
+        format: date-time
+    DeviceNonce:
+      name: X-BSS-Nonce
+      in: header
+      required: true
+      description: Cryptographically random single-use base64url nonce, retained until its replay window expires.
+      schema:
+        type: string
+        minLength: 22
+        maxLength: 128
   requestBodies:
     Decision:
       required: false
@@ -1021,6 +1349,20 @@ components:
           type: string
           format: password
           minLength: 12
+    InvitationAcceptRequest:
+      type: object
+      additionalProperties: false
+      required: [token, password]
+      properties:
+        token:
+          type: string
+          minLength: 32
+          maxLength: 256
+        password:
+          type: string
+          format: password
+          minLength: 12
+          maxLength: 1024
     SessionContext:
       type: object
       additionalProperties: false
@@ -1042,6 +1384,40 @@ components:
                 type: string
             selfWorkerId:
               type: [string, 'null']
+    DashboardKpi:
+      type: object
+      additionalProperties: false
+      required: [id, value, targetScreen, filters]
+      properties:
+        id:
+          type: string
+          enum: [present, absent_today, review_required, pending_decision, worked_minutes, balance_minutes, available_leave]
+        value:
+          type: integer
+        targetScreen:
+          type: string
+          enum: [attendance, requests, corrections, reports, mytime, vacations]
+        filters:
+          type: object
+          additionalProperties:
+            type: string
+    DashboardSummary:
+      type: object
+      additionalProperties: false
+      required: [date, role, kpis, datasetVersion]
+      properties:
+        date:
+          type: string
+          format: date
+        role:
+          $ref: '#/components/schemas/Role'
+        kpis:
+          type: array
+          maxItems: 4
+          items:
+            $ref: '#/components/schemas/DashboardKpi'
+        datasetVersion:
+          type: string
     Organization:
       type: object
       required: [id, name, timezone, revision]
@@ -1091,6 +1467,17 @@ components:
           type: string
           minLength: 2
           maxLength: 120
+    DepartmentPatch:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 120
+        status:
+          $ref: '#/components/schemas/EntityStatus'
     Holiday:
       type: object
       required: [id, date, name, revision]
@@ -1299,6 +1686,19 @@ components:
           format: date-time
         revision:
           $ref: '#/components/schemas/Revision'
+    RfidCardAssign:
+      type: object
+      additionalProperties: false
+      required: [uid]
+      properties:
+        uid:
+          type: string
+          minLength: 8
+          maxLength: 128
+          description: Read once over TLS; normalized, peppered/HMAC-hashed and never returned or logged.
+        validFrom:
+          type: string
+          format: date-time
     AttendanceDay:
       type: object
       required: [id, workerId, workDate, shift, status, workedMinutes, plannedMinutes, balanceMinutes, revision]
@@ -1445,6 +1845,47 @@ components:
             $ref: '#/components/schemas/LeaveRequest'
         page:
           $ref: '#/components/schemas/PageMeta'
+    LeaveBalance:
+      type: object
+      additionalProperties: false
+      required: [workerId, year, allowanceDays, approvedDays, plannedDays, remainingDays, availableDays, revision]
+      properties:
+        workerId:
+          type: string
+        year:
+          type: integer
+        allowanceDays:
+          type: integer
+          minimum: 0
+        carriedOverDays:
+          type: integer
+          minimum: 0
+          default: 0
+        approvedDays:
+          type: integer
+          minimum: 0
+        plannedDays:
+          type: integer
+          minimum: 0
+        remainingDays:
+          type: integer
+        availableDays:
+          type: integer
+        revision:
+          $ref: '#/components/schemas/Revision'
+    LeaveBalancePage:
+      type: object
+      additionalProperties: false
+      required: [items, page, datasetVersion]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/LeaveBalance'
+        page:
+          $ref: '#/components/schemas/PageMeta'
+        datasetVersion:
+          type: string
     DecisionWrite:
       type: object
       additionalProperties: false
@@ -1568,6 +2009,83 @@ components:
           oneOf:
             - $ref: '#/components/schemas/AttendanceStatus'
             - type: 'null'
+    ReportPreviewWrite:
+      type: object
+      additionalProperties: false
+      required: [reportType, periodFrom, periodTo]
+      properties:
+        reportType:
+          $ref: '#/components/schemas/ReportType'
+        periodFrom:
+          type: string
+          format: date
+        periodTo:
+          type: string
+          format: date
+        departmentId:
+          type: [string, 'null']
+        workerId:
+          type: [string, 'null']
+        attendanceStatus:
+          oneOf:
+            - $ref: '#/components/schemas/AttendanceStatus'
+            - type: 'null'
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 100
+    ReportPreviewColumn:
+      type: object
+      additionalProperties: false
+      required: [key, label, dataType]
+      properties:
+        key:
+          type: string
+        label:
+          type: string
+        dataType:
+          type: string
+          enum: [text, date, datetime, integer, minutes, status]
+    ReportPreviewTotals:
+      type: object
+      additionalProperties: false
+      required: [rowCount, workedMinutes, plannedMinutes, balanceMinutes]
+      properties:
+        rowCount:
+          type: integer
+          minimum: 0
+        workedMinutes:
+          type: integer
+        plannedMinutes:
+          type: integer
+        balanceMinutes:
+          type: integer
+    ReportPreview:
+      type: object
+      additionalProperties: false
+      required: [reportType, filters, columns, rows, totals, datasetVersion, truncated]
+      properties:
+        reportType:
+          $ref: '#/components/schemas/ReportType'
+        filters:
+          $ref: '#/components/schemas/ReportPreviewWrite'
+        columns:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReportPreviewColumn'
+        rows:
+          type: array
+          items:
+            type: object
+            additionalProperties:
+              type: [string, integer, 'null']
+        totals:
+          $ref: '#/components/schemas/ReportPreviewTotals'
+        datasetVersion:
+          type: string
+        truncated:
+          type: boolean
     ReportExport:
       type: object
       required: [id, reportType, format, status, filters, createdAt, datasetVersion, templateVersion]
@@ -1764,6 +2282,46 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/TerminalEventResult'
+    TerminalSyncEvent:
+      type: object
+      additionalProperties: false
+      required: [id, terminalId, deviceEventId, sequence, occurredAt, receivedAt, eventType, status]
+      properties:
+        id:
+          type: string
+        terminalId:
+          type: string
+        deviceEventId:
+          type: string
+          format: uuid
+        sequence:
+          type: integer
+        workerId:
+          type: [string, 'null']
+        occurredAt:
+          type: string
+          format: date-time
+        receivedAt:
+          type: string
+          format: date-time
+        eventType:
+          type: string
+          enum: [check_in, check_out]
+        status:
+          $ref: '#/components/schemas/TerminalEventStatus'
+        rejectionCode:
+          type: [string, 'null']
+    TerminalSyncEventPage:
+      type: object
+      additionalProperties: false
+      required: [items, page]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/TerminalSyncEvent'
+        page:
+          $ref: '#/components/schemas/PageMeta'
     TerminalHeartbeat:
       type: object
       additionalProperties: false

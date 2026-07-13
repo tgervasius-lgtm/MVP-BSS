@@ -6,9 +6,11 @@ Use three database identities:
 
 - `bss_owner`: `NOLOGIN`, owns tables/functions;
 - `bss_migrator`: temporary/deployment identity allowed to assume `bss_owner`;
-- `bss_app`: `LOGIN NOSUPERUSER NOBYPASSRLS`, runtime DML plus execution of the three security-definer identity lookup functions.
+- `bss_app`: `LOGIN NOSUPERUSER NOBYPASSRLS`, runtime DML plus execution of the four security-definer identity lookup functions.
 
 The application must never connect as owner, superuser or a role with `BYPASSRLS`. Apply `deploy/runtime-grants.sql` after migrations and repeat grants for newly introduced tables/functions.
+
+Runtime secrets must come from the platform secret/KMS store. At minimum this includes `DATABASE_URL`, `RFID_UID_PEPPER`, cookie/session deployment settings and the terminal credential encryption key. Rotate the RFID pepper only through a planned card re-enrollment migration because its HMAC output is the lookup key.
 
 ## Migrations
 

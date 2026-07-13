@@ -82,7 +82,7 @@ Freeze je prihvatljiv samo kada:
 3. build reproducibilno proizvodi Cloudflare Pages `dist/` paket;
 4. svi desktop i mobilni Chromium scenariji prolaze bez nedopuštenog overflowa;
 5. ključni runtime, Design System i Brand Book nemaju ozbiljne axe povrede;
-6. OpenAPI se parsira i sadrži zaključanih 33 putanje i 43 operacije;
+6. OpenAPI `1.0.0` prolazi službeni lint i sadrži zaključanih 40 putanja i 51 jedinstvenu operaciju;
 7. release dokument, handoff manifest i Screen Map navode isti baseline, 17 ekrana i četiri uloge.
 
 ## 6. Odluka za predaju

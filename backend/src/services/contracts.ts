@@ -6,6 +6,7 @@ export type RequestMetadata = Readonly<{ requestId: string; ip?: string; userAge
 
 export interface AuthService {
   login(email: string, password: string, metadata: RequestMetadata): Promise<AuthResult>;
+  acceptInvitation(token: string, password: string, metadata: RequestMetadata): Promise<AuthResult>;
   resolveAccessToken(token: string): Promise<{ context: SessionContext; actor: ActorContext }>;
   rotate(refreshToken: string, metadata: RequestMetadata): Promise<AuthTokens>;
   logout(actor: ActorContext, requestId: string): Promise<void>;
@@ -51,6 +52,7 @@ export type UserView = {
   revision: string;
 };
 export type HolidayView = { id: string; date: string; name: string; revision: string };
+export type HolidayCalendarView = { items: HolidayView[]; revision: string };
 export type RfidCardView = {
   id: string;
   maskedUid: string;
@@ -59,6 +61,59 @@ export type RfidCardView = {
   validFrom: string;
   validTo: string | null;
   revision: string;
+};
+export type LeaveBalanceView = {
+  workerId: string;
+  year: number;
+  allowanceDays: number;
+  carriedOverDays: number;
+  approvedDays: number;
+  plannedDays: number;
+  remainingDays: number;
+  availableDays: number;
+  revision: string;
+};
+export type DashboardSummaryView = {
+  date: string;
+  role: Role;
+  kpis: Array<{
+    id: "present" | "absent_today" | "review_required" | "pending_decision" | "worked_minutes" | "balance_minutes" | "available_leave";
+    value: number;
+    targetScreen: "attendance" | "requests" | "corrections" | "reports" | "mytime" | "vacations";
+    filters: Record<string, string>;
+  }>;
+  datasetVersion: string;
+};
+export type ReportType = "monthly_summary" | "attendance_journal" | "exceptions" | "approved_absences" | "correction_log";
+export type ReportPreviewWrite = {
+  reportType: ReportType;
+  periodFrom: string;
+  periodTo: string;
+  departmentId?: string | null;
+  workerId?: string | null;
+  attendanceStatus?: "active" | "complete" | "late" | "incomplete" | "corrected" | null;
+  limit?: number;
+};
+export type ReportPreviewView = {
+  reportType: ReportType;
+  filters: ReportPreviewWrite;
+  columns: Array<{ key: string; label: string; dataType: "text" | "date" | "datetime" | "integer" | "minutes" | "status" }>;
+  rows: Array<Record<string, string | number | null>>;
+  totals: { rowCount: number; workedMinutes: number; plannedMinutes: number; balanceMinutes: number };
+  datasetVersion: string;
+  truncated: boolean;
+};
+export type TerminalSyncEventView = {
+  id: string;
+  terminalId: string;
+  deviceEventId: string;
+  sequence: number;
+  workerId: string | null;
+  occurredAt: string;
+  receivedAt: string;
+  eventType: "check_in" | "check_out";
+  status: "queued" | "synced" | "duplicate" | "rejected";
+  rejectionCode: string | null;
 };
 
 export type WorkerWrite = {
@@ -78,12 +133,14 @@ export type ShiftWrite = {
 };
 
 export interface PhaseAService {
+  getDashboardSummary(actor: ActorContext, date: string): Promise<DashboardSummaryView>;
   getOrganization(actor: ActorContext): Promise<OrganizationView>;
   updateOrganization(actor: ActorContext, patch: Partial<Pick<OrganizationView, "name" | "taxIdentifier" | "timezone">>, revision: string, requestId: string): Promise<OrganizationView>;
   listDepartments(actor: ActorContext): Promise<DepartmentView[]>;
   createDepartment(actor: ActorContext, name: string, requestId: string): Promise<DepartmentView>;
-  listHolidays(actor: ActorContext, year: number): Promise<HolidayView[]>;
-  replaceHolidays(actor: ActorContext, year: number, holidays: Array<{ date: string; name: string }>, revision: string, requestId: string): Promise<HolidayView[]>;
+  updateDepartment(actor: ActorContext, departmentId: string, patch: { name?: string; status?: EntityStatus }, revision: string, requestId: string): Promise<DepartmentView>;
+  listHolidays(actor: ActorContext, year: number): Promise<HolidayCalendarView>;
+  replaceHolidays(actor: ActorContext, year: number, holidays: Array<{ date: string; name: string }>, revision: string, requestId: string): Promise<HolidayCalendarView>;
   listUsers(actor: ActorContext, cursor: string | undefined, limit: number): Promise<Page<UserView>>;
   inviteUser(actor: ActorContext, input: { email: string; role: Role; workerId?: string | null; departmentIds?: string[] }, requestId: string): Promise<UserView>;
   updateUser(actor: ActorContext, userId: string, patch: { role?: Role; status?: EntityStatus; departmentIds?: string[] }, revision: string, requestId: string): Promise<UserView>;
@@ -95,5 +152,10 @@ export interface PhaseAService {
   listShifts(actor: ActorContext): Promise<ShiftView[]>;
   createShift(actor: ActorContext, input: ShiftWrite, requestId: string): Promise<ShiftView>;
   updateShift(actor: ActorContext, shiftId: string, input: ShiftWrite, revision: string, requestId: string): Promise<ShiftView>;
+  listWorkerRfidCards(actor: ActorContext, workerId: string): Promise<RfidCardView[]>;
+  assignWorkerRfidCard(actor: ActorContext, workerId: string, input: { uid: string; validFrom?: string }, requestId: string): Promise<RfidCardView>;
   blockRfidCard(actor: ActorContext, cardId: string, requestId: string): Promise<RfidCardView>;
+  listLeaveBalances(actor: ActorContext, filters: { year: number; cursor?: string; limit: number; departmentId?: string; workerId?: string }): Promise<Page<LeaveBalanceView> & { datasetVersion: string }>;
+  createReportPreview(actor: ActorContext, input: ReportPreviewWrite): Promise<ReportPreviewView>;
+  listTerminalSyncEvents(actor: ActorContext, terminalId: string, filters: { from: string; to: string; eventStatus?: TerminalSyncEventView["status"]; cursor?: string; limit: number }): Promise<Page<TerminalSyncEventView>>;
 }

@@ -9,7 +9,7 @@ const pool = createPool(config);
 const app = await buildApp({
   config,
   authService: new PgAuthService(pool, config),
-  phaseAService: new PgPhaseAService(pool)
+  phaseAService: new PgPhaseAService(pool, config.rfidUidPepper)
 });
 
 const close = async (signal: string): Promise<void> => {

@@ -4,8 +4,10 @@ on:
   pull_request:
     paths:
       - "backend/**"
+      - "openapi/bss-mvp-api-v1.yaml"
       - "BACKEND_READINESS_REPORT.md"
       - "BACKEND_ARCHITECTURE.md"
+      - "BSS_BACKEND_HANDOFF_V1.md"
       - ".github/workflows/backend-quality.yml"
   push:
     branches:
@@ -13,8 +15,10 @@ on:
       - "agent/bss-backend-**"
     paths:
       - "backend/**"
+      - "openapi/bss-mvp-api-v1.yaml"
       - "BACKEND_READINESS_REPORT.md"
       - "BACKEND_ARCHITECTURE.md"
+      - "BSS_BACKEND_HANDOFF_V1.md"
       - ".github/workflows/backend-quality.yml"
 
 permissions:
@@ -59,6 +63,9 @@ jobs:
 
       - name: Typecheck
         run: npm run lint
+
+      - name: OpenAPI v1 validation
+        run: npm run lint:openapi
 
       - name: Unit and contract tests
         run: npm run test:unit

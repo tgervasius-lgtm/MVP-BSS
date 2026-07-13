@@ -9,6 +9,7 @@ import { createOpaqueToken, hashToken } from "../security/tokens.js";
 import type { AuthResult, AuthService, AuthTokens, RequestMetadata } from "./contracts.js";
 
 type IdentityRow = {
+  invitation_id?: string;
   session_id?: string;
   user_id: string;
   organization_id: string;
@@ -23,6 +24,9 @@ type IdentityRow = {
   timezone: string;
   organization_revision: string | number;
   department_ids: string[];
+  expires_at?: Date;
+  accepted_at?: Date | null;
+  revoked_at?: Date | null;
 };
 
 type RefreshRow = {
@@ -135,6 +139,82 @@ export class PgAuthService implements AuthService {
     return {
       context: contextFromRow(candidate),
       actor: actorFromRow(candidate, sessionId),
+      tokens
+    };
+  }
+
+  async acceptInvitation(token: string, password: string, metadata: RequestMetadata): Promise<AuthResult> {
+    const lookup = await this.pool.query<IdentityRow>("SELECT * FROM bss_invitation_lookup($1)", [hashToken(token)]);
+    const invitation = lookup.rows[0];
+    if (
+      !invitation?.invitation_id ||
+      invitation.accepted_at ||
+      invitation.revoked_at ||
+      !invitation.expires_at ||
+      new Date(invitation.expires_at).getTime() <= Date.now()
+    ) {
+      throw new AppError("UNAUTHENTICATED", "Pozivnica nije valjana ili je istekla.");
+    }
+
+    const passwordHash = await hashPassword(password);
+    const tokens = this.newTokens();
+    const activeIdentity: IdentityRow = { ...invitation, status: "active", user_revision: Number(invitation.user_revision) + 1 };
+    const sessionId = await withTenant(
+      this.pool,
+      { organizationId: invitation.organization_id, userId: invitation.user_id, role: invitation.role },
+      metadata.requestId,
+      async (client) => {
+        const accepted = await client.query(
+          `UPDATE user_invitations SET accepted_at = clock_timestamp()
+           WHERE id = $1 AND token_hash = $2 AND accepted_at IS NULL AND revoked_at IS NULL
+             AND expires_at > clock_timestamp()`,
+          [invitation.invitation_id, hashToken(token)]
+        );
+        if (accepted.rowCount !== 1) throw new AppError("UNAUTHENTICATED", "Pozivnica je već iskorištena.");
+        await client.query(
+          `UPDATE users SET password_hash = $2, status = 'active', password_changed_at = clock_timestamp(),
+             revision = revision + 1 WHERE id = $1`,
+          [invitation.user_id, passwordHash]
+        );
+        await client.query(
+          `UPDATE user_invitations SET revoked_at = clock_timestamp()
+           WHERE lower(email) = lower($1) AND id <> $2 AND accepted_at IS NULL AND revoked_at IS NULL`,
+          [invitation.email, invitation.invitation_id]
+        );
+        const inserted = await client.query<{ id: string }>(
+          `INSERT INTO auth_sessions (
+             organization_id, user_id, access_token_hash, refresh_token_hash,
+             access_expires_at, refresh_expires_at, ip_hash, user_agent_hash
+           ) VALUES ($1, $2, $3, $4, clock_timestamp() + ($5 * interval '1 second'),
+                     clock_timestamp() + ($6 * interval '1 second'), $7, $8)
+           RETURNING id`,
+          [
+            invitation.organization_id,
+            invitation.user_id,
+            hashToken(tokens.accessToken),
+            hashToken(tokens.refreshToken),
+            this.config.accessTokenTtlSeconds,
+            this.config.refreshTokenTtlSeconds,
+            metadataHash(metadata.ip),
+            metadataHash(metadata.userAgent)
+          ]
+        );
+        const id = inserted.rows[0]?.id;
+        if (!id) throw new Error("Invitation session insert returned no id");
+        await client.query(
+          `INSERT INTO audit_events (
+             organization_id, actor_type, actor_id, actor_role, action,
+             entity_type, entity_id, request_id, metadata
+           ) VALUES ($1, 'user', $2, $3, 'invitation.accept', 'user', $2, $4, '{}'::jsonb)`,
+          [invitation.organization_id, invitation.user_id, invitation.role, metadata.requestId]
+        );
+        return id;
+      }
+    );
+
+    return {
+      context: contextFromRow(activeIdentity),
+      actor: actorFromRow(activeIdentity, sessionId),
       tokens
     };
   }

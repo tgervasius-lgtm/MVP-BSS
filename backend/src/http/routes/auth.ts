@@ -54,6 +54,30 @@ export async function registerAuthRoutes(app: FastifyInstance, dependencies: Dep
     }
   );
 
+  app.post<{ Body: { token: string; password: string } }>(
+    "/api/v1/auth/invitations/accept",
+    {
+      schema: {
+        body: {
+          type: "object",
+          additionalProperties: false,
+          required: ["token", "password"],
+          properties: {
+            token: { type: "string", minLength: 32, maxLength: 256 },
+            password: { type: "string", minLength: 12, maxLength: 1024 }
+          }
+        }
+      },
+      config: { rateLimit: { max: 5, timeWindow: "1 minute" } }
+    },
+    async (request, reply) => {
+      const result = await authService.acceptInvitation(request.body.token, request.body.password, requestMetadata(request));
+      reply.setCookie("bss_session", result.tokens.accessToken, accessCookie);
+      reply.setCookie("bss_refresh", result.tokens.refreshToken, refreshCookie);
+      return reply.send(result.context);
+    }
+  );
+
   app.post("/api/v1/auth/refresh", async (request, reply) => {
     const refreshToken = request.cookies.bss_refresh;
     if (!refreshToken) throw new AppError("UNAUTHENTICATED", "Nedostaje refresh sesija.");

@@ -15,6 +15,7 @@ npm run dev
 ```
 
 API je pod `/api/v1`; infrastrukturni liveness endpoint je `/healthz`. Produkcija zahtijeva HTTPS, sigurne HttpOnly/SameSite kolačiće i zasebnu `NOBYPASSRLS` runtime ulogu.
+`RFID_UID_PEPPER` je obvezna produkcijska tajna od najmanje 32 znaka i ne smije se dijeliti s cookie/device tajnama.
 
 ## Quality gate
 
@@ -27,6 +28,8 @@ Lokalni integration test se preskače samo kada PostgreSQL URL nije zadan. U Git
 
 ## Implementirani dio ugovora
 
-Faza A implementira 22 od 43 postojećih OpenAPI operacija: auth/sesije, organizaciju, odjele, blagdane, korisničke račune, radnike, smjene i blokiranje RFID kartice. Preostale operacije pripadaju evidenciji, zahtjevima, korekcijama, izvještajima, auditu i terminalu u kasnijim fazama.
+OpenAPI `1.0.0` ima 40 putanja i 51 odobrenu operaciju. Faza A implementira 30 operacija: auth/sesije i invitation accept, dashboard, organizaciju, odjele, blagdane, korisnike, radnike, smjene, RFID assignment/block, fond godišnjeg, report preview i terminal sync-event timeline.
+
+Preostale odobrene operacije pripadaju procesiranju evidencije/terminala, zahtjevima, korekcijama, izvoznom workeru i audit read modelu u kasnijim fazama. To nisu otvorene contract odluke: njihove sheme i scope već su zaključani u OpenAPI v1.
 
 Readiness odluke su u `../BACKEND_READINESS_REPORT.md`, arhitektura u `../BACKEND_ARCHITECTURE.md`, a strojna screen/API matrica u `contracts/frontend-screen-api-map-v1.json`.

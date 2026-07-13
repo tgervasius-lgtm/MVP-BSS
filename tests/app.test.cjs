@@ -1718,7 +1718,7 @@ test('završni frontend handoff pokriva sve ekrane, uloge i granice MVP-a',()=>{
   ];
   assert.deepEqual(frontendHandoff.screens.map(item=>item.id).sort(),expectedScreens);
   assert.deepEqual(Object.keys(frontendHandoff.roles).sort(),['accountant','admin','manager','worker']);
-  assert.equal(frontendHandoff.status,'FRONTEND_FROZEN_READY_FOR_BACKEND_CONTRACT_REVIEW');
+  assert.equal(frontendHandoff.status,'FRONTEND_FROZEN_BACKEND_CONTRACT_APPROVED');
   assert.equal(frontendHandoff.release.tag,'frontend-v1.0.0');
   assert.equal(frontendHandoff.baseline.commit,'91323c7cdbbbbf7b965c4926c94a11af6d31bf62');
   assert.deepEqual(frontendHandoff.approvedExportFormats,['csv','xlsx']);
@@ -1730,12 +1730,12 @@ test('završni frontend handoff pokriva sve ekrane, uloge i granice MVP-a',()=>{
   assert.equal(frontendHandoff.screens.find(item=>item.id==='sharedLeave').mode,'frontend_demo_only');
 });
 
-test('pregled, reporting profil i API nacrt zaključavaju tablični smjer bez backend implementacije',()=>{
+test('pregled, reporting profil i odobreni API v1 zaključavaju tablični smjer',()=>{
   assert.match(frontendFinalReview,/Preglednost ispred kompleksnosti/);
   assert.match(frontendFinalReview,/najviše četiri klikabilna KPI-ja/i);
   assert.match(frontendFinalReview,/tjedni i dekorativni grafovi uklonjeni/i);
   assert.match(frontendFinalReview,/cjelogodišnji admin\/voditelj pogled/i);
-  assert.match(backendHandoff,/Ovaj paket ne sadrži backend implementaciju/);
+  assert.match(backendHandoff,/Repozitorij sadrži Backend Fazu A/);
   assert.match(backendHandoff,/server je jedini autoritet/i);
   assert.match(reportingProfile,/pravi Office Open XML `\.xlsx`/);
   assert.match(reportingProfile,/PDF\/A-2u/);
@@ -1756,16 +1756,18 @@ test('Frontend Freeze v1.0 usklađuje release, handoff, OpenAPI, Design System i
   }
   assert.match(frontendRelease,/FRONTEND FROZEN/);
   assert.match(frontendRelease,/frontend-v1\.0\.0/);
-  assert.match(frontendRelease,/Backend Contract Review/);
+  assert.match(frontendRelease,/BACKEND OPENAPI v1 ODOBREN/);
   assert.match(frontendRelease,/nema stvarnog login\/session sustava, API-ja, baze podataka/i);
-  assert.match(frontendRelease,/33 putanje i 43 operacije/);
+  assert.match(frontendRelease,/40 putanja i 51 operacija/);
   assert.match(screenMap,/Broj registriranih ekrana \| 17/);
   for(const id of frontendHandoff.screens.map(item=>item.id)){
     assert.ok(screenMap.includes(`\`${id}\``),`Screen Map ne sadrži ${id}`);
   }
   const pathsSection=apiContractDraft.match(/^paths:\n([\s\S]*?)^components:/m)?.[1]||'';
-  assert.equal((pathsSection.match(/^ {2}\/[^\n]+:/gm)||[]).length,33);
-  assert.equal((apiContractDraft.match(/^ {6}operationId:/gm)||[]).length,43);
+  assert.equal((pathsSection.match(/^ {2}\/[^\n]+:/gm)||[]).length,40);
+  assert.equal((apiContractDraft.match(/^ {6}operationId:/gm)||[]).length,51);
+  assert.match(apiContractDraft,/version: 1\.0\.0/);
+  assert.match(apiContractDraft,/x-bss-status: FULL_PASS_APPROVED/);
   assert.match(apiContractDraft,/x-bss-frontend-release: frontend-v1\.0\.0/);
   assert.match(frontendReleaseWorkflow,/branches: \[main\]/);
   assert.match(frontendReleaseWorkflow,/npm run check/);

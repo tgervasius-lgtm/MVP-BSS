@@ -1,16 +1,24 @@
+import { createHash } from "node:crypto";
 import type pg from "pg";
 import { AppError } from "../domain/errors.js";
 import type { ActorContext, EntityStatus, Page, Role } from "../domain/types.js";
 import { withTenant, type TenantTransaction } from "../db/tenant.js";
+import { hashRfidUid, maskRfidUid } from "../security/rfid.js";
 import { createOpaqueToken, hashToken } from "../security/tokens.js";
 import type {
+  DashboardSummaryView,
   DepartmentView,
+  HolidayCalendarView,
   HolidayView,
+  LeaveBalanceView,
   OrganizationView,
   PhaseAService,
+  ReportPreviewView,
+  ReportPreviewWrite,
   RfidCardView,
   ShiftView,
   ShiftWrite,
+  TerminalSyncEventView,
   UserView,
   WorkerView,
   WorkerWrite
@@ -64,6 +72,26 @@ type RfidRow = {
   valid_to: Date | string | null;
   revision: string | number;
 };
+type LeaveBalanceRow = {
+  worker_id: string;
+  annual_leave_allowance: number;
+  approved_days: string | number;
+  planned_days: string | number;
+  revision: string | number;
+};
+type TerminalSyncEventRow = {
+  id: string;
+  terminal_id: string;
+  device_event_id: string;
+  sequence: string | number;
+  worker_id: string | null;
+  occurred_at: Date | string;
+  received_at: Date | string;
+  event_type: TerminalSyncEventView["eventType"];
+  status: TerminalSyncEventView["status"];
+  rejection_code: string | null;
+};
+type ReportRow = Record<string, string | number | Date | null>;
 
 function organizationView(row: OrganizationRow): OrganizationView {
   const view: OrganizationView = {
@@ -137,6 +165,35 @@ function rfidView(row: RfidRow): RfidCardView {
   };
 }
 
+function terminalSyncEventView(row: TerminalSyncEventRow): TerminalSyncEventView {
+  const iso = (value: Date | string): string => (value instanceof Date ? value.toISOString() : new Date(value).toISOString());
+  return {
+    id: row.id,
+    terminalId: row.terminal_id,
+    deviceEventId: row.device_event_id,
+    sequence: Number(row.sequence),
+    workerId: row.worker_id,
+    occurredAt: iso(row.occurred_at),
+    receivedAt: iso(row.received_at),
+    eventType: row.event_type,
+    status: row.status,
+    rejectionCode: row.rejection_code
+  };
+}
+
+function datasetVersion(value: unknown): string {
+  return createHash("sha256").update(JSON.stringify(value)).digest("hex");
+}
+
+function reportValue(value: string | number | Date | null): string | number | null {
+  if (value instanceof Date) return value.toISOString();
+  return value;
+}
+
+function reportRows(rows: ReportRow[]): Array<Record<string, string | number | null>> {
+  return rows.map((row) => Object.fromEntries(Object.entries(row).map(([key, value]) => [key, reportValue(value)])));
+}
+
 function decodeCursor(cursor: string | undefined): string | null {
   if (!cursor) return null;
   try {
@@ -150,6 +207,25 @@ function decodeCursor(cursor: string | undefined): string | null {
 
 function encodeCursor(id: string): string {
   return Buffer.from(id).toString("base64url");
+}
+
+function decodeTimelineCursor(cursor: string | undefined): { receivedAt: string; id: string } | null {
+  if (!cursor) return null;
+  try {
+    const parsed = JSON.parse(Buffer.from(cursor, "base64url").toString("utf8")) as { receivedAt?: unknown; id?: unknown };
+    if (
+      typeof parsed.receivedAt !== "string" || Number.isNaN(Date.parse(parsed.receivedAt)) ||
+      typeof parsed.id !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(parsed.id)
+    ) throw new Error();
+    return { receivedAt: parsed.receivedAt, id: parsed.id };
+  } catch {
+    throw new AppError("VALIDATION_FAILED", "Kursor terminalskih događaja nije valjan.");
+  }
+}
+
+function encodeTimelineCursor(row: TerminalSyncEventRow): string {
+  const receivedAt = row.received_at instanceof Date ? row.received_at.toISOString() : new Date(row.received_at).toISOString();
+  return Buffer.from(JSON.stringify({ receivedAt, id: row.id })).toString("base64url");
 }
 
 function normalizeDatabaseError(error: unknown): never {
@@ -195,7 +271,74 @@ const shiftSelect = `
   LEFT JOIN workers w ON w.organization_id = s.organization_id AND w.shift_id = s.id`;
 
 export class PgPhaseAService implements PhaseAService {
-  constructor(private readonly pool: pg.Pool) {}
+  constructor(
+    private readonly pool: pg.Pool,
+    private readonly rfidUidPepper: string
+  ) {}
+
+  async getDashboardSummary(actor: ActorContext, date: string): Promise<DashboardSummaryView> {
+    return withTenant(this.pool, actor, "dashboard-summary", async (client) => {
+      const result = await client.query<{
+        present: string;
+        absent_today: string;
+        review_required: string;
+        pending_decision: string;
+        worked_minutes: string;
+        balance_minutes: string;
+        available_leave: string;
+        data_revision: string;
+      }>(
+        `WITH scoped_workers AS (
+           SELECT id FROM workers
+           WHERE status = 'active'
+             AND ($2::text <> 'manager' OR department_id = ANY($3::uuid[]))
+             AND ($2::text <> 'worker' OR id = $4::uuid)
+         )
+         SELECT
+           (SELECT COUNT(*)::text FROM attendance_days a JOIN scoped_workers w ON w.id = a.worker_id
+             WHERE a.work_date = $1::date AND a.check_in IS NOT NULL) AS present,
+           (SELECT COUNT(DISTINCT l.worker_id)::text FROM leave_requests l JOIN scoped_workers w ON w.id = l.worker_id
+             WHERE l.status = 'approved' AND $1::date BETWEEN l.start_date AND l.end_date) AS absent_today,
+           (SELECT COUNT(*)::text FROM attendance_days a JOIN scoped_workers w ON w.id = a.worker_id
+             WHERE a.work_date = $1::date AND a.status IN ('late', 'incomplete')) AS review_required,
+           ((SELECT COUNT(*) FROM leave_requests l JOIN scoped_workers w ON w.id = l.worker_id WHERE l.status = 'pending') +
+            (SELECT COUNT(*) FROM correction_requests c JOIN attendance_days a ON a.id = c.attendance_day_id
+               JOIN scoped_workers w ON w.id = a.worker_id WHERE c.status = 'pending'))::text AS pending_decision,
+           COALESCE((SELECT SUM(a.worked_minutes) FROM attendance_days a JOIN scoped_workers w ON w.id = a.worker_id
+             WHERE a.work_date = $1::date), 0)::text AS worked_minutes,
+           COALESCE((SELECT SUM(a.worked_minutes - a.planned_minutes) FROM attendance_days a JOIN scoped_workers w ON w.id = a.worker_id
+             WHERE a.work_date = $1::date), 0)::text AS balance_minutes,
+           COALESCE((SELECT MAX(w.annual_leave_allowance) -
+              COALESCE(SUM(l.working_days) FILTER (WHERE l.leave_type = 'annual_leave' AND l.status IN ('approved', 'pending')
+                AND EXTRACT(YEAR FROM l.start_date) = EXTRACT(YEAR FROM $1::date)), 0)
+             FROM workers w LEFT JOIN leave_requests l ON l.worker_id = w.id WHERE w.id = $4::uuid), 0)::text AS available_leave,
+           GREATEST(
+             COALESCE((SELECT MAX(a.revision) FROM attendance_days a JOIN scoped_workers w ON w.id = a.worker_id), 0),
+             COALESCE((SELECT MAX(l.revision) FROM leave_requests l JOIN scoped_workers w ON w.id = l.worker_id), 0),
+             COALESCE((SELECT MAX(c.revision) FROM correction_requests c JOIN attendance_days a ON a.id = c.attendance_day_id
+               JOIN scoped_workers w ON w.id = a.worker_id), 0)
+           )::text AS data_revision`,
+        [date, actor.role, actor.departmentIds, actor.selfWorkerId]
+      );
+      const row = result.rows[0];
+      if (!row) throw new Error("Dashboard query returned no row");
+      const filters = { date };
+      const kpis: DashboardSummaryView["kpis"] = actor.role === "worker"
+        ? [
+            { id: "worked_minutes", value: Number(row.worked_minutes), targetScreen: "mytime", filters },
+            { id: "balance_minutes", value: Number(row.balance_minutes), targetScreen: "mytime", filters },
+            { id: "available_leave", value: Number(row.available_leave), targetScreen: "vacations", filters: { year: date.slice(0, 4) } },
+            { id: "pending_decision", value: Number(row.pending_decision), targetScreen: "requests", filters: { status: "pending" } }
+          ]
+        : [
+            { id: "present", value: Number(row.present), targetScreen: "attendance", filters: { ...filters, presence: "present" } },
+            { id: "review_required", value: Number(row.review_required), targetScreen: "attendance", filters: { ...filters, status: "review_required" } },
+            { id: "absent_today", value: Number(row.absent_today), targetScreen: "attendance", filters: { ...filters, presence: "absent" } },
+            { id: "pending_decision", value: Number(row.pending_decision), targetScreen: "requests", filters: { status: "pending" } }
+          ];
+      return { date, role: actor.role, kpis, datasetVersion: datasetVersion({ date, role: actor.role, revision: row.data_revision, kpis }) };
+    });
+  }
 
   async getOrganization(actor: ActorContext): Promise<OrganizationView> {
     return withTenant(this.pool, actor, "read-organization", async (client) => {
@@ -279,14 +422,51 @@ export class PgPhaseAService implements PhaseAService {
     }
   }
 
-  async listHolidays(actor: ActorContext, year: number): Promise<HolidayView[]> {
+  async updateDepartment(
+    actor: ActorContext,
+    departmentId: string,
+    patch: { name?: string; status?: EntityStatus },
+    revision: string,
+    requestId: string
+  ): Promise<DepartmentView> {
+    try {
+      return await withTenant(this.pool, actor, requestId, async (client) => {
+        const before = await client.query<DepartmentRow>(
+          "SELECT id, name, status, revision FROM departments WHERE id = $1",
+          [departmentId]
+        );
+        if (!before.rows[0]) throw new AppError("NOT_FOUND", "Odjel nije pronađen.");
+        const result = await client.query<DepartmentRow>(
+          `UPDATE departments SET
+             name = CASE WHEN $2 THEN $3 ELSE name END,
+             status = CASE WHEN $4 THEN $5 ELSE status END,
+             revision = revision + 1
+           WHERE id = $1 AND revision = $6::bigint
+           RETURNING id, name, status, revision`,
+          [departmentId, patch.name !== undefined, patch.name?.trim() ?? null, patch.status !== undefined, patch.status ?? null, revision]
+        );
+        const row = result.rows[0];
+        if (!row) throw new AppError("STALE_REVISION", "Odjel je u međuvremenu promijenjen.");
+        await audit(client, actor, requestId, "department.update", "department", departmentId, before.rows[0], row);
+        return departmentView(row);
+      });
+    } catch (error) {
+      return normalizeDatabaseError(error);
+    }
+  }
+
+  async listHolidays(actor: ActorContext, year: number): Promise<HolidayCalendarView> {
     return withTenant(this.pool, actor, "list-holidays", async (client) => {
       const result = await client.query<HolidayRow>(
         `SELECT id, holiday_date, name, revision FROM holidays
          WHERE EXTRACT(YEAR FROM holiday_date) = $1 ORDER BY holiday_date`,
         [year]
       );
-      return result.rows.map(holidayView);
+      const calendar = await client.query<{ revision: string | number }>(
+        "SELECT revision FROM holiday_calendars WHERE year = $1",
+        [year]
+      );
+      return { items: result.rows.map(holidayView), revision: String(calendar.rows[0]?.revision ?? 0) };
     });
   }
 
@@ -296,14 +476,18 @@ export class PgPhaseAService implements PhaseAService {
     holidays: Array<{ date: string; name: string }>,
     revision: string,
     requestId: string
-  ): Promise<HolidayView[]> {
+  ): Promise<HolidayCalendarView> {
     try {
       return await withTenant(this.pool, actor, requestId, async (client) => {
-        const locked = await client.query<OrganizationRow>(
-          `UPDATE organizations SET revision = revision + 1
-           WHERE id = $1 AND revision = $2::bigint
-           RETURNING id, name, tax_identifier, timezone, revision`,
-          [actor.organizationId, revision]
+        await client.query(
+          `INSERT INTO holiday_calendars (organization_id, year, revision)
+           VALUES ($1, $2, 0) ON CONFLICT (organization_id, year) DO NOTHING`,
+          [actor.organizationId, year]
+        );
+        const locked = await client.query<{ revision: string | number }>(
+          `UPDATE holiday_calendars SET revision = revision + 1, updated_at = clock_timestamp()
+           WHERE year = $1 AND revision = $2::bigint RETURNING revision`,
+          [year, revision]
         );
         if (!locked.rows[0]) throw new AppError("STALE_REVISION", "Kalendar je u međuvremenu promijenjen.");
         const previous = await client.query<HolidayRow>(
@@ -325,7 +509,7 @@ export class PgPhaseAService implements PhaseAService {
           if (row) created.push(row);
         }
         await audit(client, actor, requestId, "holidays.replace", "organization", actor.organizationId, previous.rows, created);
-        return created.map(holidayView);
+        return { items: created.map(holidayView), revision: String(locked.rows[0].revision) };
       });
     } catch (error) {
       return normalizeDatabaseError(error);
@@ -548,6 +732,63 @@ export class PgPhaseAService implements PhaseAService {
     }
   }
 
+  async listWorkerRfidCards(actor: ActorContext, workerId: string): Promise<RfidCardView[]> {
+    return withTenant(this.pool, actor, "list-worker-rfid-cards", async (client) => {
+      const result = await client.query<RfidRow>(
+        `SELECT r.id, r.masked_uid, r.worker_id, r.status, r.valid_from, r.valid_to, r.revision
+         FROM rfid_cards r
+         JOIN workers w ON w.id = r.worker_id
+         WHERE r.worker_id = $1
+           AND ($2::text <> 'manager' OR w.department_id = ANY($3::uuid[]))
+         ORDER BY r.valid_from DESC, r.id DESC`,
+        [workerId, actor.role, actor.departmentIds]
+      );
+      if (result.rows.length === 0) {
+        const worker = await client.query(
+          `SELECT id FROM workers WHERE id = $1
+           AND ($2::text <> 'manager' OR department_id = ANY($3::uuid[]))`,
+          [workerId, actor.role, actor.departmentIds]
+        );
+        if (!worker.rows[0]) throw new AppError("NOT_FOUND", "Radnik nije pronađen u dopuštenom opsegu.");
+      }
+      return result.rows.map(rfidView);
+    });
+  }
+
+  async assignWorkerRfidCard(
+    actor: ActorContext,
+    workerId: string,
+    input: { uid: string; validFrom?: string },
+    requestId: string
+  ): Promise<RfidCardView> {
+    try {
+      const uidHash = hashRfidUid(input.uid, this.rfidUidPepper);
+      const maskedUid = maskRfidUid(input.uid);
+      return await withTenant(this.pool, actor, requestId, async (client) => {
+        const worker = await client.query("SELECT id FROM workers WHERE id = $1", [workerId]);
+        if (!worker.rows[0]) throw new AppError("NOT_FOUND", "Radnik nije pronađen.");
+        const result = await client.query<RfidRow>(
+          `INSERT INTO rfid_cards (organization_id, worker_id, uid_hash, masked_uid, valid_from)
+           VALUES ($1, $2, $3, $4, COALESCE($5::timestamptz, clock_timestamp()))
+           RETURNING id, masked_uid, worker_id, status, valid_from, valid_to, revision`,
+          [actor.organizationId, workerId, uidHash, maskedUid, input.validFrom ?? null]
+        );
+        const row = result.rows[0];
+        if (!row) throw new Error("RFID assignment returned no row");
+        await audit(client, actor, requestId, "rfid_card.assign", "rfid_card", row.id, null, {
+          id: row.id,
+          workerId,
+          maskedUid,
+          status: row.status,
+          validFrom: row.valid_from
+        });
+        return rfidView(row);
+      });
+    } catch (error) {
+      return normalizeDatabaseError(error);
+    }
+  }
+
   async blockRfidCard(actor: ActorContext, cardId: string, requestId: string): Promise<RfidCardView> {
     return withTenant(this.pool, actor, requestId, async (client) => {
       const before = await client.query<RfidRow>(
@@ -563,6 +804,302 @@ export class PgPhaseAService implements PhaseAService {
       if (!row) throw new AppError("NOT_FOUND", "RFID kartica nije pronađena.");
       await audit(client, actor, requestId, "rfid_card.block", "rfid_card", cardId, before.rows[0] ?? null, row);
       return rfidView(row);
+    });
+  }
+
+  async listLeaveBalances(
+    actor: ActorContext,
+    filters: { year: number; cursor?: string; limit: number; departmentId?: string; workerId?: string }
+  ): Promise<Page<LeaveBalanceView> & { datasetVersion: string }> {
+    return withTenant(this.pool, actor, "list-leave-balances", async (client) => {
+      const after = decodeCursor(filters.cursor);
+      const values = [
+        filters.year,
+        actor.role,
+        actor.departmentIds,
+        actor.selfWorkerId,
+        filters.departmentId ?? null,
+        filters.workerId ?? null
+      ];
+      const result = await client.query<LeaveBalanceRow>(
+        `SELECT w.id AS worker_id, w.annual_leave_allowance,
+           COALESCE(SUM(CASE WHEN l.status = 'approved' THEN days.working_days ELSE 0 END), 0)::integer AS approved_days,
+           COALESCE(SUM(CASE WHEN l.status = 'pending' THEN days.working_days ELSE 0 END), 0)::integer AS planned_days,
+           GREATEST(w.revision, COALESCE(MAX(l.revision), 0)) AS revision
+         FROM workers w
+         LEFT JOIN leave_requests l ON l.worker_id = w.id
+           AND l.leave_type = 'annual_leave'
+           AND l.end_date >= make_date($1, 1, 1)
+           AND l.start_date <= make_date($1, 12, 31)
+           AND l.status IN ('approved', 'pending')
+         LEFT JOIN LATERAL (
+           SELECT COUNT(*)::integer AS working_days
+           FROM generate_series(
+             GREATEST(l.start_date, make_date($1, 1, 1))::timestamp,
+             LEAST(l.end_date, make_date($1, 12, 31))::timestamp,
+             interval '1 day'
+           ) AS day(value)
+           WHERE EXTRACT(ISODOW FROM day.value) < 6
+             AND NOT EXISTS (SELECT 1 FROM holidays h WHERE h.holiday_date = day.value::date)
+         ) days ON l.id IS NOT NULL
+         WHERE w.status = 'active'
+           AND ($2::text <> 'manager' OR w.department_id = ANY($3::uuid[]))
+           AND ($2::text <> 'worker' OR w.id = $4::uuid)
+           AND ($5::uuid IS NULL OR w.department_id = $5)
+           AND ($6::uuid IS NULL OR w.id = $6)
+           AND ($7::uuid IS NULL OR w.id > $7)
+         GROUP BY w.id
+         ORDER BY w.id
+         LIMIT $8`,
+        [...values, after, filters.limit + 1]
+      );
+      const count = await client.query<{ count: string }>(
+        `SELECT COUNT(*)::text AS count FROM workers w
+         WHERE w.status = 'active'
+           AND ($1::text <> 'manager' OR w.department_id = ANY($2::uuid[]))
+           AND ($1::text <> 'worker' OR w.id = $3::uuid)
+           AND ($4::uuid IS NULL OR w.department_id = $4)
+           AND ($5::uuid IS NULL OR w.id = $5)`,
+        [actor.role, actor.departmentIds, actor.selfWorkerId, filters.departmentId ?? null, filters.workerId ?? null]
+      );
+      const hasMore = result.rows.length > filters.limit;
+      const pageRows = result.rows.slice(0, filters.limit);
+      const items = pageRows.map((row): LeaveBalanceView => {
+        const allowanceDays = row.annual_leave_allowance;
+        const approvedDays = Number(row.approved_days);
+        const plannedDays = Number(row.planned_days);
+        return {
+          workerId: row.worker_id,
+          year: filters.year,
+          allowanceDays,
+          carriedOverDays: 0,
+          approvedDays,
+          plannedDays,
+          remainingDays: allowanceDays - approvedDays,
+          availableDays: allowanceDays - approvedDays - plannedDays,
+          revision: String(row.revision)
+        };
+      });
+      const page = {
+        nextCursor: hasMore && pageRows.at(-1) ? encodeCursor(pageRows.at(-1)!.worker_id) : null,
+        total: Number(count.rows[0]?.count ?? 0)
+      };
+      return { items, page, datasetVersion: datasetVersion({ filters, total: page.total, items }) };
+    });
+  }
+
+  async createReportPreview(actor: ActorContext, input: ReportPreviewWrite): Promise<ReportPreviewView> {
+    if (input.periodFrom > input.periodTo) {
+      throw new AppError("VALIDATION_FAILED", "Početni datum izvještaja mora biti prije završnog datuma.");
+    }
+    return withTenant(this.pool, actor, "report-preview", async (client) => {
+      const limit = input.limit ?? 100;
+      const parameters = [
+        input.periodFrom,
+        input.periodTo,
+        actor.role,
+        actor.departmentIds,
+        input.departmentId ?? null,
+        input.workerId ?? null,
+        input.attendanceStatus ?? null,
+        limit + 1
+      ];
+      type PreviewRow = ReportRow & {
+        __row_count: string | number;
+        __worked_minutes: string | number;
+        __planned_minutes: string | number;
+        __balance_minutes: string | number;
+        __revision: string | number;
+      };
+      let result: pg.QueryResult<PreviewRow>;
+      let columns: ReportPreviewView["columns"];
+
+      const attendanceScope = `a.work_date BETWEEN $1::date AND $2::date
+        AND ($3::text <> 'manager' OR w.department_id = ANY($4::uuid[]))
+        AND ($5::uuid IS NULL OR w.department_id = $5)
+        AND ($6::uuid IS NULL OR w.id = $6)`;
+      if (input.reportType === "monthly_summary") {
+        result = await client.query<PreviewRow>(
+          `WITH rows AS (
+             SELECT w.code AS "workerCode", w.name AS "workerName",
+               COUNT(a.id)::integer AS "dayCount", SUM(a.worked_minutes)::integer AS "workedMinutes",
+               SUM(a.planned_minutes)::integer AS "plannedMinutes",
+               SUM(a.worked_minutes - a.planned_minutes)::integer AS "balanceMinutes",
+               MAX(a.revision) AS revision
+             FROM attendance_days a JOIN workers w ON w.id = a.worker_id
+             WHERE ${attendanceScope} AND ($7::text IS NULL OR a.status = $7)
+             GROUP BY w.id
+           )
+           SELECT rows.*,
+             COUNT(*) OVER() AS __row_count,
+             COALESCE(SUM("workedMinutes") OVER(), 0) AS __worked_minutes,
+             COALESCE(SUM("plannedMinutes") OVER(), 0) AS __planned_minutes,
+             COALESCE(SUM("balanceMinutes") OVER(), 0) AS __balance_minutes,
+             COALESCE(MAX(revision) OVER(), 0) AS __revision
+           FROM rows ORDER BY "workerCode" LIMIT $8`,
+          parameters
+        );
+        columns = [
+          { key: "workerCode", label: "Šifra", dataType: "text" },
+          { key: "workerName", label: "Radnik", dataType: "text" },
+          { key: "dayCount", label: "Dana", dataType: "integer" },
+          { key: "workedMinutes", label: "Odrađeno", dataType: "minutes" },
+          { key: "plannedMinutes", label: "Planirano", dataType: "minutes" },
+          { key: "balanceMinutes", label: "Saldo", dataType: "minutes" }
+        ];
+      } else if (input.reportType === "attendance_journal" || input.reportType === "exceptions") {
+        const exceptionClause = input.reportType === "exceptions" ? "AND a.status IN ('late', 'incomplete', 'corrected')" : "";
+        result = await client.query<PreviewRow>(
+          `WITH rows AS (
+             SELECT w.code AS "workerCode", w.name AS "workerName", a.work_date AS "workDate",
+               a.status, a.worked_minutes AS "workedMinutes", a.planned_minutes AS "plannedMinutes",
+               a.worked_minutes - a.planned_minutes AS "balanceMinutes", a.revision
+             FROM attendance_days a JOIN workers w ON w.id = a.worker_id
+             WHERE ${attendanceScope} ${exceptionClause} AND ($7::text IS NULL OR a.status = $7)
+           )
+           SELECT rows.*,
+             COUNT(*) OVER() AS __row_count,
+             COALESCE(SUM("workedMinutes") OVER(), 0) AS __worked_minutes,
+             COALESCE(SUM("plannedMinutes") OVER(), 0) AS __planned_minutes,
+             COALESCE(SUM("balanceMinutes") OVER(), 0) AS __balance_minutes,
+             COALESCE(MAX(revision) OVER(), 0) AS __revision
+           FROM rows ORDER BY "workDate", "workerCode" LIMIT $8`,
+          parameters
+        );
+        columns = [
+          { key: "workerCode", label: "Šifra", dataType: "text" },
+          { key: "workerName", label: "Radnik", dataType: "text" },
+          { key: "workDate", label: "Datum", dataType: "date" },
+          { key: "status", label: "Status", dataType: "status" },
+          { key: "workedMinutes", label: "Odrađeno", dataType: "minutes" },
+          { key: "plannedMinutes", label: "Planirano", dataType: "minutes" },
+          { key: "balanceMinutes", label: "Saldo", dataType: "minutes" }
+        ];
+      } else if (input.reportType === "approved_absences") {
+        result = await client.query<PreviewRow>(
+          `WITH rows AS (
+             SELECT w.code AS "workerCode", w.name AS "workerName", l.leave_type AS "typeCode",
+               l.start_date AS "startDate", l.end_date AS "endDate", l.working_days AS "workingDays",
+               l.status, l.revision
+             FROM leave_requests l JOIN workers w ON w.id = l.worker_id
+             WHERE l.status = 'approved' AND l.end_date >= $1::date AND l.start_date <= $2::date
+               AND ($3::text <> 'manager' OR w.department_id = ANY($4::uuid[]))
+               AND ($5::uuid IS NULL OR w.department_id = $5)
+               AND ($6::uuid IS NULL OR w.id = $6)
+           )
+           SELECT rows.*, COUNT(*) OVER() AS __row_count, 0 AS __worked_minutes,
+             0 AS __planned_minutes, 0 AS __balance_minutes, COALESCE(MAX(revision) OVER(), 0) AS __revision
+           FROM rows ORDER BY "startDate", "workerCode" LIMIT $8`,
+          parameters
+        );
+        columns = [
+          { key: "workerCode", label: "Šifra", dataType: "text" },
+          { key: "workerName", label: "Radnik", dataType: "text" },
+          { key: "typeCode", label: "Vrsta", dataType: "text" },
+          { key: "startDate", label: "Od", dataType: "date" },
+          { key: "endDate", label: "Do", dataType: "date" },
+          { key: "workingDays", label: "Radnih dana", dataType: "integer" },
+          { key: "status", label: "Status", dataType: "status" }
+        ];
+      } else {
+        result = await client.query<PreviewRow>(
+          `WITH rows AS (
+             SELECT w.code AS "workerCode", w.name AS "workerName", a.work_date AS "workDate",
+               c.status, c.created_at AS "requestedAt", c.reason, c.revision
+             FROM correction_requests c
+             JOIN attendance_days a ON a.id = c.attendance_day_id
+             JOIN workers w ON w.id = a.worker_id
+             WHERE c.created_at >= $1::date AND c.created_at < ($2::date + interval '1 day')
+               AND ($3::text <> 'manager' OR w.department_id = ANY($4::uuid[]))
+               AND ($5::uuid IS NULL OR w.department_id = $5)
+               AND ($6::uuid IS NULL OR w.id = $6)
+           )
+           SELECT rows.*, COUNT(*) OVER() AS __row_count, 0 AS __worked_minutes,
+             0 AS __planned_minutes, 0 AS __balance_minutes, COALESCE(MAX(revision) OVER(), 0) AS __revision
+           FROM rows ORDER BY "requestedAt", "workerCode" LIMIT $8`,
+          parameters
+        );
+        columns = [
+          { key: "workerCode", label: "Šifra", dataType: "text" },
+          { key: "workerName", label: "Radnik", dataType: "text" },
+          { key: "workDate", label: "Datum", dataType: "date" },
+          { key: "status", label: "Status", dataType: "status" },
+          { key: "requestedAt", label: "Zatraženo", dataType: "datetime" },
+          { key: "reason", label: "Razlog korekcije", dataType: "text" }
+        ];
+      }
+
+      const metadata = result.rows[0];
+      const rowCount = Number(metadata?.__row_count ?? 0);
+      const selected = result.rows.slice(0, limit);
+      const rows = reportRows(selected.map((row) => {
+        const {
+          __row_count: _rowCount,
+          __worked_minutes: _worked,
+          __planned_minutes: _planned,
+          __balance_minutes: _balance,
+          __revision: _revision,
+          revision: _entityRevision,
+          ...data
+        } = row;
+        return data;
+      }));
+      const totals = {
+        rowCount,
+        workedMinutes: Number(metadata?.__worked_minutes ?? 0),
+        plannedMinutes: Number(metadata?.__planned_minutes ?? 0),
+        balanceMinutes: Number(metadata?.__balance_minutes ?? 0)
+      };
+      const filters: ReportPreviewWrite = { ...input, limit };
+      return {
+        reportType: input.reportType,
+        filters,
+        columns,
+        rows,
+        totals,
+        datasetVersion: datasetVersion({ filters, totals, revision: String(metadata?.__revision ?? 0) }),
+        truncated: rowCount > limit
+      };
+    });
+  }
+
+  async listTerminalSyncEvents(
+    actor: ActorContext,
+    terminalId: string,
+    filters: { from: string; to: string; eventStatus?: TerminalSyncEventView["status"]; cursor?: string; limit: number }
+  ): Promise<Page<TerminalSyncEventView>> {
+    if (filters.from > filters.to) throw new AppError("VALIDATION_FAILED", "Početni datum mora biti prije završnog datuma.");
+    return withTenant(this.pool, actor, "list-terminal-sync-events", async (client) => {
+      const terminal = await client.query("SELECT id FROM terminals WHERE id = $1", [terminalId]);
+      if (!terminal.rows[0]) throw new AppError("NOT_FOUND", "Terminal nije pronađen.");
+      const cursor = decodeTimelineCursor(filters.cursor);
+      const result = await client.query<TerminalSyncEventRow>(
+        `SELECT id, terminal_id, device_event_id, sequence, worker_id, occurred_at, received_at,
+           event_type, status, rejection_code
+         FROM terminal_sync_events
+         WHERE terminal_id = $1
+           AND received_at >= $2::date AND received_at < ($3::date + interval '1 day')
+           AND ($4::text IS NULL OR status = $4)
+           AND ($5::timestamptz IS NULL OR (received_at, id) < ($5::timestamptz, $6::uuid))
+         ORDER BY received_at DESC, id DESC LIMIT $7`,
+        [terminalId, filters.from, filters.to, filters.eventStatus ?? null, cursor?.receivedAt ?? null, cursor?.id ?? null, filters.limit + 1]
+      );
+      const count = await client.query<{ count: string }>(
+        `SELECT COUNT(*)::text AS count FROM terminal_sync_events
+         WHERE terminal_id = $1
+           AND received_at >= $2::date AND received_at < ($3::date + interval '1 day')
+           AND ($4::text IS NULL OR status = $4)`,
+        [terminalId, filters.from, filters.to, filters.eventStatus ?? null]
+      );
+      const hasMore = result.rows.length > filters.limit;
+      const rows = result.rows.slice(0, filters.limit);
+      return {
+        items: rows.map(terminalSyncEventView),
+        page: {
+          nextCursor: hasMore && rows.at(-1) ? encodeTimelineCursor(rows.at(-1)!) : null,
+          total: Number(count.rows[0]?.count ?? 0)
+        }
+      };
     });
   }
 

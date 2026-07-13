@@ -4,14 +4,19 @@ import type {
   AuthResult,
   AuthService,
   AuthTokens,
+  DashboardSummaryView,
   DepartmentView,
-  HolidayView,
+  HolidayCalendarView,
+  LeaveBalanceView,
   OrganizationView,
   PhaseAService,
+  ReportPreviewView,
+  ReportPreviewWrite,
   RequestMetadata,
   RfidCardView,
   ShiftView,
   ShiftWrite,
+  TerminalSyncEventView,
   UserView,
   WorkerView,
   WorkerWrite
@@ -63,6 +68,11 @@ export class FakeAuthService implements AuthService {
     return { ...current, tokens: { accessToken: role, refreshToken: `refresh-${role}` } };
   }
 
+  async acceptInvitation(_token: string, _password: string, _metadata: RequestMetadata): Promise<AuthResult> {
+    const current = session("worker");
+    return { ...current, tokens: { accessToken: "worker", refreshToken: "refresh-worker" } };
+  }
+
   async resolveAccessToken(token: string): Promise<{ context: SessionContext; actor: ActorContext }> {
     if (!(<[string, ...string[]]>["admin", "manager", "worker", "accountant"]).includes(token)) {
       throw new AppError("UNAUTHENTICATED", "Invalid test session");
@@ -106,12 +116,21 @@ const shift: ShiftView = {
 };
 
 export class FakePhaseAService implements PhaseAService {
+  async getDashboardSummary(actor: ActorContext, date: string): Promise<DashboardSummaryView> {
+    return {
+      date,
+      role: actor.role,
+      kpis: [{ id: "present", value: 1, targetScreen: "attendance", filters: { date, presence: "present" } }],
+      datasetVersion: "dashboard-v1"
+    };
+  }
   async getOrganization(_actor: ActorContext): Promise<OrganizationView> { return organization; }
   async updateOrganization(_actor: ActorContext, patch: Partial<Pick<OrganizationView, "name" | "taxIdentifier" | "timezone">>, _revision: string, _requestId: string): Promise<OrganizationView> { return { ...organization, ...patch, revision: "2" }; }
   async listDepartments(_actor: ActorContext): Promise<DepartmentView[]> { return [{ id: IDS.department, name: "Operativa", status: "active", revision: "1" }]; }
   async createDepartment(_actor: ActorContext, name: string, _requestId: string): Promise<DepartmentView> { return { id: IDS.department, name, status: "active", revision: "1" }; }
-  async listHolidays(_actor: ActorContext, _year: number): Promise<HolidayView[]> { return []; }
-  async replaceHolidays(_actor: ActorContext, _year: number, holidays: Array<{ date: string; name: string }>, _revision: string, _requestId: string): Promise<HolidayView[]> { return holidays.map((item, index) => ({ id: `${IDS.department.slice(0, -1)}${index}`, ...item, revision: "1" })); }
+  async updateDepartment(_actor: ActorContext, departmentId: string, patch: { name?: string; status?: EntityStatus }, _revision: string, _requestId: string): Promise<DepartmentView> { return { id: departmentId, name: patch.name ?? "Operativa", status: patch.status ?? "active", revision: "2" }; }
+  async listHolidays(_actor: ActorContext, _year: number): Promise<HolidayCalendarView> { return { items: [], revision: "0" }; }
+  async replaceHolidays(_actor: ActorContext, _year: number, holidays: Array<{ date: string; name: string }>, _revision: string, _requestId: string): Promise<HolidayCalendarView> { return { items: holidays.map((item, index) => ({ id: `${IDS.department.slice(0, -1)}${index}`, ...item, revision: "1" })), revision: "1" }; }
   async listUsers(_actor: ActorContext, _cursor: string | undefined, _limit: number): Promise<Page<UserView>> { return { items: [], page: { nextCursor: null, total: 0 } }; }
   async inviteUser(_actor: ActorContext, input: { email: string; role: Role; workerId?: string | null; departmentIds?: string[] }, _requestId: string): Promise<UserView> { return { id: IDS.user, email: input.email, role: input.role, status: "blocked", workerId: input.workerId ?? null, departmentIds: input.departmentIds ?? [], revision: "1" }; }
   async updateUser(_actor: ActorContext, _userId: string, patch: { role?: Role; status?: EntityStatus; departmentIds?: string[] }, _revision: string, _requestId: string): Promise<UserView> { return { id: IDS.user, email: "admin@example.test", role: patch.role ?? "admin", status: patch.status ?? "active", workerId: null, departmentIds: patch.departmentIds ?? [], revision: "2" }; }
@@ -123,5 +142,10 @@ export class FakePhaseAService implements PhaseAService {
   async listShifts(_actor: ActorContext): Promise<ShiftView[]> { return [shift]; }
   async createShift(_actor: ActorContext, input: ShiftWrite, _requestId: string): Promise<ShiftView> { return { ...shift, ...input, assignedWorkerCount: 0 }; }
   async updateShift(_actor: ActorContext, _shiftId: string, input: ShiftWrite, _revision: string, _requestId: string): Promise<ShiftView> { return { ...shift, ...input, revision: "2" }; }
+  async listWorkerRfidCards(_actor: ActorContext, _workerId: string): Promise<RfidCardView[]> { return []; }
+  async assignWorkerRfidCard(_actor: ActorContext, workerId: string, _input: { uid: string; validFrom?: string }, _requestId: string): Promise<RfidCardView> { return { id: IDS.card, maskedUid: "****1234", workerId, status: "active", validFrom: new Date(0).toISOString(), validTo: null, revision: "1" }; }
   async blockRfidCard(_actor: ActorContext, cardId: string, _requestId: string): Promise<RfidCardView> { return { id: cardId, maskedUid: "****1234", workerId: IDS.worker, status: "blocked", validFrom: new Date(0).toISOString(), validTo: new Date().toISOString(), revision: "2" }; }
+  async listLeaveBalances(_actor: ActorContext, filters: { year: number; cursor?: string; limit: number; departmentId?: string; workerId?: string }): Promise<Page<LeaveBalanceView> & { datasetVersion: string }> { return { items: [{ workerId: IDS.worker, year: filters.year, allowanceDays: 20, carriedOverDays: 0, approvedDays: 5, plannedDays: 2, remainingDays: 15, availableDays: 13, revision: "1" }], page: { nextCursor: null, total: 1 }, datasetVersion: "leave-v1" }; }
+  async createReportPreview(_actor: ActorContext, input: ReportPreviewWrite): Promise<ReportPreviewView> { return { reportType: input.reportType, filters: { ...input, limit: input.limit ?? 100 }, columns: [{ key: "workerCode", label: "Šifra", dataType: "text" }], rows: [{ workerCode: "R-001" }], totals: { rowCount: 1, workedMinutes: 480, plannedMinutes: 480, balanceMinutes: 0 }, datasetVersion: "report-v1", truncated: false }; }
+  async listTerminalSyncEvents(_actor: ActorContext, terminalId: string, _filters: { from: string; to: string; eventStatus?: TerminalSyncEventView["status"]; cursor?: string; limit: number }): Promise<Page<TerminalSyncEventView>> { return { items: [{ id: IDS.card, terminalId, deviceEventId: IDS.worker, sequence: 1, workerId: IDS.worker, occurredAt: new Date(0).toISOString(), receivedAt: new Date(0).toISOString(), eventType: "check_in", status: "synced", rejectionCode: null }], page: { nextCursor: null, total: 1 } }; }
 }

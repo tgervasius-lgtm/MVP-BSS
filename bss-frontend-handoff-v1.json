@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "product": "BSS MVP",
-  "status": "FRONTEND_FROZEN_READY_FOR_BACKEND_CONTRACT_REVIEW",
+  "status": "FRONTEND_FROZEN_BACKEND_CONTRACT_APPROVED",
   "reviewedAt": "2026-07-13",
   "release": {
     "version": "1.0.0",

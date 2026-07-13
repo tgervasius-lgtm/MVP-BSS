@@ -7,6 +7,22 @@ test("production refuses insecure cookies or a non-HTTPS public origin", () => {
   assert.throws(() => loadConfig({ NODE_ENV: "production", PUBLIC_ORIGIN: "https://bss.example", COOKIE_SECURE: "false" }));
 });
 
+test("production requires a dedicated RFID UID pepper", () => {
+  assert.throws(() => loadConfig({
+    NODE_ENV: "production",
+    PUBLIC_ORIGIN: "https://bss.example",
+    COOKIE_SECURE: "true",
+    RFID_UID_PEPPER: "too-short"
+  }));
+  const config = loadConfig({
+    NODE_ENV: "production",
+    PUBLIC_ORIGIN: "https://bss.example",
+    COOKIE_SECURE: "true",
+    RFID_UID_PEPPER: "0123456789abcdef0123456789abcdef"
+  });
+  assert.equal(config.rfidUidPepper.length, 32);
+});
+
 test("test configuration is explicit and immutable", () => {
   const config = loadConfig({ NODE_ENV: "test", PUBLIC_ORIGIN: "http://localhost:3000", DATABASE_URL: "postgres://test" });
   assert.equal(config.cookieSecure, false);

@@ -14,6 +14,7 @@ GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO :"runtime_role";
 GRANT EXECUTE ON FUNCTION bss_auth_lookup(text) TO :"runtime_role";
 GRANT EXECUTE ON FUNCTION bss_session_lookup(bytea) TO :"runtime_role";
 GRANT EXECUTE ON FUNCTION bss_refresh_lookup(bytea) TO :"runtime_role";
+GRANT EXECUTE ON FUNCTION bss_invitation_lookup(bytea) TO :"runtime_role";
 
 -- The runtime role must remain NOSUPERUSER NOBYPASSRLS and must not own tables.
 ALTER ROLE :"runtime_role" NOSUPERUSER NOBYPASSRLS;

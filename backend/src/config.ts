@@ -10,6 +10,7 @@ export type AppConfig = Readonly<{
   cookieSecure: boolean;
   trustProxy: boolean;
   logLevel: string;
+  rfidUidPepper: string;
 }>;
 
 function booleanFromEnv(value: string | undefined, fallback: boolean): boolean {
@@ -43,6 +44,10 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   if (nodeEnv === "production" && (!cookieSecure || origin.protocol !== "https:")) {
     throw new Error("Production requires HTTPS PUBLIC_ORIGIN and secure cookies");
   }
+  const rfidUidPepper = env.RFID_UID_PEPPER ?? "development-only-rfid-pepper-change-me";
+  if (nodeEnv === "production" && rfidUidPepper.length < 32) {
+    throw new Error("Production requires RFID_UID_PEPPER with at least 32 characters");
+  }
 
   return Object.freeze({
     nodeEnv: nodeEnv as AppConfig["nodeEnv"],
@@ -55,6 +60,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     refreshTokenTtlSeconds: positiveInteger(env.REFRESH_TOKEN_TTL_SECONDS, 2_592_000, "REFRESH_TOKEN_TTL_SECONDS"),
     cookieSecure,
     trustProxy: booleanFromEnv(env.TRUST_PROXY, false),
-    logLevel: env.LOG_LEVEL ?? "info"
+    logLevel: env.LOG_LEVEL ?? "info",
+    rfidUidPepper
   });
 }
