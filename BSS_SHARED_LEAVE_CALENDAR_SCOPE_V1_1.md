@@ -1,8 +1,8 @@
-# BSS zajednički kalendar godišnjih — prijedlog za MVP Scope v1.1
+# BSS zajednički kalendar godišnjih — frontend demonstracija i prijedlog za MVP Scope v1.1
 
-Status: **prijedlog; nije implementirano**  
-Opseg: mogući dodatak nakon zasebnog odobrenja MVP Scopea v1.1  
-Utjecaj na trenutačni frontend i backend ugovor: **nema**
+Status: **frontend demonstracija je implementirana; backend nije implementiran**  
+Opseg: prijedlog za MVP Scope v1.1 koji prije produkcijske primjene zahtijeva zasebno odobrenje  
+Utjecaj na backend ugovor: **nema; postojeći API nacrt nije promijenjen**
 
 ## Svrha
 
@@ -47,7 +47,16 @@ Kalendar je samo za čitanje. Ne omogućuje podnošenje, odobravanje, odbijanje 
 - Promjena administratorske postavke ulazi u audit trag s vremenom, administratorom i starom/novom vrijednošću.
 - Izvoz zajedničkog kalendara nije dio ovog prijedloga.
 
-## Kriteriji prihvata za buduću implementaciju
+## Što frontend demo radi
+
+- ekran je dostupan administratoru, voditelju, radniku i knjigovođi;
+- administrator u demo-stanju bira `tim`, `odjel` ili `organizacija`;
+- svi korisnici vide samo odobrene godišnje unutar trenutačno dopuštenog opsega;
+- kalendar i tablica prikazuju samo ime zaposlenika te početni i završni datum;
+- klik na zauzeti dan otvara isti privatno minimizirani skup podataka;
+- demo ne šalje zahtjev poslužitelju i ne uvodi novu API rutu.
+
+## Kriteriji prihvata za buduću backend implementaciju
 
 1. Administrator može odabrati `tim`, `odjel` ili `organizacija`.
 2. Radnik vidi samo ime i odobreno razdoblje unutar dopuštenog opsega.
@@ -58,4 +67,4 @@ Kalendar je samo za čitanje. Ne omogućuje podnošenje, odobravanje, odbijanje 
 
 ## Granica odluke
 
-Ovaj dokument je samo **prijedlog za MVP Scope v1.1**. Prije implementacije potrebno je zasebno odobriti poslovni opseg, zaštitu podataka, administratorsku postavku i proširenje backend ugovora. PR #20 ne implementira ovaj kalendar i ne mijenja postojeći API nacrt.
+Ovaj ekran ostaje **prijedlog za MVP Scope v1.1** na produkcijskoj razini. PR #21 implementira samo frontend demo nad lokalnim demo-podacima. Prije stvarnog spajanja podataka potrebno je zasebno odobriti poslovni opseg, zaštitu podataka, administratorsku postavku i proširenje backend ugovora. Produkcijski backend mora vratiti već autoriziran i privatno minimiziran skup; frontend filtriranje nije sigurnosna granica.

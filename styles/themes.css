@@ -36,3 +36,8 @@
 :root[data-theme="dark"] .demo-story-footer{border-color:var(--bss-color-border);background:var(--bss-color-bg-subtle)}
 :root[data-theme="dark"] .modal,:root[data-theme="dark"] .drawer{background:var(--bss-color-overlay)}
 :root[data-theme="dark"] ::selection{background:#115e59;color:#ecfdf5}
+:root[data-theme="dark"] .admin-kpis>button,:root[data-theme="dark"] .terminal-kpis>button{background:transparent;color:var(--bss-color-text)}
+:root[data-theme="dark"] .admin-kpis>button:hover,:root[data-theme="dark"] .terminal-kpis>button:hover{background:var(--bss-color-bg-subtle)}
+:root[data-theme="dark"] .scope-switch button{background:var(--bss-color-bg-surface);color:var(--bss-color-text-muted)}
+:root[data-theme="dark"] .scope-switch button.active{background:var(--bss-color-action-primary);border-color:var(--bss-color-action-primary);color:var(--bss-color-action-primary-text)}
+:root[data-theme="dark"] .active-filter{border-color:#1e4b67}

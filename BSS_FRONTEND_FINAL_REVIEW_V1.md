@@ -5,8 +5,8 @@
 | Status | **SPREMAN ZA ODLUKU PRODUCT OWNERA** |
 | Datum pregleda | 13.07.2026. |
 | Polazna verzija | `main` na `ec4b92c` (spojeni Refactor v1 R6) |
-| Obuhvat | 16 registriranih ekrana, četiri uloge, desktop i mobilni quality gate |
-| Pravilo | Preglednost ispred kompleksnosti; tablica ispred grafa; bez tihog širenja MVP-a |
+| Obuhvat | 17 registriranih ekrana, četiri uloge, desktop i mobilni quality gate |
+| Pravilo | Preglednost ispred kompleksnosti; tablica prije grafa; bez tihog širenja MVP-a |
 | Backend | Nije implementiran niti pokrenut u ovom paketu |
 
 ## 1. Zaključak
@@ -17,7 +17,7 @@ Preporuka je:
 
 1. ne dodavati nove funkcije prije pilota;
 2. svesti operativne početne ekrane na četiri ključne brojke i jednu tablicu iznimaka;
-3. ukloniti tjedni graf i ne uvoditi nove grafove u MVP;
+3. ukloniti tjedni graf i ne uvoditi dekorativne grafove; kompaktni kružni prikaz dopušten je samo za mjesečne sate i godišnji fond;
 4. zadržati cjelogodišnji kalendar administratora, ali njegove dodatne sažetke pretvoriti u kompaktne tablice ili odvojene prikaze;
 5. izvještaje oblikovati kao provjerljiv tablični rezultat s primarnim XLSX izlazom; PDF je opravdan prijedlog, ali zahtijeva izričitu izmjenu zaključanog opsega;
 6. backend spojiti preko postojećih adaptera i use-case granica, bez izravnog vezanja DOM-a na HTTP pozive.
@@ -36,7 +36,7 @@ Ovo je pregled arhitekture informacija i spremnosti za backend, a ne redizajn. U
 
 1. Svaki ekran mora imati jednu primarnu poslovnu svrhu.
 2. Najviše četiri primarna KPI-ja na početnom ekranu; ostalo pripada tablici ili izvještaju.
-3. Graf se koristi samo ako pokazuje odnos koji tablica ne može jasnije pokazati. Za trenutačni MVP nije potreban nijedan graf.
+3. Graf se koristi samo ako odnos čini bržim za razumjeti. Dopušteni su kompaktni kružni prikazi mjesečnih sati i godišnjeg fonda; tjedni, linijski i ukrasni grafovi nisu dio MVP-a.
 4. Operativni popisi na desktopu su tablice; na mobitelu su kompaktni retci ili kontrolirano horizontalno pomične tablice.
 5. Kartica služi za upozorenje, odluku ili sažetak, ne kao zamjena za svaki red podataka.
 6. Radnik vidi samo svoje podatke; voditelj samo dodijeljene odjele; knjigovođa samo odobrene izvještajne podatke; administrator cijelu organizaciju.
@@ -59,6 +59,7 @@ Ovo je pregled arhitekture informacija i spremnosti za backend, a ne redizajn. U
 | `shifts` | admin, manager | Četiri sažetka i popis kartica ponavljaju podatke koje jedna tablica pokazuje preciznije. | Jedna tablica Naziv–Vrijeme–Pauza–Tolerancija–Broj radnika–Status–Akcija. Voditelj bez akcija uređivanja. | P1 |
 | `requests` | admin, manager, worker | Statusni KPI-ji i kartice zahtjeva troše mnogo vertikalnog prostora. | Desktop: tablica s filtrima i jasnim akcijama odluke; detalji/razlog u modalu ili proširenom retku. Mobilno: kompaktna kartica. Radnikov novi zahtjev ostaje jedan kontrolirani obrazac. | P1 |
 | `vacations` | sve uloge | Administratorov traženi godišnji kalendar postoji, ali ista stranica prikazuje četiri KPI-ja, kapacitet šest odjela, 12 mjeseci, stanje svakog radnika i sve planirane odsutnosti. | Cjelogodišnji kalendar ostaje primarni. Kapacitet odjela pretvoriti u jednu tablicu. Stanja radnika i popis odsutnosti prikazati kao zasebne tablične prikaze/sekcije koje se ne učitavaju istodobno s cijelom godinom. Radnik vidi samo svoj mjesec/godinu i fond. | P0 UX odluka |
+| `sharedLeave` | sve uloge | Product Owner odobrio je frontend demonstraciju zajedničkog kalendara. | Prikazati isključivo ime i odobreno razdoblje u opsegu tim–odjel–organizacija. Bez bolovanja, razloga, napomena i backend rute. Produkcijska implementacija ostaje odluka MVP Scopea v1.1. | P0 granica |
 | `corrections` | admin, manager, worker | Tijek je uzak i razumljiv; radnički obrazac se djelomično ponavlja u `mytime`. | Zadržati listu odluka. Jedini ulaz u novu korekciju neka bude odabrani zapis; `corrections` prikazuje povijest i status. | P1 |
 | `reports` | admin, manager, accountant | Najbliži ciljanoj BSS filozofiji: filtri, tablica i pravi XLSX. Pet velikih tipova, četiri KPI-ja, blok preuzimanja, kontrolni blok i povijest ipak su previše na jednom ekranu. | Jedan red filtara, tabovi vrsta izvještaja, tablični pregled i dva primarna izlaza. XLSX je poslovni izlaz; CSV ostaje tehnički. Ne prikazivati KPI-je koje tablica već zbraja. Povijest izvoza kao zasebna tablica. | P0 ugovor |
 | `terminal` | admin, manager | Status, četiri KPI-ja, dijagnostičke kartice i dvije tablice preklapaju se. | Jedna tablica terminala i jedna tablica zadnjih sinkronizacijskih događaja. Posebna kartica samo za stvarnu iznimku/alarm. Voditelj samo čita. | P1 |
@@ -71,7 +72,7 @@ Ovo je pregled arhitekture informacija i spremnosti za backend, a ne redizajn. U
 
 ### P0 – mora biti zaključano prije prvog API adaptera
 
-- prihvatiti ovu matricu ekrana i ne dodavati novi modul;
+- prihvatiti ovu matricu ekrana; `sharedLeave` ostaje izolirana frontend demonstracija dok se zasebno ne odobri backend opseg;
 - potvrditi da `terminalDemo` i `flow` ostaju isključivo demo;
 - definirati `loading`, `empty`, `error`, `forbidden` i `stale` stanje za svaki serverski ekran;
 - koristiti samo stabilne statusne kodove iz `bss-mvp-scope-v1.json`;
@@ -81,7 +82,7 @@ Ovo je pregled arhitekture informacija i spremnosti za backend, a ne redizajn. U
 
 ### P1 – provesti tijekom spajanja, bez nove poslovne funkcije
 
-- ukloniti graf i duplicirane KPI-je;
+- ukloniti tjedne i dekorativne grafove te duplicirane KPI-je;
 - pretvoriti popise radnika, smjena, zahtjeva i audita u tablice na desktopu;
 - ukloniti stupac Radnik iz osobnih tablica;
 - korekciju pokretati iz konkretnog zapisa;
@@ -109,7 +110,7 @@ Detaljna pravila nalaze se u `BSS_REPORTING_PROFILE_V1.md`. Sažetak:
 Pojednostavljenje je završeno kada:
 
 1. nijedan ekran ne dobije novu poslovnu funkciju;
-2. dashboard nema graf i ima najviše četiri primarna KPI-ja;
+2. dashboard nema tjedni graf i ima najviše četiri primarna KPI-ja;
 3. osobni ekran nema podatke druge osobe ni suvišan stupac Radnik;
 4. adminov godišnji pogled i dalje prikazuje cijelu godinu;
 5. glavne desktop liste su tablice s jasnim statusom i jednom kolonom akcija;

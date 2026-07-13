@@ -10,6 +10,7 @@
     shifts:'viewShifts',
     requests:'viewRequests',
     vacations:'viewVacations',
+    sharedLeave:'viewSharedLeave',
     corrections:'viewCorrections',
     reports:'viewReports',
     terminal:'viewTerminal',

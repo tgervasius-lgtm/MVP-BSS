@@ -98,6 +98,15 @@
       "priority": "P0_UX_DECISION"
     },
     {
+      "id": "sharedLeave",
+      "roles": ["admin", "manager", "worker", "accountant"],
+      "mode": "frontend_demo_only",
+      "reads": ["demo_seed", "shared_leave_demo_visibility"],
+      "commands": ["admin_set_demo_visibility"],
+      "simplification": "Show only employee name and approved annual-leave date range within team, department or organization demo scope; never expose sick leave, notes, reasons or private data.",
+      "priority": "MVP_SCOPE_V1_1_FRONTEND_DEMO"
+    },
+    {
       "id": "corrections",
       "roles": ["admin", "manager", "worker"],
       "mode": "runtime",
@@ -188,6 +197,7 @@
     "theme",
     "unsaved_filters",
     "unsent_form_draft",
+    "shared_leave_demo_visibility",
     "explicit_local_demo_state"
   ],
   "reportTypes": [
@@ -217,6 +227,7 @@
   ],
   "handoffDocuments": [
     "BSS_FRONTEND_FINAL_REVIEW_V1.md",
+    "BSS_SHARED_LEAVE_CALENDAR_SCOPE_V1_1.md",
     "BSS_BACKEND_HANDOFF_V1.md",
     "BSS_REPORTING_PROFILE_V1.md",
     "BSS_MVP_SCOPE_FREEZE_V1.md",
