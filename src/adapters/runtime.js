@@ -38,11 +38,11 @@
       },
       set(key,value){
         memory.setItem(key,value);
-        try{ storage?.setItem(String(key),String(value)); }catch(error){}
+        try{ storage?.setItem(String(key),String(value)); }catch{ /* memorijski zapis ostaje dostupan */ }
       },
       remove(key){
         memory.removeItem(key);
-        try{ storage?.removeItem(String(key)); }catch(error){}
+        try{ storage?.removeItem(String(key)); }catch{ /* memorijski zapis već je uklonjen */ }
       },
       getJson(key){
         const raw = this.get(key);

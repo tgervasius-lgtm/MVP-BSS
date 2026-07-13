@@ -8,6 +8,7 @@ const html = fs.readFileSync('index.html','utf8');
 const source = fs.readFileSync('app.js','utf8');
 const coreSources = [
   'src/adapters/runtime.js',
+  'src/adapters/theme-bootstrap.js',
   'src/domain/contracts.js',
   'src/domain/time.js',
   'src/policies/access.js',
@@ -45,6 +46,16 @@ const scopeFreezeDoc = fs.readFileSync('BSS_MVP_SCOPE_FREEZE_V1.md','utf8');
 const scopeFreeze = JSON.parse(fs.readFileSync('bss-mvp-scope-v1.json','utf8'));
 const demoRoadmap = fs.readFileSync('DEMO_3_ROADMAP.md','utf8');
 const serviceWorker = fs.readFileSync('sw.js','utf8');
+const themeBootstrap = fs.readFileSync('src/adapters/theme-bootstrap.js','utf8');
+const packageConfig = JSON.parse(fs.readFileSync('package.json','utf8'));
+const eslintConfig = fs.readFileSync('eslint.config.mjs','utf8');
+const playwrightConfig = fs.readFileSync('playwright.config.cjs','utf8');
+const e2eSource = fs.readFileSync('tests/e2e/app.spec.cjs','utf8');
+const buildScript = fs.readFileSync('scripts/build.mjs','utf8');
+const cloudflareConfig = fs.readFileSync('wrangler.toml','utf8');
+const cloudflareHeaders = fs.readFileSync('_headers','utf8');
+const cloudflareDeployment = fs.readFileSync('CLOUDFLARE_DEPLOYMENT.md','utf8');
+const qualityWorkflow = fs.readFileSync('.github/workflows/quality.yml','utf8');
 
 function hexToken(css,name){
   const match=css.match(new RegExp(`${name}:\\s*(#[0-9a-f]{6})`,'i'));
@@ -716,6 +727,7 @@ test('mobilni, desktop, animacijski i PWA završni sloj imaju zaštitna pravila'
   assert.match(styles,/@media\(min-width:960px\)/);
   assert.match(styles,/@media\(prefers-reduced-motion:reduce\)/);
   assert.match(styles,/@keyframes rfidPulse/);
+  assert.doesNotMatch(styles,/@keyframes (?:fade|screenRise)\{[^}]*opacity/);
   assert.match(styles,/\.skip-link/);
   assert.equal(manifest.display,'standalone');
   assert.equal(manifest.lang,'hr');
@@ -961,8 +973,10 @@ test('R5 učitava CSS slojeve istim redoslijedom i sprema ih za offline rad',()=
 });
 
 test('ključni tekst i statusi Design Systema zadovoljavaju WCAG AA kontrast',()=>{
+  assert.match(designTokens,/--bss-color-text-muted: var\(--bss-color-neutral-600\)/);
+  assert.equal(hexToken(designTokens,'--bss-color-success-600'),'#166534');
   const pairs=[
-    ['--bss-color-neutral-500','--bss-color-neutral-50'],
+    ['--bss-color-neutral-600','--bss-color-neutral-50'],
     ['--bss-color-success-600','--bss-color-success-100'],
     ['--bss-color-warning-700','--bss-color-warning-100'],
     ['--bss-color-danger-700','--bss-color-danger-100'],
@@ -1015,6 +1029,11 @@ test('živi Design System vodič dokumentira komponente, responsive i pristupač
     assert.ok(guide.querySelector(`#${id}`),`nedostaje sekcija ${id}`);
   }
   assert.ok(guide.querySelector('[data-theme-switch][role="switch"]'));
+  const scrollRegions=[...guide.querySelectorAll('.ds-swatches,.ds-table-wrap')];
+  assert.equal(scrollRegions.length,2);
+  assert.ok(scrollRegions.every(region=>region.tabIndex===0 && region.getAttribute('role')==='region' && region.getAttribute('aria-label')));
+  assert.doesNotMatch(designGuideStyles,/\.state-disabled\{[^}]*opacity/);
+  assert.match(designGuideStyles,/\.state-disabled\{[^}]*border-style:dashed/);
   assert.equal(guide.documentElement.lang,'hr');
   assert.match(guide.querySelector('title').textContent,/Design System v1\.0/);
   assert.match(designGuideStyles,/@media\(max-width:760px\)/);
@@ -1033,7 +1052,7 @@ test('aplikacija povezuje vodič i offline predmemorira cijeli Design System',()
   for(const asset of ['design-system/index.html','design-system/tokens.css','design-system/guide.css','design-system/guide.js']){
     assert.match(serviceWorker,new RegExp(asset.replaceAll('.','\\.')));
   }
-  assert.match(serviceWorker,/bss-refactor-v1-r5/);
+  assert.match(serviceWorker,/bss-refactor-v1-r6/);
 });
 
 test('Brand Book v1.0 pokriva svih devet dogovorenih područja',()=>{
@@ -1046,6 +1065,10 @@ test('Brand Book v1.0 pokriva svih devet dogovorenih područja',()=>{
   assert.match(guide.querySelector('.bb-hero').textContent,/Od podatka na terenu do jasne odluke/);
   assert.match(guide.querySelector('#governance').textContent,/Product Ownera/);
   assert.equal(guide.querySelectorAll('.application-grid > a').length,4);
+  assert.ok(guide.querySelector('.brand-color-grid .signal-color'));
+  assert.match(brandBookStyles,/\.signal-color\{color:#062a26/);
+  assert.match(brandBookStyles,/\.ratio\.signal\{background:#14b8a6;color:#062a26/);
+  assert.doesNotMatch(brandBookStyles,/\.brand-color-grid small\{[^}]*opacity/);
   assert.match(brandBookDoc,/Bognar Smart Systems \(BSS\)/);
   assert.match(brandBookDoc,/tehnički audit i zamrzavanje funkcionalnog opsega/);
 });
@@ -1093,11 +1116,11 @@ test('aplikacija povezuje Brand Book i cijeli paket radi offline',()=>{
     'bss-presentation-cover.svg','bss-terminal-label.svg',
     'BSS_BRAND-BOOK_v1.0_11.07.2026.pdf'
   ]) assert.match(serviceWorker,new RegExp(asset.replaceAll('.','\\.')));
-  assert.match(serviceWorker,/bss-refactor-v1-r5/);
+  assert.match(serviceWorker,/bss-refactor-v1-r6/);
   assert.match(serviceWorker,/path\.includes\('\/brand-book'\)/);
 });
 
-test('službeni Brand Book PDF nosi PDF\/A-2u oznaku i ugrađene metapodatke',()=>{
+test('službeni Brand Book PDF nosi PDF/A-2u oznaku i ugrađene metapodatke',()=>{
   assert.ok(brandBookPdf.length>70000);
   const raw=brandBookPdf.toString('latin1');
   assert.ok(raw.startsWith('%PDF-1.7'));
@@ -1171,6 +1194,7 @@ test('scope dokument i roadmap zaključavaju promjene i vode u Refactor v1',()=>
 test('Refactor v1 učitava jezgru prije aplikacije i sprema je za offline rad',()=>{
   const order=[
     html.indexOf('src/adapters/runtime.js'),
+    html.indexOf('src/adapters/theme-bootstrap.js'),
     html.indexOf('src/domain/contracts.js'),
     html.indexOf('src/domain/time.js'),
     html.indexOf('src/policies/access.js'),
@@ -1184,13 +1208,51 @@ test('Refactor v1 učitava jezgru prije aplikacije i sprema je za offline rad',(
   assert.ok(order.every(index=>index>=0));
   assert.deepEqual(order,[...order].sort((a,b)=>a-b));
   for(const asset of [
-    'src/adapters/runtime.js','src/domain/contracts.js','src/domain/time.js','src/policies/access.js',
+    'src/adapters/runtime.js','src/adapters/theme-bootstrap.js','src/domain/contracts.js','src/domain/time.js','src/policies/access.js',
     'src/use-cases/attendance.js','src/use-cases/leave.js','src/use-cases/corrections.js',
     'src/views/registry.js','src/views/events.js'
   ]){
     assert.match(serviceWorker,new RegExp(asset.replaceAll('.','\\.')));
   }
-  assert.match(serviceWorker,/bss-refactor-v1-r5/);
+  assert.match(serviceWorker,/bss-refactor-v1-r6/);
+});
+
+test('R6 uklanja inline skripte i zaključava temu prije prikaza stranice',()=>{
+  for(const documentSource of [html,designGuideHtml,brandBookHtml]){
+    assert.doesNotMatch(documentSource,/<script(?![^>]*\bsrc=)[^>]*>/i);
+    assert.match(documentSource,/theme-bootstrap\.js/);
+  }
+  assert.match(themeBootstrap,/bss-theme-v1/);
+  assert.match(themeBootstrap,/prefers-color-scheme: dark/);
+  assert.doesNotMatch(themeBootstrap,/innerHTML|document\.write|eval\s*\(/);
+});
+
+test('R6 quality gate pokriva lint, deterministički build, Chromium E2E i axe',()=>{
+  for(const script of ['build','lint','test:e2e','ci'])assert.equal(typeof packageConfig.scripts[script],'string');
+  assert.match(eslintConfig,/no-eval/);
+  assert.match(eslintConfig,/no-new-func/);
+  assert.match(buildScript,/build-manifest\.json/);
+  assert.match(buildScript,/createHash\('sha256'\)/);
+  assert.match(playwrightConfig,/desktop-chromium/);
+  assert.match(playwrightConfig,/mobile-chromium/);
+  assert.match(e2eSource,/AxeBuilder/);
+  assert.match(e2eSource,/Godišnji kalendar cijele firme/);
+  assert.match(e2eSource,/Moj godišnji kalendar/);
+  for(const command of ['npm run lint','npm test','npm run build','playwright install --with-deps chromium','npm run test:e2e']){
+    assert.match(qualityWorkflow,new RegExp(command.replace(/[.*+?^$()|[\]\\]/g,'\\$&')));
+  }
+});
+
+test('R6 zaključava Cloudflare Pages izlaz bez automatske produkcijske objave',()=>{
+  assert.equal(fs.existsSync('netlify.toml'),false);
+  assert.match(cloudflareConfig,/name = "mvp-bss"/);
+  assert.match(cloudflareConfig,/pages_build_output_dir = "\.\/dist"/);
+  assert.match(cloudflareHeaders,/Content-Security-Policy:/);
+  assert.match(cloudflareHeaders,/script-src 'self'/);
+  assert.match(cloudflareHeaders,/X-Content-Type-Options: nosniff/);
+  assert.match(cloudflareDeployment,/Produkcijska grana \| `main`/);
+  assert.match(cloudflareDeployment,/ne mijenja bez odobrenja Product Ownera/);
+  assert.doesNotMatch(qualityWorkflow,/wrangler\s+(?:pages\s+)?deploy|cloudflare\/pages-action/i);
 });
 
 test('domenski ugovor zaključava četiri uloge i hrvatske oznake statusa',()=>{

@@ -35,7 +35,7 @@
   --bss-color-neutral-950: #071b17;
 
   /* Status primitive */
-  --bss-color-success-600: #15803d;
+  --bss-color-success-600: #166534;
   --bss-color-success-100: #dcfce7;
   --bss-color-warning-700: #b45309;
   --bss-color-warning-100: #fef3c7;
@@ -54,7 +54,7 @@
   --bss-color-border-subtle: var(--bss-color-neutral-100);
   --bss-color-border-strong: #afd6c2;
   --bss-color-text: var(--bss-color-neutral-800);
-  --bss-color-text-muted: var(--bss-color-neutral-500);
+  --bss-color-text-muted: var(--bss-color-neutral-600);
   --bss-color-text-on-brand: var(--bss-color-neutral-0);
   --bss-color-accent-text: var(--bss-color-brand-600);
   --bss-color-accent-soft: var(--bss-color-brand-50);

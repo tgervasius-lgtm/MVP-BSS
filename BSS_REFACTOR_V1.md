@@ -2,7 +2,7 @@
 
 | Stavka | Vrijednost |
 | --- | --- |
-| Status | U izradi |
+| Status | Dovršeno u R6 grani |
 | Početak | 12.07.2026. |
 | Osnova | `agent/bss-technical-audit-scope-freeze-v1` |
 | Pravilo | Isti izgled, funkcije, podaci i opseg kao Demo 3.0 |
@@ -20,8 +20,8 @@ Razdvojiti monolitni frontend u testabilnu domenu, politike, adaptere i prikaze 
 | R2 | Adapteri za pohranu, sat, ID i demo podatke | Dovršeno |
 | R3 | Use-case funkcije za evidenciju, godišnje i korekcije | Dovršeno |
 | R4 | Prikazi po ekranima i uklanjanje inline handlera | Dovršeno |
-| R5 | CSS slojevi i uklanjanje legacy aliasa | Dovršeno u ovoj grani |
-| R6 | Build, lint, browser E2E, axe i Cloudflare sigurnosna ograda | Čeka |
+| R5 | CSS slojevi i uklanjanje legacy aliasa | Dovršeno |
+| R6 | Build, lint, browser E2E, axe i Cloudflare sigurnosna ograda | Dovršeno u ovoj grani |
 
 ## R1 – izdvojena jezgra
 
@@ -106,6 +106,26 @@ R1 namjerno zadržava hrvatske demo oznake statusa i postojeći javni API funkci
 - u tokenima i poslovnim slojevima nema legacy aliasa;
 - svijetla i tamna tema, mobilni i desktop rasporedi ostaju funkcionalno jednaki;
 - svi R1–R4 i postojeći regresijski testovi prolaze.
+
+## R6 – quality gate i Cloudflare sigurnosna ograda
+
+- `npm run build` stvara deterministički `dist/` paket i SHA-256 manifest svih izlaznih datoteka.
+- ESLint provjerava aplikaciju, domenu, adaptere, prikaze, testove i build skripte te izričito zabranjuje `eval`, implicitni eval i `Function` konstruktor.
+- Playwright pokreće iste scenarije u Chromiumu na 1440 px desktopu i iPhone 13 mobilnom viewportu.
+- E2E prolazi kroz sve dopuštene ekrane četiri uloge, provjerava overflow, privatni radnikov i puni administratorski godišnji kalendar, temu i svih sedam CSS slojeva.
+- axe provjerava WCAG 2 A/AA na prijavi, aplikaciji, Design Systemu i Brand Booku.
+- GitHub quality workflow provodi lint, unit/integration, build, browser E2E i axe na svakom PR-u prema `main` i svakoj `agent/**` grani.
+- `wrangler.toml` zaključava Cloudflare Pages izlaz na `dist`, a `_headers` primjenjuje CSP i osnovna sigurnosna zaglavlja.
+- Uklonjen je zastarjeli `netlify.toml`; repozitorij sada ima jednu deploy osnovu.
+- CI nema produkcijsku deploy naredbu. Spajanje u `main` i produkcija i dalje zahtijevaju odobrenje Product Ownera.
+
+### Kriterij prolaza R6
+
+- lint, unit/integration, build, desktop i mobilni E2E te axe prolaze u jednom quality workflowu;
+- build ne sadrži inline skripte, nedostajuće service-worker assete ni datoteke izvan runtime opsega;
+- Cloudflare preview koristi `dist` i sigurnosna zaglavlja bez tajni u repozitoriju;
+- nema vizualne, funkcionalne, RBAC ni MVP-scope regresije;
+- Refactor v1 završava tek nakon zelenog PR-a i izričitog odobrenja za spajanje.
 
 ## Kriterij prolaza R1
 
