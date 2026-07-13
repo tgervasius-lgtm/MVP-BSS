@@ -1,0 +1,1783 @@
+openapi: 3.1.0
+info:
+  title: BSS MVP API
+  version: 0.1.0-draft
+  summary: Contract draft for the frozen BSS attendance MVP.
+  description: |
+    Review draft only; it is not a deployed backend. The server derives organization,
+    role and department scope from the verified session/device identity. Client-supplied
+    scope is never authorization evidence. CSV and XLSX are the currently approved export
+    formats. PDF/PDF-A requires a separate scope decision.
+  x-bss-status: DRAFT_FOR_CONTRACT_REVIEW
+  x-bss-baseline-commit: ec4b92c4c0dcc1e067caa8ff9c2fb6ce803540ea
+servers:
+  - url: /api/v1
+    description: Same-origin application API
+tags:
+  - name: Auth
+  - name: Organization
+  - name: Users
+  - name: Workers
+  - name: Shifts
+  - name: Attendance
+  - name: Leave
+  - name: Corrections
+  - name: Reports
+  - name: Audit
+  - name: Terminals
+security:
+  - sessionCookie: []
+paths:
+  /auth/login:
+    post:
+      tags: [Auth]
+      operationId: login
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Authenticated session and current user context.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionContext'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+  /auth/refresh:
+    post:
+      tags: [Auth]
+      operationId: refreshSession
+      security: []
+      responses:
+        '204':
+          description: Session cookie rotated.
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+  /auth/logout:
+    post:
+      tags: [Auth]
+      operationId: logout
+      responses:
+        '204':
+          description: Session invalidated and cookie cleared.
+  /me:
+    get:
+      tags: [Auth]
+      operationId: getSessionContext
+      responses:
+        '200':
+          description: Verified user, organization and effective scope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionContext'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+  /organization:
+    get:
+      tags: [Organization]
+      operationId: getOrganization
+      x-bss-roles: [admin]
+      responses:
+        '200':
+          description: Current organization settings.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Organization'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    patch:
+      tags: [Organization]
+      operationId: updateOrganization
+      x-bss-roles: [admin]
+      parameters:
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrganizationPatch'
+      responses:
+        '200':
+          description: Updated organization.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Organization'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /departments:
+    get:
+      tags: [Organization]
+      operationId: listDepartments
+      x-bss-roles: [admin, manager]
+      responses:
+        '200':
+          description: Departments inside the effective scope.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Department'
+    post:
+      tags: [Organization]
+      operationId: createDepartment
+      x-bss-roles: [admin]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DepartmentWrite'
+      responses:
+        '201':
+          description: Department created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Department'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+  /holidays:
+    get:
+      tags: [Organization]
+      operationId: listHolidays
+      parameters:
+        - $ref: '#/components/parameters/Year'
+      responses:
+        '200':
+          description: Organization holidays used for working-day calculations.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Holiday'
+    put:
+      tags: [Organization]
+      operationId: replaceHolidaysForYear
+      x-bss-roles: [admin]
+      parameters:
+        - $ref: '#/components/parameters/Year'
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/HolidayWrite'
+      responses:
+        '200':
+          description: Stored holiday calendar.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Holiday'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /users:
+    get:
+      tags: [Users]
+      operationId: listUsers
+      x-bss-roles: [admin]
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Organization user accounts.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserPage'
+    post:
+      tags: [Users]
+      operationId: inviteUser
+      x-bss-roles: [admin]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserInvite'
+      responses:
+        '202':
+          description: Invitation accepted for delivery.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+  /users/{userId}:
+    patch:
+      tags: [Users]
+      operationId: updateUser
+      x-bss-roles: [admin]
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserPatch'
+      responses:
+        '200':
+          description: Updated user and effective scope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /workers:
+    get:
+      tags: [Workers]
+      operationId: listWorkers
+      x-bss-roles: [admin, manager]
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/DepartmentId'
+        - $ref: '#/components/parameters/Status'
+        - name: search
+          in: query
+          schema:
+            type: string
+            maxLength: 100
+      responses:
+        '200':
+          description: Workers inside the verified effective scope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkerPage'
+    post:
+      tags: [Workers]
+      operationId: createWorker
+      x-bss-roles: [admin]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkerWrite'
+      responses:
+        '201':
+          description: Worker created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Worker'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+  /workers/{workerId}:
+    get:
+      tags: [Workers]
+      operationId: getWorker
+      x-bss-roles: [admin, manager]
+      parameters:
+        - $ref: '#/components/parameters/WorkerId'
+      responses:
+        '200':
+          description: Worker in effective scope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Worker'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      tags: [Workers]
+      operationId: updateWorker
+      x-bss-roles: [admin]
+      parameters:
+        - $ref: '#/components/parameters/WorkerId'
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkerWrite'
+      responses:
+        '200':
+          description: Worker updated without deleting history.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Worker'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /workers/{workerId}/deactivate:
+    post:
+      tags: [Workers]
+      operationId: deactivateWorker
+      x-bss-roles: [admin]
+      parameters:
+        - $ref: '#/components/parameters/WorkerId'
+        - $ref: '#/components/parameters/IfMatch'
+      responses:
+        '200':
+          description: Worker blocked while historical records are retained.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Worker'
+  /shifts:
+    get:
+      tags: [Shifts]
+      operationId: listShifts
+      x-bss-roles: [admin, manager]
+      responses:
+        '200':
+          description: Organization shifts with assignment counts.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Shift'
+    post:
+      tags: [Shifts]
+      operationId: createShift
+      x-bss-roles: [admin]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ShiftWrite'
+      responses:
+        '201':
+          description: Shift created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Shift'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+  /shifts/{shiftId}:
+    patch:
+      tags: [Shifts]
+      operationId: updateShift
+      x-bss-roles: [admin]
+      parameters:
+        - $ref: '#/components/parameters/ShiftId'
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ShiftWrite'
+      responses:
+        '200':
+          description: Shift updated; historical attendance remains linked to its recorded plan.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Shift'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /rfid-cards/{cardId}/block:
+    post:
+      tags: [Workers]
+      operationId: blockRfidCard
+      x-bss-roles: [admin]
+      parameters:
+        - $ref: '#/components/parameters/CardId'
+      responses:
+        '200':
+          description: Card blocked; historical assignments remain available.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RfidCard'
+  /attendance:
+    get:
+      tags: [Attendance]
+      operationId: listAttendance
+      x-bss-roles: [admin, manager]
+      parameters:
+        - $ref: '#/components/parameters/FromDate'
+        - $ref: '#/components/parameters/ToDate'
+        - $ref: '#/components/parameters/DepartmentId'
+        - $ref: '#/components/parameters/WorkerIdQuery'
+        - name: attendanceStatus
+          in: query
+          schema:
+            $ref: '#/components/schemas/AttendanceStatus'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Attendance rows and server-authoritative totals inside effective scope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AttendancePage'
+  /workers/{workerId}/attendance:
+    get:
+      tags: [Attendance]
+      operationId: getWorkerAttendance
+      x-bss-roles: [admin, manager, worker]
+      description: Worker may request only self; server ignores client identity claims and checks the session.
+      parameters:
+        - $ref: '#/components/parameters/WorkerId'
+        - $ref: '#/components/parameters/FromDate'
+        - $ref: '#/components/parameters/ToDate'
+      responses:
+        '200':
+          description: Attendance rows and authoritative totals for the permitted worker.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AttendancePage'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /leave-requests:
+    get:
+      tags: [Leave]
+      operationId: listLeaveRequests
+      x-bss-roles: [admin, manager, worker, accountant]
+      parameters:
+        - $ref: '#/components/parameters/FromDate'
+        - $ref: '#/components/parameters/ToDate'
+        - $ref: '#/components/parameters/DepartmentId'
+        - name: leaveStatus
+          in: query
+          schema:
+            $ref: '#/components/schemas/RequestStatus'
+      responses:
+        '200':
+          description: Leave requests inside effective role scope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LeaveRequestPage'
+    post:
+      tags: [Leave]
+      operationId: createLeaveRequest
+      x-bss-roles: [worker]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LeaveRequestWrite'
+      responses:
+        '201':
+          description: Pending leave request with server-calculated working days.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LeaveRequest'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+  /leave-requests/{requestId}/approve:
+    post:
+      tags: [Leave]
+      operationId: approveLeaveRequest
+      x-bss-roles: [admin, manager]
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        $ref: '#/components/requestBodies/Decision'
+      responses:
+        '200':
+          description: Approved request and updated revision.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LeaveRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /leave-requests/{requestId}/reject:
+    post:
+      tags: [Leave]
+      operationId: rejectLeaveRequest
+      x-bss-roles: [admin, manager]
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        $ref: '#/components/requestBodies/RequiredDecision'
+      responses:
+        '200':
+          description: Rejected request with mandatory decision note.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LeaveRequest'
+  /leave-requests/{requestId}/cancel:
+    post:
+      tags: [Leave]
+      operationId: cancelOwnLeaveRequest
+      x-bss-roles: [worker]
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/IfMatch'
+      responses:
+        '200':
+          description: Own pending request cancelled.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LeaveRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /correction-requests:
+    get:
+      tags: [Corrections]
+      operationId: listCorrectionRequests
+      x-bss-roles: [admin, manager, worker]
+      parameters:
+        - $ref: '#/components/parameters/FromDate'
+        - $ref: '#/components/parameters/ToDate'
+        - name: correctionStatus
+          in: query
+          schema:
+            $ref: '#/components/schemas/RequestStatus'
+      responses:
+        '200':
+          description: Correction requests inside effective role scope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CorrectionRequestPage'
+    post:
+      tags: [Corrections]
+      operationId: createCorrectionRequest
+      x-bss-roles: [worker]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CorrectionRequestWrite'
+      responses:
+        '201':
+          description: Pending correction preserving original values.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CorrectionRequest'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+  /correction-requests/{requestId}/approve:
+    post:
+      tags: [Corrections]
+      operationId: approveCorrectionRequest
+      x-bss-roles: [admin, manager]
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        $ref: '#/components/requestBodies/Decision'
+      responses:
+        '200':
+          description: Atomic correction, updated attendance day and audit reference.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CorrectionDecisionResult'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /correction-requests/{requestId}/reject:
+    post:
+      tags: [Corrections]
+      operationId: rejectCorrectionRequest
+      x-bss-roles: [admin, manager]
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        $ref: '#/components/requestBodies/RequiredDecision'
+      responses:
+        '200':
+          description: Rejected correction; original attendance remains unchanged.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CorrectionRequest'
+  /correction-requests/{requestId}/cancel:
+    post:
+      tags: [Corrections]
+      operationId: cancelOwnCorrectionRequest
+      x-bss-roles: [worker]
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/IfMatch'
+      responses:
+        '200':
+          description: Own pending correction request cancelled.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CorrectionRequest'
+  /report-exports:
+    get:
+      tags: [Reports]
+      operationId: listReportExports
+      x-bss-roles: [admin, manager, accountant]
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Export history inside effective role scope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportExportPage'
+    post:
+      tags: [Reports]
+      operationId: createReportExport
+      x-bss-roles: [admin, manager, accountant]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReportExportWrite'
+      responses:
+        '202':
+          description: Versioned export job accepted.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportExport'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+  /report-exports/{exportId}:
+    get:
+      tags: [Reports]
+      operationId: getReportExport
+      x-bss-roles: [admin, manager, accountant]
+      parameters:
+        - $ref: '#/components/parameters/ExportId'
+      responses:
+        '200':
+          description: Export status and short-lived download URL when ready.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportExport'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /audit-events:
+    get:
+      tags: [Audit]
+      operationId: listAuditEvents
+      x-bss-roles: [admin]
+      parameters:
+        - $ref: '#/components/parameters/FromDate'
+        - $ref: '#/components/parameters/ToDate'
+        - name: module
+          in: query
+          schema:
+            type: string
+        - name: entityId
+          in: query
+          schema:
+            type: string
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Append-only audit events; no mutation endpoint exists.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuditEventPage'
+  /terminals:
+    get:
+      tags: [Terminals]
+      operationId: listTerminals
+      x-bss-roles: [admin, manager]
+      responses:
+        '200':
+          description: Terminal state and latest heartbeat; manager is read-only.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Terminal'
+  /terminals/pair:
+    post:
+      tags: [Terminals]
+      operationId: pairTerminal
+      x-bss-roles: [admin]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TerminalPairRequest'
+      responses:
+        '201':
+          description: Paired terminal. Device credential is returned once and never logged.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TerminalPairResult'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+  /terminals/{terminalId}/revoke:
+    post:
+      tags: [Terminals]
+      operationId: revokeTerminal
+      x-bss-roles: [admin]
+      parameters:
+        - $ref: '#/components/parameters/TerminalId'
+        - $ref: '#/components/parameters/IfMatch'
+      responses:
+        '200':
+          description: Terminal identity revoked without deleting historical events.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Terminal'
+  /terminal/v1/events/batch:
+    post:
+      tags: [Terminals]
+      operationId: ingestTerminalEventBatch
+      security:
+        - deviceSignature: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TerminalEventBatch'
+      responses:
+        '200':
+          description: Per-event idempotent acceptance result.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TerminalEventBatchResult'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+  /terminal/v1/heartbeat:
+    post:
+      tags: [Terminals]
+      operationId: terminalHeartbeat
+      security:
+        - deviceSignature: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TerminalHeartbeat'
+      responses:
+        '204':
+          description: Heartbeat accepted.
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: bss_session
+      description: Secure, HttpOnly, SameSite session cookie.
+    deviceSignature:
+      type: apiKey
+      in: header
+      name: X-BSS-Signature
+      description: Draft device authentication placeholder; HMAC or mTLS is an ADR decision.
+  parameters:
+    IfMatch:
+      name: If-Match
+      in: header
+      required: true
+      schema:
+        type: string
+      description: Current entity revision/ETag; stale writes return 409.
+    Cursor:
+      name: cursor
+      in: query
+      schema:
+        type: string
+    Limit:
+      name: limit
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 200
+        default: 50
+    FromDate:
+      name: from
+      in: query
+      required: true
+      schema:
+        type: string
+        format: date
+    ToDate:
+      name: to
+      in: query
+      required: true
+      schema:
+        type: string
+        format: date
+    Year:
+      name: year
+      in: query
+      required: true
+      schema:
+        type: integer
+        minimum: 2020
+        maximum: 2100
+    DepartmentId:
+      name: departmentId
+      in: query
+      schema:
+        type: string
+    Status:
+      name: status
+      in: query
+      schema:
+        type: string
+        enum: [active, blocked]
+    WorkerIdQuery:
+      name: workerId
+      in: query
+      schema:
+        type: string
+    WorkerId:
+      name: workerId
+      in: path
+      required: true
+      schema:
+        type: string
+    UserId:
+      name: userId
+      in: path
+      required: true
+      schema:
+        type: string
+    ShiftId:
+      name: shiftId
+      in: path
+      required: true
+      schema:
+        type: string
+    CardId:
+      name: cardId
+      in: path
+      required: true
+      schema:
+        type: string
+    RequestId:
+      name: requestId
+      in: path
+      required: true
+      schema:
+        type: string
+    ExportId:
+      name: exportId
+      in: path
+      required: true
+      schema:
+        type: string
+    TerminalId:
+      name: terminalId
+      in: path
+      required: true
+      schema:
+        type: string
+  requestBodies:
+    Decision:
+      required: false
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/DecisionWrite'
+    RequiredDecision:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/RequiredDecisionWrite'
+  responses:
+    Unauthenticated:
+      description: Missing, invalid or expired identity.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    Forbidden:
+      description: Authenticated identity is outside the required role or data scope.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    NotFound:
+      description: Resource does not exist inside effective scope.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    ValidationFailed:
+      description: Stable domain or field validation failure.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    Conflict:
+      description: Invalid state transition, overlap, duplicate or stale revision.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    RateLimited:
+      description: Too many requests.
+      headers:
+        Retry-After:
+          schema:
+            type: integer
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+  schemas:
+    Role:
+      type: string
+      enum: [admin, manager, worker, accountant]
+    RequestStatus:
+      type: string
+      enum: [pending, approved, rejected, cancelled]
+    AttendanceStatus:
+      type: string
+      enum: [active, complete, late, incomplete, corrected]
+    TerminalEventStatus:
+      type: string
+      enum: [queued, synced, duplicate, rejected]
+    EntityStatus:
+      type: string
+      enum: [active, blocked]
+    Revision:
+      type: string
+      description: Opaque optimistic-concurrency revision.
+    PageMeta:
+      type: object
+      required: [nextCursor]
+      properties:
+        nextCursor:
+          type: [string, 'null']
+        total:
+          type: [integer, 'null']
+          minimum: 0
+    Problem:
+      type: object
+      additionalProperties: false
+      required: [code, message, requestId]
+      properties:
+        code:
+          type: string
+          pattern: '^[A-Z][A-Z0-9_]+$'
+        message:
+          type: string
+        requestId:
+          type: string
+        fieldErrors:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
+    LoginRequest:
+      type: object
+      additionalProperties: false
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+          minLength: 12
+    SessionContext:
+      type: object
+      additionalProperties: false
+      required: [user, organization, effectiveScope]
+      properties:
+        user:
+          $ref: '#/components/schemas/User'
+        organization:
+          $ref: '#/components/schemas/Organization'
+        effectiveScope:
+          type: object
+          required: [role, departmentIds, selfWorkerId]
+          properties:
+            role:
+              $ref: '#/components/schemas/Role'
+            departmentIds:
+              type: array
+              items:
+                type: string
+            selfWorkerId:
+              type: [string, 'null']
+    Organization:
+      type: object
+      required: [id, name, timezone, revision]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        taxIdentifier:
+          type: string
+        timezone:
+          type: string
+          examples: [Europe/Zagreb]
+        revision:
+          $ref: '#/components/schemas/Revision'
+    OrganizationPatch:
+      type: object
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 160
+        taxIdentifier:
+          type: string
+          maxLength: 32
+        timezone:
+          type: string
+    Department:
+      type: object
+      required: [id, name, status, revision]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        status:
+          $ref: '#/components/schemas/EntityStatus'
+        revision:
+          $ref: '#/components/schemas/Revision'
+    DepartmentWrite:
+      type: object
+      additionalProperties: false
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 120
+    Holiday:
+      type: object
+      required: [id, date, name, revision]
+      properties:
+        id:
+          type: string
+        date:
+          type: string
+          format: date
+        name:
+          type: string
+        revision:
+          $ref: '#/components/schemas/Revision'
+    HolidayWrite:
+      type: object
+      additionalProperties: false
+      required: [date, name]
+      properties:
+        date:
+          type: string
+          format: date
+        name:
+          type: string
+          minLength: 2
+          maxLength: 120
+    User:
+      type: object
+      required: [id, email, role, status, departmentIds, revision]
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+          format: email
+        role:
+          $ref: '#/components/schemas/Role'
+        status:
+          $ref: '#/components/schemas/EntityStatus'
+        workerId:
+          type: [string, 'null']
+        departmentIds:
+          type: array
+          items:
+            type: string
+        revision:
+          $ref: '#/components/schemas/Revision'
+    UserInvite:
+      type: object
+      additionalProperties: false
+      required: [email, role]
+      properties:
+        email:
+          type: string
+          format: email
+        role:
+          $ref: '#/components/schemas/Role'
+        workerId:
+          type: [string, 'null']
+        departmentIds:
+          type: array
+          items:
+            type: string
+    UserPatch:
+      type: object
+      additionalProperties: false
+      properties:
+        role:
+          $ref: '#/components/schemas/Role'
+        status:
+          $ref: '#/components/schemas/EntityStatus'
+        departmentIds:
+          type: array
+          items:
+            type: string
+    UserPage:
+      type: object
+      required: [items, page]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/User'
+        page:
+          $ref: '#/components/schemas/PageMeta'
+    Worker:
+      type: object
+      required: [id, code, name, departmentId, shiftId, status, annualLeaveAllowance, revision]
+      properties:
+        id:
+          type: string
+        code:
+          type: string
+        name:
+          type: string
+        email:
+          type: [string, 'null']
+          format: email
+        departmentId:
+          type: string
+        shiftId:
+          type: string
+        status:
+          $ref: '#/components/schemas/EntityStatus'
+        annualLeaveAllowance:
+          type: integer
+          minimum: 0
+        revision:
+          $ref: '#/components/schemas/Revision'
+    WorkerWrite:
+      type: object
+      additionalProperties: false
+      required: [code, name, departmentId, shiftId, annualLeaveAllowance]
+      properties:
+        code:
+          type: string
+          minLength: 1
+          maxLength: 40
+        name:
+          type: string
+          minLength: 2
+          maxLength: 160
+        email:
+          type: [string, 'null']
+          format: email
+        departmentId:
+          type: string
+        shiftId:
+          type: string
+        annualLeaveAllowance:
+          type: integer
+          minimum: 0
+          maximum: 366
+    WorkerPage:
+      type: object
+      required: [items, page]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Worker'
+        page:
+          $ref: '#/components/schemas/PageMeta'
+    Shift:
+      type: object
+      required: [id, name, startTime, endTime, breakMinutes, toleranceMinutes, assignedWorkerCount, revision]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        startTime:
+          type: string
+          pattern: '^([01][0-9]|2[0-3]):[0-5][0-9]$'
+        endTime:
+          type: string
+          pattern: '^([01][0-9]|2[0-3]):[0-5][0-9]$'
+        breakMinutes:
+          type: integer
+          minimum: 0
+        toleranceMinutes:
+          type: integer
+          minimum: 0
+        assignedWorkerCount:
+          type: integer
+          minimum: 0
+        revision:
+          $ref: '#/components/schemas/Revision'
+    ShiftWrite:
+      type: object
+      additionalProperties: false
+      required: [name, startTime, endTime, breakMinutes, toleranceMinutes]
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 100
+        startTime:
+          type: string
+        endTime:
+          type: string
+        breakMinutes:
+          type: integer
+          minimum: 0
+          maximum: 960
+        toleranceMinutes:
+          type: integer
+          minimum: 0
+          maximum: 240
+    RfidCard:
+      type: object
+      required: [id, maskedUid, workerId, status, validFrom, revision]
+      properties:
+        id:
+          type: string
+        maskedUid:
+          type: string
+        workerId:
+          type: string
+        status:
+          $ref: '#/components/schemas/EntityStatus'
+        validFrom:
+          type: string
+          format: date-time
+        validTo:
+          type: [string, 'null']
+          format: date-time
+        revision:
+          $ref: '#/components/schemas/Revision'
+    AttendanceDay:
+      type: object
+      required: [id, workerId, workDate, shift, status, workedMinutes, plannedMinutes, balanceMinutes, revision]
+      properties:
+        id:
+          type: string
+        workerId:
+          type: string
+        workDate:
+          type: string
+          format: date
+        shift:
+          $ref: '#/components/schemas/ShiftSnapshot'
+        checkIn:
+          type: [string, 'null']
+          format: date-time
+        checkOut:
+          type: [string, 'null']
+          format: date-time
+        breakMinutes:
+          type: integer
+          minimum: 0
+        workedMinutes:
+          type: integer
+          minimum: 0
+        plannedMinutes:
+          type: integer
+          minimum: 0
+        balanceMinutes:
+          type: integer
+        status:
+          $ref: '#/components/schemas/AttendanceStatus'
+        source:
+          type: string
+          enum: [terminal, approved_correction]
+        revision:
+          $ref: '#/components/schemas/Revision'
+    ShiftSnapshot:
+      type: object
+      required: [id, name, startTime, endTime, breakMinutes]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        startTime:
+          type: string
+        endTime:
+          type: string
+        breakMinutes:
+          type: integer
+    AttendanceTotals:
+      type: object
+      required: [rowCount, completedCount, activeCount, reviewCount, workedMinutes, plannedMinutes, balanceMinutes]
+      properties:
+        rowCount:
+          type: integer
+        completedCount:
+          type: integer
+        activeCount:
+          type: integer
+        reviewCount:
+          type: integer
+        workedMinutes:
+          type: integer
+        plannedMinutes:
+          type: integer
+        balanceMinutes:
+          type: integer
+    AttendancePage:
+      type: object
+      required: [items, totals, page, datasetVersion]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AttendanceDay'
+        totals:
+          $ref: '#/components/schemas/AttendanceTotals'
+        page:
+          $ref: '#/components/schemas/PageMeta'
+        datasetVersion:
+          type: string
+    LeaveRequest:
+      type: object
+      required: [id, workerId, typeCode, startDate, endDate, workingDays, status, submittedAt, revision]
+      properties:
+        id:
+          type: string
+        workerId:
+          type: string
+        typeCode:
+          type: string
+          enum: [annual_leave, paid_leave, unpaid_leave, free_day]
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+        workingDays:
+          type: integer
+          minimum: 0
+        note:
+          type: string
+        status:
+          $ref: '#/components/schemas/RequestStatus'
+        submittedAt:
+          type: string
+          format: date-time
+        decidedAt:
+          type: [string, 'null']
+          format: date-time
+        decidedBy:
+          type: [string, 'null']
+        decisionNote:
+          type: [string, 'null']
+        revision:
+          $ref: '#/components/schemas/Revision'
+    LeaveRequestWrite:
+      type: object
+      additionalProperties: false
+      required: [typeCode, startDate, endDate]
+      properties:
+        typeCode:
+          type: string
+          enum: [annual_leave, paid_leave, unpaid_leave, free_day]
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+        note:
+          type: string
+          maxLength: 1000
+    LeaveRequestPage:
+      type: object
+      required: [items, page]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/LeaveRequest'
+        page:
+          $ref: '#/components/schemas/PageMeta'
+    DecisionWrite:
+      type: object
+      additionalProperties: false
+      properties:
+        note:
+          type: string
+          maxLength: 1000
+    RequiredDecisionWrite:
+      type: object
+      additionalProperties: false
+      required: [note]
+      properties:
+        note:
+          type: string
+          minLength: 2
+          maxLength: 1000
+    CorrectionRequest:
+      type: object
+      required: [id, attendanceDayId, workerId, oldValues, newValues, reason, status, submittedAt, revision]
+      properties:
+        id:
+          type: string
+        attendanceDayId:
+          type: string
+        workerId:
+          type: string
+        oldValues:
+          $ref: '#/components/schemas/AttendanceTimeValues'
+        newValues:
+          $ref: '#/components/schemas/AttendanceTimeValues'
+        reason:
+          type: string
+        status:
+          $ref: '#/components/schemas/RequestStatus'
+        submittedAt:
+          type: string
+          format: date-time
+        decidedAt:
+          type: [string, 'null']
+          format: date-time
+        decidedBy:
+          type: [string, 'null']
+        decisionNote:
+          type: [string, 'null']
+        revision:
+          $ref: '#/components/schemas/Revision'
+    AttendanceTimeValues:
+      type: object
+      required: [checkIn, checkOut]
+      properties:
+        checkIn:
+          type: [string, 'null']
+          format: date-time
+        checkOut:
+          type: [string, 'null']
+          format: date-time
+    CorrectionRequestWrite:
+      type: object
+      additionalProperties: false
+      required: [attendanceDayId, newCheckIn, newCheckOut, reason]
+      properties:
+        attendanceDayId:
+          type: string
+        newCheckIn:
+          type: string
+          format: date-time
+        newCheckOut:
+          type: string
+          format: date-time
+        reason:
+          type: string
+          minLength: 2
+          maxLength: 1000
+    CorrectionRequestPage:
+      type: object
+      required: [items, page]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/CorrectionRequest'
+        page:
+          $ref: '#/components/schemas/PageMeta'
+    CorrectionDecisionResult:
+      type: object
+      required: [request, attendanceDay, auditEventId]
+      properties:
+        request:
+          $ref: '#/components/schemas/CorrectionRequest'
+        attendanceDay:
+          $ref: '#/components/schemas/AttendanceDay'
+        auditEventId:
+          type: string
+    ReportType:
+      type: string
+      enum: [monthly_summary, attendance_journal, exceptions, approved_absences, correction_log]
+    ReportFormat:
+      type: string
+      enum: [csv, xlsx]
+      description: PDF/PDF-A is intentionally absent until a scope amendment is approved.
+    ReportExportWrite:
+      type: object
+      additionalProperties: false
+      required: [reportType, format, periodFrom, periodTo]
+      properties:
+        reportType:
+          $ref: '#/components/schemas/ReportType'
+        format:
+          $ref: '#/components/schemas/ReportFormat'
+        periodFrom:
+          type: string
+          format: date
+        periodTo:
+          type: string
+          format: date
+        departmentId:
+          type: [string, 'null']
+        workerId:
+          type: [string, 'null']
+        attendanceStatus:
+          oneOf:
+            - $ref: '#/components/schemas/AttendanceStatus'
+            - type: 'null'
+    ReportExport:
+      type: object
+      required: [id, reportType, format, status, filters, createdAt, datasetVersion, templateVersion]
+      properties:
+        id:
+          type: string
+        reportType:
+          $ref: '#/components/schemas/ReportType'
+        format:
+          $ref: '#/components/schemas/ReportFormat'
+        status:
+          type: string
+          enum: [queued, processing, ready, failed, expired]
+        filters:
+          $ref: '#/components/schemas/ReportExportWrite'
+        rowCount:
+          type: [integer, 'null']
+        officialMinutes:
+          type: [integer, 'null']
+        checksumSha256:
+          type: [string, 'null']
+          pattern: '^[a-f0-9]{64}$'
+        datasetVersion:
+          type: string
+        templateVersion:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        readyAt:
+          type: [string, 'null']
+          format: date-time
+        downloadUrl:
+          type: [string, 'null']
+          format: uri
+        downloadExpiresAt:
+          type: [string, 'null']
+          format: date-time
+    ReportExportPage:
+      type: object
+      required: [items, page]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReportExport'
+        page:
+          $ref: '#/components/schemas/PageMeta'
+    AuditEvent:
+      type: object
+      required: [id, actorType, action, entityType, entityId, createdAt, requestId]
+      properties:
+        id:
+          type: string
+        actorType:
+          type: string
+          enum: [user, terminal, system]
+        actorId:
+          type: [string, 'null']
+        action:
+          type: string
+        module:
+          type: string
+        entityType:
+          type: string
+        entityId:
+          type: string
+        before:
+          type: [object, 'null']
+        after:
+          type: [object, 'null']
+        createdAt:
+          type: string
+          format: date-time
+        requestId:
+          type: string
+    AuditEventPage:
+      type: object
+      required: [items, page]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AuditEvent'
+        page:
+          $ref: '#/components/schemas/PageMeta'
+    Terminal:
+      type: object
+      required: [id, name, location, status, lastSeenAt, revision]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        location:
+          type: string
+        status:
+          type: string
+          enum: [online, offline, revoked]
+        lastSeenAt:
+          type: [string, 'null']
+          format: date-time
+        queueDepth:
+          type: integer
+          minimum: 0
+        clockOffsetSeconds:
+          type: integer
+        revision:
+          $ref: '#/components/schemas/Revision'
+    TerminalPairRequest:
+      type: object
+      additionalProperties: false
+      required: [activationCode, name, location]
+      properties:
+        activationCode:
+          type: string
+          minLength: 8
+        name:
+          type: string
+          maxLength: 120
+        location:
+          type: string
+          maxLength: 160
+    TerminalPairResult:
+      type: object
+      required: [terminal, deviceCredential]
+      properties:
+        terminal:
+          $ref: '#/components/schemas/Terminal'
+        deviceCredential:
+          type: string
+          writeOnly: true
+          description: One-time credential; never returned again and never logged.
+    TerminalEvent:
+      type: object
+      additionalProperties: false
+      required: [deviceEventId, sequence, occurredAt, eventType, cardUidHash]
+      properties:
+        deviceEventId:
+          type: string
+          format: uuid
+        sequence:
+          type: integer
+          minimum: 1
+        occurredAt:
+          type: string
+          format: date-time
+        eventType:
+          type: string
+          enum: [check_in, check_out]
+        cardUidHash:
+          type: string
+        deviceClockOffsetSeconds:
+          type: integer
+    TerminalEventBatch:
+      type: object
+      additionalProperties: false
+      required: [batchId, sentAt, events]
+      properties:
+        batchId:
+          type: string
+          format: uuid
+        sentAt:
+          type: string
+          format: date-time
+        events:
+          type: array
+          minItems: 1
+          maxItems: 500
+          items:
+            $ref: '#/components/schemas/TerminalEvent'
+    TerminalEventResult:
+      type: object
+      required: [deviceEventId, status]
+      properties:
+        deviceEventId:
+          type: string
+          format: uuid
+        status:
+          $ref: '#/components/schemas/TerminalEventStatus'
+        code:
+          type: [string, 'null']
+    TerminalEventBatchResult:
+      type: object
+      required: [batchId, receivedAt, results]
+      properties:
+        batchId:
+          type: string
+          format: uuid
+        receivedAt:
+          type: string
+          format: date-time
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/TerminalEventResult'
+    TerminalHeartbeat:
+      type: object
+      additionalProperties: false
+      required: [sentAt, sequence, queueDepth, softwareVersion]
+      properties:
+        sentAt:
+          type: string
+          format: date-time
+        sequence:
+          type: integer
+          minimum: 1
+        queueDepth:
+          type: integer
+          minimum: 0
+        softwareVersion:
+          type: string
+        deviceClockOffsetSeconds:
+          type: integer
