@@ -1,0 +1,63 @@
+name: BSS Frontend v1.0.0 Handoff Package
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - scripts/build_frontend_handoff_package.py
+      - .github/workflows/frontend-handoff-package-v1.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  package:
+    name: build-and-publish-handoff-zip
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout package builder
+        uses: actions/checkout@v4
+        with:
+          path: builder
+
+      - name: Checkout immutable frontend release
+        uses: actions/checkout@v4
+        with:
+          ref: frontend-v1.0.0
+          path: release-source
+
+      - name: Build deterministic handoff package
+        run: |
+          python3 builder/scripts/build_frontend_handoff_package.py \
+            --source release-source \
+            --output-dir artifacts \
+            | tee artifacts-build-summary.json
+
+      - name: Verify archive and checksum
+        run: |
+          unzip -t artifacts/BSS_Frontend_v1.0.0_Handoff.zip
+          sha256sum artifacts/BSS_Frontend_v1.0.0_Handoff.zip \
+            | tee artifacts/BSS_Frontend_v1.0.0_Handoff.zip.sha256
+
+      - name: Publish package on the official GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view frontend-v1.0.0
+          gh release upload frontend-v1.0.0 \
+            artifacts/BSS_Frontend_v1.0.0_Handoff.zip \
+            artifacts/BSS_Frontend_v1.0.0_Handoff.zip.sha256 \
+            --clobber
+
+      - name: Record handoff summary
+        run: |
+          echo '## BSS Frontend v1.0.0 Handoff' >> "$GITHUB_STEP_SUMMARY"
+          echo '' >> "$GITHUB_STEP_SUMMARY"
+          echo '- Source: immutable tag `frontend-v1.0.0`' >> "$GITHUB_STEP_SUMMARY"
+          echo '- Asset: `BSS_Frontend_v1.0.0_Handoff.zip`' >> "$GITHUB_STEP_SUMMARY"
+          echo '- Verification: ZIP integrity + SHA-256 PASS' >> "$GITHUB_STEP_SUMMARY"
+          echo '' >> "$GITHUB_STEP_SUMMARY"
+          echo '```json' >> "$GITHUB_STEP_SUMMARY"
+          cat artifacts-build-summary.json >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
