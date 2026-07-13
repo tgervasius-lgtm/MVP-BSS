@@ -1,12 +1,17 @@
 {
   "schemaVersion": 1,
   "product": "BSS MVP",
-  "status": "READY_FOR_BACKEND_CONTRACT_REVIEW",
+  "status": "FRONTEND_FROZEN_READY_FOR_BACKEND_CONTRACT_REVIEW",
   "reviewedAt": "2026-07-13",
+  "release": {
+    "version": "1.0.0",
+    "tag": "frontend-v1.0.0",
+    "document": "BSS_FRONTEND_RELEASE_V1.md"
+  },
   "baseline": {
     "repository": "tgervasius-lgtm/MVP-BSS",
     "branch": "main",
-    "commit": "ec4b92c4c0dcc1e067caa8ff9c2fb6ce803540ea",
+    "commit": "91323c7cdbbbbf7b965c4926c94a11af6d31bf62",
     "productionUrl": "https://mvp-bss.pages.dev/"
   },
   "principles": [
@@ -226,7 +231,10 @@
     "billing_subscriptions"
   ],
   "handoffDocuments": [
+    "BSS_FRONTEND_RELEASE_V1.md",
     "BSS_FRONTEND_FINAL_REVIEW_V1.md",
+    "BSS_SCREEN_MAP_V1.md",
+    "BSS_DESIGN_SYSTEM_V1.md",
     "BSS_SHARED_LEAVE_CALENDAR_SCOPE_V1_1.md",
     "BSS_BACKEND_HANDOFF_V1.md",
     "BSS_REPORTING_PROFILE_V1.md",

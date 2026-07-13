@@ -2,10 +2,13 @@
 
 | Stavka | Vrijednost |
 | --- | --- |
-| Status | **FRONTEND SPREMAN ZA BACKEND CONTRACT** |
-| Polazna verzija | `main` na `ec4b92c` |
+| Status | **FRONTEND FROZEN — SPREMAN ZA BACKEND CONTRACT REVIEW** |
+| Aplikacijski baseline | `main` na `91323c7cdbbbbf7b965c4926c94a11af6d31bf62` |
+| Frontend release | `v1.0.0` / tag `frontend-v1.0.0` |
+| Release bilješke | `BSS_FRONTEND_RELEASE_V1.md` |
 | Frontend pregled | `BSS_FRONTEND_FINAL_REVIEW_V1.md` |
 | Strojni manifest | `bss-frontend-handoff-v1.json` |
+| Mapa ekrana | `BSS_SCREEN_MAP_V1.md` |
 | API nacrt | `openapi/bss-mvp-api-v1.yaml` |
 | Izvještaji | `BSS_REPORTING_PROFILE_V1.md` |
 | Opseg | `BSS_MVP_SCOPE_FREEZE_V1.md` + `bss-mvp-scope-v1.json` |
@@ -13,7 +16,7 @@
 
 ## 1. Što backend programer preuzima
 
-BSS frontend je statičan, responzivan demonstracijski runtime s četiri uloge, 16 registriranih ekrana, izdvojenim domenskim pravilima, RBAC politikama, use-caseovima i zamjenjivim runtime adapterima. Demo stanje trenutačno živi u pregledniku i služi samo kao referentni dataset i dokaz korisničkih tokova.
+BSS frontend je statičan, responzivan demonstracijski runtime s četiri uloge, 17 registriranih ekrana, izdvojenim domenskim pravilima, RBAC politikama, use-caseovima i zamjenjivim runtime adapterima. Demo stanje trenutačno živi u pregledniku i služi samo kao referentni dataset i dokaz korisničkih tokova. UX/UI Cleanup v1.1 i cache invalidation hotfix već su spojeni u aplikacijski baseline; ovaj handoff ne traži daljnji frontend redizajn prije contract reviewa.
 
 Zadatak backenda nije prepisati cijeli frontend, nego:
 
@@ -47,7 +50,7 @@ Ne uvoditi backend tajne u ovaj repozitorij, `app.js`, Cloudflare Pages varijabl
 | Politike | `src/policies/access.js` | UX vidljivost i zaštita toka | nije sigurnosna granica; API uvijek ponovno provjerava ovlast |
 | Use-caseovi | `src/use-cases/*` | deterministične poslovne odluke bez DOM-a | koristiti za klijentsku validaciju, ali server je jedini autoritet |
 | Runtime adapter | `src/adapters/runtime.js` | demo storage, sat i ID | zamijeniti data/auth/clock adapterima; ne zvati `fetch` iz view funkcija |
-| Registry prikaza | `src/views/registry.js` | zaključan popis 16 ekrana | zadržati stabilne ID-eve ekrana tijekom integracije |
+| Registry prikaza | `src/views/registry.js` | zaključan popis 17 ekrana | zadržati stabilne ID-eve ekrana tijekom integracije |
 | Registry događaja | `src/views/events.js` | dopuštene UI akcije bez inline JS/evala | akcije pozivaju use-case/repository sloj, ne grade URL u DOM-u |
 | View runtime | `app.js` | trenutačni renderi i demo podaci | postupno izvlačiti screen controllere; bez velikog jednokratnog rewritea |
 
@@ -89,7 +92,7 @@ API ne prihvaća `organization_id`, `role`, `department_ids` ili `worker_id` iz 
 
 ## 6. Ekrani i resursi
 
-Potpuna strojno čitljiva mapa nalazi se u `bss-frontend-handoff-v1.json`. Sažetak:
+Ljudski čitljiva mapa nalazi se u `BSS_SCREEN_MAP_V1.md`, a potpuna strojno čitljiva mapa u `bss-frontend-handoff-v1.json`. Sažetak:
 
 | Ekran | Primarno čita | Primarno mijenja |
 | --- | --- | --- |
@@ -99,6 +102,7 @@ Potpuna strojno čitljiva mapa nalazi se u `bss-frontend-handoff-v1.json`. Saže
 | `workers`, `worker` | radnici, odjeli, smjene, kartice | admin: radnik/kartica; manager: bez mutacije |
 | `shifts` | smjene i broj dodijeljenih radnika | admin: smjena |
 | `requests`, `vacations` | zahtjevi, fond, blagdani, preklapanja | radnik: create/cancel; admin/manager: approve/reject |
+| `sharedLeave` | isključivo lokalni, privatno minimizirani demo seed | nema backend mutacije ni rute u v1 ugovoru |
 | `corrections` | zahtjevi za korekciju i izvorni zapis | radnik: create/cancel; admin/manager: approve/reject |
 | `reports` | spremljeni filtri, preview dataset, export status | create export i download kratkotrajne poveznice |
 | `terminal` | terminali, heartbeat, sync događaji | admin: pair/revoke; manager: read-only |
@@ -140,10 +144,11 @@ Ovo nisu nove poslovne funkcije, nego nužna stanja stvarne mrežne aplikacije:
 
 ### B0 – contract review
 
-- Product Owner potvrđuje završni frontend pregled, P0 odluke i PDF odluku;
+- Frontend Freeze v1.0.0 potvrđuje završni pregled i zaključane P0 UI/demonstracijske granice;
 - backend i frontend programer prolaze `openapi/bss-mvp-api-v1.yaml`;
 - zaključavaju error envelope, paginaciju, revizije i vremenske formate;
 - dodaju automatsku OpenAPI validaciju i generated client ili tipizirani ručni adapter.
+- `sharedLeave` i PDF/PDF-A ostaju izvan backend v1 ugovora dok Product Owner zasebno ne odobri Scope v1.1.
 
 ### B1 – identitet i read-only master podaci
 
