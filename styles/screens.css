@@ -53,7 +53,7 @@ button.kpi-card:hover{transform:translateY(-1px);border-color:#b9d8c6}
 .day{aspect-ratio:1;border-radius:6px;display:flex;align-items:center;justify-content:center;position:relative;font-size:8px;color:var(--bss-color-text);background:#f8fbf9;min-width:0;padding:0}
 button.day:hover{outline:2px solid var(--bss-color-accent-text);outline-offset:1px}
 .day.empty{background:transparent}
-.day.weekend{color:#9baaA3;background:#fafcfb}
+.day.weekend{color:#5f766d;background:#fafcfb}
 .day.has-approved{background:#d8f5df;color:#166534;font-weight:950}
 .day.has-pending{background:#ffefbd;color:#92400e;font-weight:950}
 .day.has-mixed{background:#dbeafe;color:#1d4ed8;font-weight:950}
