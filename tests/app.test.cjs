@@ -62,6 +62,9 @@ const reportingProfile = fs.readFileSync('BSS_REPORTING_PROFILE_V1.md','utf8');
 const frontendHandoff = JSON.parse(fs.readFileSync('bss-frontend-handoff-v1.json','utf8'));
 const apiContractDraft = fs.readFileSync('openapi/bss-mvp-api-v1.yaml','utf8');
 const sharedLeaveCalendarScope = fs.readFileSync('BSS_SHARED_LEAVE_CALENDAR_SCOPE_V1_1.md','utf8');
+const frontendRelease = fs.readFileSync('BSS_FRONTEND_RELEASE_V1.md','utf8');
+const screenMap = fs.readFileSync('BSS_SCREEN_MAP_V1.md','utf8');
+const frontendReleaseWorkflow = fs.readFileSync('.github/workflows/frontend-release-v1.yml','utf8');
 
 function hexToken(css,name){
   const match=css.match(new RegExp(`${name}:\\s*(#[0-9a-f]{6})`,'i'));
@@ -1715,7 +1718,9 @@ test('završni frontend handoff pokriva sve ekrane, uloge i granice MVP-a',()=>{
   ];
   assert.deepEqual(frontendHandoff.screens.map(item=>item.id).sort(),expectedScreens);
   assert.deepEqual(Object.keys(frontendHandoff.roles).sort(),['accountant','admin','manager','worker']);
-  assert.equal(frontendHandoff.baseline.commit,'ec4b92c4c0dcc1e067caa8ff9c2fb6ce803540ea');
+  assert.equal(frontendHandoff.status,'FRONTEND_FROZEN_READY_FOR_BACKEND_CONTRACT_REVIEW');
+  assert.equal(frontendHandoff.release.tag,'frontend-v1.0.0');
+  assert.equal(frontendHandoff.baseline.commit,'91323c7cdbbbbf7b965c4926c94a11af6d31bf62');
   assert.deepEqual(frontendHandoff.approvedExportFormats,['csv','xlsx']);
   assert.deepEqual(frontendHandoff.proposedExportFormatsRequiringScopeApproval,['pdf_pdfa_2u']);
   assert.ok(frontendHandoff.excludedCapabilities.includes('payroll_calculation'));
@@ -1727,8 +1732,9 @@ test('završni frontend handoff pokriva sve ekrane, uloge i granice MVP-a',()=>{
 
 test('pregled, reporting profil i API nacrt zaključavaju tablični smjer bez backend implementacije',()=>{
   assert.match(frontendFinalReview,/Preglednost ispred kompleksnosti/);
-  assert.match(frontendFinalReview,/Graf zamijeniti tablicom/);
-  assert.match(frontendFinalReview,/cjelogodišnji kalendar ostaje primarni/i);
+  assert.match(frontendFinalReview,/najviše četiri klikabilna KPI-ja/i);
+  assert.match(frontendFinalReview,/tjedni i dekorativni grafovi uklonjeni/i);
+  assert.match(frontendFinalReview,/cjelogodišnji admin\/voditelj pogled/i);
   assert.match(backendHandoff,/Ovaj paket ne sadrži backend implementaciju/);
   assert.match(backendHandoff,/server je jedini autoritet/i);
   assert.match(reportingProfile,/pravi Office Open XML `\.xlsx`/);
@@ -1741,6 +1747,32 @@ test('pregled, reporting profil i API nacrt zaključavaju tablični smjer bez ba
   assert.match(apiContractDraft,/enum: \[csv, xlsx\]/);
   assert.match(apiContractDraft,/PDF\/PDF-A is intentionally absent/);
   assert.doesNotMatch(apiContractDraft,/payroll-calculation|gps-tracking|door-access-control/i);
+});
+
+test('Frontend Freeze v1.0 usklađuje release, handoff, OpenAPI, Design System i Screen Map',()=>{
+  const baseline='91323c7cdbbbbf7b965c4926c94a11af6d31bf62';
+  for(const document of [frontendRelease,frontendFinalReview,backendHandoff,reportingProfile,designSystemDoc,screenMap,apiContractDraft]){
+    assert.match(document,new RegExp(baseline));
+  }
+  assert.match(frontendRelease,/FRONTEND FROZEN/);
+  assert.match(frontendRelease,/frontend-v1\.0\.0/);
+  assert.match(frontendRelease,/Backend Contract Review/);
+  assert.match(frontendRelease,/nema stvarnog login\/session sustava, API-ja, baze podataka/i);
+  assert.match(frontendRelease,/33 putanje i 43 operacije/);
+  assert.match(screenMap,/Broj registriranih ekrana \| 17/);
+  for(const id of frontendHandoff.screens.map(item=>item.id)){
+    assert.ok(screenMap.includes(`\`${id}\``),`Screen Map ne sadrži ${id}`);
+  }
+  const pathsSection=apiContractDraft.match(/^paths:\n([\s\S]*?)^components:/m)?.[1]||'';
+  assert.equal((pathsSection.match(/^ {2}\/[^\n]+:/gm)||[]).length,33);
+  assert.equal((apiContractDraft.match(/^ {6}operationId:/gm)||[]).length,43);
+  assert.match(apiContractDraft,/x-bss-frontend-release: frontend-v1\.0\.0/);
+  assert.match(frontendReleaseWorkflow,/branches: \[main\]/);
+  assert.match(frontendReleaseWorkflow,/npm run check/);
+  assert.match(frontendReleaseWorkflow,/npm run test:e2e -- --reporter=line/);
+  assert.match(frontendReleaseWorkflow,/gh release create frontend-v1\.0\.0/);
+  assert.match(frontendReleaseWorkflow,/--target "\$GITHUB_SHA"/);
+  assert.match(frontendReleaseWorkflow,/--notes-file BSS_FRONTEND_RELEASE_V1\.md/);
 });
 
 test('MVP Scope v1.1 zajednički godišnji ostaje privatno minimizirana frontend demonstracija bez API-ja',()=>{

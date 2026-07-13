@@ -1,8 +1,13 @@
 # BSS Design System v1.0
 
-Status: aktivno u Demo 3.0  
-Jezik sučelja: hrvatski  
-Podržane teme: svijetla i tamna  
+Status: **FROZEN za BSS Frontend v1.0.0**
+
+Release baseline: `91323c7cdbbbbf7b965c4926c94a11af6d31bf62`
+
+Jezik sučelja: hrvatski
+
+Podržane teme: svijetla i tamna
+
 Živi vodič: `/design-system/`
 
 ## 1. Svrha i granice
@@ -21,7 +26,7 @@ Design System v1.0 obuhvaća:
 - smjernice za ikone;
 - živi HTML vodič i pravila korištenja tokena.
 
-Brand Book v1.0 i njegova SVG biblioteka dovršeni su. Strukturni Refactor v1 nastavlja razdvajanje aplikacije bez promjene Design System ugovora.
+Brand Book v1.0 i njegova SVG biblioteka dovršeni su. Strukturni Refactor v1 R6, UX/UI Cleanup v1.1 i završna accessibility provjera dovršeni su bez promjene Design System ugovora. Backend integracija smije mijenjati izvor podataka i mrežna stanja, ali ne i ove zaključane vizualne i interakcijske temelje bez zasebne odluke.
 
 ## 2. Načela
 
@@ -196,6 +201,8 @@ Prije prihvaćanja provjeriti:
 7. koristi li dogovoreni hrvatski naziv;
 8. prolaze li automatski i vizualni regresijski testovi.
 
-## 13. Refactor v1
+## 13. Refactor i Frontend Freeze
 
-Refactor v1 R5 dovršio je prijelaz na semantičke `--bss-*` tokene i razdvojio poslovni CSS na slojeve za osnovu, rasporede, komponente, ekrane, navigaciju, teme i responzivna pravila. Redoslijed pravila i Design System ugovor ostali su nepromijenjeni.
+Refactor v1 R5 dovršio je prijelaz na semantičke `--bss-*` tokene, a R6 je zaključao registryje prikaza i događaja te razdvojio poslovni CSS na slojeve za osnovu, rasporede, komponente, ekrane, navigaciju, teme i responzivna pravila. UX/UI Cleanup v1.1 sveo je početni dashboard na najviše četiri klikabilna KPI-ja, zadržao tablične operativne prikaze i dopustio samo kompaktne kružne sažetke mjesečnih sati i godišnjeg fonda. Tjedni i dekorativni grafovi nisu dio Frontend v1.0.0.
+
+Design System je nakon taga `frontend-v1.0.0` zamrznut. Backend PR smije dodati nužna `loading`, `empty`, `error`, `forbidden` i `stale` stanja koristeći postojeće tokene i komponente, ali ne smije uvoditi novi vizualni sustav ili mijenjati zaključanu hijerarhiju ekrana.

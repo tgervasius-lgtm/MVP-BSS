@@ -9,7 +9,8 @@ info:
     scope is never authorization evidence. CSV and XLSX are the currently approved export
     formats. PDF/PDF-A requires a separate scope decision.
   x-bss-status: DRAFT_FOR_CONTRACT_REVIEW
-  x-bss-baseline-commit: ec4b92c4c0dcc1e067caa8ff9c2fb6ce803540ea
+  x-bss-frontend-release: frontend-v1.0.0
+  x-bss-baseline-commit: 91323c7cdbbbbf7b965c4926c94a11af6d31bf62
 servers:
   - url: /api/v1
     description: Same-origin application API

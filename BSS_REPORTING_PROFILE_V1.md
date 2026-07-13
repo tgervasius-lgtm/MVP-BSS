@@ -2,11 +2,15 @@
 
 | Stavka | Odluka |
 | --- | --- |
+| Status | **FROZEN za BSS Frontend v1.0.0 i backend contract review** |
+| Aplikacijski baseline | `91323c7cdbbbbf7b965c4926c94a11af6d31bf62` |
 | Cilj | Profesionalni, provjerljivi tablični izvještaji bez dekorativne analitike |
 | Obvezni FROZEN izlazi | CSV i pravi XLSX |
 | Predloženi izlaz | PDF/PDF-A, tek nakon odobrenja Scope v1.1 |
 | Izvor podataka | Jedan serverski, verzionirani dataset za ekran i sve izvoze |
 | Granica | Izvještaj priprema evidenciju; ne računa plaću, poreze ni doprinose |
+
+Frontend v1.0.0 potvrđuje filtre, tablični pregled i format korisničkog toka. Trenutačni browser-generirani XLSX/CSV su demonstracijski; službeni izvoz, autorizirani dataset, checksum, privatna pohrana i audit preuzima backend prema ovom profilu.
 
 ## 1. Dizajnerski smjer
 
