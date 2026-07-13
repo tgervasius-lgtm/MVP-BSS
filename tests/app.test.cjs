@@ -117,21 +117,54 @@ test('evidencija i RFID simulator su odvojeni',()=>{
   assert.ok(document.querySelector('.rfid-ring'));
 });
 
-test('Demo 3.0 dashboard zadržava potpuni operativni pregled u Sprintu 7',()=>{
+test('UX/UI Cleanup v1 svodi dashboard na četiri KPI-ja i tablični dnevni pregled',()=>{
   const {window,document,state} = boot('admin');
   assert.match(document.querySelector('.version-chip').textContent,/v3\.0/);
   assert.match(document.querySelector('.side-footer').textContent,/Sprint 7/);
-  assert.equal(document.querySelectorAll('.dashboard-kpis .kpi-card').length,8);
+  assert.equal(document.querySelectorAll('.dashboard-kpis .kpi-card').length,4);
   assert.equal(document.querySelector('[data-kpi="present"] .kpi-value').textContent,'3');
-  assert.equal(document.querySelector('[data-kpi="absent"] .kpi-value').textContent,'1');
-  assert.equal(document.querySelector('[data-kpi="vacation"] .kpi-value').textContent,'1');
-  assert.equal(document.querySelector('[data-kpi="sick"] .kpi-value').textContent,'1');
-  assert.equal(document.querySelectorAll('.weekly-chart .chart-day').length,5);
+  assert.equal(document.querySelector('[data-kpi="absent"] .kpi-value').textContent,'3');
+  assert.ok(document.querySelector('[data-kpi="review"]'));
+  assert.ok(document.querySelector('[data-kpi="pending"]'));
+  assert.equal(document.querySelector('.weekly-chart'),null);
+  assert.equal(document.querySelectorAll('.weekly-attendance-table tbody tr').length,5);
   assert.ok(document.querySelectorAll('.activity-columns .activity-item').length>=6);
   const metrics=window.dashboardMetrics(state().workers.filter(worker=>worker.active));
   assert.equal(metrics.active,7);
   assert.ok(metrics.monthMinutes>0);
   assert.ok(metrics.overtime>=0);
+});
+
+test('UX/UI Cleanup v1 koristi tablice za operativne popise bez promjene funkcija',()=>{
+  const admin=boot('admin');
+  const screens=[
+    ['workers','.workers-table'],
+    ['shifts','.shifts-table'],
+    ['requests','.requests-table'],
+    ['corrections','.corrections-table'],
+    ['audit','.audit-table']
+  ];
+  for(const [screen,selector] of screens){
+    admin.window.navigate(screen);
+    assert.ok(admin.document.querySelector(selector),`${screen} mora imati tablični prikaz`);
+  }
+  admin.window.navigate('vacations');
+  assert.equal(admin.document.querySelectorAll('.year-calendar .month-card').length,12);
+  assert.ok(admin.document.querySelector('.vacation-summary-card .summary-table'));
+  assert.ok(admin.document.querySelector('.department-capacity-table'));
+  assert.ok(admin.document.querySelector('.vacation-balance-table'));
+
+  const manager=boot('manager');
+  assert.equal(manager.document.querySelectorAll('.dashboard-kpis .kpi-card').length,4);
+  assert.ok(manager.document.querySelector('.workers-table'));
+
+  const worker=boot('worker');
+  const homeText=worker.document.querySelector('#content').textContent;
+  assert.doesNotMatch(homeText,/Završeni sati u srpnju|Moji zadnji zapisi|Brze akcije/);
+  assert.equal(worker.document.querySelectorAll('.worker-home-summary .stat').length,2);
+  worker.window.navigate('mytime');
+  assert.match(worker.document.querySelector('#content').textContent,/Završeni sati/);
+  assert.equal(worker.document.querySelector('.personal-attendance-table thead').textContent.includes('Radnik'),false);
 });
 
 test('navigacija je grupirana i prikazuje brojače otvorenih stavki',()=>{
@@ -266,8 +299,8 @@ test('Sprint 3 razdvaja statuse zahtjeva i kalendar rezervira samo aktivne odsut
   const {window,document,state}=boot('admin');
   window.navigate('requests');
   assert.equal(document.querySelectorAll('.request-tabs button').length,5);
-  assert.equal(document.querySelectorAll('.leave-request-card').length,3);
-  assert.ok([...document.querySelectorAll('.leave-request-card')].every(card=>card.dataset.status==='Na čekanju'));
+  assert.equal(document.querySelectorAll('.requests-table .leave-request-row').length,3);
+  assert.ok([...document.querySelectorAll('.requests-table .leave-request-row')].every(row=>row.dataset.status==='Na čekanju'));
   const counts=window.requestStatusCounts(state().requests);
   assert.equal(counts.Svi,11);
   assert.equal(counts['Na čekanju'],3);
@@ -276,19 +309,19 @@ test('Sprint 3 razdvaja statuse zahtjeva i kalendar rezervira samo aktivne odsut
   assert.equal(counts.Poništeno,1);
 
   window.setRequestStatusFilter('Odbijeno');
-  assert.equal(document.querySelectorAll('.leave-request-card').length,1);
+  assert.equal(document.querySelectorAll('.requests-table .leave-request-row').length,1);
   assert.match(document.querySelector('#content').textContent,/Predloži drugi termin/);
 
   window.navigate('vacations');
   assert.equal(document.querySelectorAll('.year-calendar .month-card').length,12);
   assert.equal(window.calendarRequests().length,9);
   assert.ok(window.calendarRequests().every(request=>['Na čekanju','Odobreno'].includes(request.status)));
-  assert.equal(document.querySelectorAll('#content .leave-request-card').length,9);
-  assert.equal(document.querySelectorAll('#content .leave-request-card[data-status="Odbijeno"],#content .leave-request-card[data-status="Poništeno"]').length,0);
+  assert.equal(document.querySelectorAll('#content .requests-table .leave-request-row').length,9);
+  assert.equal(document.querySelectorAll('#content .leave-request-row[data-status="Odbijeno"],#content .leave-request-row[data-status="Poništeno"]').length,0);
   window.setVacationDepartment('Proizvodnja');
   assert.ok(window.calendarRequests().every(request=>state().workers.find(worker=>worker.id===request.workerId).dept==='Proizvodnja'));
-  assert.equal(document.querySelectorAll('.leave-department-grid>div').length,1);
-  assert.equal(document.querySelectorAll('.balance-item').length,2);
+  assert.equal(document.querySelectorAll('.department-capacity-table tbody tr').length,1);
+  assert.equal(document.querySelectorAll('.vacation-balance-table tbody tr').length,2);
 });
 
 test('knjigovođa u godišnjem kalendaru vidi samo odobrene odsutnosti',()=>{
@@ -296,14 +329,14 @@ test('knjigovođa u godišnjem kalendaru vidi samo odobrene odsutnosti',()=>{
   window.navigate('vacations');
   assert.equal(window.calendarRequests().length,6);
   assert.ok(window.calendarRequests().every(request=>request.status==='Odobreno'));
-  assert.equal(document.querySelectorAll('.balance-item').length,0);
-  assert.equal(document.querySelectorAll('#content .leave-request-card[data-status="Na čekanju"]').length,0);
+  assert.equal(document.querySelectorAll('.vacation-balance-table').length,0);
+  assert.equal(document.querySelectorAll('#content .leave-request-row[data-status="Na čekanju"]').length,0);
 });
 
 test('voditelj donosi odluku s napomenom samo za radnike svojeg opsega',()=>{
   const {window,document,state}=boot('manager');
   window.navigate('requests');
-  assert.equal(document.querySelectorAll('.leave-request-card').length,3);
+  assert.equal(document.querySelectorAll('.requests-table .leave-request-row').length,3);
   const marija=state().requests.find(request=>request.id===3);
   window.openRequestDecision(3);
   assert.ok(document.querySelector('#modal').classList.contains('open'));
@@ -326,7 +359,7 @@ test('voditelj donosi odluku s napomenom samo za radnike svojeg opsega',()=>{
 test('radnik vidi vlastiti fond i poništavanjem vraća rezervirane dane',()=>{
   const {window,document,state}=boot('worker');
   window.navigate('requests');
-  assert.equal(document.querySelectorAll('.leave-request-card').length,4);
+  assert.equal(document.querySelectorAll('.requests-table .leave-request-row').length,4);
   assert.doesNotMatch(document.querySelector('#content').textContent,/Marko Marić|Marija Radić|Petra Novak/);
   let balance=window.vacationBalanceSummary(1);
   assert.equal(balance.allowance,24);
@@ -609,11 +642,11 @@ test('audit trag filtrira administrativne radnje po modulu i tekstu',()=>{
   document.querySelector('#auditModule').value='Prava pristupa';
   document.querySelector('#auditSearch').value='reset lozinke';
   window.applyAuditFilters();
-  const entries=[...document.querySelectorAll('.audit-item')];
+  const entries=[...document.querySelectorAll('.audit-table tbody tr')];
   assert.equal(entries.length,1);
-  assert.match(entries[0].textContent,/reset lozinke.*Prava pristupa/s);
+  assert.match(entries[0].textContent,/Prava pristupa.*reset lozinke/s);
   window.clearAuditFilters();
-  assert.ok(document.querySelectorAll('.audit-item').length>entries.length);
+  assert.ok(document.querySelectorAll('.audit-table tbody tr').length>entries.length);
 });
 
 test('aktivna smjena se ne gasi dok ima radnike, a nova smjena mora imati valjano trajanje',()=>{
@@ -837,7 +870,11 @@ test('Sprint 4 nudi pet poslovnih izvještaja iz istog skupa podataka',()=>{
   const {window,document}=boot('admin');
   window.navigate('reports');
   assert.equal(document.querySelectorAll('.report-type').length,5);
-  assert.equal(document.querySelectorAll('.report-kpi').length,4);
+  assert.equal(document.querySelectorAll('.report-kpi').length,0);
+  assert.ok(document.querySelector('.report-preview .report-table'));
+  const exportButtons=[...document.querySelectorAll('.report-export .btns button')];
+  assert.match(exportButtons[0].textContent,/XLSX/);
+  assert.match(exportButtons[1].textContent,/Tehnički CSV/);
   let data=window.getReportData();
   assert.equal(data.title,'Mjesečni sažetak');
   assert.equal(data.rows.length,7);
@@ -972,8 +1009,10 @@ test('R5 učitava CSS slojeve istim redoslijedom i sprema ih za offline rad',()=
   assert.ok(positions.every(position=>position>=0));
   assert.deepEqual(positions,[...positions].sort((a,b)=>a-b));
   assert.doesNotMatch(styleEntry,/[{}]/);
-  assert.equal(styleLayers.reduce((sum,css)=>sum+(css.match(/{/g)||[]).length,0),804);
-  assert.equal(styleLayers.reduce((sum,css)=>sum+(css.match(/}/g)||[]).length,0),804);
+  const openingBlocks=styleLayers.reduce((sum,css)=>sum+(css.match(/{/g)||[]).length,0);
+  const closingBlocks=styleLayers.reduce((sum,css)=>sum+(css.match(/}/g)||[]).length,0);
+  assert.equal(openingBlocks,closingBlocks);
+  assert.ok(openingBlocks>=780);
   for(const path of styleLayerPaths) assert.match(serviceWorker,new RegExp(path.replaceAll('.','\\.')));
 });
 
@@ -1481,9 +1520,13 @@ test('delegirani click i change zadržavaju navigaciju i promjenu uloge',()=>{
 
 test('delegirana tipka Enter aktivira red, a backdrop samo vlastitu pozadinu',()=>{
   const {window,document,evaluate}=boot('manager');
-  const workerRow=document.querySelector('.row[role="button"][data-bss-action]');
+  const workerRow=document.createElement('div');
+  workerRow.setAttribute('role','button');
+  workerRow.setAttribute('tabindex','0');
+  workerRow.setAttribute('data-bss-action',"navigate('workers')");
+  document.querySelector('#content').append(workerRow);
   workerRow.dispatchEvent(new window.KeyboardEvent('keydown',{key:'Enter',bubbles:true,cancelable:true}));
-  assert.equal(evaluate('screen'),'worker');
+  assert.equal(evaluate('screen'),'workers');
   window.openDrawer();
   const drawer=document.querySelector('#drawer');
   drawer.querySelector('.drawer-panel').dispatchEvent(new window.MouseEvent('click',{bubbles:true}));
