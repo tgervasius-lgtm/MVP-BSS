@@ -16,9 +16,10 @@
 :root[data-theme="dark"] .table-detail-btn,:root[data-theme="dark"] .table-actions button{border-color:var(--bss-color-border);background:var(--bss-color-bg-subtle)}
 :root[data-theme="dark"] .table-detail-btn:hover{background:var(--bss-color-action-primary);color:var(--bss-color-action-primary-text)}
 :root[data-theme="dark"] .table-detail-btn.danger,:root[data-theme="dark"] .table-actions button.danger{border-color:#7f1d1d;background:var(--bss-color-danger-soft);color:#fecaca}
-:root[data-theme="dark"] .worker-time-hero,:root[data-theme="dark"] .report-hero{background:linear-gradient(135deg,var(--bss-color-bg-subtle),var(--bss-color-bg-surface));border-color:var(--bss-color-border)}
-:root[data-theme="dark"] .worker-shift{background:color-mix(in srgb,var(--bss-color-bg-surface) 78%,transparent)}
+:root[data-theme="dark"] .data-summary-card,:root[data-theme="dark"] .report-hero{background:linear-gradient(135deg,var(--bss-color-bg-subtle),var(--bss-color-bg-surface));border-color:var(--bss-color-border)}
 :root[data-theme="dark"] .kpi-card,:root[data-theme="dark"] .leave-request-card,:root[data-theme="dark"] .month-card,:root[data-theme="dark"] .report-type,:root[data-theme="dark"] .admin-kpis>div,:root[data-theme="dark"] .terminal-kpis>div{background:var(--bss-color-bg-surface)}
+:root[data-theme="dark"] .admin-kpis,:root[data-theme="dark"] .terminal-kpis{background:var(--bss-color-bg-surface)}
+:root[data-theme="dark"] .admin-kpis>div,:root[data-theme="dark"] .terminal-kpis>div{background:transparent}
 :root[data-theme="dark"] .kpi-card.purple .kpi-icon{background:#3b2351;color:#e9d5ff}
 :root[data-theme="dark"] .request-search input,:root[data-theme="dark"] .report-filter-bar input,:root[data-theme="dark"] .report-filter-bar select,:root[data-theme="dark"] .audit-filter-bar input,:root[data-theme="dark"] .audit-filter-bar select,:root[data-theme="dark"] .check-option,:root[data-theme="dark"] .access-filter button,:root[data-theme="dark"] .settings-tabs button{background:var(--bss-color-bg-surface);color:var(--bss-color-text)}
 :root[data-theme="dark"] .leave-request-body>div{border-color:var(--bss-color-border-subtle)}

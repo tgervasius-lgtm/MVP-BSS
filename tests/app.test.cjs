@@ -61,6 +61,7 @@ const backendHandoff = fs.readFileSync('BSS_BACKEND_HANDOFF_V1.md','utf8');
 const reportingProfile = fs.readFileSync('BSS_REPORTING_PROFILE_V1.md','utf8');
 const frontendHandoff = JSON.parse(fs.readFileSync('bss-frontend-handoff-v1.json','utf8'));
 const apiContractDraft = fs.readFileSync('openapi/bss-mvp-api-v1.yaml','utf8');
+const sharedLeaveCalendarScope = fs.readFileSync('BSS_SHARED_LEAVE_CALENDAR_SCOPE_V1_1.md','utf8');
 
 function hexToken(css,name){
   const match=css.match(new RegExp(`${name}:\\s*(#[0-9a-f]{6})`,'i'));
@@ -135,7 +136,7 @@ test('UX/UI Cleanup v1 svodi dashboard na četiri KPI-ja i tablični dnevni preg
   assert.ok(metrics.overtime>=0);
 });
 
-test('UX/UI Cleanup v1 koristi tablice za operativne popise bez promjene funkcija',()=>{
+test('UX/UI Cleanup v1.1 koristi tablice i kompaktne informacijske sažetke bez promjene funkcija',()=>{
   const admin=boot('admin');
   const screens=[
     ['workers','.workers-table'],
@@ -161,9 +162,19 @@ test('UX/UI Cleanup v1 koristi tablice za operativne popise bez promjene funkcij
   const worker=boot('worker');
   const homeText=worker.document.querySelector('#content').textContent;
   assert.doesNotMatch(homeText,/Završeni sati u srpnju|Moji zadnji zapisi|Brze akcije/);
-  assert.equal(worker.document.querySelectorAll('.worker-home-summary .stat').length,2);
+  assert.ok(worker.document.querySelector('.worker-home-card'));
+  assert.equal(worker.document.querySelectorAll('.worker-home-facts>div').length,4);
+  assert.equal(worker.document.querySelector('.worker-home-summary'),null);
   worker.window.navigate('mytime');
-  assert.match(worker.document.querySelector('#content').textContent,/Završeni sati/);
+  assert.ok(worker.document.querySelector('.time-summary-visual'));
+  assert.ok(worker.document.querySelector('.time-donut[role="img"]'));
+  assert.equal(worker.document.querySelectorAll('.data-summary-metrics>div').length,2);
+  assert.match(worker.document.querySelector('.time-donut').getAttribute('aria-label'),/Odrađeno.*planiranih.*Saldo/);
+  assert.equal(worker.document.querySelector('.attendance-kpis'),null);
+  assert.equal(worker.document.querySelector('.mytime-review'),null);
+  worker.state().records.find(record=>record.workerId===1&&record.date==='2026-07-09').status='Nepotpun zapis';
+  worker.window.render();
+  assert.ok(worker.document.querySelector('.mytime-review'));
   assert.equal(worker.document.querySelector('.personal-attendance-table thead').textContent.includes('Radnik'),false);
 });
 
@@ -291,8 +302,14 @@ test('administrator ima godišnji pregled, radnik vidi samo sebe',()=>{
   worker.window.navigate('vacations');
   worker.window.setCalendarMode('year');
   const text = worker.document.querySelector('#content').textContent;
-  assert.match(text,/Ivan Horvat/);
+  assert.ok(worker.window.calendarRequests().every(request=>request.workerId===1));
   assert.doesNotMatch(text,/Marko Marić|Petra Novak/);
+  assert.ok(worker.document.querySelector('.vacation-balance-visual .leave-donut[role="img"]'));
+  assert.equal(worker.document.querySelectorAll('.vacation-balance-visual .donut-legend>div').length,3);
+  assert.match(worker.document.querySelector('.leave-donut').getAttribute('aria-label'),/Iskorišteno 10, planirano 3, raspoloživo 11/);
+  assert.equal(worker.document.querySelector('.vacation-summary-card'),null);
+  assert.equal(worker.document.querySelector('.vacation-balance-table'),null);
+  assert.equal(worker.document.querySelector('.personal-requests-table thead').textContent.includes('Radnik'),false);
 });
 
 test('Sprint 3 razdvaja statuse zahtjeva i kalendar rezervira samo aktivne odsutnosti',()=>{
@@ -360,6 +377,9 @@ test('radnik vidi vlastiti fond i poništavanjem vraća rezervirane dane',()=>{
   const {window,document,state}=boot('worker');
   window.navigate('requests');
   assert.equal(document.querySelectorAll('.requests-table .leave-request-row').length,4);
+  assert.equal(document.querySelector('.request-summary-card'),null);
+  assert.equal(document.querySelector('.leave-form-card input[disabled]'),null);
+  assert.equal(document.querySelector('.personal-requests-table thead').textContent.includes('Radnik'),false);
   assert.doesNotMatch(document.querySelector('#content').textContent,/Marko Marić|Marija Radić|Petra Novak/);
   let balance=window.vacationBalanceSummary(1);
   assert.equal(balance.allowance,24);
@@ -692,7 +712,7 @@ test('Sprint 7 povezuje prodajnu priču od RFID kartice do izvoza',()=>{
   assert.equal(document.querySelectorAll('.demo-proof-grid .card').length,3);
   assert.equal(document.querySelectorAll('.demo-story-hero .btn').length,2);
   const text=document.querySelector('#content').textContent;
-  assert.match(text,/RFID karticu.*sinkronizira.*Voditelj.*CSV i XLSX/s);
+  assert.match(text,/RFID karticu.*sinkronizira.*Voditelj.*XLSX.*CSV/s);
   assert.match(text,/RFID\/NFC, radnici, smjene, odsutnosti, korekcije, izvještaji, administracija i audit/);
   assert.doesNotMatch(text,/skladište|ERP|GPS|AI analitika|payroll|CRM/i);
 });
@@ -1581,4 +1601,16 @@ test('pregled, reporting profil i API nacrt zaključavaju tablični smjer bez ba
   assert.match(apiContractDraft,/enum: \[csv, xlsx\]/);
   assert.match(apiContractDraft,/PDF\/PDF-A is intentionally absent/);
   assert.doesNotMatch(apiContractDraft,/payroll-calculation|gps-tracking|door-access-control/i);
+});
+
+test('MVP Scope v1.1 prijedlog zajedničkog godišnjeg ostaje privatno minimiziran i neimplementiran',()=>{
+  assert.match(sharedLeaveCalendarScope,/prijedlog za MVP Scope v1\.1/i);
+  assert.match(sharedLeaveCalendarScope,/nije implementirano/i);
+  assert.match(sharedLeaveCalendarScope,/Tim[\s\S]*Odjel[\s\S]*Organizacija/);
+  assert.match(sharedLeaveCalendarScope,/ime i prezime zaposlenika/);
+  assert.match(sharedLeaveCalendarScope,/početak i završetak odobrenog godišnjeg odmora/);
+  assert.match(sharedLeaveCalendarScope,/bolovanje ili drugi zdravstveni status/);
+  assert.match(sharedLeaveCalendarScope,/zahtjevi na čekanju, odbijeni ili poništeni zahtjevi/);
+  assert.match(sharedLeaveCalendarScope,/PR #20 ne implementira ovaj kalendar/);
+  assert.doesNotMatch(apiContractDraft,/shared-leave-calendar|leave-visibility-scope/i);
 });

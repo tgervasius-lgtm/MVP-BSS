@@ -52,10 +52,10 @@ test('admin vidi cijelu firmu, a radnik samo svoj godišnji kalendar',async({pag
   await page.locator('[data-bss-action="login()"]').click();
   await page.evaluate(()=>window.navigate('vacations'));
   await expect(page.locator('.section-title h1')).toHaveText('Moj godišnji kalendar');
-  await expect(page.locator('.section-title p')).toHaveText('Prikazuju se samo tvoji zahtjevi.');
+  await expect(page.locator('.section-title p')).toHaveCount(0);
 });
 
-test('UX/UI Cleanup v1 koristi četiri KPI-ja, tablice i XLSX kao glavni izvoz',async({page})=>{
+test('UX/UI Cleanup v1.1 koristi četiri KPI-ja, tablice i XLSX kao glavni izvoz',async({page})=>{
   await loginAs(page,'admin');
   await expect(page.locator('.dashboard-kpis .kpi-card')).toHaveCount(4);
   await expect(page.locator('.weekly-chart')).toHaveCount(0);
@@ -77,6 +77,23 @@ test('UX/UI Cleanup v1 koristi četiri KPI-ja, tablice i XLSX kao glavni izvoz',
   const exportButtons=page.locator('.report-export .btns button');
   await expect(exportButtons.nth(0)).toContainText('XLSX');
   await expect(exportButtons.nth(1)).toContainText('Tehnički CSV');
+});
+
+test('radnik ima kompaktne kružne sažetke za sate i godišnji bez dupliciranih KPI kartica',async({page})=>{
+  await loginAs(page,'worker');
+  await page.evaluate(()=>window.navigate('mytime'));
+  await expect(page.locator('.time-summary-visual')).toBeVisible();
+  await expect(page.locator('.time-donut[role="img"]')).toHaveAttribute('aria-label',/Odrađeno.*planiranih.*Saldo/);
+  await expect(page.locator('.attendance-kpis')).toHaveCount(0);
+  await expect(page.locator('.data-summary-metrics>div')).toHaveCount(2);
+  await expect(page.locator('.mytime-review')).toHaveCount(0);
+  expect(await seriousAxeViolations(page)).toEqual([]);
+
+  await page.evaluate(()=>window.navigate('vacations'));
+  await expect(page.locator('.vacation-balance-visual .leave-donut[role="img"]')).toHaveAttribute('aria-label',/Iskorišteno.*planirano.*raspoloživo/);
+  await expect(page.locator('.donut-legend>div')).toHaveCount(3);
+  await expect(page.locator('.vacation-summary-card,.vacation-balance-table')).toHaveCount(0);
+  expect(await seriousAxeViolations(page)).toEqual([]);
 });
 
 test('tema i svih sedam CSS slojeva rade nakon ponovnog učitavanja',async({page})=>{
