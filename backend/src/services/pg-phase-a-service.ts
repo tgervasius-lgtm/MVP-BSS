@@ -252,7 +252,17 @@ async function audit(
        organization_id, actor_type, actor_id, actor_role, action, entity_type,
        entity_id, before_json, after_json, request_id, metadata
      ) VALUES ($1, 'user', $2, $3, $4, $5, $6, $7, $8, $9, '{}'::jsonb)`,
-    [actor.organizationId, actor.userId, actor.role, action, entityType, entityId, before, after, requestId]
+    [
+      actor.organizationId,
+      actor.userId,
+      actor.role,
+      action,
+      entityType,
+      entityId,
+      before === null || before === undefined ? null : JSON.stringify(before),
+      after === null || after === undefined ? null : JSON.stringify(after),
+      requestId
+    ]
   );
 }
 
