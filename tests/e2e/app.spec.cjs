@@ -52,10 +52,10 @@ test('admin vidi cijelu firmu, a radnik samo svoj godišnji kalendar',async({pag
   await page.locator('[data-bss-action="login()"]').click();
   await page.evaluate(()=>window.navigate('vacations'));
   await expect(page.locator('.section-title h1')).toHaveText('Moj godišnji kalendar');
-  await expect(page.locator('.section-title p')).toHaveText('Prikazuju se samo tvoji zahtjevi.');
+  await expect(page.locator('.section-title p')).toHaveCount(0);
 });
 
-test('UX/UI Cleanup v1 koristi četiri KPI-ja, tablice i XLSX kao glavni izvoz',async({page})=>{
+test('UX/UI Cleanup v1.1 koristi četiri KPI-ja, tablice i XLSX kao glavni izvoz',async({page})=>{
   await loginAs(page,'admin');
   await expect(page.locator('.dashboard-kpis .kpi-card')).toHaveCount(4);
   await expect(page.locator('.weekly-chart')).toHaveCount(0);
@@ -72,11 +72,57 @@ test('UX/UI Cleanup v1 koristi četiri KPI-ja, tablice i XLSX kao glavni izvoz',
   }
   await page.evaluate(()=>window.navigate('vacations'));
   await expect(page.locator('.year-calendar .month-card')).toHaveCount(12);
-  await expect(page.locator('.vacation-summary-card .summary-table')).toBeVisible();
+  await expect(page.locator('.vacation-summary-card')).toHaveCount(0);
+  await expect(page.locator('.department-capacity-table')).toBeVisible();
   await page.evaluate(()=>window.navigate('reports'));
   const exportButtons=page.locator('.report-export .btns button');
   await expect(exportButtons.nth(0)).toContainText('XLSX');
   await expect(exportButtons.nth(1)).toContainText('Tehnički CSV');
+});
+
+test('radnik ima kompaktne kružne sažetke za sate i godišnji bez dupliciranih KPI kartica',async({page})=>{
+  await loginAs(page,'worker');
+  await page.evaluate(()=>window.navigate('mytime'));
+  await expect(page.locator('.time-summary-visual')).toBeVisible();
+  await expect(page.locator('button.time-donut[data-bss-action]')).toHaveAttribute('aria-label',/Odrađeno.*planiranih.*Saldo/);
+  await expect(page.locator('.attendance-kpis')).toHaveCount(0);
+  await expect(page.locator('.data-summary-metrics>button[data-bss-action]')).toHaveCount(2);
+  await expect(page.locator('.mytime-review')).toHaveCount(0);
+  expect(await seriousAxeViolations(page)).toEqual([]);
+
+  await page.evaluate(()=>window.navigate('vacations'));
+  await expect(page.locator('.vacation-balance-visual button.leave-donut[data-bss-action]')).toHaveAttribute('aria-label',/Iskorišteno.*planirano.*raspoloživo/);
+  await expect(page.locator('.donut-legend>button[data-bss-action]')).toHaveCount(3);
+  await expect(page.locator('.vacation-summary-card,.vacation-balance-table')).toHaveCount(0);
+  expect(await seriousAxeViolations(page)).toEqual([]);
+});
+
+test('četiri dashboard KPI-ja otvaraju točne filtrirane preglede',async({page})=>{
+  await loginAs(page,'admin');
+  await page.locator('[data-kpi="present"]').click();
+  await expect(page.locator('.tabs .active')).toContainText('Prisutni');
+  await page.evaluate(()=>window.navigate('home'));
+  await page.locator('[data-kpi="review"]').click();
+  await expect(page.locator('.attendance-tabs button.active')).toContainText('Za provjeru');
+  await page.evaluate(()=>window.navigate('home'));
+  await page.locator('[data-kpi="absent"]').click();
+  await expect(page.locator('.tabs .active')).toContainText('Odsutni danas');
+  await page.evaluate(()=>window.navigate('home'));
+  await page.locator('[data-kpi="pending"]').click();
+  await expect(page.locator('.request-tabs button.active')).toContainText('Na čekanju');
+});
+
+test('zajednički godišnji prikazuje samo odobrena razdoblja bez privatnih podataka',async({page})=>{
+  await loginAs(page,'admin');
+  await page.evaluate(()=>window.navigate('sharedLeave'));
+  await expect(page.locator('.section-title h1')).toHaveText('Zajednički kalendar godišnjih');
+  await expect(page.locator('.scope-switch button')).toHaveCount(3);
+  await page.getByRole('button',{name:'Organizacija',exact:true}).click();
+  await expect(page.locator('.shared-leave-table tbody tr')).toHaveCount(5);
+  await expect(page.locator('.shared-leave-table th')).toHaveCount(3);
+  const content=await page.locator('#content').innerText();
+  expect(content).not.toMatch(/Obiteljski odmor|Privatne obveze|Glavni godišnji|Bolovanje/);
+  expect(await seriousAxeViolations(page)).toEqual([]);
 });
 
 test('tema i svih sedam CSS slojeva rade nakon ponovnog učitavanja',async({page})=>{

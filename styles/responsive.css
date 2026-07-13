@@ -10,12 +10,14 @@
   .bottom-nav{left:7px;right:7px;bottom:calc(7px + var(--bss-safe-area-bottom));height:70px;border-radius:20px}.nav-item{font-size:8px}.nav-item .ico{font-size:18px}.toast{left:10px;right:10px;bottom:calc(90px + var(--bss-safe-area-bottom))}
   .modal-card{max-height:92dvh}.demo-story-hero{padding:17px}.demo-story-hero h2{font-size:23px}.demo-story-proof b{font-size:17px}.process-step{padding:14px}.demo-story-footer{align-items:stretch;flex-direction:column}.demo-story-footer .btn{width:100%}
   .table-scroll-hint{display:flex;align-items:center;justify-content:flex-end;padding:7px 11px;border-top:1px solid var(--bss-color-border);background:#f7faf8;color:var(--bss-color-accent-text);font-size:9px;font-weight:900}
-  .attendance-summary-values{grid-template-columns:1fr}.attendance-summary-values div{display:flex;justify-content:space-between;align-items:center}.attendance-summary-values b{margin:0}
+  .attendance-summary-values{grid-template-columns:1fr}.attendance-summary-values div,.attendance-summary-values button{display:flex;justify-content:space-between;align-items:center}.attendance-summary-values b{margin:0}
+  .data-summary-card{grid-template-columns:94px minmax(0,1fr);gap:12px;padding:12px}.data-donut{width:94px}.data-donut::after{inset:9px}.data-donut-center{max-width:70px}.data-donut-center b{font-size:13px}.data-summary-head{display:block}.data-summary-head .pill{margin-top:6px}.data-summary-main>h2,.data-summary-head h2{font-size:17px}.data-summary-metrics{gap:13px;margin:7px 0;padding:7px 0}.data-summary-metrics b{font-size:12px}.data-summary-foot{display:grid;gap:8px}.data-summary-foot label{justify-self:start}.worker-home-card{padding:13px}.accountant-home-card .quick{grid-template-columns:1fr}
   .attendance-live-item{grid-template-columns:36px minmax(0,1fr) auto}.attendance-live-item>.pill{grid-column:2/4;justify-self:start}.live-time{grid-column:3;grid-row:1}
   .table-card-heading{display:block}.table-card-heading .pill{margin-top:9px}.table-summary{display:block}.table-summary span{display:block}.table-summary span+span{margin-top:4px}
   .leave-request-body{grid-template-columns:1fr 1fr}.leave-request-body>div:first-child{grid-column:1/-1}.leave-request-head{grid-template-columns:38px minmax(0,1fr)}.leave-request-head>.pill{grid-column:2;justify-self:start}
   .report-type small{display:none}.report-type{align-items:center}.report-history-item time{margin-top:-4px}
   .invitation-item,.organization-item{grid-template-columns:1fr}.invitation-item>div:last-child,.organization-item>div:last-child{text-align:left}.organization-item .table-actions{justify-content:flex-start}.holiday-item{grid-template-columns:90px minmax(0,1fr)}.holiday-item>div:last-child{grid-column:2;text-align:left}.holiday-item .table-actions{justify-content:flex-start}
+  .shared-scope-control,.shared-scope-readonly{align-items:stretch;flex-direction:column}.scope-switch{width:100%}.scope-switch button{flex:1}.shared-leave-scope-card>p{font-size:8px}
 }
 @media(min-width:620px){
   .form-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
@@ -27,7 +29,7 @@
   .dashboard-kpis{grid-template-columns:repeat(4,minmax(0,1fr))}
   .attendance-live-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
   .record-detail-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
-  .worker-time-hero{grid-template-columns:minmax(0,1.4fr) minmax(260px,.6fr);align-items:center}
+  .accountant-home-card{grid-template-columns:minmax(0,1.2fr) minmax(260px,.8fr);align-items:center}
   .request-search{grid-template-columns:minmax(0,1fr) auto auto}.leave-request-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.leave-request-grid.compact{grid-template-columns:repeat(2,minmax(0,1fr))}
   .report-type-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.report-filter-bar{grid-template-columns:repeat(2,minmax(0,1fr))}.report-history-item{grid-template-columns:34px minmax(0,1fr) auto}.report-history-item time{grid-column:auto;text-align:right}
   .terminal-hero{grid-template-columns:minmax(0,1.4fr) minmax(220px,.6fr);align-items:stretch}.terminal-kpis{grid-template-columns:repeat(4,minmax(0,1fr))}
@@ -57,11 +59,11 @@
   .section-title h1{font-size:32px}
   .stats-grid{grid-template-columns:repeat(4,minmax(0,1fr))}
   .dashboard-grid{grid-template-columns:minmax(0,1.4fr) minmax(320px,.6fr)}
-  .dashboard-hero{padding:21px 23px}
+  .dashboard-hero{padding:17px 19px}
   .dashboard-kpis{grid-template-columns:repeat(4,minmax(0,1fr))}
   .dashboard-layout{grid-template-columns:minmax(0,1.55fr) minmax(300px,.65fr);align-items:start}
   .dashboard-secondary{position:relative}
-  .attendance-summary-card{grid-template-columns:minmax(0,1.2fr) minmax(420px,.8fr);align-items:center;padding:22px}
+  .attendance-summary-card{grid-template-columns:minmax(0,1.2fr) minmax(420px,.8fr);align-items:center;padding:18px}
   .attendance-live-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
   .filter-bar{grid-template-columns:repeat(4,minmax(150px,1fr)) auto;align-items:end}
   .report-hero{grid-template-columns:minmax(0,1.45fr) minmax(280px,.55fr);align-items:stretch}.report-type-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.report-filter-bar{grid-template-columns:repeat(3,minmax(170px,1fr)) auto;align-items:end}.report-layout{grid-template-columns:minmax(0,1.15fr) minmax(300px,.85fr)}
