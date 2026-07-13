@@ -55,6 +55,30 @@ test('admin vidi cijelu firmu, a radnik samo svoj godišnji kalendar',async({pag
   await expect(page.locator('.section-title p')).toHaveText('Prikazuju se samo tvoji zahtjevi.');
 });
 
+test('UX/UI Cleanup v1 koristi četiri KPI-ja, tablice i XLSX kao glavni izvoz',async({page})=>{
+  await loginAs(page,'admin');
+  await expect(page.locator('.dashboard-kpis .kpi-card')).toHaveCount(4);
+  await expect(page.locator('.weekly-chart')).toHaveCount(0);
+  await expect(page.locator('.weekly-attendance-table tbody tr')).toHaveCount(5);
+  for(const [screen,selector] of [
+    ['workers','.workers-table'],
+    ['shifts','.shifts-table'],
+    ['requests','.requests-table'],
+    ['corrections','.corrections-table'],
+    ['audit','.audit-table']
+  ]){
+    await page.evaluate(value=>window.navigate(value),screen);
+    await expect(page.locator(selector)).toBeVisible();
+  }
+  await page.evaluate(()=>window.navigate('vacations'));
+  await expect(page.locator('.year-calendar .month-card')).toHaveCount(12);
+  await expect(page.locator('.vacation-summary-card .summary-table')).toBeVisible();
+  await page.evaluate(()=>window.navigate('reports'));
+  const exportButtons=page.locator('.report-export .btns button');
+  await expect(exportButtons.nth(0)).toContainText('XLSX');
+  await expect(exportButtons.nth(1)).toContainText('Tehnički CSV');
+});
+
 test('tema i svih sedam CSS slojeva rade nakon ponovnog učitavanja',async({page})=>{
   await loginAs(page,'admin');
   await page.evaluate(()=>window.toggleTheme());
