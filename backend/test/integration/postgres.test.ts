@@ -14,7 +14,6 @@ test("PostgreSQL migrations, RLS isolation, auth and manager scope", { skip: !da
   assert.ok(databaseUrl, "BSS_TEST_DATABASE_URL is required when PostgreSQL tests are mandatory");
   const owner = new Client({ connectionString: databaseUrl });
   await owner.connect();
-  t.after(async () => owner.end());
   await migrateUp(owner);
 
   const suffix = Math.random().toString(36).slice(2, 10);
@@ -25,10 +24,6 @@ test("PostgreSQL migrations, RLS isolation, auth and manager scope", { skip: !da
   appUrl.password = password;
 
   await owner.query(`CREATE ROLE ${role} LOGIN PASSWORD '${password}' NOSUPERUSER NOBYPASSRLS`);
-  t.after(async () => {
-    await owner.query(`DROP OWNED BY ${role}`);
-    await owner.query(`DROP ROLE IF EXISTS ${role}`);
-  });
   await owner.query(`GRANT CONNECT ON DATABASE ${appUrl.pathname.slice(1)} TO ${role}`);
   await owner.query(`GRANT USAGE ON SCHEMA public TO ${role}`);
   await owner.query(`GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO ${role}`);
@@ -67,7 +62,12 @@ test("PostgreSQL migrations, RLS isolation, auth and manager scope", { skip: !da
   assert.ok(ids);
 
   const appPool = new Pool({ connectionString: appUrl.toString(), max: 3 });
-  t.after(async () => appPool.end());
+  t.after(async () => {
+    await appPool.end();
+    await owner.query(`DROP OWNED BY ${role}`);
+    await owner.query(`DROP ROLE IF EXISTS ${role}`);
+    await owner.end();
+  });
   const config = { accessTokenTtlSeconds: 900, refreshTokenTtlSeconds: 2_592_000 };
   const auth = new PgAuthService(appPool, config);
   const service = new PgPhaseAService(appPool);
