@@ -89,7 +89,10 @@ ALTER TABLE user_invitations
 
 ALTER TABLE attendance_days
   ADD CONSTRAINT attendance_days_time_order
-    CHECK (check_out IS NULL OR (check_in IS NOT NULL AND check_out > check_in AND check_out <= check_in + interval '16 hours')),
+    -- Offline terminals can deliver a check-out before the matching check-in.
+    -- Permit that temporary incomplete state, but enforce ordering and the
+    -- maximum shift duration as soon as both timestamps are present.
+    CHECK (check_in IS NULL OR check_out IS NULL OR (check_out > check_in AND check_out <= check_in + interval '16 hours')),
   ADD CONSTRAINT attendance_days_minute_bounds
     CHECK (break_minutes <= 960 AND worked_minutes <= 960 AND planned_minutes <= 960);
 
