@@ -435,12 +435,16 @@ test("PostgreSQL migrations, RLS isolation, auth and manager scope", { skip: !da
   const terminals = await service.listTerminals(admin.actor);
   assert.equal(terminals.find((item) => item.id === paired.terminal.id)?.queueDepth, 2);
 
-  const nextCheckIn = await ingest("check_in", randomUUID(), "2026-07-18T06:00:00.000Z", 3, "integration-nonce-next-check-in-0006");
+  // Keep the valid sequence deterministic and safely in the past. The explicit
+  // future-event assertion below owns the clock-skew boundary; using tomorrow's
+  // date here made this otherwise valid scenario depend on the CI start time.
+  const continuationDate = "2026-07-10";
+  const nextCheckIn = await ingest("check_in", randomUUID(), `${continuationDate}T06:00:00.000Z`, 3, "integration-nonce-next-check-in-0006");
   assert.equal(nextCheckIn.results[0]?.status, "synced");
-  const invalidCheckOut = await ingest("check_out", randomUUID(), "2026-07-18T05:59:00.000Z", 4, "integration-nonce-invalid-check-out-0007");
+  const invalidCheckOut = await ingest("check_out", randomUUID(), `${continuationDate}T05:59:00.000Z`, 4, "integration-nonce-invalid-check-out-0007");
   assert.equal(invalidCheckOut.results[0]?.status, "rejected");
   assert.equal(invalidCheckOut.results[0]?.code, "CHECK_OUT_BEFORE_CHECK_IN");
-  const nextCheckOut = await ingest("check_out", randomUUID(), "2026-07-18T14:00:00.000Z", 5, "integration-nonce-next-check-out-0008");
+  const nextCheckOut = await ingest("check_out", randomUUID(), `${continuationDate}T14:00:00.000Z`, 5, "integration-nonce-next-check-out-0008");
   assert.equal(nextCheckOut.results[0]?.status, "synced");
   const futureEvent = await ingest(
     "check_in",
