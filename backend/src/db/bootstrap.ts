@@ -1,6 +1,8 @@
 import { fileURLToPath } from "node:url";
+import { randomUUID } from "node:crypto";
 import pg from "pg";
 import { loadConfig } from "../config.js";
+import { databaseSslOptions } from "./pool.js";
 import { hashPassword } from "../security/passwords.js";
 
 const { Client } = pg;
@@ -31,17 +33,20 @@ export async function bootstrapOrganization(client: pg.Client, env: NodeJS.Proce
   }
 
   const passwordHash = await hashPassword(password);
+  const organizationId = randomUUID();
   await client.query("BEGIN");
   try {
-    await client.query("SELECT pg_advisory_xact_lock($1)", [BOOTSTRAP_LOCK_ID]);
-    const existing = await client.query("SELECT 1 FROM users WHERE lower(email) = $1", [email]);
+    const lock = await client.query<{ acquired: boolean }>("SELECT pg_try_advisory_xact_lock($1) AS acquired", [BOOTSTRAP_LOCK_ID]);
+    if (lock.rows[0]?.acquired !== true) throw new Error("Another BSS bootstrap process already holds the advisory lock");
+    const existing = await client.query("SELECT 1 FROM bss_auth_lookup($1) LIMIT 1", [email]);
     if (existing.rows[0]) throw new Error("Bootstrap administrator e-mail already exists");
-    const organization = await client.query<{ id: string }>(
-      `INSERT INTO organizations (name, timezone) VALUES ($1, $2) RETURNING id`,
-      [organizationName, timezone]
+    await client.query("SELECT set_config('bss.organization_id', $1, true)", [organizationId]);
+    await client.query("SELECT set_config('bss.actor_role', 'system', true)");
+    await client.query("SELECT set_config('bss.request_id', 'bootstrap', true)");
+    await client.query(
+      `INSERT INTO organizations (id, name, timezone) VALUES ($1, $2, $3)`,
+      [organizationId, organizationName, timezone]
     );
-    const organizationId = organization.rows[0]?.id;
-    if (!organizationId) throw new Error("Organization bootstrap failed");
     await client.query(
       `INSERT INTO departments (organization_id, name) VALUES ($1, 'Opći odjel')`,
       [organizationId]
@@ -67,7 +72,11 @@ export async function bootstrapOrganization(client: pg.Client, env: NodeJS.Proce
     await client.query("COMMIT");
     return { organizationId, adminUserId, email };
   } catch (error) {
-    await client.query("ROLLBACK");
+    try {
+      await client.query("ROLLBACK");
+    } catch (rollbackError) {
+      throw new AggregateError([error, rollbackError], "Bootstrap transaction and rollback both failed");
+    }
     throw error;
   }
 }
@@ -76,7 +85,7 @@ async function main(): Promise<void> {
   const config = loadConfig();
   const client = new Client({
     connectionString: config.databaseUrl,
-    ssl: config.databaseSsl ? { rejectUnauthorized: true } : false,
+    ssl: databaseSslOptions(config),
     application_name: "bss-bootstrap"
   });
   await client.connect();

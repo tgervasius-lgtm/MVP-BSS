@@ -54,7 +54,7 @@
     const match=String(expression||'').trim().match(/^([A-Za-z][A-Za-z0-9_]*)\((.*)\)$/s);
     if(!match||!allowedActions.has(match[1]))return null;
     try{return {name:match[1],args:splitArguments(match[2]).map(token=>parseArgument(token,element))};}
-    catch(error){return null;}
+    catch{return null;}
   }
 
   function dispatch(expression,element,event){

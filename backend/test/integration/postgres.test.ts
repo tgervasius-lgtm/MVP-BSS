@@ -3,8 +3,10 @@ import { createHash, randomUUID } from "node:crypto";
 import test from "node:test";
 import ExcelJS from "exceljs";
 import pg from "pg";
+import { loadConfig } from "../../src/config.js";
 import { bootstrapOrganization } from "../../src/db/bootstrap.js";
 import { migrateUp } from "../../src/db/migrate.js";
+import { buildApp } from "../../src/http/app.js";
 import { hashPassword } from "../../src/security/passwords.js";
 import { signDeviceRequest } from "../../src/security/device-signature.js";
 import { hashRfidUid } from "../../src/security/rfid.js";
@@ -32,7 +34,16 @@ test("PostgreSQL migrations, RLS isolation, auth and manager scope", { skip: !da
   await owner.query(`CREATE ROLE ${role} LOGIN PASSWORD '${password}' NOSUPERUSER NOBYPASSRLS`);
   await owner.query(`GRANT CONNECT ON DATABASE ${appUrl.pathname.slice(1)} TO ${role}`);
   await owner.query(`GRANT USAGE ON SCHEMA public TO ${role}`);
-  await owner.query(`GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO ${role}`);
+  await owner.query(`GRANT SELECT ON ALL TABLES IN SCHEMA public TO ${role}`);
+  await owner.query(`GRANT INSERT ON departments, shifts, workers, holidays, rfid_cards,
+    users, user_department_scopes, user_invitations, auth_sessions, terminals, terminal_credentials,
+    attendance_events, attendance_days, leave_requests, correction_requests, report_exports, audit_events,
+    holiday_calendars, terminal_request_nonces, terminal_sync_events TO ${role}`);
+  await owner.query(`GRANT UPDATE ON organizations, departments, shifts, workers, holidays, rfid_cards,
+    users, user_invitations, auth_sessions, terminals, terminal_credentials, attendance_days,
+    leave_requests, correction_requests, report_exports, holiday_calendars TO ${role}`);
+  await owner.query(`GRANT DELETE ON holidays, user_department_scopes, terminal_request_nonces TO ${role}`);
+  await owner.query(`REVOKE ALL PRIVILEGES ON bss_schema_migrations FROM ${role}`);
   await owner.query(`GRANT EXECUTE ON FUNCTION bss_auth_lookup(text), bss_session_lookup(bytea), bss_refresh_lookup(bytea), bss_invitation_lookup(bytea), bss_terminal_credential_lookup(uuid) TO ${role}`);
 
   const adminPassword = "Admin-secure-password-2026!";
@@ -94,13 +105,42 @@ test("PostgreSQL migrations, RLS isolation, auth and manager scope", { skip: !da
     publicOrigin: "https://bss.test"
   });
 
+  const blockedTenantPassword = "Blocked-tenant-password-2026!";
+  await owner.query(
+    `INSERT INTO users (organization_id, email, password_hash, role, status, worker_id)
+     VALUES ($1, 'worker-b@example.test', $2, 'worker', 'active', $3)`,
+    [ids.org2, await hashPassword(blockedTenantPassword), ids.worker2]
+  );
+  await owner.query("UPDATE organizations SET status = 'blocked' WHERE id = $1", [ids.org2]);
+  await assert.rejects(
+    auth.login("worker-b@example.test", blockedTenantPassword, { requestId: "integration-blocked-tenant-login" }),
+    (error: unknown) => typeof error === "object" && error !== null && "code" in error && error.code === "UNAUTHENTICATED"
+  );
+
+  await assert.rejects(appPool.query("SELECT version FROM bss_schema_migrations"), /permission denied/i);
+  await assert.rejects(appPool.query("DELETE FROM workers"), /permission denied/i);
+  await assert.rejects(appPool.query("INSERT INTO organizations (name) VALUES ('Unauthorized tenant')"), /permission denied/i);
+  await assert.rejects(
+    owner.query("UPDATE users SET worker_id = $1 WHERE id = $2", [ids.worker1, ids.admin1]),
+    /users_worker_role_consistency/i
+  );
+
   const bootstrapPassword = "Bootstrap-secure-password-2026!";
-  const bootstrapped = await bootstrapOrganization(owner, {
-    BSS_BOOTSTRAP_ORGANIZATION_NAME: `Bootstrap ${suffix}`,
-    BSS_BOOTSTRAP_ADMIN_EMAIL: `bootstrap-${suffix}@example.test`,
-    BSS_BOOTSTRAP_ADMIN_PASSWORD: bootstrapPassword,
-    BSS_BOOTSTRAP_TIMEZONE: "Europe/Zagreb"
-  });
+  await owner.query(`GRANT INSERT ON organizations TO ${role}`);
+  const bootstrapClient = new Client({ connectionString: appUrl.toString() });
+  await bootstrapClient.connect();
+  let bootstrapped: Awaited<ReturnType<typeof bootstrapOrganization>>;
+  try {
+    bootstrapped = await bootstrapOrganization(bootstrapClient, {
+      BSS_BOOTSTRAP_ORGANIZATION_NAME: `Bootstrap ${suffix}`,
+      BSS_BOOTSTRAP_ADMIN_EMAIL: `bootstrap-${suffix}@example.test`,
+      BSS_BOOTSTRAP_ADMIN_PASSWORD: bootstrapPassword,
+      BSS_BOOTSTRAP_TIMEZONE: "Europe/Zagreb"
+    });
+  } finally {
+    await bootstrapClient.end();
+    await owner.query(`REVOKE INSERT ON organizations FROM ${role}`);
+  }
   const bootstrapSession = await auth.login(bootstrapped.email, bootstrapPassword, { requestId: "integration-bootstrap-login" });
   const bootstrapOrganizationView = await service.getOrganization(bootstrapSession.actor);
   assert.equal(bootstrapOrganizationView.id, bootstrapped.organizationId);
@@ -114,8 +154,40 @@ test("PostgreSQL migrations, RLS isolation, auth and manager scope", { skip: !da
 
   const admin = await auth.login("admin-a@example.test", adminPassword, { requestId: "integration-login" });
   assert.equal(admin.context.organization.id, ids.org1);
+  await assert.rejects(
+    service.updateUser(admin.actor, ids.admin1, { status: "blocked" }, admin.context.user.revision, "integration-last-admin"),
+    (error: unknown) => typeof error === "object" && error !== null && "code" in error && error.code === "CONFLICT"
+  );
   const adminWorkers = await service.listWorkers(admin.actor, { limit: 50 });
   assert.deepEqual(adminWorkers.items.map((item) => item.id), [ids.worker1]);
+  await assert.rejects(
+    service.inviteUser(admin.actor, { email: `invalid-worker-${suffix}@example.test`, role: "worker" }, "integration-invalid-worker-invite"),
+    (error: unknown) => typeof error === "object" && error !== null && "code" in error && error.code === "VALIDATION_FAILED"
+  );
+  const firstInvitation = await service.inviteUser(
+    admin.actor,
+    { email: `reinvite-${suffix}@example.test`, role: "accountant" },
+    "integration-invite-first"
+  );
+  const replacementInvitation = await service.inviteUser(
+    admin.actor,
+    { email: `reinvite-${suffix}@example.test`, role: "accountant" },
+    "integration-invite-replacement"
+  );
+  assert.equal(replacementInvitation.id, firstInvitation.id);
+  assert.notEqual(replacementInvitation.invitationUrl, firstInvitation.invitationUrl);
+  assert.notEqual(replacementInvitation.revision, firstInvitation.revision);
+  const invitationStates = await owner.query<{ active: string; revoked: string }>(
+    `SELECT COUNT(*) FILTER (WHERE revoked_at IS NULL)::text AS active,
+       COUNT(*) FILTER (WHERE revoked_at IS NOT NULL)::text AS revoked
+     FROM user_invitations WHERE lower(email) = lower($1)`,
+    [`reinvite-${suffix}@example.test`]
+  );
+  assert.deepEqual(invitationStates.rows[0], { active: "1", revoked: "1" });
+  await assert.rejects(
+    service.inviteUser(admin.actor, { email: "admin-a@example.test", role: "accountant" }, "integration-active-user-reinvite"),
+    (error: unknown) => typeof error === "object" && error !== null && "code" in error && error.code === "CONFLICT"
+  );
 
   const manager = await auth.login("manager-a@example.test", managerPassword, { requestId: "integration-manager" });
   assert.deepEqual(manager.actor.departmentIds, [ids.dep1]);
@@ -123,6 +195,18 @@ test("PostgreSQL migrations, RLS isolation, auth and manager scope", { skip: !da
   assert.deepEqual(managerWorkers.items.map((item) => item.id), [ids.worker1]);
   const workerSession = await auth.login("worker-a@example.test", workerPassword, { requestId: "integration-worker" });
   assert.equal(workerSession.actor.selfWorkerId, ids.worker1);
+  await assert.rejects(
+    service.createReportPreview(workerSession.actor, {
+      reportType: "monthly_summary",
+      periodFrom: "2026-07-01",
+      periodTo: "2026-07-31"
+    }),
+    (error: unknown) => typeof error === "object" && error !== null && "code" in error && error.code === "FORBIDDEN"
+  );
+  await assert.rejects(
+    service.pairTerminal(manager.actor, { activationCode: terminalActivationCode, name: "Nedopušten", location: "Test" }, "integration-manager-pair"),
+    (error: unknown) => typeof error === "object" && error !== null && "code" in error && error.code === "FORBIDDEN"
+  );
 
   const department = await service.updateDepartment(
     admin.actor,
@@ -132,6 +216,16 @@ test("PostgreSQL migrations, RLS isolation, auth and manager scope", { skip: !da
     "integration-department"
   );
   assert.equal(department.name, "Operativa A");
+  await assert.rejects(
+    service.updateDepartment(
+      admin.actor,
+      ids.dep1,
+      { status: "blocked" },
+      department.revision,
+      "integration-department-active-workers"
+    ),
+    (error: unknown) => typeof error === "object" && error !== null && "code" in error && error.code === "CONFLICT"
+  );
 
   const createdDepartment = await service.createDepartment(admin.actor, `Privremeni ${suffix}`, "integration-department-create");
   const blockedDepartment = await service.updateDepartment(
@@ -158,6 +252,18 @@ test("PostgreSQL migrations, RLS isolation, auth and manager scope", { skip: !da
     toleranceMinutes: 5
   }, createdShift.revision, "integration-shift-update");
   assert.equal(updatedShift.startTime, "09:15");
+
+  await assert.rejects(
+    service.createWorker(admin.actor, {
+      code: `INVALID-${suffix}`,
+      name: "Neispravna Dodjela",
+      email: `invalid-assignment-${suffix}@example.test`,
+      departmentId: blockedDepartment.id,
+      shiftId: ids.shift1,
+      annualLeaveAllowance: 20
+    }, "integration-worker-blocked-department"),
+    (error: unknown) => typeof error === "object" && error !== null && "code" in error && error.code === "VALIDATION_FAILED"
+  );
 
   const createdWorker = await service.createWorker(admin.actor, {
     code: `TMP-${suffix}`,
@@ -303,10 +409,14 @@ test("PostgreSQL migrations, RLS isolation, auth and manager scope", { skip: !da
   assert.equal(outOfOrder.results[0]?.status, "rejected");
   assert.equal(outOfOrder.results[0]?.code, "SEQUENCE_OUT_OF_ORDER");
 
-  const day = await service.getWorkerAttendance(workerSession.actor, ids.worker1, { from: "2026-07-17", to: "2026-07-17" });
+  const day = await service.getWorkerAttendance(workerSession.actor, ids.worker1, { from: "2026-07-17", to: "2026-07-17", limit: 50 });
   assert.equal(day.items.length, 1);
   assert.equal(day.items[0]?.workedMinutes, 450);
   assert.equal(day.items[0]?.status, "complete");
+  await assert.rejects(
+    service.getWorkerAttendance(workerSession.actor, createdWorker.id, { from: "2026-07-17", to: "2026-07-17", limit: 50 }),
+    (error: unknown) => typeof error === "object" && error !== null && "code" in error && error.code === "FORBIDDEN"
+  );
 
   const heartbeatBody = { sentAt: new Date().toISOString(), sequence: 3, queueDepth: 2, softwareVersion: "bss-terminal-1.0.0", deviceClockOffsetSeconds: 1 };
   const heartbeatRaw = Buffer.from(JSON.stringify(heartbeatBody), "utf8");
@@ -332,6 +442,45 @@ test("PostgreSQL migrations, RLS isolation, auth and manager scope", { skip: !da
   assert.equal(invalidCheckOut.results[0]?.code, "CHECK_OUT_BEFORE_CHECK_IN");
   const nextCheckOut = await ingest("check_out", randomUUID(), "2026-07-18T14:00:00.000Z", 5, "integration-nonce-next-check-out-0008");
   assert.equal(nextCheckOut.results[0]?.status, "synced");
+  const futureEvent = await ingest(
+    "check_in",
+    randomUUID(),
+    new Date(Date.now() + 10 * 60_000).toISOString(),
+    6,
+    "integration-nonce-future-event-0009"
+  );
+  assert.equal(futureEvent.results[0]?.status, "rejected");
+  assert.equal(futureEvent.results[0]?.code, "EVENT_IN_FUTURE");
+
+  const delayedCheckOut = await ingest("check_out", randomUUID(), "2026-07-12T14:00:00.000Z", 7, "integration-nonce-delayed-check-out-0010");
+  assert.equal(delayedCheckOut.results[0]?.status, "synced");
+  const delayedCheckIn = await ingest("check_in", randomUUID(), "2026-07-12T06:00:00.000Z", 8, "integration-nonce-delayed-check-in-0011");
+  assert.equal(delayedCheckIn.results[0]?.status, "synced");
+  const reconciledDay = await service.getWorkerAttendance(workerSession.actor, ids.worker1, { from: "2026-07-12", to: "2026-07-12", limit: 50 });
+  assert.equal(reconciledDay.items[0]?.status, "complete");
+  assert.equal(reconciledDay.items[0]?.workedMinutes, 450);
+
+  const unmatchedCheckOut = await ingest("check_out", randomUUID(), "2026-07-11T14:00:00.000Z", 9, "integration-nonce-unmatched-check-out-0012");
+  assert.equal(unmatchedCheckOut.results[0]?.status, "synced");
+  const lateCheckIn = await ingest("check_in", randomUUID(), "2026-07-11T15:00:00.000Z", 10, "integration-nonce-late-check-in-0013");
+  assert.equal(lateCheckIn.results[0]?.status, "rejected");
+  assert.equal(lateCheckIn.results[0]?.code, "CHECK_IN_AFTER_CHECK_OUT");
+
+  const blockedCard = await service.blockRfidCard(admin.actor, card.id, "integration-rfid-block");
+  const blockedCardAgain = await service.blockRfidCard(admin.actor, card.id, "integration-rfid-block-idempotent");
+  assert.equal(blockedCard.status, "blocked");
+  assert.equal(blockedCardAgain.revision, blockedCard.revision);
+
+  const concurrentCardAssignments = await Promise.allSettled([
+    service.assignWorkerRfidCard(admin.actor, ids.worker1, { uid: "04:A1:B2:C4" }, "integration-rfid-race-a"),
+    service.assignWorkerRfidCard(admin.actor, ids.worker1, { uid: "04:A1:B2:C5" }, "integration-rfid-race-b")
+  ]);
+  assert.equal(concurrentCardAssignments.filter((result) => result.status === "fulfilled").length, 2);
+  const activeCards = await owner.query<{ count: string }>(
+    "SELECT COUNT(*)::text AS count FROM rfid_cards WHERE organization_id = $1 AND worker_id = $2 AND status = 'active'",
+    [ids.org1, ids.worker1]
+  );
+  assert.equal(activeCards.rows[0]?.count, "1");
 
   const leave = await service.createLeaveRequest(workerSession.actor, {
     typeCode: "annual_leave",
@@ -342,9 +491,45 @@ test("PostgreSQL migrations, RLS isolation, auth and manager scope", { skip: !da
   assert.equal(leave.workingDays, 5);
   const approvedLeave = await service.approveLeaveRequest(manager.actor, leave.id, leave.revision, "Odobreno u planu", "integration-leave-approve");
   assert.equal(approvedLeave.status, "approved");
+
+  // The yearly allowance is evaluated separately for each calendar year. Seven
+  // days are already reserved in 2026, so this request fits a 12-day allowance
+  // only when its four 2026 and six 2027 workdays are split correctly.
+  await owner.query("UPDATE workers SET annual_leave_allowance = 12 WHERE id = $1", [ids.worker1]);
+  const crossYearLeave = await service.createLeaveRequest(workerSession.actor, {
+    typeCode: "annual_leave",
+    startDate: "2026-12-28",
+    endDate: "2027-01-08",
+    note: "Prijelaz godine"
+  }, "integration-leave-cross-year");
+  assert.equal(crossYearLeave.workingDays, 10);
+
+  const workerWithLeave = await service.getWorker(admin.actor, ids.worker1);
+  await assert.rejects(
+    service.updateWorker(admin.actor, ids.worker1, {
+      code: workerWithLeave.code,
+      name: workerWithLeave.name,
+      email: workerWithLeave.email,
+      departmentId: workerWithLeave.departmentId,
+      shiftId: workerWithLeave.shiftId,
+      annualLeaveAllowance: 0
+    }, workerWithLeave.revision, "integration-allowance-below-commitments"),
+    (error: unknown) => typeof error === "object" && error !== null && "code" in error && error.code === "CONFLICT"
+  );
+
   const sharedLeave = await service.listApprovedLeaveCalendar(workerSession.actor, { from: "2026-01-01", to: "2026-12-31" });
   assert.ok(sharedLeave.items.some((item) => item.id === leave.id && item.employeeName === "Ana A"));
   assert.deepEqual(Object.keys(sharedLeave.items[0] ?? {}).sort(), ["employeeName", "endDate", "id", "startDate"]);
+
+  await assert.rejects(
+    service.createCorrectionRequest(workerSession.actor, {
+      attendanceDayId: day.items[0]!.id,
+      newCheckIn: "2026-07-18T06:05:00.000Z",
+      newCheckOut: "2026-07-18T14:05:00.000Z",
+      reason: "Pogrešan datum korekcije"
+    }, "integration-correction-wrong-date"),
+    (error: unknown) => typeof error === "object" && error !== null && "code" in error && error.code === "VALIDATION_FAILED"
+  );
 
   const correction = await service.createCorrectionRequest(workerSession.actor, {
     attendanceDayId: day.items[0]!.id,
@@ -362,6 +547,35 @@ test("PostgreSQL migrations, RLS isolation, auth and manager scope", { skip: !da
   assert.equal(correctionDecision.request.status, "approved");
   assert.equal(correctionDecision.attendanceDay.status, "corrected");
   assert.equal(correctionDecision.attendanceDay.source, "approved_correction");
+
+  const staleCorrection = await service.createCorrectionRequest(workerSession.actor, {
+    attendanceDayId: day.items[0]!.id,
+    newCheckIn: "2026-07-17T06:10:00.000Z",
+    newCheckOut: "2026-07-17T14:10:00.000Z",
+    reason: "Provjera konkurentne promjene"
+  }, "integration-correction-stale-create");
+  await owner.query(
+    `UPDATE attendance_days SET check_in = check_in + interval '1 minute',
+       worked_minutes = GREATEST(0, worked_minutes - 1), revision = revision + 1
+     WHERE id = $1`,
+    [day.items[0]!.id]
+  );
+  await assert.rejects(
+    service.approveCorrectionRequest(
+      manager.actor,
+      staleCorrection.id,
+      staleCorrection.revision,
+      "Zapis se promijenio",
+      "integration-correction-stale-approve"
+    ),
+    (error: unknown) => typeof error === "object" && error !== null && "code" in error && error.code === "CONFLICT"
+  );
+  await service.cancelOwnCorrectionRequest(
+    workerSession.actor,
+    staleCorrection.id,
+    staleCorrection.revision,
+    "integration-correction-stale-cancel"
+  );
 
   const rawEvent = await owner.query<{ id: string }>(
     "SELECT id FROM attendance_events WHERE terminal_id = $1 AND device_event_id = $2",
@@ -423,6 +637,109 @@ test("PostgreSQL migrations, RLS isolation, auth and manager scope", { skip: !da
   assert.ok(accountingLeave.items.every((item) => item.status === "approved" && item.note === "" && item.decisionNote === null));
   const accountingCalendar = await service.listApprovedLeaveCalendar(accepted.actor, { from: "2026-01-01", to: "2026-12-31" });
   assert.ok(accountingCalendar.items.length >= 2);
+
+  const httpConfig = loadConfig({
+    NODE_ENV: "test",
+    PUBLIC_ORIGIN: "https://bss.test",
+    DATABASE_URL: appUrl.toString(),
+    DATABASE_SSL: "false",
+    COOKIE_SECURE: "false",
+    LOG_LEVEL: "silent",
+    RFID_UID_PEPPER: rfidPepper,
+    DEVICE_CREDENTIAL_ENCRYPTION_KEY: "integration-device-encryption-key-0123456789abcdef",
+    TERMINAL_ACTIVATION_CODE: terminalActivationCode
+  });
+  const httpApp = await buildApp({ config: httpConfig, authService: auth, phaseAService: service, logger: false });
+  try {
+    const workerOrganizationAttendance = await httpApp.inject({
+      method: "GET",
+      url: "/api/v1/attendance?from=2026-07-01&to=2026-07-31",
+      cookies: { bss_session: workerSession.tokens.accessToken }
+    });
+    assert.equal(workerOrganizationAttendance.statusCode, 403);
+    const workerEscape = await httpApp.inject({
+      method: "GET",
+      url: `/api/v1/workers/${createdWorker.id}/attendance?from=2026-07-01&to=2026-07-31`,
+      cookies: { bss_session: workerSession.tokens.accessToken }
+    });
+    assert.equal(workerEscape.statusCode, 403);
+    const accountantCorrections = await httpApp.inject({
+      method: "GET",
+      url: "/api/v1/correction-requests?from=2026-07-01&to=2026-07-31",
+      cookies: { bss_session: accepted.tokens.accessToken }
+    });
+    assert.equal(accountantCorrections.statusCode, 403);
+    const managerTerminalPair = await httpApp.inject({
+      method: "POST",
+      url: "/api/v1/terminals/pair",
+      headers: { origin: httpConfig.publicOrigin },
+      cookies: { bss_session: manager.tokens.accessToken },
+      payload: { activationCode: terminalActivationCode, name: "Nedopušten", location: "Integracija" }
+    });
+    assert.equal(managerTerminalPair.statusCode, 403);
+  } finally {
+    await httpApp.close();
+  }
+
+  const blockedAccount = await service.updateUser(admin.actor, accepted.context.user.id, { status: "blocked" }, accepted.context.user.revision, "integration-account-block");
+  await assert.rejects(
+    auth.resolveAccessToken(accepted.tokens.accessToken),
+    (error: unknown) => typeof error === "object" && error !== null && "code" in error && error.code === "UNAUTHENTICATED"
+  );
+  const reactivatedAccount = await service.updateUser(admin.actor, accepted.context.user.id, { status: "active" }, blockedAccount.revision, "integration-account-reactivate");
+  assert.equal(reactivatedAccount.status, "active");
+  await assert.rejects(
+    auth.resolveAccessToken(accepted.tokens.accessToken),
+    (error: unknown) => typeof error === "object" && error !== null && "code" in error && error.code === "UNAUTHENTICATED"
+  );
+
+  const replaySession = await auth.login("worker-a@example.test", workerPassword, { requestId: "integration-refresh-login" });
+  const concurrentRotations = await Promise.allSettled([
+    auth.rotate(replaySession.tokens.refreshToken, { requestId: "integration-refresh-a" }),
+    auth.rotate(replaySession.tokens.refreshToken, { requestId: "integration-refresh-b" })
+  ]);
+  assert.equal(concurrentRotations.filter((result) => result.status === "fulfilled").length, 1);
+  assert.equal(concurrentRotations.filter((result) => result.status === "rejected").length, 1);
+  const issuedAfterReplay = concurrentRotations.find((result) => result.status === "fulfilled");
+  assert.ok(issuedAfterReplay?.status === "fulfilled");
+  await assert.rejects(
+    auth.resolveAccessToken(issuedAfterReplay.value.accessToken),
+    (error: unknown) => typeof error === "object" && error !== null && "code" in error && error.code === "UNAUTHENTICATED"
+  );
+  const refreshReuseAudit = await owner.query<{ count: string }>(
+    `SELECT COUNT(*)::text AS count FROM audit_events
+     WHERE organization_id = $1 AND action = 'auth.refresh_reuse_detected'`,
+    [ids.org1]
+  );
+  assert.equal(refreshReuseAudit.rows[0]?.count, "1");
+
+  const explicitLogout = await auth.login("manager-a@example.test", managerPassword, { requestId: "integration-logout-login" });
+  await auth.logoutByRefreshToken(explicitLogout.tokens.refreshToken, "integration-logout-refresh");
+  await assert.rejects(
+    auth.resolveAccessToken(explicitLogout.tokens.accessToken),
+    (error: unknown) => typeof error === "object" && error !== null && "code" in error && error.code === "UNAUTHENTICATED"
+  );
+
+  const takeoverPassword = "Worker-takeover-password-2026!";
+  const takeoverHash = await hashPassword(takeoverPassword);
+  const takeoverUser = await owner.query<{ id: string }>(
+    `INSERT INTO users (organization_id, email, password_hash, role, status, worker_id)
+     VALUES ($1, 'created-worker@example.test', $2, 'worker', 'active', $3) RETURNING id`,
+    [ids.org1, takeoverHash, createdWorker.id]
+  );
+  const takeoverSession = await auth.login("created-worker@example.test", takeoverPassword, { requestId: "integration-worker-login" });
+  const currentCreatedWorker = await service.getWorker(admin.actor, createdWorker.id);
+  await service.deactivateWorker(admin.actor, createdWorker.id, currentCreatedWorker.revision, "integration-worker-deactivate");
+  await assert.rejects(
+    auth.resolveAccessToken(takeoverSession.tokens.accessToken),
+    (error: unknown) => typeof error === "object" && error !== null && "code" in error && error.code === "UNAUTHENTICATED"
+  );
+  const blockedIdentity = await owner.query<{ status: string; revoke_reason: string | null }>(
+    `SELECT u.status, s.revoke_reason FROM users u
+     JOIN auth_sessions s ON s.user_id = u.id WHERE u.id = $1 ORDER BY s.created_at DESC LIMIT 1`,
+    [takeoverUser.rows[0]!.id]
+  );
+  assert.deepEqual(blockedIdentity.rows[0], { status: "blocked", revoke_reason: "worker_deactivated" });
 
   const rls = await appPool.connect();
   try {

@@ -34,8 +34,62 @@ test("Phase A HTTP routes enforce sessions, roles, origin and stable errors", as
   assert.equal(admin.statusCode, 200);
   assert.equal(admin.headers.etag, '"1"');
 
+  const liveness = await app.inject({ method: "GET", url: "/healthz" });
+  const readiness = await app.inject({ method: "GET", url: "/readyz" });
+  assert.equal(liveness.statusCode, 200);
+  assert.equal(readiness.statusCode, 200);
+
   const csrf = await app.inject({ method: "POST", url: "/api/v1/departments", cookies: { bss_session: "admin" }, payload: { name: "Operativa" } });
   assert.equal(csrf.statusCode, 403);
+
+  const loginCsrf = await app.inject({
+    method: "POST",
+    url: "/api/v1/auth/login",
+    payload: { email: "admin@example.test", password: "Secure test password" }
+  });
+  assert.equal(loginCsrf.statusCode, 403);
+  const loggedIn = await app.inject({
+    method: "POST",
+    url: "/api/v1/auth/login",
+    headers: { origin: config.publicOrigin },
+    payload: { email: "admin@example.test", password: "Secure test password" }
+  });
+  assert.equal(loggedIn.statusCode, 200);
+
+  const refreshCsrf = await app.inject({ method: "POST", url: "/api/v1/auth/refresh", cookies: { bss_refresh: "refresh" } });
+  assert.equal(refreshCsrf.statusCode, 403);
+  const refreshed = await app.inject({
+    method: "POST",
+    url: "/api/v1/auth/refresh",
+    headers: { origin: config.publicOrigin },
+    cookies: { bss_refresh: "refresh" }
+  });
+  assert.equal(refreshed.statusCode, 204);
+
+  const logoutWithExpiredAccess = await app.inject({
+    method: "POST",
+    url: "/api/v1/auth/logout",
+    headers: { origin: config.publicOrigin },
+    cookies: { bss_session: "expired", bss_refresh: "refresh-admin" }
+  });
+  assert.equal(logoutWithExpiredAccess.statusCode, 204);
+  assert.match(logoutWithExpiredAccess.headers["set-cookie"]?.toString() ?? "", /bss_session=;/);
+  assert.match(logoutWithExpiredAccess.headers["set-cookie"]?.toString() ?? "", /bss_refresh=;/);
+
+  const repeatedLogout = await app.inject({
+    method: "POST",
+    url: "/api/v1/auth/logout",
+    headers: { origin: config.publicOrigin }
+  });
+  assert.equal(repeatedLogout.statusCode, 204);
+
+  const logoutWithInvalidAccess = await app.inject({
+    method: "POST",
+    url: "/api/v1/auth/logout",
+    headers: { origin: config.publicOrigin },
+    cookies: { bss_session: "expired" }
+  });
+  assert.equal(logoutWithInvalidAccess.statusCode, 204);
 
   const created = await app.inject({
     method: "POST",
@@ -75,6 +129,21 @@ test("Phase A HTTP routes enforce sessions, roles, origin and stable errors", as
     cookies: { bss_session: "manager" }
   });
   assert.equal(managerEscape.statusCode, 403);
+});
+
+test("readiness reports database unavailability without changing liveness", async (t) => {
+  const app = await buildApp({
+    config,
+    authService: new FakeAuthService(),
+    phaseAService: new FakePhaseAService(),
+    logger: false,
+    readinessCheck: async () => { throw new Error("database unavailable"); }
+  });
+  t.after(() => app.close());
+  assert.equal((await app.inject({ method: "GET", url: "/healthz" })).statusCode, 200);
+  const readiness = await app.inject({ method: "GET", url: "/readyz" });
+  assert.equal(readiness.statusCode, 503);
+  assert.deepEqual(readiness.json(), { status: "unavailable" });
 });
 
 test("completed Phase A contracts expose scoped drill-downs without raw credentials", async (t) => {
@@ -162,12 +231,36 @@ test("Backend MVP Phase B routes expose every operational flow with role and ori
   assert.equal(attendance.statusCode, 200);
   assert.equal(attendance.json().totals.rowCount, 1);
 
+  const workerOrganizationAttendance = await app.inject({
+    method: "GET",
+    url: "/api/v1/attendance?from=2026-07-01&to=2026-07-31",
+    cookies: session("worker")
+  });
+  assert.equal(workerOrganizationAttendance.statusCode, 403);
+
   const ownAttendance = await app.inject({
     method: "GET",
     url: `/api/v1/workers/${IDS.worker}/attendance?from=2026-07-01&to=2026-07-31`,
     cookies: session("worker")
   });
   assert.equal(ownAttendance.statusCode, 200);
+
+  const malformedWorkerId = await app.inject({
+    method: "GET",
+    url: "/api/v1/workers/00000000-0000-0000-0000-------------/attendance?from=2026-07-01&to=2026-07-31",
+    headers: { "x-request-id": "attacker-controlled-request-id" },
+    cookies: session("worker")
+  });
+  assert.equal(malformedWorkerId.statusCode, 422);
+  assert.notEqual(malformedWorkerId.json().requestId, "attacker-controlled-request-id");
+  assert.match(malformedWorkerId.json().requestId, /^[0-9a-f-]{36}$/);
+
+  const oversizedCursor = await app.inject({
+    method: "GET",
+    url: `/api/v1/workers/${IDS.worker}/attendance?from=2026-07-01&to=2026-07-31&cursor=${"a".repeat(513)}`,
+    cookies: session("worker")
+  });
+  assert.equal(oversizedCursor.statusCode, 422);
 
   const sharedLeave = await app.inject({
     method: "GET",
@@ -301,9 +394,11 @@ test("Backend MVP Phase B routes expose every operational flow with role and ori
   assert.equal(blocked.statusCode, 403);
 });
 
-test("all Backend MVP Phase B operations exist in the versioned OpenAPI", async () => {
+test("all Backend MVP Phase B operations exist in OpenAPI and resolve to Fastify routes", async (t) => {
   const source = await readFile(join(repositoryRoot, "openapi/bss-mvp-api-v1.yaml"), "utf8");
   const document = YAML.parse(source) as { paths: Record<string, Record<string, { operationId?: string }>> };
+  const app = await buildApp({ config, authService: new FakeAuthService(), phaseAService: new FakePhaseAService(), logger: false });
+  t.after(() => app.close());
   const expected = new Set([
     "login", "refreshSession", "acceptInvitation", "logout", "getSessionContext", "getDashboardSummary", "getOrganization", "updateOrganization",
     "listDepartments", "createDepartment", "updateDepartment", "listHolidays", "replaceHolidaysForYear", "listUsers", "inviteUser",
@@ -317,9 +412,17 @@ test("all Backend MVP Phase B operations exist in the versioned OpenAPI", async 
     "ingestTerminalEventBatch", "terminalHeartbeat"
   ]);
   const actual = new Set<string>();
-  for (const path of Object.values(document.paths)) {
-    for (const operation of Object.values(path)) {
+  const methods = new Set(["get", "post", "put", "patch", "delete"]);
+  for (const [pathName, path] of Object.entries(document.paths)) {
+    for (const [method, operation] of Object.entries(path)) {
       if (operation && typeof operation === "object" && operation.operationId) actual.add(operation.operationId);
+      if (!methods.has(method) || !operation.operationId) continue;
+      const routePath = `/api/v1${pathName.replaceAll(/{([^}]+)}/g, ":$1")}`;
+      assert.equal(
+        app.hasRoute({ method: method.toUpperCase(), url: routePath }),
+        true,
+        `OpenAPI operation ${operation.operationId} has no Fastify route ${method.toUpperCase()} ${routePath}`
+      );
     }
   }
   assert.deepEqual([...expected].filter((operation) => !actual.has(operation)), []);
@@ -343,6 +446,15 @@ test("OpenAPI v1 and the frozen screen map have no unresolved contract gates", a
   assert.equal(Object.keys(paths).length, 43);
   assert.equal(operationIds.length, 54);
   assert.equal(new Set(operationIds).size, operationIds.length);
+
+  const nonSessionOperations = new Set(["login", "refreshSession", "acceptInvitation", "ingestTerminalEventBatch", "terminalHeartbeat"]);
+  for (const path of Object.values(paths)) {
+    for (const [method, operation] of Object.entries(path)) {
+      if (!methods.has(method) || !operation.operationId || nonSessionOperations.has(operation.operationId)) continue;
+      const roles = (operation as { "x-bss-roles"?: unknown })["x-bss-roles"];
+      assert.ok(Array.isArray(roles) && roles.length > 0, `Missing x-bss-roles on ${operation.operationId}`);
+    }
+  }
 
   const refs: string[] = [];
   const visit = (value: unknown): void => {
@@ -390,6 +502,8 @@ test("migrations force tenant RLS and make raw evidence append-only", async () =
   const security = await readFile(join(repositoryRoot, "backend/migrations/005_security_and_rls.up.sql"), "utf8");
   const completion = await readFile(join(repositoryRoot, "backend/migrations/006_contract_completion.up.sql"), "utf8");
   const phaseB = await readFile(join(repositoryRoot, "backend/migrations/007_backend_mvp_phase_b.up.sql"), "utf8");
+  const hardening = await readFile(join(repositoryRoot, "backend/migrations/008_production_hardening.up.sql"), "utf8");
+  const grants = await readFile(join(repositoryRoot, "backend/deploy/runtime-grants.sql"), "utf8");
   assert.match(security, /FORCE ROW LEVEL SECURITY/);
   assert.match(security, /attendance_events_immutable/);
   assert.match(security, /audit_events_immutable/);
@@ -401,4 +515,16 @@ test("migrations force tenant RLS and make raw evidence append-only", async () =
   assert.match(phaseB, /approved_leave_visibility/);
   assert.match(phaseB, /bss_terminal_credential_lookup/);
   assert.match(phaseB, /format IN \('csv', 'xlsx', 'pdf'\)/);
+  assert.match(hardening, /attendance_days_timeline_idx/);
+  assert.match(hardening, /report_exports_expiry_idx/);
+  assert.match(hardening, /terminals_name_not_blank/);
+  assert.match(hardening, /Duplicate normalized user e-mail/);
+  assert.match(hardening, /users_email_not_blank/);
+  assert.match(hardening, /users_worker_role_consistency/);
+  assert.match(hardening, /attendance_days_time_order/);
+  assert.match(hardening, /rfid_cards_active_worker_unique/);
+  assert.match(grants, /REVOKE ALL PRIVILEGES ON TABLE bss_schema_migrations/);
+  assert.match(grants, /GRANT DELETE ON TABLE holidays, user_department_scopes, terminal_request_nonces/);
+  assert.doesNotMatch(grants, /GRANT (?:ALL|DELETE) ON ALL TABLES/);
+  assert.doesNotMatch(grants, /GRANT INSERT ON TABLE\s+organizations/);
 });

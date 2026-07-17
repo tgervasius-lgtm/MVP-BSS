@@ -2,13 +2,18 @@ import { createHash, timingSafeEqual } from "node:crypto";
 import type pg from "pg";
 import type { AppConfig } from "../config.js";
 import { withTenant, type TenantTransaction } from "../db/tenant.js";
+import { withTransaction } from "../db/transaction.js";
 import { AppError } from "../domain/errors.js";
-import type { ActorContext, Page } from "../domain/types.js";
+import type { ActorContext, EntityStatus, Page } from "../domain/types.js";
 import { decryptDeviceCredential, encryptDeviceCredential } from "../security/device-credentials.js";
 import { verifyDeviceSignature } from "../security/device-signature.js";
-import { requireWorkerScope } from "../security/rbac.js";
+import { requireRole, requireWorkerScope } from "../security/rbac.js";
 import { createOpaqueToken, hashToken } from "../security/tokens.js";
 import { generateReportArtifact } from "../reports/generate.js";
+import { decodeTimelineCursor, encodeTimelineCursor } from "./cursors.js";
+import { normalizeDatabaseError } from "./database-errors.js";
+import { datasetVersion } from "./dataset-version.js";
+import { requireBoundedDateRange } from "./validation.js";
 import { PgPhaseAService } from "./pg-phase-a-service.js";
 import type {
   AttendanceDayView,
@@ -35,7 +40,7 @@ import type {
   TerminalView
 } from "./contracts.js";
 
-const MAX_EXPORT_ROWS = 100_000;
+const MAX_EXPORT_ROWS = 10_000;
 
 type AttendanceRow = {
   id: string;
@@ -135,7 +140,9 @@ const leaveSelect = `SELECT l.id, l.worker_id, w.department_id, l.leave_type, l.
 const correctionSelect = `SELECT c.id, c.attendance_day_id, a.worker_id, w.department_id,
   c.before_values, c.requested_values, c.reason, c.status, c.created_at, c.decided_at,
   c.decided_by, c.decision_note, c.revision`;
-const reportSelect = `SELECT id, report_type, format, status, filters, row_count, total_minutes,
+const reportSelect = `SELECT id, report_type, format,
+  CASE WHEN status = 'ready' AND expires_at <= clock_timestamp() THEN 'expired' ELSE status END AS status,
+  filters, row_count, total_minutes,
   checksum_sha256, dataset_version, template_version, created_at, completed_at, expires_at`;
 const terminalSelect = `SELECT id, name, location, status, last_seen_at, queue_depth, clock_offset_seconds, revision`;
 
@@ -150,25 +157,6 @@ function dateOnly(value: string | Date): string {
 
 function jsonObject<T>(value: T | string): T {
   return typeof value === "string" ? JSON.parse(value) as T : value;
-}
-
-function datasetVersion(value: unknown): string {
-  return createHash("sha256").update(JSON.stringify(value)).digest("hex");
-}
-
-function decodeIdCursor(cursor: string | undefined): string | null {
-  if (!cursor) return null;
-  try {
-    const id = Buffer.from(cursor, "base64url").toString("utf8");
-    if (!/^[0-9a-f-]{36}$/i.test(id)) throw new Error();
-    return id;
-  } catch {
-    throw new AppError("VALIDATION_FAILED", "Kursor stranice nije valjan.");
-  }
-}
-
-function encodeIdCursor(id: string): string {
-  return Buffer.from(id, "utf8").toString("base64url");
 }
 
 function safeSecretEquals(actual: string, expected: string): boolean {
@@ -267,15 +255,6 @@ function terminalView(row: TerminalRow): TerminalView {
   };
 }
 
-function normalizeDatabaseError(error: unknown): never {
-  const code = typeof error === "object" && error !== null && "code" in error ? String(error.code) : "";
-  if (code === "23505") throw new AppError("CONFLICT", "Zapis je već evidentiran ili postoji aktivan zahtjev.");
-  if (["23503", "23514", "22P02", "22007"].includes(code)) {
-    throw new AppError("VALIDATION_FAILED", "Povezani zapis, datum ili vrijednost nisu valjani.");
-  }
-  throw error;
-}
-
 async function insertAudit(
   client: TenantTransaction,
   actor: Pick<ActorContext, "organizationId" | "userId" | "role">,
@@ -330,6 +309,16 @@ function plannedMinutes(startTime: string, endTime: string, breakMinutes: number
   return Math.max(0, end - start - breakMinutes);
 }
 
+function correctionTimes(checkInValue: string, checkOutValue: string): { checkIn: Date; checkOut: Date } {
+  const checkIn = new Date(checkInValue);
+  const checkOut = new Date(checkOutValue);
+  if (!Number.isFinite(checkIn.getTime()) || !Number.isFinite(checkOut.getTime()) ||
+      checkOut <= checkIn || checkOut.getTime() - checkIn.getTime() > 16 * 60 * 60 * 1000) {
+    throw new AppError("VALIDATION_FAILED", "Nova vremena prijave i odjave nisu valjana.");
+  }
+  return { checkIn, checkOut };
+}
+
 export class PgMvpService extends PgPhaseAService implements MvpService {
   constructor(
     private readonly mvpPool: pg.Pool,
@@ -342,68 +331,16 @@ export class PgMvpService extends PgPhaseAService implements MvpService {
     actor: ActorContext,
     filters: { from: string; to: string; departmentId?: string; workerId?: string; attendanceStatus?: AttendanceStatus; cursor?: string; limit: number }
   ): Promise<AttendancePageView> {
-    if (filters.from > filters.to) throw new AppError("VALIDATION_FAILED", "Početni datum mora biti prije završnog datuma.");
-    return withTenant(this.mvpPool, actor, "list-attendance", async (client) => {
-      const after = decodeIdCursor(filters.cursor);
-      const parameters = [filters.from, filters.to, actor.role, actor.departmentIds, filters.departmentId ?? null, filters.workerId ?? null, filters.attendanceStatus ?? null];
-      const result = await client.query<AttendanceRow>(
-        `${attendanceSelect}
-         FROM attendance_days a JOIN workers w ON w.id = a.worker_id
-         WHERE a.work_date BETWEEN $1::date AND $2::date
-           AND ($3::text <> 'manager' OR w.department_id = ANY($4::uuid[]))
-           AND ($5::uuid IS NULL OR w.department_id = $5)
-           AND ($6::uuid IS NULL OR w.id = $6)
-           AND ($7::text IS NULL OR a.status = $7)
-           AND ($8::uuid IS NULL OR a.id > $8)
-         ORDER BY a.id LIMIT $9`,
-        [...parameters, after, filters.limit + 1]
-      );
-      const totalsResult = await client.query<{
-        row_count: string; completed_count: string; active_count: string; review_count: string;
-        worked_minutes: string; planned_minutes: string; balance_minutes: string; revision: string;
-      }>(
-        `SELECT COUNT(*)::text AS row_count,
-           COUNT(*) FILTER (WHERE a.check_out IS NOT NULL)::text AS completed_count,
-           COUNT(*) FILTER (WHERE a.check_in IS NOT NULL AND a.check_out IS NULL)::text AS active_count,
-           COUNT(*) FILTER (WHERE a.status IN ('late', 'incomplete'))::text AS review_count,
-           COALESCE(SUM(a.worked_minutes), 0)::text AS worked_minutes,
-           COALESCE(SUM(a.planned_minutes), 0)::text AS planned_minutes,
-           COALESCE(SUM(a.worked_minutes - a.planned_minutes), 0)::text AS balance_minutes,
-           COALESCE(MAX(a.revision), 0)::text AS revision
-         FROM attendance_days a JOIN workers w ON w.id = a.worker_id
-         WHERE a.work_date BETWEEN $1::date AND $2::date
-           AND ($3::text <> 'manager' OR w.department_id = ANY($4::uuid[]))
-           AND ($5::uuid IS NULL OR w.department_id = $5)
-           AND ($6::uuid IS NULL OR w.id = $6)
-           AND ($7::text IS NULL OR a.status = $7)`,
-        parameters
-      );
-      const totalsRow = totalsResult.rows[0]!;
-      const hasMore = result.rows.length > filters.limit;
-      const rows = result.rows.slice(0, filters.limit);
-      const totals = {
-        rowCount: Number(totalsRow.row_count),
-        completedCount: Number(totalsRow.completed_count),
-        activeCount: Number(totalsRow.active_count),
-        reviewCount: Number(totalsRow.review_count),
-        workedMinutes: Number(totalsRow.worked_minutes),
-        plannedMinutes: Number(totalsRow.planned_minutes),
-        balanceMinutes: Number(totalsRow.balance_minutes)
-      };
-      return {
-        items: rows.map(attendanceView),
-        totals,
-        page: { nextCursor: hasMore && rows.at(-1) ? encodeIdCursor(rows.at(-1)!.id) : null, total: totals.rowCount },
-        datasetVersion: datasetVersion({ filters, totals, revision: totalsRow.revision })
-      };
-    });
+    requireRole(actor, ["admin", "manager"]);
+    requireBoundedDateRange(filters.from, filters.to);
+    return withTenant(this.mvpPool, actor, "list-attendance", (client) => this.listAttendanceInTransaction(client, actor, filters));
   }
 
   async listApprovedLeaveCalendar(
     actor: ActorContext,
     filters: { from: string; to: string }
   ): Promise<ApprovedLeaveCalendarView> {
-    if (filters.from > filters.to) throw new AppError("VALIDATION_FAILED", "Početni datum mora biti prije završnog datuma.");
+    requireBoundedDateRange(filters.from, filters.to);
     return withTenant(this.mvpPool, actor, "approved-leave-calendar", async (client) => {
       const organization = await client.query<{ approved_leave_visibility: ApprovedLeaveCalendarView["visibility"]; revision: string }>(
         "SELECT approved_leave_visibility, revision::text FROM organizations WHERE id = $1",
@@ -428,7 +365,7 @@ export class PgMvpService extends PgPhaseAService implements MvpService {
            AND l.end_date >= $1::date AND l.start_date <= $2::date
            AND ($3::boolean OR w.department_id = ANY($4::uuid[]))
          ORDER BY l.start_date, w.name, l.id`,
-        [filters.from, filters.to, ["admin", "accountant"].includes(actor.role) || (actor.role === "worker" && visibility === "organization"), departmentIds]
+        [filters.from, filters.to, ["admin", "accountant"].includes(actor.role) || visibility === "organization", departmentIds]
       );
       const items = result.rows.map((row) => ({
         id: row.id,
@@ -439,17 +376,23 @@ export class PgMvpService extends PgPhaseAService implements MvpService {
       return {
         visibility,
         items,
-        datasetVersion: datasetVersion({ filters, visibility, organizationRevision: organization.rows[0]?.revision ?? "0", revisions: result.rows.map((row) => row.revision) })
+        datasetVersion: datasetVersion({ filters, visibility, organizationRevision: organization.rows[0]?.revision ?? "0", items })
       };
     });
   }
 
-  async getWorkerAttendance(actor: ActorContext, workerId: string, filters: { from: string; to: string }): Promise<AttendancePageView> {
+  async getWorkerAttendance(
+    actor: ActorContext,
+    workerId: string,
+    filters: { from: string; to: string; cursor?: string; limit: number }
+  ): Promise<AttendancePageView> {
+    requireRole(actor, ["admin", "manager", "worker"]);
+    requireBoundedDateRange(filters.from, filters.to);
     return withTenant(this.mvpPool, actor, "worker-attendance-scope", async (client) => {
       const worker = await client.query<{ department_id: string }>("SELECT department_id FROM workers WHERE id = $1", [workerId]);
       if (!worker.rows[0]) throw new AppError("NOT_FOUND", "Radnik nije pronađen.");
       requireWorkerScope(actor, workerId, worker.rows[0].department_id);
-      return this.listAttendance(actor, { ...filters, workerId, limit: 200 });
+      return this.listAttendanceInTransaction(client, actor, { ...filters, workerId });
     });
   }
 
@@ -457,9 +400,9 @@ export class PgMvpService extends PgPhaseAService implements MvpService {
     actor: ActorContext,
     filters: { from: string; to: string; departmentId?: string; leaveStatus?: RequestStatus; cursor?: string; limit: number }
   ): Promise<Page<LeaveRequestView>> {
-    if (filters.from > filters.to) throw new AppError("VALIDATION_FAILED", "Početni datum mora biti prije završnog datuma.");
+    requireBoundedDateRange(filters.from, filters.to);
     return withTenant(this.mvpPool, actor, "list-leave-requests", async (client) => {
-      const after = decodeIdCursor(filters.cursor);
+      const after = decodeTimelineCursor(filters.cursor);
       const params = [filters.from, filters.to, actor.role, actor.departmentIds, actor.selfWorkerId, filters.departmentId ?? null, filters.leaveStatus ?? null];
       const rows = await client.query<LeaveRow>(
         `${leaveSelect}
@@ -470,9 +413,9 @@ export class PgMvpService extends PgPhaseAService implements MvpService {
            AND ($3::text <> 'accountant' OR l.status = 'approved')
            AND ($6::uuid IS NULL OR w.department_id = $6)
            AND ($7::text IS NULL OR l.status = $7)
-           AND ($8::uuid IS NULL OR l.id > $8)
-         ORDER BY l.id LIMIT $9`,
-        [...params, after, filters.limit + 1]
+           AND ($8::timestamptz IS NULL OR (l.created_at, l.id) < ($8::timestamptz, $9::uuid))
+         ORDER BY l.created_at DESC, l.id DESC LIMIT $10`,
+        [...params, after?.at ?? null, after?.id ?? null, filters.limit + 1]
       );
       const count = await client.query<{ count: string }>(
         `SELECT COUNT(*)::text AS count FROM leave_requests l JOIN workers w ON w.id = l.worker_id
@@ -488,13 +431,15 @@ export class PgMvpService extends PgPhaseAService implements MvpService {
       const pageRows = rows.rows.slice(0, filters.limit);
       return {
         items: pageRows.map((row) => actor.role === "accountant" ? { ...leaveView(row), note: "", decisionNote: null } : leaveView(row)),
-        page: { nextCursor: hasMore && pageRows.at(-1) ? encodeIdCursor(pageRows.at(-1)!.id) : null, total: Number(count.rows[0]?.count ?? 0) }
+        page: { nextCursor: hasMore && pageRows.at(-1) ? encodeTimelineCursor(pageRows.at(-1)!.created_at, pageRows.at(-1)!.id) : null, total: Number(count.rows[0]?.count ?? 0) }
       };
     });
   }
 
   async createLeaveRequest(actor: ActorContext, input: LeaveRequestWrite, requestId: string): Promise<LeaveRequestView> {
+    requireRole(actor, ["worker"]);
     if (!actor.selfWorkerId) throw new AppError("FORBIDDEN", "Korisnik nije povezan s radnikom.");
+    requireBoundedDateRange(input.startDate, input.endDate);
     try {
       return await withTenant(this.mvpPool, actor, requestId, async (client) => {
         const days = await workingDays(client, input.startDate, input.endDate);
@@ -511,14 +456,34 @@ export class PgMvpService extends PgPhaseAService implements MvpService {
         );
         if (overlap.rows[0]) throw new AppError("CONFLICT", "Za odabrano razdoblje već postoji aktivan zahtjev.");
         if (input.typeCode === "annual_leave") {
-          const used = await client.query<{ days: number }>(
-            `SELECT COALESCE(SUM(working_days), 0)::integer AS days FROM leave_requests
-             WHERE worker_id = $1 AND leave_type = 'annual_leave' AND status IN ('pending', 'approved')
-               AND EXTRACT(YEAR FROM start_date) = EXTRACT(YEAR FROM $2::date)`,
-            [actor.selfWorkerId, input.startDate]
-          );
-          if ((used.rows[0]?.days ?? 0) + days > worker.rows[0].annual_leave_allowance) {
-            throw new AppError("VALIDATION_FAILED", "Zahtjev prelazi raspoloživi fond godišnjeg odmora.");
+          const firstYear = Number(input.startDate.slice(0, 4));
+          const lastYear = Number(input.endDate.slice(0, 4));
+          for (let year = firstYear; year <= lastYear; year += 1) {
+            const yearStart = `${year}-01-01`;
+            const yearEnd = `${year}-12-31`;
+            const requestedDays = await workingDays(
+              client,
+              input.startDate > yearStart ? input.startDate : yearStart,
+              input.endDate < yearEnd ? input.endDate : yearEnd
+            );
+            const used = await client.query<{ days: number }>(
+              `SELECT COUNT(*)::integer AS days
+               FROM leave_requests l
+               CROSS JOIN LATERAL generate_series(
+                 GREATEST(l.start_date, $2::date)::timestamp,
+                 LEAST(l.end_date, $3::date)::timestamp,
+                 interval '1 day'
+               ) AS day(value)
+               WHERE l.worker_id = $1 AND l.leave_type = 'annual_leave'
+                 AND l.status IN ('pending', 'approved')
+                 AND l.end_date >= $2::date AND l.start_date <= $3::date
+                 AND EXTRACT(ISODOW FROM day.value) < 6
+                 AND NOT EXISTS (SELECT 1 FROM holidays h WHERE h.holiday_date = day.value::date)`,
+              [actor.selfWorkerId, yearStart, yearEnd]
+            );
+            if ((used.rows[0]?.days ?? 0) + requestedDays > worker.rows[0].annual_leave_allowance) {
+              throw new AppError("VALIDATION_FAILED", `Zahtjev prelazi raspoloživi fond godišnjeg odmora za ${year}. godinu.`);
+            }
           }
         }
         const result = await client.query<LeaveRow>(
@@ -539,14 +504,17 @@ export class PgMvpService extends PgPhaseAService implements MvpService {
   }
 
   async approveLeaveRequest(actor: ActorContext, requestIdValue: string, revision: string, note: string | undefined, requestId: string): Promise<LeaveRequestView> {
+    requireRole(actor, ["admin", "manager"]);
     return this.decideLeave(actor, requestIdValue, revision, "approved", note ?? null, requestId);
   }
 
   async rejectLeaveRequest(actor: ActorContext, requestIdValue: string, revision: string, note: string, requestId: string): Promise<LeaveRequestView> {
+    requireRole(actor, ["admin", "manager"]);
     return this.decideLeave(actor, requestIdValue, revision, "rejected", note, requestId);
   }
 
   async cancelOwnLeaveRequest(actor: ActorContext, requestIdValue: string, revision: string, requestId: string): Promise<LeaveRequestView> {
+    requireRole(actor, ["worker"]);
     if (!actor.selfWorkerId) throw new AppError("FORBIDDEN", "Korisnik nije povezan s radnikom.");
     return withTenant(this.mvpPool, actor, requestId, async (client) => {
       const before = await client.query<LeaveRow>(
@@ -574,9 +542,10 @@ export class PgMvpService extends PgPhaseAService implements MvpService {
     actor: ActorContext,
     filters: { from: string; to: string; correctionStatus?: RequestStatus; cursor?: string; limit: number }
   ): Promise<Page<CorrectionRequestView>> {
-    if (filters.from > filters.to) throw new AppError("VALIDATION_FAILED", "Početni datum mora biti prije završnog datuma.");
+    requireRole(actor, ["admin", "manager", "worker"]);
+    requireBoundedDateRange(filters.from, filters.to);
     return withTenant(this.mvpPool, actor, "list-corrections", async (client) => {
-      const after = decodeIdCursor(filters.cursor);
+      const after = decodeTimelineCursor(filters.cursor);
       const params = [filters.from, filters.to, actor.role, actor.departmentIds, actor.selfWorkerId, filters.correctionStatus ?? null];
       const result = await client.query<CorrectionRow>(
         `${correctionSelect}
@@ -587,9 +556,9 @@ export class PgMvpService extends PgPhaseAService implements MvpService {
            AND ($3::text <> 'manager' OR w.department_id = ANY($4::uuid[]))
            AND ($3::text <> 'worker' OR w.id = $5::uuid)
            AND ($6::text IS NULL OR c.status = $6)
-           AND ($7::uuid IS NULL OR c.id > $7)
-         ORDER BY c.id LIMIT $8`,
-        [...params, after, filters.limit + 1]
+           AND ($7::timestamptz IS NULL OR (c.created_at, c.id) < ($7::timestamptz, $8::uuid))
+         ORDER BY c.created_at DESC, c.id DESC LIMIT $9`,
+        [...params, after?.at ?? null, after?.id ?? null, filters.limit + 1]
       );
       const count = await client.query<{ count: string }>(
         `SELECT COUNT(*)::text AS count FROM correction_requests c
@@ -605,18 +574,16 @@ export class PgMvpService extends PgPhaseAService implements MvpService {
       const rows = result.rows.slice(0, filters.limit);
       return {
         items: rows.map(correctionView),
-        page: { nextCursor: hasMore && rows.at(-1) ? encodeIdCursor(rows.at(-1)!.id) : null, total: Number(count.rows[0]?.count ?? 0) }
+        page: { nextCursor: hasMore && rows.at(-1) ? encodeTimelineCursor(rows.at(-1)!.created_at, rows.at(-1)!.id) : null, total: Number(count.rows[0]?.count ?? 0) }
       };
     });
   }
 
   async createCorrectionRequest(actor: ActorContext, input: CorrectionRequestWrite, requestId: string): Promise<CorrectionRequestView> {
+    requireRole(actor, ["worker"]);
     if (!actor.selfWorkerId) throw new AppError("FORBIDDEN", "Korisnik nije povezan s radnikom.");
-    const checkIn = new Date(input.newCheckIn);
-    const checkOut = new Date(input.newCheckOut);
-    if (!Number.isFinite(checkIn.getTime()) || !Number.isFinite(checkOut.getTime()) || checkOut <= checkIn || checkOut.getTime() - checkIn.getTime() > 16 * 60 * 60 * 1000) {
-      throw new AppError("VALIDATION_FAILED", "Nova vremena prijave i odjave nisu valjana.");
-    }
+    if (input.reason.trim().length < 3) throw new AppError("VALIDATION_FAILED", "Razlog korekcije mora imati najmanje tri znaka.");
+    const { checkIn, checkOut } = correctionTimes(input.newCheckIn, input.newCheckOut);
     try {
       return await withTenant(this.mvpPool, actor, requestId, async (client) => {
         const day = await client.query<AttendanceRow & { department_id: string }>(
@@ -628,6 +595,14 @@ export class PgMvpService extends PgPhaseAService implements MvpService {
         const row = day.rows[0];
         if (!row) throw new AppError("NOT_FOUND", "Evidencijski zapis nije pronađen.");
         if (row.worker_id !== actor.selfWorkerId) throw new AppError("FORBIDDEN", "Korekciju možete zatražiti samo za vlastiti zapis.");
+        const aligned = await client.query<{ aligned: boolean }>(
+          `SELECT (($1::timestamptz AT TIME ZONE timezone)::date = $2::date) AS aligned
+           FROM organizations WHERE id = $3`,
+          [checkIn.toISOString(), dateOnly(row.work_date), actor.organizationId]
+        );
+        if (aligned.rows[0]?.aligned !== true) {
+          throw new AppError("VALIDATION_FAILED", "Nova prijava mora pripadati datumu evidencijskog zapisa u vremenskoj zoni organizacije.");
+        }
         const locked = await client.query(
           `SELECT 1 FROM attendance_month_locks
            WHERE year = EXTRACT(YEAR FROM $1::date) AND month = EXTRACT(MONTH FROM $1::date)`,
@@ -642,7 +617,7 @@ export class PgMvpService extends PgPhaseAService implements MvpService {
            ) VALUES ($1, $2, $3, $4::jsonb, $5::jsonb, $6)
            RETURNING id, attendance_day_id, $7::uuid AS worker_id, before_values, requested_values,
              reason, status, created_at, decided_at, decided_by, decision_note, revision`,
-          [actor.organizationId, input.attendanceDayId, actor.userId, JSON.stringify(beforeValues), JSON.stringify(requestedValues), input.reason, actor.selfWorkerId]
+          [actor.organizationId, input.attendanceDayId, actor.userId, JSON.stringify(beforeValues), JSON.stringify(requestedValues), input.reason.trim(), actor.selfWorkerId]
         );
         const result = created.rows[0]!;
         await insertAudit(client, actor, requestId, "correction_request.create", "correction_request", result.id, null, result, "corrections");
@@ -660,6 +635,7 @@ export class PgMvpService extends PgPhaseAService implements MvpService {
     note: string | undefined,
     requestId: string
   ): Promise<CorrectionDecisionView> {
+    requireRole(actor, ["admin", "manager"]);
     return withTenant(this.mvpPool, actor, requestId, async (client) => {
       const requestResult = await client.query<CorrectionRow>(
         `${correctionSelect}
@@ -683,14 +659,29 @@ export class PgMvpService extends PgPhaseAService implements MvpService {
       if (locked.rows[0]) throw new AppError("CONFLICT", "Mjesec je zaključan za izmjene.");
       const values = jsonObject<{ checkIn?: string | null; checkOut?: string | null }>(requestRow.requested_values);
       if (!values.checkIn || !values.checkOut) throw new AppError("VALIDATION_FAILED", "Zahtjev nema potpuna vremena korekcije.");
-      const duration = Math.max(0, Math.floor((new Date(values.checkOut).getTime() - new Date(values.checkIn).getTime()) / 60_000) - attendanceRow.break_minutes);
+      const beforeValues = jsonObject<{ checkIn?: string | null; checkOut?: string | null }>(requestRow.before_values);
+      const currentCheckIn = attendanceRow.check_in ? iso(attendanceRow.check_in) : null;
+      const currentCheckOut = attendanceRow.check_out ? iso(attendanceRow.check_out) : null;
+      if ((beforeValues.checkIn ?? null) !== currentCheckIn || (beforeValues.checkOut ?? null) !== currentCheckOut) {
+        throw new AppError("CONFLICT", "Evidencija se promijenila nakon slanja zahtjeva; zahtjev treba ponovno provjeriti.");
+      }
+      const { checkIn, checkOut } = correctionTimes(values.checkIn, values.checkOut);
+      const aligned = await client.query<{ aligned: boolean }>(
+        `SELECT (($1::timestamptz AT TIME ZONE timezone)::date = $2::date) AS aligned
+         FROM organizations WHERE id = $3`,
+        [checkIn.toISOString(), dateOnly(attendanceRow.work_date), actor.organizationId]
+      );
+      if (aligned.rows[0]?.aligned !== true) {
+        throw new AppError("VALIDATION_FAILED", "Nova prijava mora pripadati datumu evidencijskog zapisa u vremenskoj zoni organizacije.");
+      }
+      const duration = Math.max(0, Math.floor((checkOut.getTime() - checkIn.getTime()) / 60_000) - attendanceRow.break_minutes);
       const updatedDay = await client.query<AttendanceRow>(
         `UPDATE attendance_days SET check_in = $2, check_out = $3, worked_minutes = $4,
            status = 'corrected', revision = revision + 1
          WHERE id = $1
          RETURNING id, worker_id, work_date, shift_snapshot, check_in, check_out, break_minutes,
            worked_minutes, planned_minutes, status, revision`,
-        [requestRow.attendance_day_id, values.checkIn, values.checkOut, duration]
+        [requestRow.attendance_day_id, checkIn.toISOString(), checkOut.toISOString(), duration]
       );
       const updatedRequest = await client.query<CorrectionRow>(
         `UPDATE correction_requests SET status = 'approved', decided_by = $2, decided_at = clock_timestamp(),
@@ -709,10 +700,12 @@ export class PgMvpService extends PgPhaseAService implements MvpService {
   }
 
   async rejectCorrectionRequest(actor: ActorContext, requestIdValue: string, revision: string, note: string, requestId: string): Promise<CorrectionRequestView> {
+    requireRole(actor, ["admin", "manager"]);
     return this.decideCorrection(actor, requestIdValue, revision, "rejected", note, requestId);
   }
 
   async cancelOwnCorrectionRequest(actor: ActorContext, requestIdValue: string, revision: string, requestId: string): Promise<CorrectionRequestView> {
+    requireRole(actor, ["worker"]);
     if (!actor.selfWorkerId) throw new AppError("FORBIDDEN", "Korisnik nije povezan s radnikom.");
     return withTenant(this.mvpPool, actor, requestId, async (client) => {
       const before = await client.query<CorrectionRow>(
@@ -740,14 +733,15 @@ export class PgMvpService extends PgPhaseAService implements MvpService {
   }
 
   async listReportExports(actor: ActorContext, cursor: string | undefined, limit: number): Promise<Page<ReportExportView>> {
+    requireRole(actor, ["admin", "manager", "accountant"]);
     return withTenant(this.mvpPool, actor, "list-report-exports", async (client) => {
-      const after = decodeIdCursor(cursor);
+      const after = decodeTimelineCursor(cursor);
       const result = await client.query<ReportExportRow>(
         `${reportSelect} FROM report_exports
          WHERE ($1::text <> 'manager' OR created_by = $2)
-           AND ($3::uuid IS NULL OR id < $3)
-         ORDER BY id DESC LIMIT $4`,
-        [actor.role, actor.userId, after, limit + 1]
+           AND ($3::timestamptz IS NULL OR (created_at, id) < ($3::timestamptz, $4::uuid))
+         ORDER BY created_at DESC, id DESC LIMIT $5`,
+        [actor.role, actor.userId, after?.at ?? null, after?.id ?? null, limit + 1]
       );
       const count = await client.query<{ count: string }>(
         `SELECT COUNT(*)::text AS count FROM report_exports WHERE ($1::text <> 'manager' OR created_by = $2)`,
@@ -757,12 +751,13 @@ export class PgMvpService extends PgPhaseAService implements MvpService {
       const rows = result.rows.slice(0, limit);
       return {
         items: rows.map(reportExportView),
-        page: { nextCursor: hasMore && rows.at(-1) ? encodeIdCursor(rows.at(-1)!.id) : null, total: Number(count.rows[0]?.count ?? 0) }
+        page: { nextCursor: hasMore && rows.at(-1) ? encodeTimelineCursor(rows.at(-1)!.created_at, rows.at(-1)!.id) : null, total: Number(count.rows[0]?.count ?? 0) }
       };
     });
   }
 
   async createReportExport(actor: ActorContext, input: ReportExportWrite, requestId: string): Promise<ReportExportView> {
+    requireRole(actor, ["admin", "manager", "accountant"]);
     const previewInput = {
       reportType: input.reportType,
       periodFrom: input.periodFrom,
@@ -814,6 +809,7 @@ export class PgMvpService extends PgPhaseAService implements MvpService {
   }
 
   async getReportExport(actor: ActorContext, exportId: string): Promise<ReportExportView> {
+    requireRole(actor, ["admin", "manager", "accountant"]);
     return withTenant(this.mvpPool, actor, "get-report-export", async (client) => {
       const result = await client.query<ReportExportRow>(
         `${reportSelect} FROM report_exports WHERE id = $1 AND ($2::text <> 'manager' OR created_by = $3)`,
@@ -826,6 +822,7 @@ export class PgMvpService extends PgPhaseAService implements MvpService {
   }
 
   async downloadReportExport(actor: ActorContext, exportId: string): Promise<ReportArtifact> {
+    requireRole(actor, ["admin", "manager", "accountant"]);
     return withTenant(this.mvpPool, actor, "download-report-export", async (client) => {
       const result = await client.query<ReportExportRow>(
         `${reportSelect}, content, mime_type, file_name FROM report_exports
@@ -845,9 +842,10 @@ export class PgMvpService extends PgPhaseAService implements MvpService {
     actor: ActorContext,
     filters: { from: string; to: string; module?: string; entityId?: string; cursor?: string; limit: number }
   ): Promise<Page<AuditEventView>> {
-    if (filters.from > filters.to) throw new AppError("VALIDATION_FAILED", "Početni datum mora biti prije završnog datuma.");
+    requireRole(actor, ["admin"]);
+    requireBoundedDateRange(filters.from, filters.to);
     return withTenant(this.mvpPool, actor, "list-audit-events", async (client) => {
-      const after = decodeIdCursor(filters.cursor);
+      const after = decodeTimelineCursor(filters.cursor);
       const params = [filters.from, filters.to, filters.module ?? null, filters.entityId ?? null];
       const result = await client.query<AuditRow>(
         `SELECT id, actor_type, actor_id, action, entity_type, entity_id, before_json, after_json,
@@ -856,9 +854,9 @@ export class PgMvpService extends PgPhaseAService implements MvpService {
          WHERE occurred_at >= $1::date AND occurred_at < ($2::date + interval '1 day')
            AND ($3::text IS NULL OR COALESCE(metadata->>'module', entity_type) = $3)
            AND ($4::uuid IS NULL OR entity_id = $4)
-           AND ($5::uuid IS NULL OR id < $5)
-         ORDER BY id DESC LIMIT $6`,
-        [...params, after, filters.limit + 1]
+           AND ($5::timestamptz IS NULL OR (occurred_at, id) < ($5::timestamptz, $6::uuid))
+         ORDER BY occurred_at DESC, id DESC LIMIT $7`,
+        [...params, after?.at ?? null, after?.id ?? null, filters.limit + 1]
       );
       const count = await client.query<{ count: string }>(
         `SELECT COUNT(*)::text AS count FROM audit_events
@@ -887,23 +885,30 @@ export class PgMvpService extends PgPhaseAService implements MvpService {
       });
       return {
         items,
-        page: { nextCursor: hasMore && rows.at(-1) ? encodeIdCursor(rows.at(-1)!.id) : null, total: Number(count.rows[0]?.count ?? 0) }
+        page: { nextCursor: hasMore && rows.at(-1) ? encodeTimelineCursor(rows.at(-1)!.occurred_at, rows.at(-1)!.id) : null, total: Number(count.rows[0]?.count ?? 0) }
       };
     });
   }
 
   async listTerminals(actor: ActorContext): Promise<TerminalView[]> {
+    requireRole(actor, ["admin", "manager"]);
     return withTenant(this.mvpPool, actor, "list-terminals", async (client) => {
-      await client.query(
-        `UPDATE terminals SET status = 'offline', revision = revision + 1
-         WHERE status = 'online' AND (last_seen_at IS NULL OR last_seen_at < clock_timestamp() - interval '2 minutes')`
+      const result = await client.query<TerminalRow>(
+        `SELECT id, name, location,
+           CASE WHEN status = 'online' AND (last_seen_at IS NULL OR last_seen_at < clock_timestamp() - interval '2 minutes')
+             THEN 'offline' ELSE status END AS status,
+           last_seen_at, queue_depth, clock_offset_seconds, revision
+         FROM terminals ORDER BY name`
       );
-      const result = await client.query<TerminalRow>(`${terminalSelect} FROM terminals ORDER BY name`);
       return result.rows.map(terminalView);
     });
   }
 
   async pairTerminal(actor: ActorContext, input: TerminalPairWrite, requestId: string): Promise<TerminalPairView> {
+    requireRole(actor, ["admin"]);
+    if (input.name.trim().length < 2 || input.location.trim().length < 2) {
+      throw new AppError("VALIDATION_FAILED", "Naziv i lokacija terminala moraju imati najmanje dva znaka.");
+    }
     if (!safeSecretEquals(input.activationCode, this.config.terminalActivationCode)) {
       throw new AppError("VALIDATION_FAILED", "Aktivacijski kod terminala nije valjan.");
     }
@@ -914,7 +919,7 @@ export class PgMvpService extends PgPhaseAService implements MvpService {
         `INSERT INTO terminals (organization_id, name, location, status)
          VALUES ($1, $2, $3, 'offline')
          RETURNING id, name, location, status, last_seen_at, queue_depth, clock_offset_seconds, revision`,
-        [actor.organizationId, input.name, input.location]
+        [actor.organizationId, input.name.trim(), input.location.trim()]
       );
       const row = terminal.rows[0]!;
       await client.query(
@@ -930,6 +935,7 @@ export class PgMvpService extends PgPhaseAService implements MvpService {
   }
 
   async revokeTerminal(actor: ActorContext, terminalId: string, revision: string, requestId: string): Promise<TerminalView> {
+    requireRole(actor, ["admin"]);
     return withTenant(this.mvpPool, actor, requestId, async (client) => {
       const before = await client.query<TerminalRow>(`${terminalSelect} FROM terminals WHERE id = $1 FOR UPDATE`, [terminalId]);
       const row = before.rows[0];
@@ -950,6 +956,9 @@ export class PgMvpService extends PgPhaseAService implements MvpService {
     return this.withVerifiedDevice(proof, requestId, async (client, organizationId, terminalId) => {
       const receivedAt = new Date().toISOString();
       const results: TerminalEventBatchView["results"] = [];
+      // Serialize batches per tenant. Without a stable global lock order, two
+      // terminals processing different workers in reverse order can deadlock.
+      await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1::text, 0))", [organizationId]);
       const terminalState = await client.query<{ last_sequence: string | number }>(
         "SELECT last_sequence FROM terminals WHERE id = $1 FOR UPDATE",
         [terminalId]
@@ -959,7 +968,10 @@ export class PgMvpService extends PgPhaseAService implements MvpService {
         let status: "synced" | "duplicate" | "rejected" = "synced";
         let code: string | null = null;
         let workerId: string | null = null;
-        if (!/^[a-f0-9]{64}$/i.test(event.cardUidHash)) {
+        if (Date.parse(event.occurredAt) > Date.now() + 5 * 60_000) {
+          status = "rejected";
+          code = "EVENT_IN_FUTURE";
+        } else if (!/^[a-f0-9]{64}$/i.test(event.cardUidHash)) {
           status = "rejected";
           code = "INVALID_CARD_HASH";
         }
@@ -1005,7 +1017,8 @@ export class PgMvpService extends PgPhaseAService implements MvpService {
                ($2::timestamptz AT TIME ZONE o.timezone)::time::text AS local_time
              FROM workers w JOIN shifts s ON s.id = w.shift_id
              JOIN organizations o ON o.id = w.organization_id
-             WHERE w.id = $1 AND w.status = 'active' AND s.status = 'active'`,
+             WHERE w.id = $1 AND w.status = 'active' AND s.status = 'active'
+             FOR UPDATE OF w`,
             [card.worker_id, event.occurredAt]
           );
           const worker = workerResult.rows[0];
@@ -1017,7 +1030,11 @@ export class PgMvpService extends PgPhaseAService implements MvpService {
             const endMinutes = this.timeMinutes(worker.end_time);
             const localMinutes = this.timeMinutes(worker.local_time);
             let workDate = worker.local_date;
-            if (endMinutes <= startMinutes && localMinutes <= endMinutes) workDate = this.previousDate(workDate);
+            let shiftLocalMinutes = localMinutes;
+            if (endMinutes <= startMinutes && localMinutes <= endMinutes) {
+              workDate = this.previousDate(workDate);
+              shiftLocalMinutes += 24 * 60;
+            }
             const snapshot = {
               id: worker.shift_id,
               name: worker.shift_name,
@@ -1035,13 +1052,32 @@ export class PgMvpService extends PgPhaseAService implements MvpService {
                 status = "rejected";
                 code = "ALREADY_CHECKED_IN";
               } else {
-                const attendanceStatus: AttendanceStatus = localMinutes > startMinutes + worker.tolerance_minutes ? "late" : "active";
-                if (current) {
+                const late = shiftLocalMinutes > startMinutes + worker.tolerance_minutes;
+                if (current?.check_out) {
+                  const elapsed = new Date(current.check_out).getTime() - new Date(event.occurredAt).getTime();
+                  if (elapsed <= 0) {
+                    status = "rejected";
+                    code = "CHECK_IN_AFTER_CHECK_OUT";
+                  } else if (elapsed > 16 * 60 * 60 * 1000) {
+                    status = "rejected";
+                    code = "SHIFT_DURATION_EXCEEDED";
+                  } else {
+                    const worked = Math.max(0, Math.floor(elapsed / 60_000) - current.break_minutes);
+                    await client.query(
+                      `UPDATE attendance_days SET check_in = $2, shift_snapshot = $3::jsonb,
+                         break_minutes = $4, worked_minutes = $5, planned_minutes = $6,
+                         status = $7, revision = revision + 1 WHERE id = $1`,
+                      [current.id, event.occurredAt, JSON.stringify(snapshot), worker.break_minutes, worked,
+                        plannedMinutes(worker.start_time, worker.end_time, worker.break_minutes), late ? "late" : "complete"]
+                    );
+                  }
+                } else if (current) {
                   await client.query(
                     `UPDATE attendance_days SET check_in = $2, shift_snapshot = $3::jsonb,
                        break_minutes = $4, planned_minutes = $5, status = $6, revision = revision + 1
                      WHERE id = $1`,
-                    [current.id, event.occurredAt, JSON.stringify(snapshot), worker.break_minutes, plannedMinutes(worker.start_time, worker.end_time, worker.break_minutes), attendanceStatus]
+                    [current.id, event.occurredAt, JSON.stringify(snapshot), worker.break_minutes,
+                      plannedMinutes(worker.start_time, worker.end_time, worker.break_minutes), late ? "late" : "active"]
                   );
                 } else {
                   await client.query(
@@ -1049,7 +1085,8 @@ export class PgMvpService extends PgPhaseAService implements MvpService {
                        organization_id, worker_id, work_date, shift_snapshot, check_in, break_minutes,
                        worked_minutes, planned_minutes, status
                      ) VALUES ($1, $2, $3, $4::jsonb, $5, $6, 0, $7, $8)`,
-                    [organizationId, worker.worker_id, workDate, JSON.stringify(snapshot), event.occurredAt, worker.break_minutes, plannedMinutes(worker.start_time, worker.end_time, worker.break_minutes), attendanceStatus]
+                    [organizationId, worker.worker_id, workDate, JSON.stringify(snapshot), event.occurredAt, worker.break_minutes,
+                      plannedMinutes(worker.start_time, worker.end_time, worker.break_minutes), late ? "late" : "active"]
                   );
                 }
               }
@@ -1148,6 +1185,80 @@ export class PgMvpService extends PgPhaseAService implements MvpService {
         [organizationId, terminalId, requestId, JSON.stringify({ module: "terminals", sequence: input.sequence, queueDepth: input.queueDepth })]
       );
     });
+  }
+
+  private async listAttendanceInTransaction(
+    client: TenantTransaction,
+    actor: ActorContext,
+    filters: { from: string; to: string; departmentId?: string; workerId?: string; attendanceStatus?: AttendanceStatus; cursor?: string; limit: number }
+  ): Promise<AttendancePageView> {
+    if (actor.role === "worker" && !actor.selfWorkerId) {
+      throw new AppError("FORBIDDEN", "Korisnik nije povezan s radnikom.");
+    }
+    const after = decodeTimelineCursor(filters.cursor);
+    const parameters = [
+      filters.from,
+      filters.to,
+      actor.role,
+      actor.departmentIds,
+      actor.selfWorkerId,
+      filters.departmentId ?? null,
+      filters.workerId ?? null,
+      filters.attendanceStatus ?? null
+    ];
+    const result = await client.query<AttendanceRow>(
+      `${attendanceSelect}
+       FROM attendance_days a JOIN workers w ON w.id = a.worker_id
+       WHERE a.work_date BETWEEN $1::date AND $2::date
+         AND ($3::text <> 'manager' OR w.department_id = ANY($4::uuid[]))
+         AND ($3::text <> 'worker' OR w.id = $5::uuid)
+         AND ($6::uuid IS NULL OR w.department_id = $6)
+         AND ($7::uuid IS NULL OR w.id = $7)
+         AND ($8::text IS NULL OR a.status = $8)
+         AND ($9::date IS NULL OR (a.work_date, a.id) < ($9::date, $10::uuid))
+       ORDER BY a.work_date DESC, a.id DESC LIMIT $11`,
+      [...parameters, after?.at ?? null, after?.id ?? null, filters.limit + 1]
+    );
+    const totalsResult = await client.query<{
+      row_count: string; completed_count: string; active_count: string; review_count: string;
+      worked_minutes: string; planned_minutes: string; balance_minutes: string; revision: string;
+    }>(
+      `SELECT COUNT(*)::text AS row_count,
+         COUNT(*) FILTER (WHERE a.check_out IS NOT NULL)::text AS completed_count,
+         COUNT(*) FILTER (WHERE a.check_in IS NOT NULL AND a.check_out IS NULL)::text AS active_count,
+         COUNT(*) FILTER (WHERE a.status IN ('late', 'incomplete'))::text AS review_count,
+         COALESCE(SUM(a.worked_minutes), 0)::text AS worked_minutes,
+         COALESCE(SUM(a.planned_minutes), 0)::text AS planned_minutes,
+         COALESCE(SUM(a.worked_minutes - a.planned_minutes), 0)::text AS balance_minutes,
+         COALESCE(MAX(a.revision), 0)::text AS revision
+       FROM attendance_days a JOIN workers w ON w.id = a.worker_id
+       WHERE a.work_date BETWEEN $1::date AND $2::date
+         AND ($3::text <> 'manager' OR w.department_id = ANY($4::uuid[]))
+         AND ($3::text <> 'worker' OR w.id = $5::uuid)
+         AND ($6::uuid IS NULL OR w.department_id = $6)
+         AND ($7::uuid IS NULL OR w.id = $7)
+         AND ($8::text IS NULL OR a.status = $8)`,
+      parameters
+    );
+    const totalsRow = totalsResult.rows[0]!;
+    const hasMore = result.rows.length > filters.limit;
+    const rows = result.rows.slice(0, filters.limit);
+    const totals = {
+      rowCount: Number(totalsRow.row_count),
+      completedCount: Number(totalsRow.completed_count),
+      activeCount: Number(totalsRow.active_count),
+      reviewCount: Number(totalsRow.review_count),
+      workedMinutes: Number(totalsRow.worked_minutes),
+      plannedMinutes: Number(totalsRow.planned_minutes),
+      balanceMinutes: Number(totalsRow.balance_minutes)
+    };
+    const items = rows.map(attendanceView);
+    return {
+      items,
+      totals,
+      page: { nextCursor: hasMore && rows.at(-1) ? encodeTimelineCursor(dateOnly(rows.at(-1)!.work_date), rows.at(-1)!.id) : null, total: totals.rowCount },
+      datasetVersion: datasetVersion({ filters, totals, revision: totalsRow.revision, items })
+    };
   }
 
   private async decideLeave(
@@ -1257,36 +1368,39 @@ export class PgMvpService extends PgPhaseAService implements MvpService {
       throw new AppError("UNAUTHENTICATED", "Potpis terminalskog zahtjeva nije valjan.");
     }
 
-    const client = await this.mvpPool.connect();
-    try {
-      await client.query("BEGIN");
-      await client.query("SELECT set_config('bss.organization_id', $1, true)", [credential.organization_id]);
-      await client.query("SELECT set_config('bss.actor_id', $1, true)", [credential.terminal_id]);
-      await client.query("SELECT set_config('bss.actor_role', 'terminal', true)");
-      await client.query("SELECT set_config('bss.request_id', $1, true)", [requestId]);
-      await client.query("SET LOCAL statement_timeout = '10s'");
-      try {
-        await client.query(
-          `INSERT INTO terminal_request_nonces (
-             organization_id, terminal_id, nonce, request_timestamp, expires_at
-           ) VALUES ($1, $2, $3, $4, $4::timestamptz + interval '10 minutes')`,
-          [credential.organization_id, credential.terminal_id, proof.nonce, proof.timestamp]
+    return withTransaction(
+      this.mvpPool,
+      async (client) => {
+        await client.query("SELECT set_config('bss.organization_id', $1, true)", [credential.organization_id]);
+        await client.query("SELECT set_config('bss.actor_id', $1, true)", [credential.terminal_id]);
+        await client.query("SELECT set_config('bss.actor_role', 'terminal', true)");
+        await client.query("SELECT set_config('bss.request_id', $1, true)", [requestId]);
+        await client.query("SET LOCAL statement_timeout = '10s'");
+        const currentTerminal = await client.query<{ status: TerminalView["status"]; organization_status: EntityStatus }>(
+          `SELECT t.status, o.status AS organization_status
+           FROM terminals t JOIN organizations o ON o.id = t.organization_id
+           WHERE t.id = $1 FOR SHARE OF t`,
+          [credential.terminal_id]
         );
-      } catch (error) {
-        const code = typeof error === "object" && error !== null && "code" in error ? String(error.code) : "";
-        if (code === "23505") throw new AppError("UNAUTHENTICATED", "Terminalski nonce je već iskorišten.");
-        throw error;
-      }
-      await client.query("DELETE FROM terminal_request_nonces WHERE expires_at < clock_timestamp()");
-      const result = await operation(client, credential.organization_id, credential.terminal_id);
-      await client.query("COMMIT");
-      return result;
-    } catch (error) {
-      await client.query("ROLLBACK");
-      throw error;
-    } finally {
-      client.release();
-    }
+        if (!currentTerminal.rows[0] || currentTerminal.rows[0].status === "revoked" || currentTerminal.rows[0].organization_status !== "active") {
+          throw new AppError("UNAUTHENTICATED", "Terminalski identitet više nije aktivan.");
+        }
+        try {
+          await client.query(
+            `INSERT INTO terminal_request_nonces (
+               organization_id, terminal_id, nonce, request_timestamp, expires_at
+             ) VALUES ($1, $2, $3, $4, $4::timestamptz + interval '10 minutes')`,
+            [credential.organization_id, credential.terminal_id, proof.nonce, proof.timestamp]
+          );
+        } catch (error) {
+          const code = typeof error === "object" && error !== null && "code" in error ? String(error.code) : "";
+          if (code === "23505") throw new AppError("UNAUTHENTICATED", "Terminalski nonce je već iskorišten.");
+          throw error;
+        }
+        await client.query("DELETE FROM terminal_request_nonces WHERE expires_at < clock_timestamp()");
+      },
+      (client) => operation(client, credential.organization_id, credential.terminal_id)
+    );
   }
 
   private timeMinutes(value: string): number {

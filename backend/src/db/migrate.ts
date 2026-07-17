@@ -4,6 +4,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import pg from "pg";
 import { loadConfig } from "../config.js";
+import { databaseSslOptions } from "./pool.js";
 
 const { Client } = pg;
 const MIGRATIONS_DIR = join(dirname(fileURLToPath(import.meta.url)), "../../migrations");
@@ -56,14 +57,18 @@ export async function migrateUp(client: pg.Client): Promise<void> {
       await client.query("COMMIT");
       process.stdout.write(`Applied ${version}\n`);
     } catch (error) {
-      await client.query("ROLLBACK");
+      try {
+        await client.query("ROLLBACK");
+      } catch (rollbackError) {
+        throw new AggregateError([error, rollbackError], `Migration ${version} and rollback both failed`);
+      }
       throw error;
     }
   }
 }
 
 export async function migrateDown(client: pg.Client): Promise<void> {
-  if (process.env.BSS_ALLOW_DOWN_MIGRATIONS !== "true") {
+  if (process.env.NODE_ENV === "production" || process.env.BSS_ALLOW_DOWN_MIGRATIONS !== "true") {
     throw new Error("Down migrations are disabled; set BSS_ALLOW_DOWN_MIGRATIONS=true outside production");
   }
   await ensureLedger(client);
@@ -81,7 +86,11 @@ export async function migrateDown(client: pg.Client): Promise<void> {
     await client.query("COMMIT");
     process.stdout.write(`Reverted ${applied.version}\n`);
   } catch (error) {
-    await client.query("ROLLBACK");
+    try {
+      await client.query("ROLLBACK");
+    } catch (rollbackError) {
+      throw new AggregateError([error, rollbackError], `Down migration ${applied.version} and rollback both failed`);
+    }
     throw error;
   }
 }
@@ -90,16 +99,19 @@ async function main(): Promise<void> {
   const config = loadConfig();
   const client = new Client({
     connectionString: config.databaseUrl,
-    ssl: config.databaseSsl ? { rejectUnauthorized: true } : false,
+    ssl: databaseSslOptions(config),
     application_name: "bss-migrator"
   });
   await client.connect();
+  let lockHeld = false;
   try {
-    await client.query("SELECT pg_advisory_lock($1)", [LOCK_ID]);
+    const lock = await client.query<{ acquired: boolean }>("SELECT pg_try_advisory_lock($1) AS acquired", [LOCK_ID]);
+    lockHeld = lock.rows[0]?.acquired === true;
+    if (!lockHeld) throw new Error("Another BSS migration process already holds the advisory lock");
     if (process.argv[2] === "down") await migrateDown(client);
     else await migrateUp(client);
   } finally {
-    await client.query("SELECT pg_advisory_unlock($1)", [LOCK_ID]).catch(() => undefined);
+    if (lockHeld) await client.query("SELECT pg_advisory_unlock($1)", [LOCK_ID]).catch(() => undefined);
     await client.end();
   }
 }

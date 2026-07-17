@@ -16,6 +16,7 @@ export type AppDependencies = Readonly<{
   authService: AuthService;
   phaseAService: MvpService;
   logger?: boolean;
+  readinessCheck?: () => Promise<void>;
 }>;
 
 export type Authenticate = (request: FastifyRequest) => Promise<{ actor: ActorContext; context: SessionContext }>;
@@ -30,14 +31,20 @@ export async function buildApp(dependencies: AppDependencies): Promise<FastifyIn
     logger: dependencies.logger ?? {
       level: config.logLevel,
       redact: {
-        paths: ["req.headers.cookie", "req.headers.authorization", "res.headers['set-cookie']"],
+        paths: [
+          "req.headers.cookie",
+          "req.headers.authorization",
+          "req.headers['x-bss-signature']",
+          "req.headers['x-bss-nonce']",
+          "res.headers['set-cookie']"
+        ],
         censor: "[REDACTED]"
       }
     },
     trustProxy: config.trustProxy,
     bodyLimit: 1_048_576,
     ajv: { customOptions: { removeAdditional: false } },
-    requestIdHeader: "x-request-id",
+    requestIdHeader: false,
     genReqId: () => crypto.randomUUID()
   });
 
@@ -57,7 +64,7 @@ export async function buildApp(dependencies: AppDependencies): Promise<FastifyIn
   app.addHook("onRequest", async (request) => {
     if (!request.url.startsWith("/api/v1") || !unsafeMethod(request.method)) return;
     const path = request.url.split("?")[0] ?? "";
-    if (["/api/v1/auth/login", "/api/v1/auth/refresh"].includes(path) || path.startsWith("/api/v1/terminal/v1/")) return;
+    if (path.startsWith("/api/v1/terminal/v1/")) return;
     const origin = request.headers.origin;
     if (origin !== config.publicOrigin) {
       throw new AppError("FORBIDDEN", "Zahtjev nije poslan s dopuštenog izvora.");
@@ -91,6 +98,15 @@ export async function buildApp(dependencies: AppDependencies): Promise<FastifyIn
   await registerMvpRoutes(app, { mvpService: phaseAService, authenticate });
 
   app.get("/healthz", async () => ({ status: "ok" }));
+  app.get("/readyz", async (request, reply) => {
+    try {
+      await dependencies.readinessCheck?.();
+      return { status: "ok" };
+    } catch (error) {
+      request.log.warn({ err: error }, "Readiness check failed");
+      return reply.status(503).send({ status: "unavailable" });
+    }
+  });
 
   if (config.frontendRoot) {
     await app.register(fastifyStatic, {

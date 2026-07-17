@@ -1,0 +1,34 @@
+ALTER TABLE terminal_credentials
+  DROP CONSTRAINT terminal_credentials_validity_order;
+ALTER TABLE terminals
+  DROP CONSTRAINT terminals_clock_offset_bounds;
+ALTER TABLE attendance_events
+  DROP CONSTRAINT attendance_events_clock_offset_bounds;
+ALTER TABLE shifts
+  DROP CONSTRAINT shifts_duration_bounds;
+ALTER TABLE attendance_days
+  DROP CONSTRAINT attendance_days_minute_bounds,
+  DROP CONSTRAINT attendance_days_time_order;
+ALTER TABLE user_invitations
+  DROP CONSTRAINT invitations_worker_role_consistency,
+  DROP CONSTRAINT invitations_email_not_blank;
+ALTER TABLE workers
+  DROP CONSTRAINT workers_email_not_blank;
+ALTER TABLE users
+  DROP CONSTRAINT users_email_not_blank,
+  DROP CONSTRAINT users_worker_role_consistency,
+  ADD CHECK ((role = 'worker' AND worker_id IS NOT NULL) OR role <> 'worker');
+ALTER TABLE terminals
+  DROP CONSTRAINT terminals_location_not_blank,
+  DROP CONSTRAINT terminals_name_not_blank;
+
+DROP INDEX audit_events_timeline_idx;
+DROP INDEX users_worker_unique;
+DROP INDEX workers_email_unique;
+DROP INDEX rfid_cards_active_worker_unique;
+DROP INDEX correction_requests_timeline_idx;
+DROP INDEX leave_requests_timeline_idx;
+DROP INDEX attendance_days_timeline_idx;
+DROP INDEX report_exports_expiry_idx;
+DROP INDEX auth_sessions_revoked_idx;
+DROP INDEX terminal_request_nonces_expiry_idx;

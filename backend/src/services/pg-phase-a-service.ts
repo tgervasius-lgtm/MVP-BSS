@@ -1,10 +1,14 @@
-import { createHash } from "node:crypto";
 import type pg from "pg";
 import { AppError } from "../domain/errors.js";
 import type { ActorContext, EntityStatus, Page, Role } from "../domain/types.js";
 import { withTenant, type TenantTransaction } from "../db/tenant.js";
+import { requireRole } from "../security/rbac.js";
 import { hashRfidUid, maskRfidUid } from "../security/rfid.js";
 import { createOpaqueToken, hashToken } from "../security/tokens.js";
+import { decodeTimelineCursor, decodeUuidCursor, encodeTimelineCursor, encodeUuidCursor } from "./cursors.js";
+import { normalizeDatabaseError } from "./database-errors.js";
+import { datasetVersion } from "./dataset-version.js";
+import { requireBoundedDateRange, requireValidShiftWindow } from "./validation.js";
 import type {
   DashboardSummaryView,
   DepartmentView,
@@ -111,9 +115,12 @@ function departmentView(row: DepartmentRow): DepartmentView {
   return { id: row.id, name: row.name, status: row.status, revision: String(row.revision) };
 }
 
+function dateString(value: string | Date): string {
+  return value instanceof Date ? value.toISOString().slice(0, 10) : String(value).slice(0, 10);
+}
+
 function holidayView(row: HolidayRow): HolidayView {
-  const date = row.holiday_date instanceof Date ? row.holiday_date.toISOString().slice(0, 10) : String(row.holiday_date).slice(0, 10);
-  return { id: row.id, date, name: row.name, revision: String(row.revision) };
+  return { id: row.id, date: dateString(row.holiday_date), name: row.name, revision: String(row.revision) };
 }
 
 function userView(row: UserRow): UserView {
@@ -184,10 +191,6 @@ function terminalSyncEventView(row: TerminalSyncEventRow): TerminalSyncEventView
   };
 }
 
-function datasetVersion(value: unknown): string {
-  return createHash("sha256").update(JSON.stringify(value)).digest("hex");
-}
-
 function reportValue(value: string | number | Date | null): string | number | null {
   if (value instanceof Date) return value.toISOString();
   return value;
@@ -195,49 +198,6 @@ function reportValue(value: string | number | Date | null): string | number | nu
 
 function reportRows(rows: ReportRow[]): Array<Record<string, string | number | null>> {
   return rows.map((row) => Object.fromEntries(Object.entries(row).map(([key, value]) => [key, reportValue(value)])));
-}
-
-function decodeCursor(cursor: string | undefined): string | null {
-  if (!cursor) return null;
-  try {
-    const value = Buffer.from(cursor, "base64url").toString("utf8");
-    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)) throw new Error();
-    return value;
-  } catch {
-    throw new AppError("VALIDATION_FAILED", "Kursor stranice nije valjan.");
-  }
-}
-
-function encodeCursor(id: string): string {
-  return Buffer.from(id).toString("base64url");
-}
-
-function decodeTimelineCursor(cursor: string | undefined): { receivedAt: string; id: string } | null {
-  if (!cursor) return null;
-  try {
-    const parsed = JSON.parse(Buffer.from(cursor, "base64url").toString("utf8")) as { receivedAt?: unknown; id?: unknown };
-    if (
-      typeof parsed.receivedAt !== "string" || Number.isNaN(Date.parse(parsed.receivedAt)) ||
-      typeof parsed.id !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(parsed.id)
-    ) throw new Error();
-    return { receivedAt: parsed.receivedAt, id: parsed.id };
-  } catch {
-    throw new AppError("VALIDATION_FAILED", "Kursor terminalskih događaja nije valjan.");
-  }
-}
-
-function encodeTimelineCursor(row: TerminalSyncEventRow): string {
-  const receivedAt = row.received_at instanceof Date ? row.received_at.toISOString() : new Date(row.received_at).toISOString();
-  return Buffer.from(JSON.stringify({ receivedAt, id: row.id })).toString("base64url");
-}
-
-function normalizeDatabaseError(error: unknown): never {
-  const code = typeof error === "object" && error !== null && "code" in error ? String(error.code) : "";
-  if (code === "23505") throw new AppError("CONFLICT", "Zapis s istom jedinstvenom vrijednošću već postoji.");
-  if (code === "23503" || code === "23514" || code === "22P02") {
-    throw new AppError("VALIDATION_FAILED", "Povezani zapis ili vrijednost nisu valjani.");
-  }
-  throw error;
 }
 
 async function audit(
@@ -267,6 +227,54 @@ async function audit(
       requestId
     ]
   );
+}
+
+async function requireActiveWorkerAssignment(
+  client: TenantTransaction,
+  departmentId: string,
+  shiftId: string
+): Promise<void> {
+  const assignment = await client.query(
+    `SELECT 1
+     FROM departments d
+     CROSS JOIN shifts s
+     WHERE d.id = $1 AND d.status = 'active'
+       AND s.id = $2 AND s.status = 'active'
+     FOR KEY SHARE OF d, s`,
+    [departmentId, shiftId]
+  );
+  if (!assignment.rows[0]) {
+    throw new AppError("VALIDATION_FAILED", "Radnik mora biti dodijeljen aktivnom odjelu i aktivnoj smjeni.");
+  }
+}
+
+async function requireAllowanceNotBelowCommitments(
+  client: TenantTransaction,
+  workerId: string,
+  allowance: number
+): Promise<void> {
+  const exceeded = await client.query<{ year: number; days: number }>(
+    `SELECT EXTRACT(YEAR FROM day.value)::integer AS year, COUNT(*)::integer AS days
+     FROM leave_requests l
+     CROSS JOIN LATERAL generate_series(l.start_date::timestamp, l.end_date::timestamp, interval '1 day') day(value)
+     WHERE l.worker_id = $1
+       AND l.leave_type = 'annual_leave'
+       AND l.status IN ('pending', 'approved')
+       AND EXTRACT(ISODOW FROM day.value) < 6
+       AND NOT EXISTS (SELECT 1 FROM holidays h WHERE h.holiday_date = day.value::date)
+     GROUP BY EXTRACT(YEAR FROM day.value)
+     HAVING COUNT(*) > $2
+     ORDER BY year
+     LIMIT 1`,
+    [workerId, allowance]
+  );
+  const conflict = exceeded.rows[0];
+  if (conflict) {
+    throw new AppError(
+      "CONFLICT",
+      `Fond se ne može smanjiti ispod ${conflict.days} već odobrenih ili rezerviranih dana za ${conflict.year}. godinu.`
+    );
+  }
 }
 
 const userSelect = `
@@ -322,10 +330,23 @@ export class PgPhaseAService implements PhaseAService {
              WHERE a.work_date = $1::date), 0)::text AS worked_minutes,
            COALESCE((SELECT SUM(a.worked_minutes - a.planned_minutes) FROM attendance_days a JOIN scoped_workers w ON w.id = a.worker_id
              WHERE a.work_date = $1::date), 0)::text AS balance_minutes,
-           COALESCE((SELECT MAX(w.annual_leave_allowance) -
-              COALESCE(SUM(l.working_days) FILTER (WHERE l.leave_type = 'annual_leave' AND l.status IN ('approved', 'pending')
-                AND EXTRACT(YEAR FROM l.start_date) = EXTRACT(YEAR FROM $1::date)), 0)
-             FROM workers w LEFT JOIN leave_requests l ON l.worker_id = w.id WHERE w.id = $4::uuid), 0)::text AS available_leave,
+           COALESCE((SELECT MAX(w.annual_leave_allowance) - COALESCE(SUM(days.working_days), 0)
+             FROM workers w
+             LEFT JOIN leave_requests l ON l.worker_id = w.id
+               AND l.leave_type = 'annual_leave' AND l.status IN ('approved', 'pending')
+               AND l.end_date >= date_trunc('year', $1::date)::date
+               AND l.start_date <= (date_trunc('year', $1::date) + interval '1 year - 1 day')::date
+             LEFT JOIN LATERAL (
+               SELECT COUNT(*)::integer AS working_days
+               FROM generate_series(
+                 GREATEST(l.start_date, date_trunc('year', $1::date)::date)::timestamp,
+                 LEAST(l.end_date, (date_trunc('year', $1::date) + interval '1 year - 1 day')::date)::timestamp,
+                 interval '1 day'
+               ) AS day(value)
+               WHERE EXTRACT(ISODOW FROM day.value) < 6
+                 AND NOT EXISTS (SELECT 1 FROM holidays h WHERE h.holiday_date = day.value::date)
+             ) days ON l.id IS NOT NULL
+             WHERE w.id = $4::uuid), 0)::text AS available_leave,
            GREATEST(
              COALESCE((SELECT MAX(a.revision) FROM attendance_days a JOIN scoped_workers w ON w.id = a.worker_id), 0),
              COALESCE((SELECT MAX(l.revision) FROM leave_requests l JOIN scoped_workers w ON w.id = l.worker_id), 0),
@@ -355,6 +376,7 @@ export class PgPhaseAService implements PhaseAService {
   }
 
   async getOrganization(actor: ActorContext): Promise<OrganizationView> {
+    requireRole(actor, ["admin"]);
     return withTenant(this.pool, actor, "read-organization", async (client) => {
       const result = await client.query<OrganizationRow>(
         "SELECT id, name, tax_identifier, timezone, approved_leave_visibility, revision FROM organizations WHERE id = $1",
@@ -372,8 +394,15 @@ export class PgPhaseAService implements PhaseAService {
     revision: string,
     requestId: string
   ): Promise<OrganizationView> {
+    requireRole(actor, ["admin"]);
     try {
       return await withTenant(this.pool, actor, requestId, async (client) => {
+        const normalizedTimezone = patch.timezone?.trim();
+        const normalizedTaxIdentifier = patch.taxIdentifier?.trim() || null;
+        if (normalizedTimezone !== undefined) {
+          const timezone = await client.query("SELECT 1 FROM pg_timezone_names WHERE name = $1", [normalizedTimezone]);
+          if (!timezone.rows[0]) throw new AppError("VALIDATION_FAILED", "Vremenska zona nije valjana.");
+        }
         const before = await client.query<OrganizationRow>(
           "SELECT id, name, tax_identifier, timezone, approved_leave_visibility, revision FROM organizations WHERE id = $1",
           [actor.organizationId]
@@ -390,11 +419,11 @@ export class PgPhaseAService implements PhaseAService {
           [
             actor.organizationId,
             patch.name !== undefined,
-            patch.name ?? null,
+            patch.name?.trim() ?? null,
             patch.taxIdentifier !== undefined,
-            patch.taxIdentifier ?? null,
+            normalizedTaxIdentifier,
             patch.timezone !== undefined,
-            patch.timezone ?? null,
+            normalizedTimezone ?? null,
             patch.approvedLeaveVisibility !== undefined,
             patch.approvedLeaveVisibility ?? null,
             revision
@@ -411,6 +440,7 @@ export class PgPhaseAService implements PhaseAService {
   }
 
   async listDepartments(actor: ActorContext): Promise<DepartmentView[]> {
+    requireRole(actor, ["admin", "manager", "worker"]);
     return withTenant(this.pool, actor, "list-departments", async (client) => {
       const result = await client.query<DepartmentRow>(
         `SELECT id, name, status, revision FROM departments
@@ -422,6 +452,7 @@ export class PgPhaseAService implements PhaseAService {
   }
 
   async createDepartment(actor: ActorContext, name: string, requestId: string): Promise<DepartmentView> {
+    requireRole(actor, ["admin"]);
     try {
       return await withTenant(this.pool, actor, requestId, async (client) => {
         const result = await client.query<DepartmentRow>(
@@ -446,13 +477,23 @@ export class PgPhaseAService implements PhaseAService {
     revision: string,
     requestId: string
   ): Promise<DepartmentView> {
+    requireRole(actor, ["admin"]);
     try {
       return await withTenant(this.pool, actor, requestId, async (client) => {
         const before = await client.query<DepartmentRow>(
-          "SELECT id, name, status, revision FROM departments WHERE id = $1",
+          "SELECT id, name, status, revision FROM departments WHERE id = $1 FOR UPDATE",
           [departmentId]
         );
         if (!before.rows[0]) throw new AppError("NOT_FOUND", "Odjel nije pronađen.");
+        if (patch.status === "blocked" && before.rows[0].status !== "blocked") {
+          const assigned = await client.query(
+            "SELECT 1 FROM workers WHERE department_id = $1 AND status = 'active' LIMIT 1",
+            [departmentId]
+          );
+          if (assigned.rows[0]) {
+            throw new AppError("CONFLICT", "Odjel s aktivnim radnicima ne može se blokirati.");
+          }
+        }
         const result = await client.query<DepartmentRow>(
           `UPDATE departments SET
              name = CASE WHEN $2 THEN $3 ELSE name END,
@@ -473,6 +514,7 @@ export class PgPhaseAService implements PhaseAService {
   }
 
   async listHolidays(actor: ActorContext, year: number): Promise<HolidayCalendarView> {
+    requireRole(actor, ["admin", "manager", "worker", "accountant"]);
     return withTenant(this.pool, actor, "list-holidays", async (client) => {
       const result = await client.query<HolidayRow>(
         `SELECT id, holiday_date, name, revision FROM holidays
@@ -494,6 +536,7 @@ export class PgPhaseAService implements PhaseAService {
     revision: string,
     requestId: string
   ): Promise<HolidayCalendarView> {
+    requireRole(actor, ["admin"]);
     try {
       return await withTenant(this.pool, actor, requestId, async (client) => {
         await client.query(
@@ -512,19 +555,22 @@ export class PgPhaseAService implements PhaseAService {
           [year]
         );
         await client.query("DELETE FROM holidays WHERE EXTRACT(YEAR FROM holiday_date) = $1", [year]);
-        const created: HolidayRow[] = [];
-        for (const holiday of holidays) {
+        const normalizedHolidays = holidays.map((holiday) => {
           if (Number(holiday.date.slice(0, 4)) !== year) {
             throw new AppError("VALIDATION_FAILED", "Svi blagdani moraju pripadati traženoj godini.");
           }
-          const inserted = await client.query<HolidayRow>(
-            `INSERT INTO holidays (organization_id, holiday_date, name) VALUES ($1, $2, $3)
+          return { date: holiday.date, name: holiday.name.trim() };
+        });
+        const inserted = normalizedHolidays.length === 0
+          ? { rows: [] as HolidayRow[] }
+          : await client.query<HolidayRow>(
+            `INSERT INTO holidays (organization_id, holiday_date, name)
+             SELECT $1, input.holiday_date, input.name
+             FROM unnest($2::date[], $3::text[]) AS input(holiday_date, name)
              RETURNING id, holiday_date, name, revision`,
-            [actor.organizationId, holiday.date, holiday.name.trim()]
+            [actor.organizationId, normalizedHolidays.map((item) => item.date), normalizedHolidays.map((item) => item.name)]
           );
-          const row = inserted.rows[0];
-          if (row) created.push(row);
-        }
+        const created = inserted.rows.sort((left, right) => dateString(left.holiday_date).localeCompare(dateString(right.holiday_date)));
         await audit(client, actor, requestId, "holidays.replace", "organization", actor.organizationId, previous.rows, created);
         return { items: created.map(holidayView), revision: String(locked.rows[0].revision) };
       });
@@ -534,8 +580,9 @@ export class PgPhaseAService implements PhaseAService {
   }
 
   async listUsers(actor: ActorContext, cursor: string | undefined, limit: number): Promise<Page<UserView>> {
+    requireRole(actor, ["admin"]);
     return withTenant(this.pool, actor, "list-users", async (client) => {
-      const after = decodeCursor(cursor);
+      const after = decodeUuidCursor(cursor);
       const result = await client.query<UserRow>(
         `${userSelect}
          WHERE ($1::uuid IS NULL OR u.id > $1)
@@ -547,7 +594,7 @@ export class PgPhaseAService implements PhaseAService {
       const items = result.rows.slice(0, limit);
       return {
         items: items.map(userView),
-        page: { nextCursor: hasMore && items.at(-1) ? encodeCursor(items.at(-1)!.id) : null, total: Number(total.rows[0]?.count ?? 0) }
+        page: { nextCursor: hasMore && items.at(-1) ? encodeUuidCursor(items.at(-1)!.id) : null, total: Number(total.rows[0]?.count ?? 0) }
       };
     });
   }
@@ -557,16 +604,58 @@ export class PgPhaseAService implements PhaseAService {
     input: { email: string; role: Role; workerId?: string | null; departmentIds?: string[] },
     requestId: string
   ): Promise<UserInvitationView> {
+    requireRole(actor, ["admin"]);
+    if ((input.role === "worker") !== Boolean(input.workerId)) {
+      throw new AppError("VALIDATION_FAILED", "Radnička uloga mora biti povezana s točno jednim radnikom.");
+    }
+    if (input.role !== "manager" && (input.departmentIds?.length ?? 0) > 0) {
+      throw new AppError("VALIDATION_FAILED", "Opseg odjela može se dodijeliti samo voditelju.");
+    }
     try {
       return await withTenant(this.pool, actor, requestId, async (client) => {
-        const inserted = await client.query<UserRow>(
-          `INSERT INTO users (organization_id, email, role, status, worker_id)
-           VALUES ($1, lower($2), $3, 'blocked', $4)
-           RETURNING id, email, role, status, worker_id, revision, ARRAY[]::uuid[] AS department_ids`,
-          [actor.organizationId, input.email.trim(), input.role, input.workerId ?? null]
+        const email = input.email.trim().toLowerCase();
+        const existing = await client.query<UserRow & { password_hash: string | null; invitation_accepted: boolean }>(
+          `SELECT u.id, u.email, u.role, u.status, u.worker_id, u.revision, u.password_hash,
+             EXISTS (
+               SELECT 1 FROM user_invitations i
+               WHERE i.email = u.email AND i.accepted_at IS NOT NULL
+             ) AS invitation_accepted,
+             ARRAY[]::uuid[] AS department_ids
+           FROM users u WHERE lower(u.email) = lower($1) FOR UPDATE`,
+          [email]
         );
-        const row = inserted.rows[0];
-        if (!row) throw new Error("User insert returned no row");
+        const existingRow = existing.rows[0];
+        let before: UserRow | null = null;
+        let row: UserRow;
+        let action = "user.invite";
+        if (existingRow) {
+          if (existingRow.password_hash || existingRow.invitation_accepted || existingRow.status === "active") {
+            throw new AppError("CONFLICT", "Korisnički račun s tom e-mail adresom već je aktiviran.");
+          }
+          before = await this.getUserRow(client, existingRow.id);
+          const updated = await client.query<UserRow>(
+            `UPDATE users SET role = $2, status = 'blocked', worker_id = $3, revision = revision + 1
+             WHERE id = $1
+             RETURNING id, email, role, status, worker_id, revision, ARRAY[]::uuid[] AS department_ids`,
+            [existingRow.id, input.role, input.workerId ?? null]
+          );
+          row = updated.rows[0]!;
+          await client.query(
+            `UPDATE user_invitations SET revoked_at = clock_timestamp()
+             WHERE lower(email) = lower($1) AND accepted_at IS NULL AND revoked_at IS NULL`,
+            [email]
+          );
+          action = "user.reinvite";
+        } else {
+          const inserted = await client.query<UserRow>(
+            `INSERT INTO users (organization_id, email, role, status, worker_id)
+             VALUES ($1, $2, $3, 'blocked', $4)
+             RETURNING id, email, role, status, worker_id, revision, ARRAY[]::uuid[] AS department_ids`,
+            [actor.organizationId, email, input.role, input.workerId ?? null]
+          );
+          row = inserted.rows[0]!;
+        }
+        if (!row) throw new Error("User invitation upsert returned no row");
         await this.replaceUserScopes(client, actor.organizationId, row.id, input.departmentIds ?? []);
         const invitationToken = createOpaqueToken();
         const invitation = await client.query<{ expires_at: string | Date }>(
@@ -577,7 +666,7 @@ export class PgPhaseAService implements PhaseAService {
           [actor.organizationId, row.email, row.role, row.worker_id, hashToken(invitationToken), actor.userId]
         );
         const hydrated = await this.getUserRow(client, row.id);
-        await audit(client, actor, requestId, "user.invite", "user", row.id, null, { ...hydrated, invitationToken: "[REDACTED]" });
+        await audit(client, actor, requestId, action, "user", row.id, before, { ...hydrated, invitationToken: "[REDACTED]" });
         const expiresAt = invitation.rows[0]?.expires_at;
         if (!expiresAt) throw new Error("Invitation insert returned no expiry");
         return {
@@ -598,19 +687,51 @@ export class PgPhaseAService implements PhaseAService {
     revision: string,
     requestId: string
   ): Promise<UserView> {
+    requireRole(actor, ["admin"]);
     try {
       return await withTenant(this.pool, actor, requestId, async (client) => {
         const before = await this.getUserRow(client, userId);
+        const resultingRole = patch.role ?? before.role;
+        if (patch.role === "worker" && !before.worker_id) {
+          throw new AppError("VALIDATION_FAILED", "Račun bez povezanog radnika ne može dobiti radničku ulogu.");
+        }
+        if (resultingRole !== "manager" && (patch.departmentIds?.length ?? 0) > 0) {
+          throw new AppError("VALIDATION_FAILED", "Opseg odjela može se dodijeliti samo voditelju.");
+        }
+        const removesActiveAdministrator = before.role === "admin" && before.status === "active" &&
+          ((patch.role !== undefined && patch.role !== "admin") || patch.status === "blocked");
+        if (removesActiveAdministrator) {
+          const activeAdministrators = await client.query<{ id: string }>(
+            "SELECT id FROM users WHERE role = 'admin' AND status = 'active' ORDER BY id FOR UPDATE"
+          );
+          if (activeAdministrators.rows.length <= 1) {
+            throw new AppError("CONFLICT", "Posljednji aktivni administrator ne može biti blokiran ni promijeniti ulogu.");
+          }
+        }
         const updated = await client.query<{ id: string }>(
           `UPDATE users SET
              role = CASE WHEN $2 THEN $3 ELSE role END,
+             worker_id = CASE WHEN $2 AND $3 <> 'worker' THEN NULL ELSE worker_id END,
              status = CASE WHEN $4 THEN $5 ELSE status END,
              revision = revision + 1
            WHERE id = $1 AND revision = $6::bigint RETURNING id`,
           [userId, patch.role !== undefined, patch.role ?? null, patch.status !== undefined, patch.status ?? null, revision]
         );
         if (!updated.rows[0]) throw new AppError("STALE_REVISION", "Korisnički račun je u međuvremenu promijenjen.");
-        if (patch.departmentIds) await this.replaceUserScopes(client, actor.organizationId, userId, patch.departmentIds);
+        if (patch.status === "blocked") {
+          await client.query(
+            `UPDATE auth_sessions SET revoked_at = COALESCE(revoked_at, clock_timestamp()),
+               revoke_reason = COALESCE(revoke_reason, 'user_blocked')
+             WHERE user_id = $1 AND revoked_at IS NULL`,
+            [userId]
+          );
+        }
+        if (patch.departmentIds !== undefined || (patch.role !== undefined && before.role !== resultingRole)) {
+          const nextDepartmentIds = resultingRole === "manager" && before.role === "manager"
+            ? patch.departmentIds ?? before.department_ids
+            : patch.departmentIds ?? [];
+          await this.replaceUserScopes(client, actor.organizationId, userId, resultingRole === "manager" ? nextDepartmentIds : []);
+        }
         const after = await this.getUserRow(client, userId);
         await audit(client, actor, requestId, "user.update", "user", userId, before, after);
         return userView(after);
@@ -624,8 +745,9 @@ export class PgPhaseAService implements PhaseAService {
     actor: ActorContext,
     filters: { cursor?: string; limit: number; departmentId?: string; status?: EntityStatus; search?: string }
   ): Promise<Page<WorkerView>> {
+    requireRole(actor, ["admin", "manager"]);
     return withTenant(this.pool, actor, "list-workers", async (client) => {
-      const after = decodeCursor(filters.cursor);
+      const after = decodeUuidCursor(filters.cursor);
       const result = await client.query<WorkerRow>(
         `SELECT id, code, name, email, department_id, shift_id, status, annual_leave_allowance, revision
          FROM workers
@@ -649,20 +771,22 @@ export class PgPhaseAService implements PhaseAService {
       const items = result.rows.slice(0, filters.limit);
       return {
         items: items.map(workerView),
-        page: { nextCursor: hasMore && items.at(-1) ? encodeCursor(items.at(-1)!.id) : null, total: Number(count.rows[0]?.count ?? 0) }
+        page: { nextCursor: hasMore && items.at(-1) ? encodeUuidCursor(items.at(-1)!.id) : null, total: Number(count.rows[0]?.count ?? 0) }
       };
     });
   }
 
   async createWorker(actor: ActorContext, input: WorkerWrite, requestId: string): Promise<WorkerView> {
+    requireRole(actor, ["admin"]);
     try {
       return await withTenant(this.pool, actor, requestId, async (client) => {
+        await requireActiveWorkerAssignment(client, input.departmentId, input.shiftId);
         const result = await client.query<WorkerRow>(
           `INSERT INTO workers (
              organization_id, code, name, email, department_id, shift_id, annual_leave_allowance
            ) VALUES ($1, $2, $3, $4, $5, $6, $7)
            RETURNING id, code, name, email, department_id, shift_id, status, annual_leave_allowance, revision`,
-          [actor.organizationId, input.code.trim(), input.name.trim(), input.email ?? null, input.departmentId, input.shiftId, input.annualLeaveAllowance]
+          [actor.organizationId, input.code.trim(), input.name.trim(), input.email?.trim().toLowerCase() ?? null, input.departmentId, input.shiftId, input.annualLeaveAllowance]
         );
         const row = result.rows[0];
         if (!row) throw new Error("Worker insert returned no row");
@@ -675,11 +799,14 @@ export class PgPhaseAService implements PhaseAService {
   }
 
   async getWorker(actor: ActorContext, workerId: string): Promise<WorkerView> {
+    requireRole(actor, ["admin", "manager", "worker"]);
     return withTenant(this.pool, actor, "get-worker", async (client) => {
       const result = await client.query<WorkerRow>(
         `SELECT id, code, name, email, department_id, shift_id, status, annual_leave_allowance, revision
-         FROM workers WHERE id = $1 AND ($2::text <> 'manager' OR department_id = ANY($3::uuid[]))`,
-        [workerId, actor.role, actor.departmentIds]
+         FROM workers WHERE id = $1
+           AND ($2::text <> 'manager' OR department_id = ANY($3::uuid[]))
+           AND ($2::text <> 'worker' OR id = $4::uuid)`,
+        [workerId, actor.role, actor.departmentIds, actor.selfWorkerId]
       );
       const row = result.rows[0];
       if (!row) throw new AppError("NOT_FOUND", "Radnik nije pronađen u dopuštenom opsegu.");
@@ -688,30 +815,71 @@ export class PgPhaseAService implements PhaseAService {
   }
 
   async updateWorker(actor: ActorContext, workerId: string, input: WorkerWrite, revision: string, requestId: string): Promise<WorkerView> {
-    return this.mutateWorker(actor, workerId, revision, requestId, "worker.update", async (client) => {
+    requireRole(actor, ["admin"]);
+    return this.mutateWorker(actor, workerId, requestId, "worker.update", async (client) => {
+      const current = await client.query<{ annual_leave_allowance: number }>(
+        "SELECT annual_leave_allowance FROM workers WHERE id = $1 FOR UPDATE",
+        [workerId]
+      );
+      if (!current.rows[0]) throw new AppError("NOT_FOUND", "Radnik nije pronađen.");
+      await requireActiveWorkerAssignment(client, input.departmentId, input.shiftId);
+      if (input.annualLeaveAllowance < current.rows[0].annual_leave_allowance) {
+        await requireAllowanceNotBelowCommitments(client, workerId, input.annualLeaveAllowance);
+      }
       return client.query<WorkerRow>(
         `UPDATE workers SET code = $2, name = $3, email = $4, department_id = $5,
            shift_id = $6, annual_leave_allowance = $7, revision = revision + 1
          WHERE id = $1 AND revision = $8::bigint
          RETURNING id, code, name, email, department_id, shift_id, status, annual_leave_allowance, revision`,
-        [workerId, input.code.trim(), input.name.trim(), input.email ?? null, input.departmentId, input.shiftId, input.annualLeaveAllowance, revision]
+        [workerId, input.code.trim(), input.name.trim(), input.email?.trim().toLowerCase() ?? null, input.departmentId, input.shiftId, input.annualLeaveAllowance, revision]
       );
     });
   }
 
   async deactivateWorker(actor: ActorContext, workerId: string, revision: string, requestId: string): Promise<WorkerView> {
-    return this.mutateWorker(actor, workerId, revision, requestId, "worker.deactivate", async (client) => {
-      return client.query<WorkerRow>(
+    requireRole(actor, ["admin"]);
+    return this.mutateWorker(actor, workerId, requestId, "worker.deactivate", async (client) => {
+      const result = await client.query<WorkerRow>(
         `UPDATE workers SET status = 'blocked', deactivated_at = clock_timestamp(), revision = revision + 1
          WHERE id = $1 AND revision = $2::bigint
          RETURNING id, code, name, email, department_id, shift_id, status, annual_leave_allowance, revision`,
         [workerId, revision]
       );
+      if (!result.rows[0]) return result;
+      const linkedUser = await client.query<Pick<UserRow, "id" | "email" | "role" | "status" | "worker_id" | "revision">>(
+        `UPDATE users SET status = 'blocked', revision = revision + 1
+         WHERE worker_id = $1 AND status = 'active'
+         RETURNING id, email, role, status, worker_id, revision`,
+        [workerId]
+      );
+      const blocked = linkedUser.rows[0];
+      if (blocked) {
+        await client.query(
+          `UPDATE auth_sessions SET revoked_at = COALESCE(revoked_at, clock_timestamp()),
+             revoke_reason = COALESCE(revoke_reason, 'worker_deactivated')
+           WHERE user_id = $1 AND revoked_at IS NULL`,
+          [blocked.id]
+        );
+        await audit(client, actor, requestId, "user.block_by_worker_deactivation", "user", blocked.id, {
+          ...blocked,
+          status: "active",
+          revision: String(BigInt(String(blocked.revision)) - 1n)
+        }, blocked);
+      }
+      return result;
     });
   }
 
   async activateWorker(actor: ActorContext, workerId: string, revision: string, requestId: string): Promise<WorkerView> {
-    return this.mutateWorker(actor, workerId, revision, requestId, "worker.activate", async (client) => {
+    requireRole(actor, ["admin"]);
+    return this.mutateWorker(actor, workerId, requestId, "worker.activate", async (client) => {
+      const assignment = await client.query<{ department_id: string; shift_id: string }>(
+        "SELECT department_id, shift_id FROM workers WHERE id = $1 FOR UPDATE",
+        [workerId]
+      );
+      const row = assignment.rows[0];
+      if (!row) throw new AppError("NOT_FOUND", "Radnik nije pronađen.");
+      await requireActiveWorkerAssignment(client, row.department_id, row.shift_id);
       return client.query<WorkerRow>(
         `UPDATE workers SET status = 'active', deactivated_at = NULL, revision = revision + 1
          WHERE id = $1 AND revision = $2::bigint
@@ -722,6 +890,7 @@ export class PgPhaseAService implements PhaseAService {
   }
 
   async listShifts(actor: ActorContext): Promise<ShiftView[]> {
+    requireRole(actor, ["admin", "manager", "worker"]);
     return withTenant(this.pool, actor, "list-shifts", async (client) => {
       const result = await client.query<ShiftRow>(`${shiftSelect} GROUP BY s.id ORDER BY s.name, s.id`);
       return result.rows.map(shiftView);
@@ -729,6 +898,8 @@ export class PgPhaseAService implements PhaseAService {
   }
 
   async createShift(actor: ActorContext, input: ShiftWrite, requestId: string): Promise<ShiftView> {
+    requireRole(actor, ["admin"]);
+    requireValidShiftWindow(input.startTime, input.endTime, input.breakMinutes);
     try {
       return await withTenant(this.pool, actor, requestId, async (client) => {
         const inserted = await client.query<{ id: string }>(
@@ -748,6 +919,8 @@ export class PgPhaseAService implements PhaseAService {
   }
 
   async updateShift(actor: ActorContext, shiftId: string, input: ShiftWrite, revision: string, requestId: string): Promise<ShiftView> {
+    requireRole(actor, ["admin"]);
+    requireValidShiftWindow(input.startTime, input.endTime, input.breakMinutes);
     try {
       return await withTenant(this.pool, actor, requestId, async (client) => {
         const before = await this.getShiftRow(client, shiftId);
@@ -768,6 +941,7 @@ export class PgPhaseAService implements PhaseAService {
   }
 
   async listWorkerRfidCards(actor: ActorContext, workerId: string): Promise<RfidCardView[]> {
+    requireRole(actor, ["admin", "manager"]);
     return withTenant(this.pool, actor, "list-worker-rfid-cards", async (client) => {
       const result = await client.query<RfidRow>(
         `SELECT r.id, r.masked_uid, r.worker_id, r.status, r.valid_from, r.valid_to, r.revision
@@ -796,11 +970,12 @@ export class PgPhaseAService implements PhaseAService {
     input: { uid: string; validFrom?: string },
     requestId: string
   ): Promise<RfidCardView> {
+    requireRole(actor, ["admin"]);
     try {
       const uidHash = hashRfidUid(input.uid, this.rfidUidPepper);
       const maskedUid = maskRfidUid(input.uid);
       return await withTenant(this.pool, actor, requestId, async (client) => {
-        const worker = await client.query("SELECT id FROM workers WHERE id = $1", [workerId]);
+        const worker = await client.query("SELECT id FROM workers WHERE id = $1 AND status = 'active' FOR UPDATE", [workerId]);
         if (!worker.rows[0]) throw new AppError("NOT_FOUND", "Radnik nije pronađen.");
         await client.query(
           `UPDATE rfid_cards SET status = 'blocked', valid_to = COALESCE(valid_to, clock_timestamp()), revision = revision + 1
@@ -830,19 +1005,23 @@ export class PgPhaseAService implements PhaseAService {
   }
 
   async blockRfidCard(actor: ActorContext, cardId: string, requestId: string): Promise<RfidCardView> {
+    requireRole(actor, ["admin"]);
     return withTenant(this.pool, actor, requestId, async (client) => {
       const before = await client.query<RfidRow>(
-        "SELECT id, masked_uid, worker_id, status, valid_from, valid_to, revision FROM rfid_cards WHERE id = $1",
+        "SELECT id, masked_uid, worker_id, status, valid_from, valid_to, revision FROM rfid_cards WHERE id = $1 FOR UPDATE",
         [cardId]
       );
+      const current = before.rows[0];
+      if (!current) throw new AppError("NOT_FOUND", "RFID kartica nije pronađena.");
+      if (current.status === "blocked") return rfidView(current);
       const result = await client.query<RfidRow>(
         `UPDATE rfid_cards SET status = 'blocked', valid_to = COALESCE(valid_to, clock_timestamp()), revision = revision + 1
          WHERE id = $1 RETURNING id, masked_uid, worker_id, status, valid_from, valid_to, revision`,
         [cardId]
       );
       const row = result.rows[0];
-      if (!row) throw new AppError("NOT_FOUND", "RFID kartica nije pronađena.");
-      await audit(client, actor, requestId, "rfid_card.block", "rfid_card", cardId, before.rows[0] ?? null, row);
+      if (!row) throw new Error("RFID card block returned no row");
+      await audit(client, actor, requestId, "rfid_card.block", "rfid_card", cardId, current, row);
       return rfidView(row);
     });
   }
@@ -851,8 +1030,9 @@ export class PgPhaseAService implements PhaseAService {
     actor: ActorContext,
     filters: { year: number; cursor?: string; limit: number; departmentId?: string; workerId?: string }
   ): Promise<Page<LeaveBalanceView> & { datasetVersion: string }> {
+    requireRole(actor, ["admin", "manager", "worker", "accountant"]);
     return withTenant(this.pool, actor, "list-leave-balances", async (client) => {
-      const after = decodeCursor(filters.cursor);
+      const after = decodeUuidCursor(filters.cursor);
       const values = [
         filters.year,
         actor.role,
@@ -921,7 +1101,7 @@ export class PgPhaseAService implements PhaseAService {
         };
       });
       const page = {
-        nextCursor: hasMore && pageRows.at(-1) ? encodeCursor(pageRows.at(-1)!.worker_id) : null,
+        nextCursor: hasMore && pageRows.at(-1) ? encodeUuidCursor(pageRows.at(-1)!.worker_id) : null,
         total: Number(count.rows[0]?.count ?? 0)
       };
       return { items, page, datasetVersion: datasetVersion({ filters, total: page.total, items }) };
@@ -929,9 +1109,8 @@ export class PgPhaseAService implements PhaseAService {
   }
 
   async createReportPreview(actor: ActorContext, input: ReportPreviewWrite): Promise<ReportPreviewView> {
-    if (input.periodFrom > input.periodTo) {
-      throw new AppError("VALIDATION_FAILED", "Početni datum izvještaja mora biti prije završnog datuma.");
-    }
+    requireRole(actor, ["admin", "manager", "accountant"]);
+    requireBoundedDateRange(input.periodFrom, input.periodTo);
     return withTenant(this.pool, actor, "report-preview", async (client) => {
       const limit = input.limit ?? 100;
       const parameters = [
@@ -1097,7 +1276,7 @@ export class PgPhaseAService implements PhaseAService {
         columns,
         rows,
         totals,
-        datasetVersion: datasetVersion({ filters, totals, revision: String(metadata?.__revision ?? 0) }),
+        datasetVersion: datasetVersion({ filters, totals, revision: String(metadata?.__revision ?? 0), rows }),
         truncated: rowCount > limit
       };
     });
@@ -1108,7 +1287,8 @@ export class PgPhaseAService implements PhaseAService {
     terminalId: string,
     filters: { from: string; to: string; eventStatus?: TerminalSyncEventView["status"]; cursor?: string; limit: number }
   ): Promise<Page<TerminalSyncEventView>> {
-    if (filters.from > filters.to) throw new AppError("VALIDATION_FAILED", "Početni datum mora biti prije završnog datuma.");
+    requireRole(actor, ["admin", "manager"]);
+    requireBoundedDateRange(filters.from, filters.to);
     return withTenant(this.pool, actor, "list-terminal-sync-events", async (client) => {
       const terminal = await client.query("SELECT id FROM terminals WHERE id = $1", [terminalId]);
       if (!terminal.rows[0]) throw new AppError("NOT_FOUND", "Terminal nije pronađen.");
@@ -1122,7 +1302,7 @@ export class PgPhaseAService implements PhaseAService {
            AND ($4::text IS NULL OR status = $4)
            AND ($5::timestamptz IS NULL OR (received_at, id) < ($5::timestamptz, $6::uuid))
          ORDER BY received_at DESC, id DESC LIMIT $7`,
-        [terminalId, filters.from, filters.to, filters.eventStatus ?? null, cursor?.receivedAt ?? null, cursor?.id ?? null, filters.limit + 1]
+        [terminalId, filters.from, filters.to, filters.eventStatus ?? null, cursor?.at ?? null, cursor?.id ?? null, filters.limit + 1]
       );
       const count = await client.query<{ count: string }>(
         `SELECT COUNT(*)::text AS count FROM terminal_sync_events
@@ -1136,7 +1316,7 @@ export class PgPhaseAService implements PhaseAService {
       return {
         items: rows.map(terminalSyncEventView),
         page: {
-          nextCursor: hasMore && rows.at(-1) ? encodeTimelineCursor(rows.at(-1)!) : null,
+          nextCursor: hasMore && rows.at(-1) ? encodeTimelineCursor(rows.at(-1)!.received_at, rows.at(-1)!.id) : null,
           total: Number(count.rows[0]?.count ?? 0)
         }
       };
@@ -1146,7 +1326,6 @@ export class PgPhaseAService implements PhaseAService {
   private async mutateWorker(
     actor: ActorContext,
     workerId: string,
-    revision: string,
     requestId: string,
     action: string,
     mutation: (client: TenantTransaction) => Promise<pg.QueryResult<WorkerRow>>
@@ -1178,13 +1357,15 @@ export class PgPhaseAService implements PhaseAService {
   }
 
   private async replaceUserScopes(client: TenantTransaction, organizationId: string, userId: string, departmentIds: string[]): Promise<void> {
+    const uniqueDepartmentIds = [...new Set(departmentIds)];
+    if (uniqueDepartmentIds.length > 100) throw new AppError("VALIDATION_FAILED", "Dopušteno je najviše 100 odjela po korisniku.");
     await client.query("DELETE FROM user_department_scopes WHERE user_id = $1", [userId]);
-    for (const departmentId of [...new Set(departmentIds)]) {
-      await client.query(
-        "INSERT INTO user_department_scopes (organization_id, user_id, department_id) VALUES ($1, $2, $3)",
-        [organizationId, userId, departmentId]
-      );
-    }
+    if (uniqueDepartmentIds.length === 0) return;
+    await client.query(
+      `INSERT INTO user_department_scopes (organization_id, user_id, department_id)
+       SELECT $1, $2, department_id FROM unnest($3::uuid[]) AS department_id`,
+      [organizationId, userId, uniqueDepartmentIds]
+    );
   }
 
   private async getShiftRow(client: TenantTransaction, shiftId: string): Promise<ShiftRow> {

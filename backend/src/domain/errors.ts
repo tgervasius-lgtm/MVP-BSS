@@ -39,5 +39,11 @@ export function requireRevision(value: string | string[] | undefined): string {
       "If-Match": ["Pošaljite trenutačnu reviziju zapisa."]
     });
   }
-  return value.replace(/^W\//, "").replace(/^"|"$/g, "");
+  const normalized = value.trim().replace(/^W\//, "").replace(/^"([^"]+)"$/, "$1");
+  if (!/^[1-9]\d{0,18}$/.test(normalized) || BigInt(normalized) > 9_223_372_036_854_775_807n) {
+    throw new AppError("VALIDATION_FAILED", "If-Match mora sadržavati valjanu pozitivnu reviziju zapisa.", {
+      "If-Match": ["Koristite ETag trenutačnog zapisa, primjerice \"3\"."]
+    });
+  }
+  return normalized;
 }

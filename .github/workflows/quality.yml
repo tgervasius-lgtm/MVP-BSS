@@ -10,6 +10,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: fullstack-quality-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   quality:
     runs-on: ubuntu-latest
@@ -30,10 +34,10 @@ jobs:
           --health-retries 10
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
       - name: Node 22
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
           cache: npm
@@ -43,6 +47,9 @@ jobs:
 
       - name: Install backend dependencies
         run: npm --prefix backend ci
+
+      - name: Production dependency audit
+        run: npm audit --omit=dev --audit-level=high && npm --prefix backend audit --omit=dev --audit-level=high
 
       - name: Lint
         run: npm run lint
@@ -57,7 +64,7 @@ jobs:
         run: npm --prefix backend run build
 
       - name: Migrate PostgreSQL
-        run: npm --prefix backend run migrate
+        run: npm --prefix backend run migrate:prod
         env:
           NODE_ENV: test
           PUBLIC_ORIGIN: http://127.0.0.1:4173
@@ -65,7 +72,7 @@ jobs:
           DATABASE_SSL: "false"
 
       - name: Bootstrap E2E organization
-        run: npm --prefix backend run bootstrap
+        run: npm --prefix backend run bootstrap:prod
         env:
           NODE_ENV: test
           PUBLIC_ORIGIN: http://127.0.0.1:4173

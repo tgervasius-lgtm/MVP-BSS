@@ -3,7 +3,7 @@ import type pg from "pg";
 import type { AppConfig } from "../config.js";
 import { AppError } from "../domain/errors.js";
 import type { ActorContext, EntityStatus, Role, SessionContext } from "../domain/types.js";
-import { withTenant } from "../db/tenant.js";
+import { withTenant, type TenantTransaction } from "../db/tenant.js";
 import { hashPassword, verifyPassword } from "../security/passwords.js";
 import { createOpaqueToken, hashToken } from "../security/tokens.js";
 import type { AuthResult, AuthService, AuthTokens, RequestMetadata } from "./contracts.js";
@@ -37,6 +37,19 @@ type RefreshRow = {
   revoked_at: Date | null;
   revoke_reason: string | null;
 };
+
+async function recordRefreshReuse(
+  client: TenantTransaction,
+  current: RefreshRow,
+  requestId: string
+): Promise<void> {
+  await client.query(
+    `INSERT INTO audit_events (
+       organization_id, actor_type, actor_id, action, entity_type, entity_id, request_id, metadata
+     ) VALUES ($1, 'system', $2, 'auth.refresh_reuse_detected', 'session', $3, $4, '{}'::jsonb)`,
+    [current.organization_id, current.user_id, current.session_id, requestId]
+  );
+}
 
 const dummyPasswordHash = hashPassword(randomBytes(32).toString("base64url"));
 
@@ -104,6 +117,8 @@ export class PgAuthService implements AuthService {
       { organizationId: candidate.organization_id, userId: candidate.user_id, role: candidate.role },
       metadata.requestId,
       async (client) => {
+        const organization = await client.query("SELECT 1 FROM organizations WHERE id = $1 AND status = 'active'", [candidate.organization_id]);
+        if (!organization.rows[0]) throw new AppError("UNAUTHENTICATED", "E-mail ili lozinka nisu ispravni.");
         const inserted = await client.query<{ id: string }>(
           `INSERT INTO auth_sessions (
              organization_id, user_id, access_token_hash, refresh_token_hash,
@@ -164,6 +179,8 @@ export class PgAuthService implements AuthService {
       { organizationId: invitation.organization_id, userId: invitation.user_id, role: invitation.role },
       metadata.requestId,
       async (client) => {
+        const organization = await client.query("SELECT 1 FROM organizations WHERE id = $1 AND status = 'active'", [invitation.organization_id]);
+        if (!organization.rows[0]) throw new AppError("UNAUTHENTICATED", "Pozivnica nije valjana ili je istekla.");
         const accepted = await client.query(
           `UPDATE user_invitations SET accepted_at = clock_timestamp()
            WHERE id = $1 AND token_hash = $2 AND accepted_at IS NULL AND revoked_at IS NULL
@@ -245,6 +262,7 @@ export class PgAuthService implements AuthService {
                WHERE user_id = $1 AND revoked_at IS NULL`,
               [current.user_id]
             );
+            await recordRefreshReuse(client, current, metadata.requestId);
           }
         );
       }
@@ -252,7 +270,7 @@ export class PgAuthService implements AuthService {
     }
 
     const next = this.newTokens();
-    await withTenant(
+    const rotation = await withTenant(
       this.pool,
       { organizationId: current.organization_id, userId: current.user_id, role: "worker" },
       metadata.requestId,
@@ -262,7 +280,16 @@ export class PgAuthService implements AuthService {
            WHERE id = $1 AND revoked_at IS NULL`,
           [current.session_id]
         );
-        if (revoked.rowCount !== 1) throw new AppError("UNAUTHENTICATED", "Refresh sesija je već iskorištena.");
+        if (revoked.rowCount !== 1) {
+          await client.query(
+            `UPDATE auth_sessions SET revoked_at = COALESCE(revoked_at, clock_timestamp()),
+               revoke_reason = 'refresh_reuse_detected'
+             WHERE user_id = $1 AND revoked_at IS NULL`,
+            [current.user_id]
+          );
+          await recordRefreshReuse(client, current, metadata.requestId);
+          return "reuse_detected" as const;
+        }
         await client.query(
           `INSERT INTO auth_sessions (
              organization_id, user_id, access_token_hash, refresh_token_hash,
@@ -281,8 +308,12 @@ export class PgAuthService implements AuthService {
             metadataHash(metadata.userAgent)
           ]
         );
+        return "rotated" as const;
       }
     );
+    if (rotation === "reuse_detected") {
+      throw new AppError("UNAUTHENTICATED", "Refresh sesija je već iskorištena.");
+    }
     return next;
   }
 
@@ -301,6 +332,31 @@ export class PgAuthService implements AuthService {
         [actor.organizationId, actor.userId, actor.role, actor.sessionId, requestId]
       );
     });
+  }
+
+  async logoutByRefreshToken(refreshToken: string, requestId: string): Promise<void> {
+    const lookup = await this.pool.query<RefreshRow>("SELECT * FROM bss_refresh_lookup($1)", [hashToken(refreshToken)]);
+    const current = lookup.rows[0];
+    if (!current || current.revoked_at) return;
+    await withTenant(
+      this.pool,
+      { organizationId: current.organization_id, userId: current.user_id, role: "worker" },
+      requestId,
+      async (client) => {
+        const revoked = await client.query<{ id: string }>(
+          `UPDATE auth_sessions SET revoked_at = clock_timestamp(), revoke_reason = 'logout'
+           WHERE id = $1 AND revoked_at IS NULL RETURNING id`,
+          [current.session_id]
+        );
+        if (!revoked.rows[0]) return;
+        await client.query(
+          `INSERT INTO audit_events (
+             organization_id, actor_type, actor_id, action, entity_type, entity_id, request_id, metadata
+           ) VALUES ($1, 'user', $2, 'auth.logout', 'session', $3, $4, '{}'::jsonb)`,
+          [current.organization_id, current.user_id, current.session_id, requestId]
+        );
+      }
+    );
   }
 
   private newTokens(): AuthTokens {

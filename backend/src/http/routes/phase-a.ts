@@ -4,6 +4,7 @@ import type { EntityStatus, Role } from "../../domain/types.js";
 import { requireDepartmentScope, requirePermission } from "../../security/rbac.js";
 import type { PhaseAService, ReportPreviewWrite, ShiftWrite, TerminalSyncEventView, WorkerWrite } from "../../services/contracts.js";
 import type { Authenticate } from "../app.js";
+import { paginationSchema, revisionHeaderSchema, uuidSchema } from "../schema.js";
 
 type Dependencies = Readonly<{ phaseAService: PhaseAService; authenticate: Authenticate }>;
 
@@ -11,13 +12,9 @@ const idParams = (name: string) => ({
   type: "object",
   additionalProperties: false,
   required: [name],
-  properties: { [name]: { type: "string", pattern: "^[0-9a-fA-F-]{36}$" } }
+  properties: { [name]: uuidSchema }
 });
-const revisionHeader = {
-  type: "object",
-  required: ["if-match"],
-  properties: { "if-match": { type: "string", minLength: 1, maxLength: 64 } }
-} as const;
+const revisionHeader = revisionHeaderSchema;
 const workerBody = {
   type: "object",
   additionalProperties: false,
@@ -25,9 +22,9 @@ const workerBody = {
   properties: {
     code: { type: "string", minLength: 1, maxLength: 40 },
     name: { type: "string", minLength: 2, maxLength: 160 },
-    email: { anyOf: [{ type: "string", format: "email" }, { type: "null" }] },
-    departmentId: { type: "string", pattern: "^[0-9a-fA-F-]{36}$" },
-    shiftId: { type: "string", pattern: "^[0-9a-fA-F-]{36}$" },
+    email: { anyOf: [{ type: "string", format: "email", maxLength: 320 }, { type: "null" }] },
+    departmentId: uuidSchema,
+    shiftId: uuidSchema,
     annualLeaveAllowance: { type: "integer", minimum: 0, maximum: 366 }
   }
 } as const;
@@ -244,8 +241,7 @@ export async function registerPhaseARoutes(app: FastifyInstance, dependencies: D
           type: "object",
           additionalProperties: false,
           properties: {
-            cursor: { type: "string" },
-            limit: { type: "integer", minimum: 1, maximum: 200, default: 50 }
+            ...paginationSchema
           }
         }
       }
@@ -270,8 +266,8 @@ export async function registerPhaseARoutes(app: FastifyInstance, dependencies: D
           properties: {
             email: { type: "string", format: "email", maxLength: 320 },
             role: { type: "string", enum: ["admin", "manager", "worker", "accountant"] },
-            workerId: { anyOf: [{ type: "string", pattern: "^[0-9a-fA-F-]{36}$" }, { type: "null" }] },
-            departmentIds: { type: "array", uniqueItems: true, items: { type: "string", pattern: "^[0-9a-fA-F-]{36}$" } }
+            workerId: { anyOf: [uuidSchema, { type: "null" }] },
+            departmentIds: { type: "array", uniqueItems: true, maxItems: 100, items: uuidSchema }
           }
         }
       }
@@ -302,7 +298,7 @@ export async function registerPhaseARoutes(app: FastifyInstance, dependencies: D
           properties: {
             role: { type: "string", enum: ["admin", "manager", "worker", "accountant"] },
             status: { type: "string", enum: ["active", "blocked"] },
-            departmentIds: { type: "array", uniqueItems: true, items: { type: "string", pattern: "^[0-9a-fA-F-]{36}$" } }
+            departmentIds: { type: "array", uniqueItems: true, maxItems: 100, items: uuidSchema }
           }
         }
       }
@@ -326,9 +322,8 @@ export async function registerPhaseARoutes(app: FastifyInstance, dependencies: D
           type: "object",
           additionalProperties: false,
           properties: {
-            cursor: { type: "string" },
-            limit: { type: "integer", minimum: 1, maximum: 200, default: 50 },
-            departmentId: { type: "string", pattern: "^[0-9a-fA-F-]{36}$" },
+            ...paginationSchema,
+            departmentId: uuidSchema,
             status: { type: "string", enum: ["active", "blocked"] },
             search: { type: "string", maxLength: 100 }
           }
@@ -494,10 +489,9 @@ export async function registerPhaseARoutes(app: FastifyInstance, dependencies: D
           required: ["year"],
           properties: {
             year: { type: "integer", minimum: 2020, maximum: 2100 },
-            departmentId: { type: "string", pattern: "^[0-9a-fA-F-]{36}$" },
-            workerId: { type: "string", pattern: "^[0-9a-fA-F-]{36}$" },
-            cursor: { type: "string" },
-            limit: { type: "integer", minimum: 1, maximum: 200, default: 50 }
+            departmentId: uuidSchema,
+            workerId: uuidSchema,
+            ...paginationSchema
           }
         }
       }
@@ -522,8 +516,8 @@ export async function registerPhaseARoutes(app: FastifyInstance, dependencies: D
             reportType: { type: "string", enum: reportTypes },
             periodFrom: { type: "string", format: "date" },
             periodTo: { type: "string", format: "date" },
-            departmentId: { anyOf: [{ type: "string", pattern: "^[0-9a-fA-F-]{36}$" }, { type: "null" }] },
-            workerId: { anyOf: [{ type: "string", pattern: "^[0-9a-fA-F-]{36}$" }, { type: "null" }] },
+            departmentId: { anyOf: [uuidSchema, { type: "null" }] },
+            workerId: { anyOf: [uuidSchema, { type: "null" }] },
             attendanceStatus: { anyOf: [{ type: "string", enum: attendanceStatuses }, { type: "null" }] },
             limit: { type: "integer", minimum: 1, maximum: 200, default: 100 }
           }
@@ -553,8 +547,7 @@ export async function registerPhaseARoutes(app: FastifyInstance, dependencies: D
           properties: {
             ...dateRangeProperties,
             eventStatus: { type: "string", enum: ["queued", "synced", "duplicate", "rejected"] },
-            cursor: { type: "string" },
-            limit: { type: "integer", minimum: 1, maximum: 200, default: 50 }
+            ...paginationSchema
           }
         }
       }

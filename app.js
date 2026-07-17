@@ -22,9 +22,9 @@ const APP_VERSION = '3.0';
 const APP_STAGE = 'Backend MVP · API v1.1';
 const DESIGN_SYSTEM_VERSION = '1.0';
 const BRAND_BOOK_VERSION = '1.0';
-const DEMO_TODAY = new Date().toISOString().slice(0,10);
-const DEMO_NOW = new Date().toTimeString().slice(0,5);
-const CURRENT_MONTH = DEMO_TODAY.slice(0,7);
+let DEMO_TODAY = new Date().toISOString().slice(0,10);
+let DEMO_NOW = new Date().toTimeString().slice(0,5);
+let CURRENT_MONTH = DEMO_TODAY.slice(0,7);
 const INVITATION_TOKEN = new URLSearchParams(globalThis.location?.hash?.slice(1)||'').get('invite')||'';
 const CROATIAN_HOLIDAYS_2026 = new Set([
   '2026-01-01','2026-01-06','2026-04-05','2026-04-06','2026-05-01','2026-05-30',
@@ -328,20 +328,12 @@ function recordVisible(record){
   return BSS_ACCESS.canViewScopedEntity(currentRole,record.workerId,state.workers,role());
 }
 function correctionVisible(correction){ return BSS_ACCESS.canViewScopedEntity(currentRole,correction.workerId,state.workers,role()); }
-function workerMonthMinutes(workerId, month = CURRENT_MONTH){
-  return state.records.filter(record=>record.workerId === Number(workerId) && record.date.startsWith(month)).reduce((sum,record)=>sum+recordMinutes(record),0);
-}
 function vacationUsed(workerId, year = 2026){
   return state.requests.filter(request=>request.workerId === Number(workerId) && request.type === 'Godišnji odmor' && request.status === 'Odobreno' && request.start.startsWith(String(year))).reduce((sum,request)=>sum+businessDays(request.start,request.end),0);
 }
 function vacationRemaining(workerId, year = 2026){
   const worker = workerById(workerId);
   return Math.max(0,(worker?.vacationAllowance || 0)-vacationUsed(workerId,year));
-}
-function pendingCount(){
-  const requests = state.requests.filter(request=>request.status === 'Na čekanju' && requestVisible(request)).length;
-  const corrections = state.corrections.filter(correction=>correction.status === 'Na čekanju' && correctionVisible(correction)).length;
-  return requests + corrections;
 }
 function pendingLeaveCount(){
   return state.requests.filter(request=>request.status==='Na čekanju'&&requestVisible(request)).length;
@@ -834,7 +826,7 @@ function attendanceLivePanel(records){
   const active=records.filter(record=>record.date===DEMO_TODAY&&!record.end);
   return `<section class="card attendance-live"><div class="card-heading"><div><h2>Aktivne evidencije danas</h2></div><span class="live-count">${active.length} aktivno</span></div><div class="attendance-live-grid">${active.map(record=>{
     const worker=workerById(record.workerId),shift=shiftById(worker?.shiftId);
-    return `<button class="attendance-live-item" data-bss-action="openAttendanceRecord(${record.id})" aria-label="Otvori aktivni zapis: ${escapeHtml(worker?.name||'Radnik')}"><span class="live-avatar">${initials(worker?.name)}</span><div><b>${escapeHtml(worker?.name||'Nepoznat radnik')}</b><small>${escapeHtml(worker?.dept||'—')} · ${escapeHtml(shift?.name||'Bez smjene')}</small></div><div class="live-time"><b>${escapeHtml(record.start||'—')}</b><small>${formatMinutes(recordMinutes(record,true))}</small></div>${pill(record.status)}</button>`;
+    return `<button class="attendance-live-item" data-bss-action="openAttendanceRecord(${record.id})" aria-label="Otvori aktivni zapis: ${escapeHtml(worker?.name||'Radnik')}"><span class="live-avatar">${escapeHtml(initials(worker?.name))}</span><div><b>${escapeHtml(worker?.name||'Nepoznat radnik')}</b><small>${escapeHtml(worker?.dept||'—')} · ${escapeHtml(shift?.name||'Bez smjene')}</small></div><div class="live-time"><b>${escapeHtml(record.start||'—')}</b><small>${formatMinutes(recordMinutes(record,true))}</small></div>${pill(record.status)}</button>`;
   }).join('')||'<div class="empty-state compact">Nema aktivnih prijava za odabrane filtre.</div>'}</div></section>`;
 }
 function viewAttendance(){
@@ -866,7 +858,7 @@ function openAttendanceRecord(id){
   const correctionBlock=correction?`<div class="notice ${correction.status==='Na čekanju'?'':'info'}"><b>Korekcija: ${escapeHtml(correction.status)}</b><br>${escapeHtml(correction.oldStart||'—')} – ${escapeHtml(correction.oldEnd||'—')} → ${escapeHtml(correction.newStart||'—')} – ${escapeHtml(correction.newEnd||'—')} · ${escapeHtml(correction.reason)}</div>`:'<div class="muted-box">Za ovaj zapis nema poslanog zahtjeva za korekciju.</div>';
   const workerAction=currentRole==='worker'?`<button class="btn" data-bss-action="startCorrectionFromRecord(${record.id})">Zatraži korekciju</button>`:['admin','manager'].includes(currentRole)?'<button class="btn" data-bss-action="openCorrectionsFromRecord()">Otvori korekcije</button>':'';
   const modal=$('#modal');
-  modal.innerHTML=`<div class="modal-card attendance-record-modal"><div class="modal-head"><div><div class="eyebrow">Detalj evidencije</div><h2>${escapeHtml(worker?.name||'Nepoznat radnik')}</h2><div class="small-muted">${escapeHtml(worker?.dept||'—')} · ${escapeHtml(isoLabel(record.date))}</div></div><button class="close-btn" aria-label="Zatvori" data-bss-action="closeModal()">×</button></div><div class="record-detail-status">${pill(record.status)}<span>${escapeHtml(shift?.name||'Bez smjene')} · ${escapeHtml(shift?`${shift.start} – ${shift.end}`:'Bez plana')}</span></div><div class="record-detail-grid"><div><span>Dolazak</span><b>${escapeHtml(record.start||'—')}</b></div><div><span>Odlazak</span><b>${escapeHtml(record.end||'—')}</b></div><div><span>Pauza</span><b>${record.breakMinutes?`${record.breakMinutes} min`:'—'}</b></div><div><span>Evidentirano</span><b>${record.end||record.date===DEMO_TODAY?formatMinutes(worked):'—'}</b></div><div><span>Plan smjene</span><b>${formatMinutes(planned)}</b></div><div><span>Saldo</span><b class="${balance===null?'neutral':balance<0?'negative':'positive'}">${balance===null?'U tijeku':formatSignedMinutes(balance)}</b></div></div><div class="record-source"><span>Izvor demo-zapisa</span><b>${record.status==='Ispravljeno'?'Odobrena korekcija':'RFID / Terminal 01'}</b></div>${correctionBlock}<div class="btns">${workerAction}<button class="btn secondary" data-bss-action="closeModal()">Zatvori</button></div></div>`;
+  modal.innerHTML=`<div class="modal-card attendance-record-modal"><div class="modal-head"><div><div class="eyebrow">Detalj evidencije</div><h2>${escapeHtml(worker?.name||'Nepoznat radnik')}</h2><div class="small-muted">${escapeHtml(worker?.dept||'—')} · ${escapeHtml(isoLabel(record.date))}</div></div><button class="close-btn" aria-label="Zatvori" data-bss-action="closeModal()">×</button></div><div class="record-detail-status">${pill(record.status)}<span>${escapeHtml(shift?.name||'Bez smjene')} · ${escapeHtml(shift?`${shift.start} – ${shift.end}`:'Bez plana')}</span></div><div class="record-detail-grid"><div><span>Dolazak</span><b>${escapeHtml(record.start||'—')}</b></div><div><span>Odlazak</span><b>${escapeHtml(record.end||'—')}</b></div><div><span>Pauza</span><b>${record.breakMinutes?`${record.breakMinutes} min`:'—'}</b></div><div><span>Evidentirano</span><b>${record.end||record.date===DEMO_TODAY?formatMinutes(worked):'—'}</b></div><div><span>Plan smjene</span><b>${formatMinutes(planned)}</b></div><div><span>Saldo</span><b class="${balance===null?'neutral':balance<0?'negative':'positive'}">${balance===null?'U tijeku':formatSignedMinutes(balance)}</b></div></div><div class="record-source"><span>Izvor zapisa</span><b>${record.status==='Ispravljeno'?'Odobrena korekcija':'RFID / Terminal 01'}</b></div>${correctionBlock}<div class="btns">${workerAction}<button class="btn secondary" data-bss-action="closeModal()">Zatvori</button></div></div>`;
   showModal(modal);
 }
 function openCorrectionsFromRecord(){ closeModal();navigate('corrections'); }
@@ -941,7 +933,7 @@ function workerTable(workers,isAdmin=currentRole==='admin'){
   const columns=isAdmin?6:5;
   const body=workers.map(worker=>{
     const shift=shiftById(worker.shiftId);
-    return `<tr data-worker-id="${worker.id}"><td><div class="table-person"><span class="avatar">${initials(worker.name)}</span><span><b>${escapeHtml(worker.name)}</b><small>${escapeHtml(worker.jobTitle)} · ${escapeHtml(worker.email)}</small></span></div></td><td>${escapeHtml(worker.dept)}</td><td><b>${escapeHtml(shift?.name||'Bez smjene')}</b><br><span class="small-muted">${escapeHtml(shift?`${shift.start} – ${shift.end}`:'Nema rasporeda')}</span></td>${isAdmin?`<td><b>${escapeHtml(worker.card||'Nije dodijeljena')}</b><br><span class="small-muted">${escapeHtml(worker.cardStatus)}</span></td>`:''}<td>${pill(worker.active?worker.status:'Neaktivan')}</td><td><button class="table-detail-btn" data-bss-action="openWorker(${worker.id})" aria-label="Otvori radnika ${escapeHtml(worker.name)}">Otvori</button></td></tr>`;
+    return `<tr data-worker-id="${worker.id}"><td><div class="table-person"><span class="avatar">${escapeHtml(initials(worker.name))}</span><span><b>${escapeHtml(worker.name)}</b><small>${escapeHtml(worker.jobTitle)} · ${escapeHtml(worker.email)}</small></span></div></td><td>${escapeHtml(worker.dept)}</td><td><b>${escapeHtml(shift?.name||'Bez smjene')}</b><br><span class="small-muted">${escapeHtml(shift?`${shift.start} – ${shift.end}`:'Nema rasporeda')}</span></td>${isAdmin?`<td><b>${escapeHtml(worker.card||'Nije dodijeljena')}</b><br><span class="small-muted">${escapeHtml(worker.cardStatus)}</span></td>`:''}<td>${pill(worker.active?worker.status:'Neaktivan')}</td><td><button class="table-detail-btn" data-bss-action="openWorker(${worker.id})" aria-label="Otvori radnika ${escapeHtml(worker.name)}">Otvori</button></td></tr>`;
   }).join('');
   return `<div class="table-wrap"><table class="compact-table workers-table"><thead><tr><th>Radnik</th><th>Odjel</th><th>Smjena</th>${isAdmin?'<th>RFID kartica</th>':''}<th>Status</th><th>Detalji</th></tr></thead><tbody>${body||`<tr><td colspan="${columns}"><div class="empty-state">Nema radnika za odabrani filtar.</div></td></tr>`}</tbody></table></div>`;
 }
@@ -1097,9 +1089,6 @@ function teamConflicts(request){
   if(!worker||!activeLeaveRequest(request))return[];
   return state.requests.filter(other=>other.id!==request.id&&other.workerId!==request.workerId&&activeLeaveRequest(other)&&intervalsOverlap(request.start,request.end,other.start,other.end)&&workerById(other.workerId)?.dept===worker.dept);
 }
-function committedVacationDays(workerId,year=2026){
-  return state.requests.filter(request=>request.workerId===Number(workerId)&&request.type==='Godišnji odmor'&&activeLeaveRequest(request)&&request.start.startsWith(String(year))).reduce((sum,request)=>sum+businessDays(request.start,request.end),0);
-}
 function reservedVacationDays(workerId,year=2026){
   return state.requests.filter(request=>request.workerId===Number(workerId)&&request.type==='Godišnji odmor'&&request.status==='Na čekanju'&&request.start.startsWith(String(year))).reduce((sum,request)=>sum+businessDays(request.start,request.end),0);
 }
@@ -1126,7 +1115,7 @@ function requestCard(request,isApprover=false){
   const decisionBlock=request.decidedAt?`<div class="leave-decision"><span>${escapeHtml(request.decidedBy||'Sustav')} · ${escapeHtml(request.decidedAt)}</span><b>${escapeHtml(request.decisionNote||'Odluka bez dodatne napomene.')}</b></div>`:'';
   const approverAction=isApprover&&request.status==='Na čekanju'?`<button class="btn small" data-bss-action="openRequestDecision(${request.id})">Donesi odluku</button>`:'';
   const workerAction=currentRole==='worker'&&request.workerId===currentWorker().id&&request.status==='Na čekanju'?`<button class="btn red small" data-bss-action="openCancelRequest(${request.id})">Poništi zahtjev</button>`:'';
-  return `<article class="leave-request-card" data-request-id="${request.id}" data-status="${escapeHtml(request.status)}"><div class="leave-request-head"><div class="avatar">${initials(worker?.name)}</div><div><b>${escapeHtml(worker?.name||'Nepoznat radnik')}</b><span>${escapeHtml(worker?.dept||'—')} · poslano ${escapeHtml(request.submittedAt||'nije evidentirano')}</span></div>${pill(request.status)}</div><div class="leave-request-body"><div><span>Vrsta</span><b>${escapeHtml(request.type)}</b></div><div><span>Razdoblje</span><b>${escapeHtml(rangeLabel(request.start,request.end))}</b></div><div><span>Radni dani</span><b>${days}</b></div></div><p>${escapeHtml(request.note||'Bez dodatne napomene.')}</p>${conflictBlock}${decisionBlock}${approverAction||workerAction?`<div class="leave-request-actions">${approverAction}${workerAction}</div>`:''}</article>`;
+  return `<article class="leave-request-card" data-request-id="${request.id}" data-status="${escapeHtml(request.status)}"><div class="leave-request-head"><div class="avatar">${escapeHtml(initials(worker?.name))}</div><div><b>${escapeHtml(worker?.name||'Nepoznat radnik')}</b><span>${escapeHtml(worker?.dept||'—')} · poslano ${escapeHtml(request.submittedAt||'nije evidentirano')}</span></div>${pill(request.status)}</div><div class="leave-request-body"><div><span>Vrsta</span><b>${escapeHtml(request.type)}</b></div><div><span>Razdoblje</span><b>${escapeHtml(rangeLabel(request.start,request.end))}</b></div><div><span>Radni dani</span><b>${days}</b></div></div><p>${escapeHtml(request.note||'Bez dodatne napomene.')}</p>${conflictBlock}${decisionBlock}${approverAction||workerAction?`<div class="leave-request-actions">${approverAction}${workerAction}</div>`:''}</article>`;
 }
 function requestTable(requests,isApprover=false,showWorker=currentRole!=='worker'){
   const body=requests.map(request=>{
@@ -1213,7 +1202,6 @@ function decideRequest(id,status,noteOverride=''){
   audit(role().label,`${decision} zahtjev: ${worker?.name||'Radnik'} · ${rangeLabel(request.start,request.end)} · ${request.decisionNote}`,'Zahtjevi');
   closeModal();saveAndRender(`Zahtjev je ${decision.toLowerCase()}.`);
 }
-function updateRequest(id,status){ decideRequest(id,status,status==='Odobreno'?'Odobreno iz pregleda zahtjeva.':'Potrebna je izmjena termina.'); }
 function openCancelRequest(id){
   if(currentRole!=='worker')return;
   const request=state.requests.find(item=>item.id===Number(id));
@@ -1348,7 +1336,7 @@ function setSharedLeaveVisibility(value){
 function showSharedLeaveDay(iso){
   const events=requestsForDay(iso,sharedLeaveRequests());if(!events.length)return;
   const modal=$('#modal');
-  modal.innerHTML=`<div class="modal-card shared-leave-modal"><div class="modal-head"><div><h2>${escapeHtml(isoToDate(iso).toLocaleDateString('hr-HR',{day:'numeric',month:'long',year:'numeric'}))}</h2><div class="small-muted">Odobreni godišnji odmori</div></div><button class="close-btn" aria-label="Zatvori" data-bss-action="closeModal()">×</button></div><div class="shared-leave-day-list">${events.map(request=>{const worker=workerById(request.workerId);return `<div class="shared-leave-person"><span class="avatar">${initials(worker?.name)}</span><div><b>${escapeHtml(worker?.name||'Radnik')}</b><span>${escapeHtml(rangeLabel(request.start,request.end))}</span></div></div>`;}).join('')}</div></div>`;
+  modal.innerHTML=`<div class="modal-card shared-leave-modal"><div class="modal-head"><div><h2>${escapeHtml(isoToDate(iso).toLocaleDateString('hr-HR',{day:'numeric',month:'long',year:'numeric'}))}</h2><div class="small-muted">Odobreni godišnji odmori</div></div><button class="close-btn" aria-label="Zatvori" data-bss-action="closeModal()">×</button></div><div class="shared-leave-day-list">${events.map(request=>{const worker=workerById(request.workerId);return `<div class="shared-leave-person"><span class="avatar">${escapeHtml(initials(worker?.name))}</span><div><b>${escapeHtml(worker?.name||'Radnik')}</b><span>${escapeHtml(rangeLabel(request.start,request.end))}</span></div></div>`;}).join('')}</div></div>`;
   showModal(modal);
 }
 function sharedLeaveScopeControl(){

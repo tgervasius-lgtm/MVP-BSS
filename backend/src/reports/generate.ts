@@ -15,6 +15,17 @@ const reportLabels: Record<ReportPreviewView["reportType"], string> = {
   correction_log: "Korekcije evidencije"
 };
 
+const require = createRequire(import.meta.url);
+let pdfFonts: Promise<readonly [Buffer, Buffer]> | undefined;
+
+function loadPdfFonts(): Promise<readonly [Buffer, Buffer]> {
+  pdfFonts ??= Promise.all([
+    readFile(require.resolve("@fontsource/noto-sans/files/noto-sans-latin-ext-400-normal.woff")),
+    readFile(require.resolve("@fontsource/noto-sans/files/noto-sans-latin-ext-600-normal.woff"))
+  ]);
+  return pdfFonts;
+}
+
 function cellText(value: string | number | null): string {
   if (value === null) return "";
   if (typeof value === "number") return String(value);
@@ -140,10 +151,7 @@ async function xlsxArtifact(preview: ReportPreviewView, input: ReportExportWrite
 }
 
 async function pdfArtifact(preview: ReportPreviewView, input: ReportExportWrite): Promise<GeneratedArtifact> {
-  const require = createRequire(import.meta.url);
-  const regularPath = require.resolve("@fontsource/noto-sans/files/noto-sans-latin-ext-400-normal.woff");
-  const semiboldPath = require.resolve("@fontsource/noto-sans/files/noto-sans-latin-ext-600-normal.woff");
-  const [regular, semibold] = await Promise.all([readFile(regularPath), readFile(semiboldPath)]);
+  const [regular, semibold] = await loadPdfFonts();
   const document = new PDFDocument({ size: "A4", layout: "landscape", margin: 30, info: { Title: reportLabels[preview.reportType], Author: "Bognar Smart Systems" } });
   document.registerFont("BSS Regular", regular);
   document.registerFont("BSS Semibold", semibold);

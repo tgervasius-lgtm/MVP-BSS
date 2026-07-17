@@ -26,6 +26,12 @@ export function requirePermission(actor: ActorContext, resource: Resource, permi
   }
 }
 
+export function requireRole(actor: ActorContext, roles: readonly Role[]): void {
+  if (!roles.includes(actor.role)) {
+    throw new AppError("FORBIDDEN", "Nemate ovlast za ovu radnju.");
+  }
+}
+
 export function requireDepartmentScope(actor: ActorContext, departmentId: string): void {
   if (actor.role === "admin" || actor.role === "accountant") return;
   if (actor.role === "manager" && actor.departmentIds.includes(departmentId)) return;

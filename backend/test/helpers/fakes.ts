@@ -110,6 +110,7 @@ export class FakeAuthService implements AuthService {
   }
 
   async logout(_actor: ActorContext, _requestId: string): Promise<void> {}
+  async logoutByRefreshToken(_refreshToken: string, _requestId: string): Promise<void> {}
 }
 
 const organization: OrganizationView = {
@@ -179,7 +180,7 @@ export class FakePhaseAService implements MvpService {
   async listAttendance(_actor: ActorContext, _filters: { from: string; to: string; departmentId?: string; workerId?: string; attendanceStatus?: AttendanceStatus; cursor?: string; limit: number }): Promise<AttendancePageView> {
     return { items: [{ id: IDS.attendance, workerId: IDS.worker, workDate: "2026-07-17", shift: { id: IDS.shift, name: "Jutarnja", startTime: "08:00", endTime: "16:00", breakMinutes: 30 }, checkIn: "2026-07-17T06:00:00.000Z", checkOut: "2026-07-17T14:00:00.000Z", breakMinutes: 30, workedMinutes: 450, plannedMinutes: 450, balanceMinutes: 0, status: "complete", source: "terminal", revision: "1" }], totals: { rowCount: 1, completedCount: 1, activeCount: 0, reviewCount: 0, workedMinutes: 450, plannedMinutes: 450, balanceMinutes: 0 }, page: { nextCursor: null, total: 1 }, datasetVersion: "attendance-v1" };
   }
-  async getWorkerAttendance(actor: ActorContext, workerId: string, filters: { from: string; to: string }): Promise<AttendancePageView> { return this.listAttendance(actor, { ...filters, workerId, limit: 200 }); }
+  async getWorkerAttendance(actor: ActorContext, workerId: string, filters: { from: string; to: string; cursor?: string; limit: number }): Promise<AttendancePageView> { return this.listAttendance(actor, { ...filters, workerId }); }
   async listLeaveRequests(_actor: ActorContext, _filters: { from: string; to: string; departmentId?: string; leaveStatus?: RequestStatus; cursor?: string; limit: number }): Promise<Page<LeaveRequestView>> { return { items: [this.leaveRequest()], page: { nextCursor: null, total: 1 } }; }
   async createLeaveRequest(_actor: ActorContext, input: LeaveRequestWrite, _requestId: string): Promise<LeaveRequestView> { return { ...this.leaveRequest(), ...input }; }
   async approveLeaveRequest(_actor: ActorContext, _id: string, _revision: string, note: string | undefined, _requestId: string): Promise<LeaveRequestView> { return { ...this.leaveRequest(), status: "approved", decisionNote: note ?? null, revision: "2" }; }

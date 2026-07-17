@@ -1,6 +1,6 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
-import { requireRevision } from "../../domain/errors.js";
-import { requireDepartmentScope, requirePermission } from "../../security/rbac.js";
+import { AppError, requireRevision } from "../../domain/errors.js";
+import { requireDepartmentScope, requirePermission, requireRole } from "../../security/rbac.js";
 import type {
   AttendanceStatus,
   CorrectionRequestWrite,
@@ -14,25 +14,19 @@ import type {
   TerminalPairWrite
 } from "../../services/contracts.js";
 import type { Authenticate } from "../app.js";
+import { paginationSchema, revisionHeaderSchema, uuidSchema } from "../schema.js";
 
 type Dependencies = Readonly<{ mvpService: MvpService; authenticate: Authenticate }>;
 
-const uuid = { type: "string", pattern: "^[0-9a-fA-F-]{36}$" } as const;
+const uuid = uuidSchema;
 const idParams = (name: string) => ({
   type: "object",
   additionalProperties: false,
   required: [name],
   properties: { [name]: uuid }
 });
-const revisionHeader = {
-  type: "object",
-  required: ["if-match"],
-  properties: { "if-match": { type: "string", minLength: 1, maxLength: 64 } }
-} as const;
-const pagination = {
-  cursor: { type: "string" },
-  limit: { type: "integer", minimum: 1, maximum: 200, default: 50 }
-} as const;
+const revisionHeader = revisionHeaderSchema;
+const pagination = paginationSchema;
 const dateRange = {
   from: { type: "string", format: "date" },
   to: { type: "string", format: "date" }
@@ -53,9 +47,9 @@ function deviceProof(request: FastifyRequest): DeviceRequestProof {
   if ([terminalId, timestamp, nonce, signature].some((value) => typeof value !== "string")) {
     throw new Error("Device headers were not validated");
   }
-  const rawBody = "rawBody" in request && Buffer.isBuffer(request.rawBody)
-    ? request.rawBody
-    : Buffer.from(JSON.stringify(request.body ?? null), "utf8");
+  if (!("rawBody" in request) || !Buffer.isBuffer(request.rawBody)) {
+    throw new AppError("UNAUTHENTICATED", "Izvorno tijelo terminalskog zahtjeva nije dostupno.");
+  }
   return {
     terminalId: terminalId as string,
     timestamp: timestamp as string,
@@ -63,7 +57,7 @@ function deviceProof(request: FastifyRequest): DeviceRequestProof {
     signature: signature as string,
     method: request.method,
     path: request.url.split("?")[0] ?? request.url,
-    rawBody
+    rawBody: request.rawBody
   };
 }
 
@@ -110,35 +104,36 @@ export async function registerMvpRoutes(app: FastifyInstance, dependencies: Depe
     async (request) => {
       const { actor } = await authenticate(request);
       requirePermission(actor, "attendance", "read");
+      requireRole(actor, ["admin", "manager"]);
       if (request.query.departmentId && actor.role === "manager") requireDepartmentScope(actor, request.query.departmentId);
       return service.listAttendance(actor, { ...request.query, limit: request.query.limit ?? 50 });
     }
   );
 
-  app.get<{ Params: { workerId: string }; Querystring: { from: string; to: string } }>(
+  app.get<{ Params: { workerId: string }; Querystring: { from: string; to: string; cursor?: string; limit?: number } }>(
     "/api/v1/workers/:workerId/attendance",
     {
       schema: {
         params: idParams("workerId"),
-        querystring: { type: "object", additionalProperties: false, required: ["from", "to"], properties: dateRange }
+        querystring: { type: "object", additionalProperties: false, required: ["from", "to"], properties: { ...dateRange, ...pagination } }
       }
     },
     async (request) => {
       const { actor } = await authenticate(request);
       requirePermission(actor, "attendance", "read");
-      return service.getWorkerAttendance(actor, request.params.workerId, request.query);
+      return service.getWorkerAttendance(actor, request.params.workerId, { ...request.query, limit: request.query.limit ?? 50 });
     }
   );
 
   app.get<{
-    Querystring: { from: string; to: string; departmentId?: string; leaveStatus?: RequestStatus };
+    Querystring: { from: string; to: string; departmentId?: string; leaveStatus?: RequestStatus; cursor?: string; limit?: number };
   }>(
     "/api/v1/leave-requests",
     {
       schema: {
         querystring: {
           type: "object", additionalProperties: false, required: ["from", "to"],
-          properties: { ...dateRange, departmentId: uuid, leaveStatus: { type: "string", enum: requestStatuses } }
+          properties: { ...dateRange, departmentId: uuid, leaveStatus: { type: "string", enum: requestStatuses }, ...pagination }
         }
       }
     },
@@ -146,7 +141,7 @@ export async function registerMvpRoutes(app: FastifyInstance, dependencies: Depe
       const { actor } = await authenticate(request);
       requirePermission(actor, "leave", "read");
       if (request.query.departmentId && actor.role === "manager") requireDepartmentScope(actor, request.query.departmentId);
-      return service.listLeaveRequests(actor, { ...request.query, limit: 200 });
+      return service.listLeaveRequests(actor, { ...request.query, limit: request.query.limit ?? 50 });
     }
   );
 
@@ -167,7 +162,7 @@ export async function registerMvpRoutes(app: FastifyInstance, dependencies: Depe
     async (request, reply) => {
       const { actor } = await authenticate(request);
       requirePermission(actor, "leave", "write");
-      if (actor.role !== "worker") return reply.status(403).send({ code: "FORBIDDEN", message: "Samo radnik može predati vlastiti zahtjev.", requestId: request.id });
+      requireRole(actor, ["worker"]);
       const result = await service.createLeaveRequest(actor, request.body, request.id);
       etag(reply, result.revision);
       return reply.status(201).send(result);
@@ -187,7 +182,7 @@ export async function registerMvpRoutes(app: FastifyInstance, dependencies: Depe
     async (request, reply) => {
       const { actor } = await authenticate(request);
       requirePermission(actor, "leave", "write");
-      if (!['admin', 'manager'].includes(actor.role)) return reply.status(403).send({ code: "FORBIDDEN", message: "Nemate ovlast za odluku.", requestId: request.id });
+      requireRole(actor, ["admin", "manager"]);
       const result = await service.approveLeaveRequest(actor, request.params.requestId, requireRevision(request.headers["if-match"]), request.body.note, request.id);
       etag(reply, result.revision);
       return result;
@@ -200,7 +195,7 @@ export async function registerMvpRoutes(app: FastifyInstance, dependencies: Depe
     async (request, reply) => {
       const { actor } = await authenticate(request);
       requirePermission(actor, "leave", "write");
-      if (!['admin', 'manager'].includes(actor.role)) return reply.status(403).send({ code: "FORBIDDEN", message: "Nemate ovlast za odluku.", requestId: request.id });
+      requireRole(actor, ["admin", "manager"]);
       const result = await service.rejectLeaveRequest(actor, request.params.requestId, requireRevision(request.headers["if-match"]), request.body.note, request.id);
       etag(reply, result.revision);
       return result;
@@ -213,24 +208,24 @@ export async function registerMvpRoutes(app: FastifyInstance, dependencies: Depe
     async (request, reply) => {
       const { actor } = await authenticate(request);
       requirePermission(actor, "leave", "write");
-      if (actor.role !== "worker") return reply.status(403).send({ code: "FORBIDDEN", message: "Samo radnik može poništiti vlastiti zahtjev.", requestId: request.id });
+      requireRole(actor, ["worker"]);
       const result = await service.cancelOwnLeaveRequest(actor, request.params.requestId, requireRevision(request.headers["if-match"]), request.id);
       etag(reply, result.revision);
       return result;
     }
   );
 
-  app.get<{ Querystring: { from: string; to: string; correctionStatus?: RequestStatus } }>(
+  app.get<{ Querystring: { from: string; to: string; correctionStatus?: RequestStatus; cursor?: string; limit?: number } }>(
     "/api/v1/correction-requests",
     {
       schema: {
-        querystring: { type: "object", additionalProperties: false, required: ["from", "to"], properties: { ...dateRange, correctionStatus: { type: "string", enum: requestStatuses } } }
+        querystring: { type: "object", additionalProperties: false, required: ["from", "to"], properties: { ...dateRange, correctionStatus: { type: "string", enum: requestStatuses }, ...pagination } }
       }
     },
     async (request) => {
       const { actor } = await authenticate(request);
       requirePermission(actor, "corrections", "read");
-      return service.listCorrectionRequests(actor, { ...request.query, limit: 200 });
+      return service.listCorrectionRequests(actor, { ...request.query, limit: request.query.limit ?? 50 });
     }
   );
 
@@ -240,14 +235,14 @@ export async function registerMvpRoutes(app: FastifyInstance, dependencies: Depe
       schema: {
         body: {
           type: "object", additionalProperties: false, required: ["attendanceDayId", "newCheckIn", "newCheckOut", "reason"],
-          properties: { attendanceDayId: uuid, newCheckIn: { type: "string", format: "date-time" }, newCheckOut: { type: "string", format: "date-time" }, reason: { type: "string", minLength: 2, maxLength: 1000 } }
+          properties: { attendanceDayId: uuid, newCheckIn: { type: "string", format: "date-time" }, newCheckOut: { type: "string", format: "date-time" }, reason: { type: "string", minLength: 3, maxLength: 1000 } }
         }
       }
     },
     async (request, reply) => {
       const { actor } = await authenticate(request);
       requirePermission(actor, "corrections", "write");
-      if (actor.role !== "worker") return reply.status(403).send({ code: "FORBIDDEN", message: "Samo radnik može zatražiti vlastitu korekciju.", requestId: request.id });
+      requireRole(actor, ["worker"]);
       const result = await service.createCorrectionRequest(actor, request.body, request.id);
       etag(reply, result.revision);
       return reply.status(201).send(result);
@@ -260,7 +255,7 @@ export async function registerMvpRoutes(app: FastifyInstance, dependencies: Depe
     async (request, reply) => {
       const { actor } = await authenticate(request);
       requirePermission(actor, "corrections", "write");
-      if (!['admin', 'manager'].includes(actor.role)) return reply.status(403).send({ code: "FORBIDDEN", message: "Nemate ovlast za odluku.", requestId: request.id });
+      requireRole(actor, ["admin", "manager"]);
       const result = await service.approveCorrectionRequest(actor, request.params.requestId, requireRevision(request.headers["if-match"]), request.body.note, request.id);
       etag(reply, result.request.revision);
       return result;
@@ -273,7 +268,7 @@ export async function registerMvpRoutes(app: FastifyInstance, dependencies: Depe
     async (request, reply) => {
       const { actor } = await authenticate(request);
       requirePermission(actor, "corrections", "write");
-      if (!['admin', 'manager'].includes(actor.role)) return reply.status(403).send({ code: "FORBIDDEN", message: "Nemate ovlast za odluku.", requestId: request.id });
+      requireRole(actor, ["admin", "manager"]);
       const result = await service.rejectCorrectionRequest(actor, request.params.requestId, requireRevision(request.headers["if-match"]), request.body.note, request.id);
       etag(reply, result.revision);
       return result;
@@ -286,7 +281,7 @@ export async function registerMvpRoutes(app: FastifyInstance, dependencies: Depe
     async (request, reply) => {
       const { actor } = await authenticate(request);
       requirePermission(actor, "corrections", "write");
-      if (actor.role !== "worker") return reply.status(403).send({ code: "FORBIDDEN", message: "Samo radnik može poništiti vlastiti zahtjev.", requestId: request.id });
+      requireRole(actor, ["worker"]);
       const result = await service.cancelOwnCorrectionRequest(actor, request.params.requestId, requireRevision(request.headers["if-match"]), request.id);
       etag(reply, result.revision);
       return result;
@@ -376,6 +371,7 @@ export async function registerMvpRoutes(app: FastifyInstance, dependencies: Depe
   app.post<{ Body: TerminalPairWrite }>(
     "/api/v1/terminals/pair",
     {
+      config: { rateLimit: { max: 10, timeWindow: "1 minute" } },
       schema: {
         body: {
           type: "object", additionalProperties: false, required: ["activationCode", "name", "location"],
@@ -405,7 +401,7 @@ export async function registerMvpRoutes(app: FastifyInstance, dependencies: Depe
   app.post<{ Body: TerminalEventBatchWrite }>(
     "/api/v1/terminal/v1/events/batch",
     {
-      config: { rawBody: true },
+      config: { rawBody: true, rateLimit: { max: 120, timeWindow: "1 minute" } },
       schema: {
         headers: deviceHeaders,
         body: {
@@ -417,7 +413,7 @@ export async function registerMvpRoutes(app: FastifyInstance, dependencies: Depe
               items: {
                 type: "object", additionalProperties: false, required: ["deviceEventId", "sequence", "occurredAt", "eventType", "cardUidHash"],
                 properties: {
-                  deviceEventId: uuid, sequence: { type: "integer", minimum: 1 }, occurredAt: { type: "string", format: "date-time" },
+                  deviceEventId: uuid, sequence: { type: "integer", minimum: 1, maximum: Number.MAX_SAFE_INTEGER }, occurredAt: { type: "string", format: "date-time" },
                   eventType: { type: "string", enum: ["check_in", "check_out"] }, cardUidHash: { type: "string", minLength: 64, maxLength: 64 },
                   deviceClockOffsetSeconds: { type: "integer", minimum: -86400, maximum: 86400 }
                 }
@@ -433,14 +429,14 @@ export async function registerMvpRoutes(app: FastifyInstance, dependencies: Depe
   app.post<{ Body: TerminalHeartbeatWrite }>(
     "/api/v1/terminal/v1/heartbeat",
     {
-      config: { rawBody: true },
+      config: { rawBody: true, rateLimit: { max: 120, timeWindow: "1 minute" } },
       schema: {
         headers: deviceHeaders,
         body: {
           type: "object", additionalProperties: false, required: ["sentAt", "sequence", "queueDepth", "softwareVersion"],
           properties: {
-            sentAt: { type: "string", format: "date-time" }, sequence: { type: "integer", minimum: 1 },
-            queueDepth: { type: "integer", minimum: 0 }, softwareVersion: { type: "string", minLength: 1, maxLength: 64 },
+            sentAt: { type: "string", format: "date-time" }, sequence: { type: "integer", minimum: 1, maximum: Number.MAX_SAFE_INTEGER },
+            queueDepth: { type: "integer", minimum: 0, maximum: 2_147_483_647 }, softwareVersion: { type: "string", minLength: 1, maxLength: 64 },
             deviceClockOffsetSeconds: { type: "integer", minimum: -86400, maximum: 86400 }
           }
         }

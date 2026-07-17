@@ -15,10 +15,16 @@
   function resetApiFilters(){
     attendanceFilters={month:CURRENT_MONTH,department:'Svi',status:'Svi',search:''};attendanceView='all';
     myTimeMonth=CURRENT_MONTH;myTimeReviewOnly=false;workerShiftFilter='Svi';requestStatusFilter=currentRole==='worker'?'Svi':'Na čekanju';requestSearch='';
+    correctionDraft={date:DEMO_TODAY,start:'07:42',end:'16:02'};
     reportFilters={month:CURRENT_MONTH,department:'Svi',workerId:'Svi',type:'summary'};settingsTab='overview';accessStatusFilter='Svi';auditFilters={module:'Svi',search:''};
   }
   async function hydrateApi(context=null){
     sessionContext=context||await BSS_API.get('/me');
+    const organizationTimeZone=sessionContext.organization.timezone;
+    DEMO_TODAY=BSS_API_STATE.localDate(new Date(),organizationTimeZone);
+    DEMO_NOW=BSS_API_STATE.localTime(new Date(),organizationTimeZone);
+    CURRENT_MONTH=DEMO_TODAY.slice(0,7);
+    calendarYear=Number(DEMO_TODAY.slice(0,4));calendarMonth=Number(DEMO_TODAY.slice(5,7))-1;
     const hydrated=await BSS_API_STATE.hydrate(BSS_API,sessionContext,DEMO_TODAY);
     state=hydrated.state;dashboardSummary=hydrated.dashboard;currentRole=hydrated.role;
     ROLE_CONFIG[currentRole].userId=hydrated.selfWorkerId||0;
@@ -142,7 +148,9 @@
     await mutateApi(()=>BSS_API.post(`/leave-requests/${request.apiId}/cancel`,undefined,revisionHeaders(request.revision)),'Zahtjev je poništen.');
   }
 
-  function asIso(date,time){return new Date(`${date}T${time}:00`).toISOString();}
+  function asIso(date,time){
+    return BSS_API_STATE.zonedDateTimeToIso(date,time,sessionContext?.organization?.timezone||state.company.timezone||'Europe/Zagreb');
+  }
   async function apiSubmitCorrection(){
     if(currentRole!=='worker')return;
     const date=$('#corrDate')?.value,start=$('#corrStart')?.value,end=$('#corrEnd')?.value,reason=$('#corrReason')?.value.trim();
@@ -270,7 +278,7 @@
   }
   function apiShowSharedLeaveDay(iso){
     const items=sharedEntriesForDate(iso);if(!items.length)return;const modal=$('#modal');
-    modal.innerHTML=`<div class="modal-card"><div class="modal-head"><h2>${escapeHtml(isoLabel(iso))}</h2><button class="close-btn" data-bss-action="closeModal()">×</button></div><div class="shared-leave-day-list">${items.map(item=>`<div class="shared-leave-person"><span class="avatar">${initials(item.employeeName)}</span><div><b>${escapeHtml(item.employeeName)}</b><span>${escapeHtml(rangeLabel(item.startDate,item.endDate))}</span></div></div>`).join('')}</div></div>`;showModal(modal);
+    modal.innerHTML=`<div class="modal-card"><div class="modal-head"><h2>${escapeHtml(isoLabel(iso))}</h2><button class="close-btn" data-bss-action="closeModal()">×</button></div><div class="shared-leave-day-list">${items.map(item=>`<div class="shared-leave-person"><span class="avatar">${escapeHtml(initials(item.employeeName))}</span><div><b>${escapeHtml(item.employeeName)}</b><span>${escapeHtml(rangeLabel(item.startDate,item.endDate))}</span></div></div>`).join('')}</div></div>`;showModal(modal);
   }
 
   function apiViewTerminal(){

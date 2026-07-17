@@ -1,4 +1,4 @@
-const CACHE_NAME = 'bss-backend-mvp-v1-r1';
+const CACHE_NAME = 'bss-backend-mvp-v1-r2';
 const ASSETS = [
   './index.html','./styles.css','./app.js','./manifest.json','./icons/icon.svg',
   './styles/base.css','./styles/layouts.css','./styles/components.css','./styles/screens.css',
@@ -29,6 +29,21 @@ async function networkFirstDocument(request){
   }
 }
 
+async function networkFirstAsset(request){
+  try{
+    const response = await fetch(new Request(request,{cache:'no-cache'}));
+    if(response.ok && response.type === 'basic'){
+      const cache = await caches.open(CACHE_NAME);
+      await cache.put(request,response.clone());
+    }
+    return response;
+  }catch{
+    const cached = await caches.match(request,{ignoreSearch:true});
+    if(cached)return cached;
+    throw new Error('Mreža i offline cache nisu dostupni.');
+  }
+}
+
 self.addEventListener('install', event => {
   event.waitUntil((async()=>{
     const cache = await caches.open(CACHE_NAME);
@@ -40,7 +55,7 @@ self.addEventListener('install', event => {
 self.addEventListener('activate', event => {
   event.waitUntil((async()=>{
     const keys = await caches.keys();
-    await Promise.all(keys.filter(key=>key!==CACHE_NAME).map(key=>caches.delete(key)));
+    await Promise.all(keys.filter(key=>key.startsWith('bss-')&&key!==CACHE_NAME).map(key=>caches.delete(key)));
     await self.clients.claim();
   })());
 });
@@ -55,5 +70,7 @@ self.addEventListener('fetch', event => {
     event.respondWith(networkFirstDocument(event.request));
     return;
   }
-  event.respondWith(caches.match(event.request).then(cached=>cached||fetch(event.request)));
+  if(new URL(event.request.url).origin === self.location.origin){
+    event.respondWith(networkFirstAsset(event.request));
+  }
 });

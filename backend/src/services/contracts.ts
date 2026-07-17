@@ -10,6 +10,7 @@ export interface AuthService {
   resolveAccessToken(token: string): Promise<{ context: SessionContext; actor: ActorContext }>;
   rotate(refreshToken: string, metadata: RequestMetadata): Promise<AuthTokens>;
   logout(actor: ActorContext, requestId: string): Promise<void>;
+  logoutByRefreshToken(refreshToken: string, requestId: string): Promise<void>;
 }
 
 export type OrganizationView = {
@@ -320,7 +321,7 @@ export interface PhaseAService {
 export interface MvpService extends PhaseAService {
   listApprovedLeaveCalendar(actor: ActorContext, filters: { from: string; to: string }): Promise<ApprovedLeaveCalendarView>;
   listAttendance(actor: ActorContext, filters: { from: string; to: string; departmentId?: string; workerId?: string; attendanceStatus?: AttendanceStatus; cursor?: string; limit: number }): Promise<AttendancePageView>;
-  getWorkerAttendance(actor: ActorContext, workerId: string, filters: { from: string; to: string }): Promise<AttendancePageView>;
+  getWorkerAttendance(actor: ActorContext, workerId: string, filters: { from: string; to: string; cursor?: string; limit: number }): Promise<AttendancePageView>;
   listLeaveRequests(actor: ActorContext, filters: { from: string; to: string; departmentId?: string; leaveStatus?: RequestStatus; cursor?: string; limit: number }): Promise<Page<LeaveRequestView>>;
   createLeaveRequest(actor: ActorContext, input: LeaveRequestWrite, requestId: string): Promise<LeaveRequestView>;
   approveLeaveRequest(actor: ActorContext, requestIdValue: string, revision: string, note: string | undefined, requestId: string): Promise<LeaveRequestView>;

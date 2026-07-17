@@ -6,10 +6,11 @@
 | Frontend ugovor | Frontend `v1.0.0`, bez UX/UI promjena |
 | OpenAPI | `1.1.0`, status `MVP_IMPLEMENTED` |
 | Pokrivenost | 43 putanje / 54 operacije / 54 implementirane operacije |
-| Migracije | `001`–`007`, PostgreSQL 16 |
+| Migracije | `001`–`008`, PostgreSQL 16 |
 | Faza | Backend MVP – Faza B |
 | Readiness | **FULL PASS — PostgreSQL i full-stack browser CI zeleni** |
 | Otvorene readiness stavke | **0** |
+| Deep code audit | `BSS_PRODUCTION_READINESS_AUDIT.md`; senior-review spremnost 92% nakon zelenog PR CI-ja |
 
 ## Izvršni zaključak
 
@@ -17,7 +18,7 @@ Faza B implementira cijeli verzionirani OpenAPI ugovor i povezuje produkcijski f
 
 Isporučeni su:
 
-- login, invitation accept, refresh rotacija, logout i `/me`;
+- login, invitation accept/reissue, atomska refresh rotacija, idempotentni logout i `/me`;
 - organizacija, odjeli, korisnici, radnici, smjene, blagdani i RFID lifecycle;
 - terminal pairing, HMAC potpisani batch, idempotencija, heartbeat i sync timeline;
 - radna evidencija, vlastiti prikaz, dashboard KPI-ji i scopeani drill-down podaci;
@@ -62,10 +63,10 @@ HTTP RBAC i SQL scope provjeravaju se neovisno. Skrivanje kontrole u frontendu n
 
 - Argon2id lozinke; najmanje 12 znakova na HTTP ugovoru.
 - 256-bitni opaque access/refresh tokeni; PostgreSQL čuva samo SHA-256 hash.
-- Access 15 minuta, refresh 30 dana, jednokratna rotacija i detekcija reusea.
+- Access 15 minuta, refresh 30 dana, jednokratna rotacija i atomska detekcija sekvencijalnog ili konkurentnog reusea.
 - `HttpOnly`, `SameSite=Strict`, produkcijski `Secure`; produkcija zahtijeva HTTPS.
-- Unsafe browser mutacije zahtijevaju točan same-origin `Origin`.
-- Login i invitation accept imaju rate limit i generičku poruku greške.
+- Unsafe browser mutacije, uključujući refresh i invitation accept, zahtijevaju točan same-origin `Origin`.
+- Login, refresh i invitation accept imaju rate limit i generičku poruku greške.
 - Pozivnica vraća jednokratnu poveznicu u URL fragmentu; čisti token se ne sprema niti logira.
 - RFID UID se normalizira i HMAC-SHA-256 hashira; raw UID se ne sprema.
 - Terminalska vjerodajnica se prikazuje jednom, hashira i AES-256-GCM enkriptira u mirovanju.
@@ -81,8 +82,8 @@ HTTP RBAC i SQL scope provjeravaju se neovisno. Skrivanje kontrole u frontendu n
 - Odjava prije prijave i smjena dulja od 16 sati se odbijaju.
 - Godišnji izostavlja vikende i tenant blagdane, sprečava preklapanje te rezervira pending + approved dane.
 - Zajednički kalendar vraća samo ime i odobreno razdoblje godišnjeg, bez razloga i bolovanja.
-- Korekcija nikada ne mijenja raw terminalski događaj; mijenja izvedeni dan i stvara audit.
-- Izvoz iznad 100.000 redaka ne skraćuje se tiho nego traži uži filtar.
+- Korekcija nikada ne mijenja raw terminalski događaj; odobrenje odbija stale `before` snapshot, mijenja izvedeni dan i stvara audit.
+- Izvoz iznad 10.000 redaka ne skraćuje se tiho nego traži uži filtar.
 - CSV neutralizira spreadsheet formule; XLSX ima filter, zamrznuto zaglavlje i poslovni format; PDF ugrađuje font s hrvatskim znakovima.
 
 ## OpenAPI i frontend usklađenost
@@ -90,6 +91,7 @@ HTTP RBAC i SQL scope provjeravaju se neovisno. Skrivanje kontrole u frontendu n
 `backend/contracts/frontend-screen-api-map-v1.json` zaključava SHA-256 OpenAPI-ja i mapira svaki runtime ekran na operation ID-jeve. Contract test odbija:
 
 - nedostajuću rutu ili operation ID;
+- OpenAPI method/path koji nije stvarno registriran u Fastifyju;
 - duplikat operation ID-ja;
 - nepokriven ekran;
 - promijenjeni OpenAPI bez ažuriranog hasha;
@@ -100,6 +102,8 @@ Frontend učitava prazno API stanje, pokušava obnoviti sesiju i zatim hidrira s
 ## Migracije, backup i rollback
 
 Migracije su numerirane, checksumirane, zaštićene advisory lockom i svaka se izvršava u vlastitoj transakciji. Objavljena migracija se ne prepisuje. Produkcijski rollback je aplikacijski rollback uz kompatibilnu forward migraciju; development down zahtijeva `BSS_ALLOW_DOWN_MIGRATIONS=true`.
+
+Runtime grantovi su eksplicitno suženi: nema pristupa migracijskom ledgeru, općeg `DELETE` ni `INSERT` nad organizacijama. `/healthz` je liveness, `/readyz` provjerava PostgreSQL, a `backend/deploy/maintenance.sql` oslobađa istekli report sadržaj i stare sigurnosne retke po tenant kontekstu.
 
 Operativni minimum ostaje: managed PostgreSQL, enkripcija, PITR s ciljem RPO 15 minuta, dnevni logički backup, RTO četiri sata i periodični restore drill. Detalji su u `backend/OPERATIONS.md`.
 
@@ -123,6 +127,6 @@ Operativni minimum ostaje: managed PostgreSQL, enkripcija, PITR s ciljem RPO 15 
 | Chromium desktop + mobile protiv stvarnog API-ja/PostgreSQL-a | PASS — `BSS quality gate` |
 | Cloudflare preview | informativan samo za statički shell; Node API zahtijeva backend hosting |
 
-Obje obvezne GitHub provjere zelene su na implementacijskom commitu `c04587c99902d03218897ee07cd84e537bdb8716`. Nema otvorenih ugovornih ni readiness stavki za Backend MVP Fazu B.
+Implementacijski FULL PASS potvrđen je na commitu `c04587c99902d03218897ee07cd84e537bdb8716`. Deep-audit promjene moraju ponovno dobiti zelene obvezne GitHub PostgreSQL i full-stack browser provjere na točnom PR commitu; lokalno preskočen PostgreSQL test nikada se ne računa kao PASS. Nema otvorenih funkcionalnih ni OpenAPI readiness stavki za Backend MVP Fazu B, dok su platformske produkcijske obveze i tehnički dug transparentno navedeni u `BSS_PRODUCTION_READINESS_AUDIT.md`.
 
 Ovaj dokument ne odobrava merge u `main` ni produkcijski deploy.
