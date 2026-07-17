@@ -2,7 +2,7 @@
 
 Status: **frontend demonstracija je implementirana; backend nije implementiran**  
 Opseg: prijedlog za MVP Scope v1.1 koji prije produkcijske primjene zahtijeva zasebno odobrenje  
-Utjecaj na backend ugovor: **nema; postojeći API nacrt nije promijenjen**
+Utjecaj na backend ugovor: **nema; odobreni OpenAPI v1 nije promijenjen i nema produkcijsku rutu za ovu demonstraciju**
 
 ## Svrha
 

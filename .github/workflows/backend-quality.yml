@@ -1,0 +1,80 @@
+name: BSS backend quality gate
+
+on:
+  pull_request:
+    paths:
+      - "backend/**"
+      - "openapi/bss-mvp-api-v1.yaml"
+      - "BACKEND_READINESS_REPORT.md"
+      - "BACKEND_ARCHITECTURE.md"
+      - "BSS_BACKEND_HANDOFF_V1.md"
+      - ".github/workflows/backend-quality.yml"
+  push:
+    branches:
+      - main
+      - "agent/bss-backend-**"
+    paths:
+      - "backend/**"
+      - "openapi/bss-mvp-api-v1.yaml"
+      - "BACKEND_READINESS_REPORT.md"
+      - "BACKEND_ARCHITECTURE.md"
+      - "BSS_BACKEND_HANDOFF_V1.md"
+      - ".github/workflows/backend-quality.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: bss_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d bss_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run lint
+
+      - name: OpenAPI v1 validation
+        run: npm run lint:openapi
+
+      - name: Unit and contract tests
+        run: npm run test:unit
+
+      - name: Build
+        run: npm run build
+
+      - name: PostgreSQL migration and isolation tests
+        run: npm run test:integration
+        env:
+          BSS_TEST_DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/bss_test
+          BSS_REQUIRE_POSTGRES_TESTS: "true"

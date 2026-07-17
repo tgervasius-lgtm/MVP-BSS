@@ -1,0 +1,9 @@
+DROP TABLE IF EXISTS audit_events;
+DROP TABLE IF EXISTS report_exports;
+DROP TABLE IF EXISTS attendance_month_locks;
+DROP TABLE IF EXISTS correction_requests;
+DROP TABLE IF EXISTS leave_requests;
+DROP TABLE IF EXISTS attendance_days;
+DROP TABLE IF EXISTS attendance_events;
+DROP TABLE IF EXISTS terminal_credentials;
+DROP TABLE IF EXISTS terminals;
