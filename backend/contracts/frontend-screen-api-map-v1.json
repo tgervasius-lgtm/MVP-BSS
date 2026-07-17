@@ -1,17 +1,18 @@
 {
-  "contract": "BSS Frontend v1.0.0 to Backend API v1",
+  "contract": "BSS Frontend v1.0.0 to Backend MVP API v1.1",
   "readiness": "FULL_PASS",
-  "contractReviewedAt": "2026-07-13",
+  "contractReviewedAt": "2026-07-17",
   "frontendBaseline": "91323c7cdbbbbf7b965c4926c94a11af6d31bf62",
   "repositoryBaseline": "e35b53af848b855c986e467a6efacdea4dde777e",
   "openapi": {
     "file": "openapi/bss-mvp-api-v1.yaml",
-    "sha256": "bbb284ffcb934ff087e967c9d6cd4ad27c66108b5c7876c1598545c6d269d5c7",
-    "version": "1.0.0",
-    "status": "FULL_PASS_APPROVED",
-    "paths": 40,
-    "operations": 51,
-    "phaseAImplementedOperations": 30
+    "sha256": "9ecb27894560cb12e1ee651181ab969e5d326de86e2fef59de9659f469a7e21b",
+    "version": "1.1.0",
+    "status": "MVP_IMPLEMENTED",
+    "paths": 43,
+    "operations": 54,
+    "phaseAImplementedOperations": 30,
+    "phaseBImplementedOperations": 54
   },
   "statusLegend": {
     "covered": "Approved OpenAPI v1 contains the required operation and authoritative server semantics.",
@@ -36,7 +37,7 @@
     {
       "id": "workers",
       "status": "covered",
-      "operations": ["listWorkers", "createWorker", "updateWorker", "listDepartments", "listShifts", "listWorkerRfidCards", "assignWorkerRfidCard", "blockRfidCard"]
+      "operations": ["listWorkers", "createWorker", "updateWorker", "activateWorker", "deactivateWorker", "listDepartments", "listShifts", "listWorkerRfidCards", "assignWorkerRfidCard", "blockRfidCard"]
     },
     {
       "id": "worker",
@@ -60,9 +61,9 @@
     },
     {
       "id": "sharedLeave",
-      "status": "excluded",
-      "operations": [],
-      "note": "Frontend demonstration and separately proposed MVP Scope v1.1 only."
+      "status": "covered",
+      "operations": ["listApprovedLeaveCalendar", "getOrganization", "updateOrganization"],
+      "note": "Privacy-minimized approved annual leave only; no sickness, reason or other private data."
     },
     {
       "id": "corrections",
@@ -72,7 +73,7 @@
     {
       "id": "reports",
       "status": "covered",
-      "operations": ["createReportPreview", "listReportExports", "createReportExport", "getReportExport"]
+      "operations": ["createReportPreview", "listReportExports", "createReportExport", "getReportExport", "downloadReportExport"]
     },
     {
       "id": "terminal",

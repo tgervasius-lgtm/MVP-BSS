@@ -2,14 +2,14 @@ import { buildApp } from "./http/app.js";
 import { loadConfig } from "./config.js";
 import { createPool } from "./db/pool.js";
 import { PgAuthService } from "./services/pg-auth-service.js";
-import { PgPhaseAService } from "./services/pg-phase-a-service.js";
+import { PgMvpService } from "./services/pg-mvp-service.js";
 
 const config = loadConfig();
 const pool = createPool(config);
 const app = await buildApp({
   config,
   authService: new PgAuthService(pool, config),
-  phaseAService: new PgPhaseAService(pool, config.rfidUidPepper)
+  phaseAService: new PgMvpService(pool, config)
 });
 
 const close = async (signal: string): Promise<void> => {

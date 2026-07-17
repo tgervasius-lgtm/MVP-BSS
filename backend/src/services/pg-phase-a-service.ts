@@ -19,6 +19,7 @@ import type {
   ShiftView,
   ShiftWrite,
   TerminalSyncEventView,
+  UserInvitationView,
   UserView,
   WorkerView,
   WorkerWrite
@@ -29,6 +30,7 @@ type OrganizationRow = {
   name: string;
   tax_identifier: string | null;
   timezone: string;
+  approved_leave_visibility: OrganizationView["approvedLeaveVisibility"];
   revision: string | number;
 };
 type DepartmentRow = { id: string; name: string; status: EntityStatus; revision: string | number };
@@ -98,6 +100,7 @@ function organizationView(row: OrganizationRow): OrganizationView {
     id: row.id,
     name: row.name,
     timezone: row.timezone,
+    approvedLeaveVisibility: row.approved_leave_visibility,
     revision: String(row.revision)
   };
   if (row.tax_identifier) view.taxIdentifier = row.tax_identifier;
@@ -283,7 +286,8 @@ const shiftSelect = `
 export class PgPhaseAService implements PhaseAService {
   constructor(
     private readonly pool: pg.Pool,
-    private readonly rfidUidPepper: string
+    private readonly rfidUidPepper: string,
+    private readonly invitationPublicOrigin = "http://localhost:3000"
   ) {}
 
   async getDashboardSummary(actor: ActorContext, date: string): Promise<DashboardSummaryView> {
@@ -353,7 +357,7 @@ export class PgPhaseAService implements PhaseAService {
   async getOrganization(actor: ActorContext): Promise<OrganizationView> {
     return withTenant(this.pool, actor, "read-organization", async (client) => {
       const result = await client.query<OrganizationRow>(
-        "SELECT id, name, tax_identifier, timezone, revision FROM organizations WHERE id = $1",
+        "SELECT id, name, tax_identifier, timezone, approved_leave_visibility, revision FROM organizations WHERE id = $1",
         [actor.organizationId]
       );
       const row = result.rows[0];
@@ -364,14 +368,14 @@ export class PgPhaseAService implements PhaseAService {
 
   async updateOrganization(
     actor: ActorContext,
-    patch: Partial<Pick<OrganizationView, "name" | "taxIdentifier" | "timezone">>,
+    patch: Partial<Pick<OrganizationView, "name" | "taxIdentifier" | "timezone" | "approvedLeaveVisibility">>,
     revision: string,
     requestId: string
   ): Promise<OrganizationView> {
     try {
       return await withTenant(this.pool, actor, requestId, async (client) => {
         const before = await client.query<OrganizationRow>(
-          "SELECT id, name, tax_identifier, timezone, revision FROM organizations WHERE id = $1",
+          "SELECT id, name, tax_identifier, timezone, approved_leave_visibility, revision FROM organizations WHERE id = $1",
           [actor.organizationId]
         );
         const result = await client.query<OrganizationRow>(
@@ -379,9 +383,10 @@ export class PgPhaseAService implements PhaseAService {
              name = CASE WHEN $2 THEN $3 ELSE name END,
              tax_identifier = CASE WHEN $4 THEN $5 ELSE tax_identifier END,
              timezone = CASE WHEN $6 THEN $7 ELSE timezone END,
+             approved_leave_visibility = CASE WHEN $8 THEN $9 ELSE approved_leave_visibility END,
              revision = revision + 1
-           WHERE id = $1 AND revision = $8::bigint
-           RETURNING id, name, tax_identifier, timezone, revision`,
+           WHERE id = $1 AND revision = $10::bigint
+           RETURNING id, name, tax_identifier, timezone, approved_leave_visibility, revision`,
           [
             actor.organizationId,
             patch.name !== undefined,
@@ -390,6 +395,8 @@ export class PgPhaseAService implements PhaseAService {
             patch.taxIdentifier ?? null,
             patch.timezone !== undefined,
             patch.timezone ?? null,
+            patch.approvedLeaveVisibility !== undefined,
+            patch.approvedLeaveVisibility ?? null,
             revision
           ]
         );
@@ -549,7 +556,7 @@ export class PgPhaseAService implements PhaseAService {
     actor: ActorContext,
     input: { email: string; role: Role; workerId?: string | null; departmentIds?: string[] },
     requestId: string
-  ): Promise<UserView> {
+  ): Promise<UserInvitationView> {
     try {
       return await withTenant(this.pool, actor, requestId, async (client) => {
         const inserted = await client.query<UserRow>(
@@ -562,15 +569,22 @@ export class PgPhaseAService implements PhaseAService {
         if (!row) throw new Error("User insert returned no row");
         await this.replaceUserScopes(client, actor.organizationId, row.id, input.departmentIds ?? []);
         const invitationToken = createOpaqueToken();
-        await client.query(
+        const invitation = await client.query<{ expires_at: string | Date }>(
           `INSERT INTO user_invitations (
              organization_id, email, role, worker_id, token_hash, expires_at, invited_by
-           ) VALUES ($1, $2, $3, $4, $5, clock_timestamp() + interval '72 hours', $6)`,
+           ) VALUES ($1, $2, $3, $4, $5, clock_timestamp() + interval '72 hours', $6)
+           RETURNING expires_at`,
           [actor.organizationId, row.email, row.role, row.worker_id, hashToken(invitationToken), actor.userId]
         );
         const hydrated = await this.getUserRow(client, row.id);
         await audit(client, actor, requestId, "user.invite", "user", row.id, null, { ...hydrated, invitationToken: "[REDACTED]" });
-        return userView(hydrated);
+        const expiresAt = invitation.rows[0]?.expires_at;
+        if (!expiresAt) throw new Error("Invitation insert returned no expiry");
+        return {
+          ...userView(hydrated),
+          invitationUrl: `${this.invitationPublicOrigin}/#invite=${encodeURIComponent(invitationToken)}`,
+          expiresAt: expiresAt instanceof Date ? expiresAt.toISOString() : new Date(expiresAt).toISOString()
+        };
       });
     } catch (error) {
       return normalizeDatabaseError(error);
@@ -696,6 +710,17 @@ export class PgPhaseAService implements PhaseAService {
     });
   }
 
+  async activateWorker(actor: ActorContext, workerId: string, revision: string, requestId: string): Promise<WorkerView> {
+    return this.mutateWorker(actor, workerId, revision, requestId, "worker.activate", async (client) => {
+      return client.query<WorkerRow>(
+        `UPDATE workers SET status = 'active', deactivated_at = NULL, revision = revision + 1
+         WHERE id = $1 AND revision = $2::bigint
+         RETURNING id, code, name, email, department_id, shift_id, status, annual_leave_allowance, revision`,
+        [workerId, revision]
+      );
+    });
+  }
+
   async listShifts(actor: ActorContext): Promise<ShiftView[]> {
     return withTenant(this.pool, actor, "list-shifts", async (client) => {
       const result = await client.query<ShiftRow>(`${shiftSelect} GROUP BY s.id ORDER BY s.name, s.id`);
@@ -777,6 +802,11 @@ export class PgPhaseAService implements PhaseAService {
       return await withTenant(this.pool, actor, requestId, async (client) => {
         const worker = await client.query("SELECT id FROM workers WHERE id = $1", [workerId]);
         if (!worker.rows[0]) throw new AppError("NOT_FOUND", "Radnik nije pronađen.");
+        await client.query(
+          `UPDATE rfid_cards SET status = 'blocked', valid_to = COALESCE(valid_to, clock_timestamp()), revision = revision + 1
+           WHERE worker_id = $1 AND status = 'active'`,
+          [workerId]
+        );
         const result = await client.query<RfidRow>(
           `INSERT INTO rfid_cards (organization_id, worker_id, uid_hash, masked_uid, valid_from)
            VALUES ($1, $2, $3, $4, COALESCE($5::timestamptz, clock_timestamp()))

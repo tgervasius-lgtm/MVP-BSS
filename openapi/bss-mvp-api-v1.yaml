@@ -1,16 +1,16 @@
 openapi: 3.1.0
 info:
   title: BSS MVP API
-  version: 1.0.0
-  summary: Approved backend contract for the frozen BSS Frontend v1.0.0.
+  version: 1.1.0
+  summary: Implemented Backend MVP contract for the frozen BSS Frontend v1.0.0.
   description: |
-    Approved versioned contract for backend implementation; deployment remains a separate
+    Implemented versioned contract for the functional Backend MVP; deployment remains a separate
     operational decision. The server derives organization,
     role and department scope from the verified session/device identity. Client-supplied
     scope is never authorization evidence. CSV and XLSX are the currently approved export
-    formats. PDF/PDF-A requires a separate scope decision.
-  x-bss-status: FULL_PASS_APPROVED
-  x-bss-contract-reviewed-at: 2026-07-13
+    formats. PDF is approved as a professional business export in v1.1.
+  x-bss-status: MVP_IMPLEMENTED
+  x-bss-contract-reviewed-at: 2026-07-17
   x-bss-frontend-release: frontend-v1.0.0
   x-bss-baseline-commit: 91323c7cdbbbbf7b965c4926c94a11af6d31bf62
   license:
@@ -192,7 +192,7 @@ paths:
       tags: [Organization]
       operationId: listDepartments
       summary: List Departments
-      x-bss-roles: [admin, manager]
+      x-bss-roles: [admin, manager, worker]
       responses:
         '401':
           $ref: '#/components/responses/Unauthenticated'
@@ -334,11 +334,11 @@ paths:
               $ref: '#/components/schemas/UserInvite'
       responses:
         '202':
-          description: Invitation accepted for delivery.
+          description: Invitation created. The one-time fragment URL is returned only in this no-store administrator response for secure manual delivery.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/User'
+                $ref: '#/components/schemas/UserInvitation'
         '422':
           $ref: '#/components/responses/ValidationFailed'
   /users/{userId}:
@@ -415,7 +415,7 @@ paths:
       tags: [Workers]
       operationId: getWorker
       summary: Get Worker
-      x-bss-roles: [admin, manager]
+      x-bss-roles: [admin, manager, worker]
       parameters:
         - $ref: '#/components/parameters/WorkerId'
       responses:
@@ -473,7 +473,7 @@ paths:
       tags: [Shifts]
       operationId: listShifts
       summary: List Shifts
-      x-bss-roles: [admin, manager]
+      x-bss-roles: [admin, manager, worker]
       responses:
         '401':
           $ref: '#/components/responses/Unauthenticated'
@@ -527,6 +527,24 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Shift'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /workers/{workerId}/activate:
+    post:
+      tags: [Workers]
+      operationId: activateWorker
+      summary: Reactivate Worker
+      x-bss-roles: [admin]
+      parameters:
+        - $ref: '#/components/parameters/WorkerId'
+        - $ref: '#/components/parameters/IfMatch'
+      responses:
+        '200':
+          description: Worker reactivated while retained history remains unchanged.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Worker'
         '409':
           $ref: '#/components/responses/Conflict'
   /rfid-cards/{cardId}/block:
@@ -631,6 +649,25 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AttendancePage'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /approved-leave-calendar:
+    get:
+      tags: [Leave]
+      operationId: listApprovedLeaveCalendar
+      summary: List Privacy-safe Approved Leave Calendar
+      x-bss-roles: [admin, manager, worker, accountant]
+      description: Returns only employee name and approved annual-leave dates inside the configured organization, department or team visibility boundary.
+      parameters:
+        - $ref: '#/components/parameters/FromDate'
+        - $ref: '#/components/parameters/ToDate'
+      responses:
+        '200':
+          description: Privacy-safe approved annual leave calendar without notes, illness or other absence reasons.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovedLeaveCalendar'
         '403':
           $ref: '#/components/responses/Forbidden'
   /leave-requests:
@@ -929,6 +966,40 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ReportExport'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /report-exports/{exportId}/download:
+    get:
+      tags: [Reports]
+      operationId: downloadReportExport
+      summary: Download Report Export
+      x-bss-roles: [admin, manager, accountant]
+      parameters:
+        - $ref: '#/components/parameters/ExportId'
+      responses:
+        '200':
+          description: Ready, unexpired report artifact generated from the authoritative dataset.
+          headers:
+            Content-Disposition:
+              schema:
+                type: string
+            X-Content-SHA256:
+              schema:
+                type: string
+                pattern: '^[a-f0-9]{64}$'
+          content:
+            text/csv:
+              schema:
+                type: string
+                format: binary
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
+            application/pdf:
+              schema:
+                type: string
+                format: binary
         '404':
           $ref: '#/components/responses/NotFound'
   /audit-events:
@@ -1418,9 +1489,12 @@ components:
             $ref: '#/components/schemas/DashboardKpi'
         datasetVersion:
           type: string
+    ApprovedLeaveVisibility:
+      type: string
+      enum: [team, department, organization]
     Organization:
       type: object
-      required: [id, name, timezone, revision]
+      required: [id, name, timezone, approvedLeaveVisibility, revision]
       properties:
         id:
           type: string
@@ -1431,6 +1505,8 @@ components:
         timezone:
           type: string
           examples: [Europe/Zagreb]
+        approvedLeaveVisibility:
+          $ref: '#/components/schemas/ApprovedLeaveVisibility'
         revision:
           $ref: '#/components/schemas/Revision'
     OrganizationPatch:
@@ -1446,6 +1522,8 @@ components:
           maxLength: 32
         timezone:
           type: string
+        approvedLeaveVisibility:
+          $ref: '#/components/schemas/ApprovedLeaveVisibility'
     Department:
       type: object
       required: [id, name, status, revision]
@@ -1540,6 +1618,20 @@ components:
           type: array
           items:
             type: string
+    UserInvitation:
+      allOf:
+        - $ref: '#/components/schemas/User'
+        - type: object
+          required: [invitationUrl, expiresAt]
+          properties:
+            invitationUrl:
+              type: string
+              format: uri
+              writeOnly: true
+              description: One-time URL fragment; never persisted in plaintext and never returned again.
+            expiresAt:
+              type: string
+              format: date-time
     UserPatch:
       type: object
       additionalProperties: false
@@ -1835,6 +1927,35 @@ components:
         note:
           type: string
           maxLength: 1000
+    ApprovedLeaveCalendarItem:
+      type: object
+      additionalProperties: false
+      required: [id, employeeName, startDate, endDate]
+      properties:
+        id:
+          type: string
+          format: uuid
+        employeeName:
+          type: string
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+    ApprovedLeaveCalendar:
+      type: object
+      additionalProperties: false
+      required: [visibility, items, datasetVersion]
+      properties:
+        visibility:
+          $ref: '#/components/schemas/ApprovedLeaveVisibility'
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ApprovedLeaveCalendarItem'
+        datasetVersion:
+          type: string
     LeaveRequestPage:
       type: object
       required: [items, page]
@@ -1984,8 +2105,8 @@ components:
       enum: [monthly_summary, attendance_journal, exceptions, approved_absences, correction_log]
     ReportFormat:
       type: string
-      enum: [csv, xlsx]
-      description: PDF/PDF-A is intentionally absent until a scope amendment is approved.
+      enum: [csv, xlsx, pdf]
+      description: XLSX is the primary business export, PDF is the professional fixed-layout export and CSV is technical.
     ReportExportWrite:
       type: object
       additionalProperties: false
@@ -2238,6 +2359,7 @@ components:
           enum: [check_in, check_out]
         cardUidHash:
           type: string
+          description: Lowercase hex HMAC-SHA-256 of the normalized RFID UID. The terminal receives the hashing secret through its managed device provisioning channel; the raw UID is never sent or stored.
         deviceClockOffsetSeconds:
           type: integer
     TerminalEventBatch:
@@ -2333,6 +2455,7 @@ components:
         sequence:
           type: integer
           minimum: 1
+          description: Latest sequence observed by the terminal for diagnostics only. Heartbeat does not acknowledge or advance the server event-ingestion cursor.
         queueDepth:
           type: integer
           minimum: 0

@@ -84,7 +84,7 @@ export async function registerPhaseARoutes(app: FastifyInstance, dependencies: D
   });
 
   app.patch<{
-    Body: { name?: string; taxIdentifier?: string; timezone?: string };
+    Body: { name?: string; taxIdentifier?: string; timezone?: string; approvedLeaveVisibility?: "team" | "department" | "organization" };
     Headers: { "if-match": string };
   }>(
     "/api/v1/organization",
@@ -99,6 +99,7 @@ export async function registerPhaseARoutes(app: FastifyInstance, dependencies: D
             name: { type: "string", minLength: 2, maxLength: 160 },
             taxIdentifier: { type: "string", maxLength: 32 },
             timezone: { type: "string", minLength: 1, maxLength: 64 }
+            ,approvedLeaveVisibility: { type: "string", enum: ["team", "department", "organization"] }
           }
         }
       }
@@ -359,7 +360,9 @@ export async function registerPhaseARoutes(app: FastifyInstance, dependencies: D
     { schema: { params: idParams("workerId") } },
     async (request, reply) => {
       const { actor } = await authenticate(request);
-      requirePermission(actor, "workers", "read");
+      if (!(actor.role === "worker" && actor.selfWorkerId === request.params.workerId)) {
+        requirePermission(actor, "workers", "read");
+      }
       const result = await service.getWorker(actor, request.params.workerId);
       etag(reply, result.revision);
       return result;
@@ -385,6 +388,18 @@ export async function registerPhaseARoutes(app: FastifyInstance, dependencies: D
       const { actor } = await authenticate(request);
       requirePermission(actor, "workers", "write");
       const result = await service.deactivateWorker(actor, request.params.workerId, requireRevision(request.headers["if-match"]), request.id);
+      etag(reply, result.revision);
+      return result;
+    }
+  );
+
+  app.post<{ Params: { workerId: string }; Headers: { "if-match": string } }>(
+    "/api/v1/workers/:workerId/activate",
+    { schema: { params: idParams("workerId"), headers: revisionHeader } },
+    async (request, reply) => {
+      const { actor } = await authenticate(request);
+      requirePermission(actor, "workers", "write");
+      const result = await service.activateWorker(actor, request.params.workerId, requireRevision(request.headers["if-match"]), request.id);
       etag(reply, result.revision);
       return result;
     }

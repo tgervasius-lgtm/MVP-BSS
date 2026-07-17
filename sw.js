@@ -1,9 +1,9 @@
-const CACHE_NAME = 'bss-refactor-v1-r7';
+const CACHE_NAME = 'bss-backend-mvp-v1-r1';
 const ASSETS = [
   './index.html','./styles.css','./app.js','./manifest.json','./icons/icon.svg',
   './styles/base.css','./styles/layouts.css','./styles/components.css','./styles/screens.css',
   './styles/navigation.css','./styles/themes.css','./styles/responsive.css',
-  './src/adapters/runtime.js','./src/adapters/theme-bootstrap.js','./src/domain/contracts.js','./src/domain/time.js','./src/policies/access.js',
+  './src/adapters/runtime.js','./src/adapters/api.js','./src/adapters/api-state.js','./src/adapters/api-bindings.js','./src/adapters/theme-bootstrap.js','./src/domain/contracts.js','./src/domain/time.js','./src/policies/access.js',
   './src/use-cases/attendance.js','./src/use-cases/leave.js','./src/use-cases/corrections.js',
   './src/views/registry.js','./src/views/events.js',
   './design-system/index.html','./design-system/tokens.css','./design-system/guide.css','./design-system/guide.js',
@@ -47,6 +47,10 @@ self.addEventListener('activate', event => {
 self.addEventListener('fetch', event => {
   if(event.request.method!=='GET') return;
   const path = new URL(event.request.url).pathname;
+  if(path.startsWith('/api/')){
+    event.respondWith(fetch(new Request(event.request,{cache:'no-store'})));
+    return;
+  }
   if(event.request.mode==='navigate' || path.endsWith('/index.html')){
     event.respondWith(networkFirstDocument(event.request));
     return;

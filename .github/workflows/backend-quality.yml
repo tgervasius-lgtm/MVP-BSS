@@ -8,6 +8,7 @@ on:
       - "BACKEND_READINESS_REPORT.md"
       - "BACKEND_ARCHITECTURE.md"
       - "BSS_BACKEND_HANDOFF_V1.md"
+      - "BACKEND_PHASE_B_REPORT.md"
       - ".github/workflows/backend-quality.yml"
   push:
     branches:
@@ -19,6 +20,7 @@ on:
       - "BACKEND_READINESS_REPORT.md"
       - "BACKEND_ARCHITECTURE.md"
       - "BSS_BACKEND_HANDOFF_V1.md"
+      - "BACKEND_PHASE_B_REPORT.md"
       - ".github/workflows/backend-quality.yml"
 
 permissions:

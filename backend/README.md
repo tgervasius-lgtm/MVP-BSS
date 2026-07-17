@@ -1,35 +1,41 @@
-# BSS Backend MVP – Faza A
+# BSS Backend MVP – Faza B
 
-Modularni Fastify/TypeScript servis za zaključani Frontend v1.0.0. Ovaj direktorij ne mijenja frontend runtime niti njegov UX/UI.
+Fastify/TypeScript API za frozen BSS frontend v1.0.0. OpenAPI `1.1.0` ima 54 implementirane operacije nad PostgreSQL-om 16.
 
-## Lokalno
-
-Preduvjeti: Node.js 22+ i PostgreSQL 16+.
+## Pokretanje
 
 ```bash
-cd backend
 cp .env.example .env
 npm ci
 npm run migrate
+
+BSS_BOOTSTRAP_ORGANIZATION_NAME='BSS d.o.o.' \
+BSS_BOOTSTRAP_ADMIN_EMAIL='admin@example.hr' \
+BSS_BOOTSTRAP_ADMIN_PASSWORD='sigurna-lozinka-najmanje-12' \
+npm run bootstrap
+
 npm run dev
 ```
 
-API je pod `/api/v1`; infrastrukturni liveness endpoint je `/healthz`. Produkcija zahtijeva HTTPS, sigurne HttpOnly/SameSite kolačiće i zasebnu `NOBYPASSRLS` runtime ulogu.
-`RFID_UID_PEPPER` je obvezna produkcijska tajna od najmanje 32 znaka i ne smije se dijeliti s cookie/device tajnama.
+Za isti origin prvo u korijenu repozitorija pokrenite `npm run build`, zatim postavite `FRONTEND_ROOT=../dist`. API je pod `/api/v1`, liveness pod `/healthz`.
 
-## Quality gate
+## Provjere
 
 ```bash
-npm run check
-BSS_TEST_DATABASE_URL='postgres://…' BSS_REQUIRE_POSTGRES_TESTS=true npm run test:integration
+npm run lint
+npm run lint:openapi
+npm run test:unit
+npm run build
+
+BSS_TEST_DATABASE_URL='postgres://…' \
+BSS_REQUIRE_POSTGRES_TESTS=true \
+npm run test:integration
 ```
 
-Lokalni integration test se preskače samo kada PostgreSQL URL nije zadan. U GitHub CI-ju PostgreSQL test je obvezan.
+Integracija provjerava migracije, RLS izolaciju, auth, organizaciju/odjele/radnike/smjene, RFID prijavu/odjavu, godišnji, korekcije, audit te CSV/XLSX/PDF.
 
-## Implementirani dio ugovora
+## Produkcija
 
-OpenAPI `1.0.0` ima 40 putanja i 51 odobrenu operaciju. Faza A implementira 30 operacija: auth/sesije i invitation accept, dashboard, organizaciju, odjele, blagdane, korisnike, radnike, smjene, RFID assignment/block, fond godišnjeg, report preview i terminal sync-event timeline.
+Produkcija zahtijeva HTTPS, secure cookies, eksplicitne `RFID_UID_PEPPER`, `DEVICE_CREDENTIAL_ENCRYPTION_KEY` i `TERMINAL_ACTIVATION_CODE` tajne te runtime DB ulogu `NOSUPERUSER NOBYPASSRLS` koja nije vlasnik tablica. Grant predložak je `deploy/runtime-grants.sql`, a operativni runbook `OPERATIONS.md`.
 
-Preostale odobrene operacije pripadaju procesiranju evidencije/terminala, zahtjevima, korekcijama, izvoznom workeru i audit read modelu u kasnijim fazama. To nisu otvorene contract odluke: njihove sheme i scope već su zaključani u OpenAPI v1.
-
-Readiness odluke su u `../BACKEND_READINESS_REPORT.md`, arhitektura u `../BACKEND_ARCHITECTURE.md`, a strojna screen/API matrica u `contracts/frontend-screen-api-map-v1.json`.
+Arhitektura i MVP granice: `../BACKEND_ARCHITECTURE.md`. Predaja: `../BSS_BACKEND_HANDOFF_V1.md`.
