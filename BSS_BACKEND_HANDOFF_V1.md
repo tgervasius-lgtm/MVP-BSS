@@ -8,6 +8,7 @@
 | Backend | Faza B implementirana na grani `agent/bss-backend-phase-b-v1` |
 | Baza | PostgreSQL 16, migracije `001`–`007` |
 | Runtime | frontend i API na istom originu |
+| Readiness | **FULL PASS**, 0 otvorenih readiness stavki |
 | Produkcija | nije automatski objavljena niti spojena u `main` |
 
 ## Što se predaje

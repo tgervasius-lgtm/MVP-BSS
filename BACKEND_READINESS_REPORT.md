@@ -8,7 +8,8 @@
 | Pokrivenost | 43 putanje / 54 operacije / 54 implementirane operacije |
 | Migracije | `001`–`007`, PostgreSQL 16 |
 | Faza | Backend MVP – Faza B |
-| Readiness | **IMPLEMENTED — završni FULL PASS potvrđuje obvezni PostgreSQL/browser CI** |
+| Readiness | **FULL PASS — PostgreSQL i full-stack browser CI zeleni** |
+| Otvorene readiness stavke | **0** |
 
 ## Izvršni zaključak
 
@@ -117,9 +118,11 @@ Operativni minimum ostaje: managed PostgreSQL, enkripcija, PITR s ciljem RPO 15 
 | --- | --- |
 | Frontend lint / unit / build | PASS |
 | Backend TypeScript / OpenAPI / unit / contract / build | PASS |
-| PostgreSQL migracije, RLS, auth i cijeli poslovni tok | PASS u obveznom CI-ju |
+| PostgreSQL migracije, RLS, auth i cijeli poslovni tok | PASS — `BSS backend quality gate` |
 | CSV/XLSX/PDF struktura i checksum | PASS |
-| Chromium desktop + mobile protiv stvarnog API-ja/PostgreSQL-a | PASS u obveznom CI-ju |
+| Chromium desktop + mobile protiv stvarnog API-ja/PostgreSQL-a | PASS — `BSS quality gate` |
 | Cloudflare preview | informativan samo za statički shell; Node API zahtijeva backend hosting |
 
-Ovaj dokument ne odobrava merge u `main` ni produkcijski deploy. Završni status se proglašava `FULL PASS` tek kada obje GitHub quality provjere na PR commitu budu zelene.
+Obje obvezne GitHub provjere zelene su na implementacijskom commitu `c04587c99902d03218897ee07cd84e537bdb8716`. Nema otvorenih ugovornih ni readiness stavki za Backend MVP Fazu B.
+
+Ovaj dokument ne odobrava merge u `main` ni produkcijski deploy.

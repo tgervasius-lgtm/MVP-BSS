@@ -4,6 +4,8 @@
 
 Faza B implementira svih 54 operation ID-jeva OpenAPI-ja `1.1.0` i povezuje frontend na stvarni same-origin API. Produkcijski runtime započinje praznim stanjem, obnavlja sesiju preko `/me` i poslovne podatke čita/mijenja isključivo preko PostgreSQL-a.
 
+Status: **FULL PASS**. Otvorene readiness stavke: **0**.
+
 | Prioritet | Isporuka |
 | --- | --- |
 | Autentikacija | login, invitation accept, refresh rotacija, logout, `/me` |
@@ -27,6 +29,8 @@ Faza B implementira svih 54 operation ID-jeva OpenAPI-ja `1.1.0` i povezuje fron
 - browser CI: desktop + mobile Chromium, stvarni login, svi admin ekrani, stvarni create-worker API/DB roundtrip i axe.
 
 Lokalno okruženje bez PostgreSQL binarija ne glumi integracijski PASS; autoritativni rezultat daje obvezni GitHub PostgreSQL quality gate na točnom PR commitu.
+
+Obvezni `BSS backend quality gate` i `BSS quality gate` završili su zeleno na implementacijskom commitu `c04587c99902d03218897ee07cd84e537bdb8716`.
 
 ## Namjerno izvan MVP-a
 
