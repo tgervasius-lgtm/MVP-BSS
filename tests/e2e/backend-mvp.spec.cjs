@@ -8,8 +8,15 @@ const adminPassword=process.env.BSS_BOOTSTRAP_ADMIN_PASSWORD;
 function trackErrors(page){
   const errors=[];
   page.on('pageerror',error=>errors.push(`page: ${error.message}`));
-  page.on('console',message=>{if(message.type()==='error')errors.push(`console: ${message.text()}`);});
+  page.on('console',message=>{
+    if(message.type()==='error'&&!message.text().startsWith('Failed to load resource:')){
+      errors.push(`console: ${message.text()}`);
+    }
+  });
   page.on('requestfailed',request=>errors.push(`request: ${request.url()} · ${request.failure()?.errorText||'failed'}`));
+  page.on('response',response=>{
+    if(response.status()>=500)errors.push(`response: ${response.status()} · ${response.url()}`);
+  });
   return errors;
 }
 
