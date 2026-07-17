@@ -56,12 +56,12 @@ test('stvarni PostgreSQL backend prijavljuje administratora i otvara svaki ugovo
   expect(errors).toEqual([]);
 });
 
-test('radnik spremljen kroz UI odmah dolazi iz stvarnog API-ja i PostgreSQL baze',async({page,project})=>{
+test('radnik spremljen kroz UI odmah dolazi iz stvarnog API-ja i PostgreSQL baze',async({page},testInfo)=>{
   const errors=trackErrors(page);
   await login(page);
   await page.evaluate(()=>window.navigate('workers'));
   await page.getByRole('button',{name:'Dodaj radnika'}).click();
-  const suffix=`${project.name.replace(/[^a-z]/gi,'').slice(0,8)}-${randomUUID().slice(0,8)}`;
+  const suffix=`${testInfo.project.name.replace(/[^a-z]/gi,'').slice(0,8)}-${randomUUID().slice(0,8)}`;
   const code=`E2E-${suffix}`;
   const name=`E2E Radnik ${suffix}`;
   await page.locator('#workerCode').fill(code);
