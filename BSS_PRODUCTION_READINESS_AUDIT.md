@@ -40,6 +40,7 @@ Finalni dokaz mora biti vezan uz isti PR commit:
 | ARC-04 | niska | Četiri dokazano nepozvane legacy frontend funkcije povećavale su površinu za održavanje. | Uklonjeni su mrtvi mjesečni/KPI/request helperi; compatibility fixture ostavljen je jer ga regresijski ugovor još namjerno provjerava. |
 | ARC-05 | srednja | TypeScript dopuštao je labavije opcionalne vrijednosti i implicitno nepokrivene grane. | Uključeni su stroži compiler i ESLint gateovi te dodani ciljano tipizirani helperi. |
 | ARC-06 | srednja | Root `check` nije provjeravao oba dijela sustava, a frontend release workflow bi nakon promjene pokrenuo backend bez instaliranih ovisnosti. | Root gate sada provjerava frontend i backend; zamrznuti frontend release eksplicitno koristi `check:frontend`. |
+| ARC-07 | niska | Terminalski integracijski scenarij koristio je fiksni datum sljedećeg dana pa je rezultat ovisio o vremenu pokretanja CI-ja. | Valjani slijed koristi deterministički prošli datum, dok zaseban dinamički test i dalje dokazuje odbijanje događaja iz budućnosti. |
 
 ### Multi-tenant izolacija, RBAC i integritet podataka
 
@@ -87,6 +88,7 @@ Finalni dokaz mora biti vezan uz isti PR commit:
 | CON-06 | visoka | Device auth se mogao osloniti samo na raniji credential lookup. | Nakon HMAC provjere transakcija ponovno zaključava terminal i provjerava terminal/organization status; decrypt ili signature greška fail-closed vraća generički 401. |
 | CON-07 | srednja | Neograničeni batch, sequence, offset, queue depth i nonce povećavali su DoS/resource rizik. | HTTP/OpenAPI tvrdo ograničavaju batch na 500, body na 1 MiB i sva numerička/string polja. |
 | CON-08 | srednja | DST i datum organizacije bili su izvedeni iz browserove lokalne zone. | Frontend koristi organizacijsku IANA zonu, DST-aware pretvorbu, odbija nepostojeće wall-clock vrijeme i testira ljetni/zimski pomak. |
+| CON-09 | visoka | Novi DB time-order constraint zabranio je privremeni `check_out` bez `check_in`, iako offline terminalski ugovor namjerno podržava naknadnu rekoncilijaciju događaja. | Constraint sada dopušta samo taj nepotpuni međukorak; čim postoje oba vremena, baza i dalje zahtijeva ispravan redoslijed i najviše 16 sati. PostgreSQL integracija pokriva oba smjera dolaska. |
 
 ### API, frontend integracija, error handling i cache
 
