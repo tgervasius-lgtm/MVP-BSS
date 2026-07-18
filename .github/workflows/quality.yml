@@ -10,22 +10,46 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: fullstack-quality-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   quality:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: bss_e2e
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d bss_e2e"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
       - name: Node 22
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
           cache: npm
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Install backend dependencies
+        run: npm --prefix backend ci
+
+      - name: Production dependency audit
+        run: npm audit --omit=dev --audit-level=high && npm --prefix backend audit --omit=dev --audit-level=high
 
       - name: Lint
         run: npm run lint
@@ -36,8 +60,46 @@ jobs:
       - name: Build Cloudflare Pages output
         run: npm run build
 
+      - name: Build backend
+        run: npm --prefix backend run build
+
+      - name: Migrate PostgreSQL
+        run: npm --prefix backend run migrate:prod
+        env:
+          NODE_ENV: test
+          PUBLIC_ORIGIN: http://127.0.0.1:4173
+          DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/bss_e2e
+          DATABASE_SSL: "false"
+
+      - name: Bootstrap E2E organization
+        run: npm --prefix backend run bootstrap:prod
+        env:
+          NODE_ENV: test
+          PUBLIC_ORIGIN: http://127.0.0.1:4173
+          DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/bss_e2e
+          DATABASE_SSL: "false"
+          BSS_BOOTSTRAP_ORGANIZATION_NAME: BSS E2E d.o.o.
+          BSS_BOOTSTRAP_ADMIN_EMAIL: admin-e2e@bss.test
+          BSS_BOOTSTRAP_ADMIN_PASSWORD: E2E-secure-password-2026!
+
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
 
       - name: Browser E2E and axe
         run: npm run test:e2e -- --reporter=line
+        env:
+          BSS_E2E_FULLSTACK: "true"
+          BSS_E2E_BASE_URL: http://127.0.0.1:4173
+          NODE_ENV: test
+          HOST: 127.0.0.1
+          PORT: "4173"
+          PUBLIC_ORIGIN: http://127.0.0.1:4173
+          DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/bss_e2e
+          DATABASE_SSL: "false"
+          COOKIE_SECURE: "false"
+          FRONTEND_ROOT: ../dist
+          RFID_UID_PEPPER: e2e-rfid-pepper-0123456789abcdef
+          DEVICE_CREDENTIAL_ENCRYPTION_KEY: e2e-device-encryption-key-0123456789abcdef
+          TERMINAL_ACTIVATION_CODE: e2e-terminal-activation-code
+          BSS_BOOTSTRAP_ADMIN_EMAIL: admin-e2e@bss.test
+          BSS_BOOTSTRAP_ADMIN_PASSWORD: E2E-secure-password-2026!

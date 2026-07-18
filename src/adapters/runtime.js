@@ -20,7 +20,7 @@
       storage.setItem(probe,'1');
       storage.removeItem(probe);
       return storage;
-    }catch(error){
+    }catch{
       return null;
     }
   }
@@ -32,7 +32,7 @@
         try{
           const value = storage?.getItem(String(key));
           return value === null || value === undefined ? memory.getItem(key) : value;
-        }catch(error){
+        }catch{
           return memory.getItem(key);
         }
       },
@@ -47,7 +47,7 @@
       getJson(key){
         const raw = this.get(key);
         if(raw === null) return null;
-        try{ return JSON.parse(raw); }catch(error){ return null; }
+        try{ return JSON.parse(raw); }catch{ return null; }
       },
       setJson(key,value){ this.set(key,JSON.stringify(value)); }
     });

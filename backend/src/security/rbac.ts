@@ -3,13 +3,13 @@ import type { ActorContext, Role } from "../domain/types.js";
 
 export const RBAC = Object.freeze({
   organization: { read: ["admin"], write: ["admin"] },
-  departments: { read: ["admin", "manager"], write: ["admin"] },
+  departments: { read: ["admin", "manager", "worker"], write: ["admin"] },
   users: { read: ["admin"], write: ["admin"] },
   workers: { read: ["admin", "manager"], write: ["admin"] },
-  shifts: { read: ["admin", "manager"], write: ["admin"] },
+  shifts: { read: ["admin", "manager", "worker"], write: ["admin"] },
   holidays: { read: ["admin", "manager", "worker", "accountant"], write: ["admin"] },
   attendance: { read: ["admin", "manager", "worker"], write: [] },
-  leave: { read: ["admin", "manager", "worker"], write: ["admin", "manager", "worker"] },
+  leave: { read: ["admin", "manager", "worker", "accountant"], write: ["admin", "manager", "worker"] },
   corrections: { read: ["admin", "manager", "worker"], write: ["admin", "manager", "worker"] },
   reports: { read: ["admin", "manager", "accountant"], write: ["admin", "manager", "accountant"] },
   audit: { read: ["admin"], write: [] },
@@ -22,6 +22,12 @@ export type Permission = "read" | "write";
 export function requirePermission(actor: ActorContext, resource: Resource, permission: Permission): void {
   const allowed = RBAC[resource][permission] as readonly Role[];
   if (!allowed.includes(actor.role)) {
+    throw new AppError("FORBIDDEN", "Nemate ovlast za ovu radnju.");
+  }
+}
+
+export function requireRole(actor: ActorContext, roles: readonly Role[]): void {
+  if (!roles.includes(actor.role)) {
     throw new AppError("FORBIDDEN", "Nemate ovlast za ovu radnju.");
   }
 }

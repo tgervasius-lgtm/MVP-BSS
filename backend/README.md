@@ -1,35 +1,40 @@
-# BSS Backend MVP – Faza A
+# BSS Backend MVP – Faza B
 
-Modularni Fastify/TypeScript servis za zaključani Frontend v1.0.0. Ovaj direktorij ne mijenja frontend runtime niti njegov UX/UI.
+Fastify/TypeScript API za frozen BSS frontend v1.0.0. OpenAPI `1.1.0` ima 54 implementirane operacije nad PostgreSQL-om 16.
 
-## Lokalno
-
-Preduvjeti: Node.js 22+ i PostgreSQL 16+.
+## Pokretanje iz korijena repozitorija
 
 ```bash
-cd backend
-cp .env.example .env
+nvm use
 npm ci
-npm run migrate
-npm run dev
+npm --prefix backend ci
+docker compose -f compose.dev.yml up -d postgres
+cp backend/.env.example backend/.env
+npm run build
+npm --prefix backend run migrate
+npm --prefix backend run bootstrap
+npm --prefix backend run dev
 ```
 
-API je pod `/api/v1`; infrastrukturni liveness endpoint je `/healthz`. Produkcija zahtijeva HTTPS, sigurne HttpOnly/SameSite kolačiće i zasebnu `NOBYPASSRLS` runtime ulogu.
-`RFID_UID_PEPPER` je obvezna produkcijska tajna od najmanje 32 znaka i ne smije se dijeliti s cookie/device tajnama.
+Prije jednokratnog bootstrapa promijenite `BSS_BOOTSTRAP_ADMIN_PASSWORD` u lokalnom `.env`-u i zatim ga uklonite. Skripte učitavaju opcionalni `backend/.env`; procesne varijable imaju prednost. API je pod `/api/v1`, liveness pod `/healthz`, a PostgreSQL readiness pod `/readyz`. Potpune upute i zasebna testna baza: `../DEVELOPER_GUIDE.md`.
 
-## Quality gate
+## Provjere
 
 ```bash
-npm run check
-BSS_TEST_DATABASE_URL='postgres://…' BSS_REQUIRE_POSTGRES_TESTS=true npm run test:integration
+npm run lint
+npm run lint:openapi
+npm run test:unit
+npm run build
+
+BSS_TEST_DATABASE_URL='postgres://…' \
+BSS_REQUIRE_POSTGRES_TESTS=true \
+npm run test:integration
 ```
 
-Lokalni integration test se preskače samo kada PostgreSQL URL nije zadan. U GitHub CI-ju PostgreSQL test je obvezan.
+Integracija provjerava migracije, RLS izolaciju, auth, organizaciju/odjele/radnike/smjene, RFID prijavu/odjavu, godišnji, korekcije, audit te CSV/XLSX/PDF.
 
-## Implementirani dio ugovora
+## Produkcija
 
-OpenAPI `1.0.0` ima 40 putanja i 51 odobrenu operaciju. Faza A implementira 30 operacija: auth/sesije i invitation accept, dashboard, organizaciju, odjele, blagdane, korisnike, radnike, smjene, RFID assignment/block, fond godišnjeg, report preview i terminal sync-event timeline.
+Produkcija ne koristi lokalni `.env` ni `compose.dev.yml`. Zahtijeva eksplicitni `DATABASE_URL`, HTTPS, secure cookies, nasumične `RFID_UID_PEPPER`, `DEVICE_CREDENTIAL_ENCRYPTION_KEY` i `TERMINAL_ACTIVATION_CODE` tajne iz platformskog secret storea te runtime DB ulogu `NOSUPERUSER NOBYPASSRLS` koja nije vlasnik tablica. Grant predložak je `deploy/runtime-grants.sql`; per-tenant čišćenje isteklih resursa je `deploy/maintenance.sql`, a operativni runbook `OPERATIONS.md`.
 
-Preostale odobrene operacije pripadaju procesiranju evidencije/terminala, zahtjevima, korekcijama, izvoznom workeru i audit read modelu u kasnijim fazama. To nisu otvorene contract odluke: njihove sheme i scope već su zaključani u OpenAPI v1.
-
-Readiness odluke su u `../BACKEND_READINESS_REPORT.md`, arhitektura u `../BACKEND_ARCHITECTURE.md`, a strojna screen/API matrica u `contracts/frontend-screen-api-map-v1.json`.
+Arhitektura i MVP granice: `../BACKEND_ARCHITECTURE.md`. Deep audit: `../BSS_PRODUCTION_READINESS_AUDIT.md`. Predaja: `../BSS_BACKEND_HANDOFF_V1.md`.

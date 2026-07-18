@@ -2,14 +2,21 @@
   "name": "bss-smart-systems-demo",
   "version": "3.0.0",
   "private": true,
+  "engines": {
+    "node": ">=22.9.0",
+    "npm": ">=10.0.0"
+  },
   "scripts": {
     "test": "node --test tests/app.test.cjs",
     "build": "node scripts/build.mjs",
     "serve:dist": "node scripts/serve-dist.mjs",
+    "start:fullstack": "npm run build && npm --prefix backend run build && FRONTEND_ROOT=../dist npm --prefix backend run start",
     "lint": "eslint .",
     "pretest:e2e": "npm run build",
     "test:e2e": "playwright test",
-    "check": "npm run lint && npm test && npm run build",
+    "check:frontend": "npm run lint && npm test && npm run build",
+    "check:backend": "npm --prefix backend run check",
+    "check": "npm run check:frontend && npm run check:backend",
     "ci": "npm run lint && npm test && npm run test:e2e"
   },
   "devDependencies": {
@@ -17,6 +24,7 @@
     "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.61.1",
     "eslint": "^10.7.0",
+    "globals": "^17.7.0",
     "jsdom": "26.1.0"
   }
 }
