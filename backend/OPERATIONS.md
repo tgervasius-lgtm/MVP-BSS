@@ -14,6 +14,8 @@ RLS custom tenant GUC is an application-safety boundary, not protection from a s
 
 Runtime secrets must come from the platform secret/KMS store. At minimum this includes `DATABASE_URL`, `RFID_UID_PEPPER`, cookie/session deployment settings and the terminal credential encryption key. Rotate the RFID pepper only through a planned card re-enrollment migration because its HMAC output is the lookup key.
 
+Production must inject environment variables through the process/container platform. Do not mount the repository's local `backend/.env` or use `compose.dev.yml`. The Node scripts accept an optional `.env` only to make the documented local workflow reproducible; already injected process variables take precedence. Remove bootstrap credentials immediately after first-tenant provisioning and never expose them to the web runtime.
+
 `DEVICE_CREDENTIAL_ENCRYPTION_KEY` rotation needs a dual-read/re-encryption procedure keyed by credential `key_version`; do not simply replace the secret while active terminals exist. `TERMINAL_ACTIVATION_CODE` is a provisioning secret and must be rotated after suspected exposure.
 
 Session TTLs are bounded by the process: access tokens may not exceed 24 hours and refresh tokens may not exceed 365 days. The recommended production defaults remain 15 minutes and 30 days; changing them is a security-policy decision, not a deployment workaround.

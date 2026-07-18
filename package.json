@@ -2,6 +2,10 @@
   "name": "bss-smart-systems-demo",
   "version": "3.0.0",
   "private": true,
+  "engines": {
+    "node": ">=22.9.0",
+    "npm": ">=10.0.0"
+  },
   "scripts": {
     "test": "node --test tests/app.test.cjs",
     "build": "node scripts/build.mjs",

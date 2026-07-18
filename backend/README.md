@@ -2,22 +2,21 @@
 
 Fastify/TypeScript API za frozen BSS frontend v1.0.0. OpenAPI `1.1.0` ima 54 implementirane operacije nad PostgreSQL-om 16.
 
-## Pokretanje
+## Pokretanje iz korijena repozitorija
 
 ```bash
-cp .env.example .env
+nvm use
 npm ci
-npm run migrate
-
-BSS_BOOTSTRAP_ORGANIZATION_NAME='BSS d.o.o.' \
-BSS_BOOTSTRAP_ADMIN_EMAIL='admin@example.hr' \
-BSS_BOOTSTRAP_ADMIN_PASSWORD='sigurna-lozinka-najmanje-12' \
-npm run bootstrap
-
-npm run dev
+npm --prefix backend ci
+docker compose -f compose.dev.yml up -d postgres
+cp backend/.env.example backend/.env
+npm run build
+npm --prefix backend run migrate
+npm --prefix backend run bootstrap
+npm --prefix backend run dev
 ```
 
-Za isti origin prvo u korijenu repozitorija pokrenite `npm run build`, zatim postavite `FRONTEND_ROOT=../dist`. API je pod `/api/v1`, liveness pod `/healthz`, a PostgreSQL readiness pod `/readyz`.
+Prije jednokratnog bootstrapa promijenite `BSS_BOOTSTRAP_ADMIN_PASSWORD` u lokalnom `.env`-u i zatim ga uklonite. Skripte učitavaju opcionalni `backend/.env`; procesne varijable imaju prednost. API je pod `/api/v1`, liveness pod `/healthz`, a PostgreSQL readiness pod `/readyz`. Potpune upute i zasebna testna baza: `../DEVELOPER_GUIDE.md`.
 
 ## Provjere
 
@@ -36,6 +35,6 @@ Integracija provjerava migracije, RLS izolaciju, auth, organizaciju/odjele/radni
 
 ## Produkcija
 
-Produkcija zahtijeva eksplicitni `DATABASE_URL`, HTTPS, secure cookies, nasumične `RFID_UID_PEPPER`, `DEVICE_CREDENTIAL_ENCRYPTION_KEY` i `TERMINAL_ACTIVATION_CODE` tajne te runtime DB ulogu `NOSUPERUSER NOBYPASSRLS` koja nije vlasnik tablica. Grant predložak je `deploy/runtime-grants.sql`; per-tenant čišćenje isteklih resursa je `deploy/maintenance.sql`, a operativni runbook `OPERATIONS.md`.
+Produkcija ne koristi lokalni `.env` ni `compose.dev.yml`. Zahtijeva eksplicitni `DATABASE_URL`, HTTPS, secure cookies, nasumične `RFID_UID_PEPPER`, `DEVICE_CREDENTIAL_ENCRYPTION_KEY` i `TERMINAL_ACTIVATION_CODE` tajne iz platformskog secret storea te runtime DB ulogu `NOSUPERUSER NOBYPASSRLS` koja nije vlasnik tablica. Grant predložak je `deploy/runtime-grants.sql`; per-tenant čišćenje isteklih resursa je `deploy/maintenance.sql`, a operativni runbook `OPERATIONS.md`.
 
 Arhitektura i MVP granice: `../BACKEND_ARCHITECTURE.md`. Deep audit: `../BSS_PRODUCTION_READINESS_AUDIT.md`. Predaja: `../BSS_BACKEND_HANDOFF_V1.md`.

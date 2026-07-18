@@ -1342,7 +1342,10 @@ export class PgMvpService extends PgPhaseAService implements MvpService {
     };
     const lookup = await this.mvpPool.query<CredentialRow>("SELECT * FROM bss_terminal_credential_lookup($1)", [proof.terminalId]);
     const credential = lookup.rows[0];
-    if (!credential || credential.terminal_status === "revoked" || credential.revoked_at || (credential.valid_to && new Date(credential.valid_to) <= new Date()) ||
+    const now = Date.now();
+    if (!credential || credential.terminal_status === "revoked" || credential.revoked_at ||
+      new Date(credential.valid_from).getTime() > now ||
+      (credential.valid_to && new Date(credential.valid_to).getTime() <= now) ||
       !credential.credential_ciphertext || !credential.credential_iv || !credential.credential_auth_tag) {
       throw new AppError("UNAUTHENTICATED", "Terminalski identitet nije valjan.");
     }

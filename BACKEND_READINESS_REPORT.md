@@ -2,7 +2,7 @@
 
 | Stavka | Stanje |
 | --- | --- |
-| Datum pregleda | 17. 7. 2026. |
+| Datum pregleda | 18. 7. 2026. |
 | Frontend ugovor | Frontend `v1.0.0`, bez UX/UI promjena |
 | OpenAPI | `1.1.0`, status `MVP_IMPLEMENTED` |
 | Pokrivenost | 43 putanje / 54 operacije / 54 implementirane operacije |
@@ -10,7 +10,7 @@
 | Faza | Backend MVP – Faza B |
 | Readiness | **FULL PASS — PostgreSQL i full-stack browser CI zeleni** |
 | Otvorene readiness stavke | **0** |
-| Deep code audit | `BSS_PRODUCTION_READINESS_AUDIT.md`; senior-review spremnost 92% nakon zelenog PR CI-ja |
+| Deep code audit | `BSS_PRODUCTION_READINESS_AUDIT.md`; senior-review spremnost 93% nakon zelenog PR CI-ja |
 
 ## Izvršni zaključak
 

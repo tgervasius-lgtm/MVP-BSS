@@ -23,36 +23,21 @@ Strojni ugovor je `openapi/bss-mvp-api-v1.yaml`, a ekran/operation matrica `back
 
 ## Lokalno podizanje
 
-Preduvjeti su Node.js 22+ i PostgreSQL 16+.
+Autoritativni clean-clone postupak, mapa strukture, migracijski workflow i checklist za sigurnu novu funkciju nalaze se u `DEVELOPER_GUIDE.md`. Kratki put s lokalnim PostgreSQL-om iz `compose.dev.yml` je:
 
 ```bash
+nvm use
 npm ci
 npm --prefix backend ci
+docker compose -f compose.dev.yml up -d postgres
+cp backend/.env.example backend/.env
 npm run build
-
-DATABASE_URL='postgres://postgres:postgres@127.0.0.1:5432/bss' \
-DATABASE_SSL=false \
 npm --prefix backend run migrate
-
-DATABASE_URL='postgres://postgres:postgres@127.0.0.1:5432/bss' \
-DATABASE_SSL=false \
-BSS_BOOTSTRAP_ORGANIZATION_NAME='BSS d.o.o.' \
-BSS_BOOTSTRAP_ADMIN_EMAIL='admin@example.hr' \
-BSS_BOOTSTRAP_ADMIN_PASSWORD='promijeni-ovu-sigurnu-lozinku' \
 npm --prefix backend run bootstrap
-
-NODE_ENV=development \
-PUBLIC_ORIGIN=http://127.0.0.1:3000 \
-DATABASE_URL='postgres://postgres:postgres@127.0.0.1:5432/bss' \
-DATABASE_SSL=false \
-FRONTEND_ROOT=../dist \
-RFID_UID_PEPPER='najmanje-32-nasumicna-znaka-1234' \
-DEVICE_CREDENTIAL_ENCRYPTION_KEY='najmanje-32-nasumicna-znaka-5678' \
-TERMINAL_ACTIVATION_CODE='jednokratni-uparivacki-kod' \
 npm --prefix backend run dev
 ```
 
-`bootstrap` se izvršava jednom po novoj instalaciji. Odbit će postojeći administratorski e-mail. Produkcijske tajne dolaze iz platformskog secret/KMS sustava, nikad iz Git repozitorija.
+Prije `bootstrap` koraka postavlja se lokalna administratorska lozinka u ignoriranom `backend/.env`-u, a nakon izvršavanja se uklanja. `bootstrap` se izvršava jednom po novoj instalaciji i odbit će postojeći administratorski e-mail. Produkcijske tajne dolaze iz platformskog secret/KMS sustava, nikad iz Git repozitorija.
 
 ## Quality gate
 

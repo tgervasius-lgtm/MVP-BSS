@@ -74,7 +74,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     throw new Error(`Unsupported NODE_ENV: ${nodeEnv}`);
   }
 
-  const publicOrigin = env.PUBLIC_ORIGIN ?? "http://localhost:3000";
+  const publicOrigin = env.PUBLIC_ORIGIN ?? "http://127.0.0.1:3000";
   const origin = new URL(publicOrigin);
   if (!["http:", "https:"].includes(origin.protocol) || origin.username || origin.password || origin.pathname !== "/" || origin.search || origin.hash) {
     throw new Error("PUBLIC_ORIGIN must contain only scheme, host and optional port");

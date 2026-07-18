@@ -1,6 +1,9 @@
 node_modules/
 .DS_Store
 npm-debug.log*
+.env
+.env.*
+!.env.example
 tmp/
 dist/
 playwright-report/

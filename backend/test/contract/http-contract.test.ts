@@ -498,6 +498,51 @@ test("OpenAPI v1 and the frozen screen map have no unresolved contract gates", a
   }
 });
 
+test("clean-clone developer setup is pinned, secret-safe and reproducible", async () => {
+  type PackageManifest = {
+    engines?: Record<string, string>;
+    scripts?: Record<string, string>;
+  };
+  type ComposeService = {
+    environment?: Record<string, string>;
+    profiles?: string[];
+    ports?: string[];
+    tmpfs?: string[];
+  };
+  const [rootPackageSource, backendPackageSource, nodeVersion, gitignore, envExample, guide, composeSource] = await Promise.all([
+    readFile(join(repositoryRoot, "package.json"), "utf8"),
+    readFile(join(repositoryRoot, "backend/package.json"), "utf8"),
+    readFile(join(repositoryRoot, ".nvmrc"), "utf8"),
+    readFile(join(repositoryRoot, ".gitignore"), "utf8"),
+    readFile(join(repositoryRoot, "backend/.env.example"), "utf8"),
+    readFile(join(repositoryRoot, "DEVELOPER_GUIDE.md"), "utf8"),
+    readFile(join(repositoryRoot, "compose.dev.yml"), "utf8")
+  ]);
+  const rootPackage = JSON.parse(rootPackageSource) as PackageManifest;
+  const backendPackage = JSON.parse(backendPackageSource) as PackageManifest;
+  const compose = YAML.parse(composeSource) as { services?: Record<string, ComposeService> };
+
+  assert.equal(nodeVersion.trim(), "22");
+  assert.equal(rootPackage.engines?.node, ">=22.9.0");
+  assert.equal(rootPackage.engines?.npm, ">=10.0.0");
+  for (const script of ["dev", "migrate", "migrate:down", "migrate:prod", "bootstrap", "bootstrap:prod", "start"]) {
+    assert.match(backendPackage.scripts?.[script] ?? "", /--env-file-if-exists=\.env/, `Missing optional .env loading on ${script}`);
+  }
+  assert.match(gitignore, /^\.env$/m);
+  assert.match(gitignore, /^\.env\.\*$/m);
+  assert.match(gitignore, /^!\.env\.example$/m);
+  assert.match(envExample, /^DATABASE_URL=postgres:\/\/postgres:postgres@127\.0\.0\.1:5432\/bss$/m);
+  assert.match(guide, /BSS_REQUIRE_POSTGRES_TESTS=true/);
+  assert.match(guide, /tenant nikada ne čitajte iz bodyja ili queryja/);
+
+  assert.equal(compose.services?.postgres?.environment?.POSTGRES_DB, "bss");
+  assert.deepEqual(compose.services?.postgres?.ports, ["127.0.0.1:5432:5432"]);
+  assert.equal(compose.services?.["postgres-test"]?.environment?.POSTGRES_DB, "bss_test");
+  assert.deepEqual(compose.services?.["postgres-test"]?.profiles, ["test"]);
+  assert.deepEqual(compose.services?.["postgres-test"]?.ports, ["127.0.0.1:5433:5432"]);
+  assert.ok(compose.services?.["postgres-test"]?.tmpfs?.includes("/var/lib/postgresql/data"));
+});
+
 test("migrations force tenant RLS and make raw evidence append-only", async () => {
   const security = await readFile(join(repositoryRoot, "backend/migrations/005_security_and_rls.up.sql"), "utf8");
   const completion = await readFile(join(repositoryRoot, "backend/migrations/006_contract_completion.up.sql"), "utf8");

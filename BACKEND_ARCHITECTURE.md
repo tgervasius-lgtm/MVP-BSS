@@ -3,7 +3,7 @@
 | Odluka | Vrijednost |
 | --- | --- |
 | Stil | modularni monolit |
-| Runtime | Node.js 22+ / TypeScript / Fastify 5 |
+| Runtime | Node.js 22.9+ / TypeScript / Fastify 5 |
 | API | REST `/api/v1`, OpenAPI `1.1.0` |
 | Baza | PostgreSQL 16, eksplicitni SQL i `pg` |
 | Tenant model | shared schema, `organization_id`, FORCE RLS |

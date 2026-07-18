@@ -36,7 +36,12 @@ export async function buildApp(dependencies: AppDependencies): Promise<FastifyIn
           "req.headers.authorization",
           "req.headers['x-bss-signature']",
           "req.headers['x-bss-nonce']",
-          "res.headers['set-cookie']"
+          "res.headers['set-cookie']",
+          "err.detail",
+          "err.where",
+          "err.query",
+          "err.internalQuery",
+          "err.parameters"
         ],
         censor: "[REDACTED]"
       }

@@ -4,7 +4,7 @@ BSS je modularni monolit za evidenciju radnog vremena, RFID terminale, godišnje
 
 ## Tehnologije i granice
 
-- Node.js 22+, TypeScript 5, Fastify 5
+- Node.js 22.9+, TypeScript 5, Fastify 5
 - PostgreSQL 16, eksplicitni SQL, transakcije i `FORCE ROW LEVEL SECURITY`
 - REST `/api/v1`, OpenAPI 1.1.0 (43 putanje, 54 operacije)
 - browser sesije u `HttpOnly`, `SameSite=Strict`, produkcijski `Secure` kolačićima
@@ -26,37 +26,21 @@ BSS je modularni monolit za evidenciju radnog vremena, RFID terminale, godišnje
 
 ## Lokalno pokretanje
 
-Preduvjeti: Node.js 22+ i PostgreSQL 16+.
+Preduvjeti: Node.js 22.9+, npm 10+ i Docker Compose (ili vlastiti PostgreSQL 16).
 
 ```bash
+nvm use
 npm ci
 npm --prefix backend ci
+docker compose -f compose.dev.yml up -d postgres
+cp backend/.env.example backend/.env
 npm run build
-
-NODE_ENV=development \
-DATABASE_URL='postgres://postgres:postgres@127.0.0.1:5432/bss' \
-DATABASE_SSL=false \
 npm --prefix backend run migrate
-
-NODE_ENV=development \
-DATABASE_URL='postgres://postgres:postgres@127.0.0.1:5432/bss' \
-DATABASE_SSL=false \
-BSS_BOOTSTRAP_ORGANIZATION_NAME='BSS d.o.o.' \
-BSS_BOOTSTRAP_ADMIN_EMAIL='admin@example.hr' \
-BSS_BOOTSTRAP_ADMIN_PASSWORD='promijeni-ovu-sigurnu-lozinku' \
 npm --prefix backend run bootstrap
-
-NODE_ENV=development \
-HOST=127.0.0.1 PORT=3000 \
-PUBLIC_ORIGIN=http://127.0.0.1:3000 \
-DATABASE_URL='postgres://postgres:postgres@127.0.0.1:5432/bss' \
-DATABASE_SSL=false COOKIE_SECURE=false \
-FRONTEND_ROOT=../dist \
-RFID_UID_PEPPER='najmanje-32-nasumicna-znaka-1234' \
-DEVICE_CREDENTIAL_ENCRYPTION_KEY='najmanje-32-nasumicna-znaka-5678' \
-TERMINAL_ACTIVATION_CODE='jednokratni-uparivacki-kod' \
 npm --prefix backend run dev
 ```
+
+Prije jednokratnog `bootstrap` koraka zamijenite lokalnu administratorsku lozinku u `backend/.env`, a nakon njega je uklonite. Backend skripte automatski učitavaju tu ignoriranu lokalnu datoteku. Potpuni clean-clone postupak, odvojena testna baza i siguran put za novu migraciju/funkciju: [DEVELOPER_GUIDE.md](DEVELOPER_GUIDE.md).
 
 - aplikacija: `http://127.0.0.1:3000/`
 - liveness: `/healthz`
@@ -92,6 +76,7 @@ Detaljan runbook: [backend/OPERATIONS.md](backend/OPERATIONS.md).
 ## Autoritativna dokumentacija
 
 - [BACKEND_ARCHITECTURE.md](BACKEND_ARCHITECTURE.md) — arhitektura i granice
+- [DEVELOPER_GUIDE.md](DEVELOPER_GUIDE.md) — clean clone, struktura, migracije i razvojni workflow
 - [BACKEND_READINESS_REPORT.md](BACKEND_READINESS_REPORT.md) — ugovorna spremnost Faze B
 - [BSS_PRODUCTION_READINESS_AUDIT.md](BSS_PRODUCTION_READINESS_AUDIT.md) — dubinski audit i preostali tehnički dug
 - [BSS_BACKEND_HANDOFF_V1.md](BSS_BACKEND_HANDOFF_V1.md) — predaja backend developeru

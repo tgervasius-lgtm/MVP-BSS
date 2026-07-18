@@ -4,19 +4,19 @@
   "private": true,
   "type": "module",
   "engines": {
-    "node": ">=22.0.0"
+    "node": ">=22.9.0"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json && node scripts/copy-static.mjs",
-    "dev": "tsx watch src/server.ts",
+    "dev": "node --env-file-if-exists=.env --import tsx --watch src/server.ts",
     "lint": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json",
     "lint:openapi": "redocly lint ../openapi/bss-mvp-api-v1.yaml",
-    "migrate": "tsx src/db/migrate.ts up",
-    "migrate:down": "tsx src/db/migrate.ts down",
-    "migrate:prod": "node dist/src/db/migrate.js up",
-    "bootstrap": "tsx src/db/bootstrap.ts",
-    "bootstrap:prod": "node dist/src/db/bootstrap.js",
-    "start": "node dist/src/server.js",
+    "migrate": "node --env-file-if-exists=.env --import tsx src/db/migrate.ts up",
+    "migrate:down": "node --env-file-if-exists=.env --import tsx src/db/migrate.ts down",
+    "migrate:prod": "node --env-file-if-exists=.env dist/src/db/migrate.js up",
+    "bootstrap": "node --env-file-if-exists=.env --import tsx src/db/bootstrap.ts",
+    "bootstrap:prod": "node --env-file-if-exists=.env dist/src/db/bootstrap.js",
+    "start": "node --env-file-if-exists=.env dist/src/server.js",
     "test": "node --import tsx --test test/unit/*.test.ts test/contract/*.test.ts test/integration/*.test.ts",
     "test:unit": "node --import tsx --test test/unit/*.test.ts test/contract/*.test.ts",
     "test:integration": "node --import tsx --test test/integration/*.test.ts",

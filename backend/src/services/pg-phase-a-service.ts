@@ -295,7 +295,7 @@ export class PgPhaseAService implements PhaseAService {
   constructor(
     private readonly pool: pg.Pool,
     private readonly rfidUidPepper: string,
-    private readonly invitationPublicOrigin = "http://localhost:3000"
+    private readonly invitationPublicOrigin = "http://127.0.0.1:3000"
   ) {}
 
   async getDashboardSummary(actor: ActorContext, date: string): Promise<DashboardSummaryView> {

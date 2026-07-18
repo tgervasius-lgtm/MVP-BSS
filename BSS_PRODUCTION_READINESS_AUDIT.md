@@ -2,18 +2,18 @@
 
 | Stavka | Vrijednost |
 | --- | --- |
-| Datum | 17. 7. 2026. |
+| Datum | 18. 7. 2026. |
 | Opseg | cijeli repozitorij, frontend v1.0.0 + Backend MVP Faza B |
 | Grana | `agent/bss-backend-phase-b-v1` |
 | Cilj | neovisni senior code review; bez novih funkcionalnosti |
-| Senior-review spremnost | **92/100** nakon zelenog PR CI-ja |
+| Senior-review spremnost | **93/100** nakon zelenog PR CI-ja |
 | Preporuka za rewrite | **NE** |
 
 ## Zaključak
 
 Sustav nije kandidat za prepisivanje. Osnovni arhitektonski izbor — modularni monolit, PostgreSQL transakcije, eksplicitni SQL, server-side RBAC i `FORCE ROW LEVEL SECURITY` — primjeren je MVP-u i ostavlja dobar put za daljnji razvoj. Audit nije samo ponovno pokrenuo testove: pronađene su i ispravljene greške u tenant scopeu, concurrencyju, migracijskim invariantama, sesijama, terminalskom redoslijedu, vremenskim zonama, cacheiranju i produkcijskoj konfiguraciji.
 
-Najveći preostali dug su dvije prevelike backend service datoteke i legacy frontend composition root. To opravdava postupno izdvajanje modula, ali ne rewrite. Funkcionalni MVP može ići na senior review bez velikog prethodnog refaktora. Produkcijski pilot i dalje ovisi o izboru hostinga, managed PostgreSQL-u, secret/KMS sustavu, backup/restore drill-u, monitoringu i load testu; to nisu promjene koje se mogu pošteno “automatski” zaključiti u repozitoriju.
+Ukupno je potvrđeno i ispravljeno **66 konkretnih problema** u dva audit prolaza. Drugi prolaz dodatno je zatvorio stale-invitation preuzimanje računa, auth TOCTOU utrke, preranu terminalsku vjerodajnicu, moguće curenje PostgreSQL detalja u log, nezaštićene lokalne `.env` datoteke i nepouzdan clean-clone workflow. Najveći preostali dug su dvije prevelike backend service datoteke i legacy frontend composition root. To opravdava postupno izdvajanje modula, ali ne rewrite. Funkcionalni MVP može ići na senior review bez velikog prethodnog refaktora. Produkcijski pilot i dalje ovisi o izboru hostinga, managed PostgreSQL-u, secret/KMS sustavu, backup/restore drill-u, monitoringu i load testu; to nisu promjene koje se mogu pošteno “automatski” zaključiti u repozitoriju.
 
 ## Metoda i dokaz
 
@@ -22,7 +22,7 @@ Pregledani su arhitektura, svi TypeScript/JavaScript moduli, SQL migracije i gra
 Finalni dokaz mora biti vezan uz isti PR commit:
 
 - frontend lint + **104/104** unit/regression testa + deterministički build;
-- backend TypeScript + Redocly + **31/31** lokalnih unit/contract testova;
+- backend TypeScript + Redocly + **32/32** lokalna unit/contract testa;
 - PostgreSQL integracijski suite uz `BSS_REQUIRE_POSTGRES_TESTS=true` — lokalno se ne smije lažno proglasiti prolaznim bez PostgreSQL-a;
 - migracije `001`–`008`, stvarna `NOBYPASSRLS` runtime uloga i dvije organizacije;
 - full-stack Chromium desktop/mobile + axe protiv stvarnog Fastify/PostgreSQL procesa;
@@ -41,6 +41,8 @@ Finalni dokaz mora biti vezan uz isti PR commit:
 | ARC-05 | srednja | TypeScript dopuštao je labavije opcionalne vrijednosti i implicitno nepokrivene grane. | Uključeni su stroži compiler i ESLint gateovi te dodani ciljano tipizirani helperi. |
 | ARC-06 | srednja | Root `check` nije provjeravao oba dijela sustava, a frontend release workflow bi nakon promjene pokrenuo backend bez instaliranih ovisnosti. | Root gate sada provjerava frontend i backend; zamrznuti frontend release eksplicitno koristi `check:frontend`. |
 | ARC-07 | niska | Terminalski integracijski scenarij koristio je fiksni datum sljedećeg dana pa je rezultat ovisio o vremenu pokretanja CI-ja. | Valjani slijed koristi deterministički prošli datum, dok zaseban dinamički test i dalje dokazuje odbijanje događaja iz budućnosti. |
+| ARC-08 | srednja | Backend README je upućivao na `.env`, ali runtime, migrator i bootstrap ga nisu učitavali pa dokumentirani clean clone nije radio. | Sve environment-dependent skripte učitavaju opcionalni `backend/.env`, uz prednost stvarnih procesnih varijabli; contract test zaključava taj ugovor. |
+| ARC-09 | srednja | Novi developer nije imao jednu provjerenu mapu strukture ni siguran redoslijed za migraciju i okomitu novu funkciju. | Dodan je `DEVELOPER_GUIDE.md`, Node 22 pin, reproducibilni Compose setup, migracijski checklist i mali end-to-end razvojni put iza postojećeg ugovora. |
 
 ### Multi-tenant izolacija, RBAC i integritet podataka
 
@@ -75,6 +77,10 @@ Finalni dokaz mora biti vezan uz isti PR commit:
 | SEC-10 | visoka | Osjetljivi cookie, authorization i terminalski potpisi mogli su završiti u strukturiranom logu. | Pino redaction uklanja session/authorization/signature/nonce/set-cookie vrijednosti. |
 | SEC-11 | srednja | Dependency chain za XLSX imao je poznati zastarjeli `uuid` podpaket. | Zaključan je podržani override i oba production dependency audita moraju biti čista. |
 | SEC-12 | srednja | GitHub Actions koristile su promjenjive tagove. | `checkout` i `setup-node` zaključani su na pune commit SHA vrijednosti. |
+| SEC-13 | kritična | Ručno zaostala, još valjana pozivnica za već aktivan račun mogla je ponovno postaviti njegovu lozinku u nekonzistentnom/importiranom stanju baze; accept/reinvite su uzimali lockove obrnutim redom. | Accept zahtijeva blokirani placeholder i atomski aktivira samo još blokiranog korisnika iste uloge; user→invitation lock order podudara se s reinvite tokom, a stale/konkurentna promjena vraća generički 401 i rollbacka cijelu transakciju. |
+| SEC-14 | visoka | Login i refresh su identitet provjeravali prije transakcije pa je konkurentno blokiranje tenanta/korisnika ili promjena uloge mogla stvoriti odmah nevaljanu novu sesiju. | Prije session inserta transakcija zaključava i ponovno provjerava aktivnu organizaciju i korisnika; login dodatno zahtijeva nepromijenjenu ulogu. |
+| SEC-15 | visoka | Root `.gitignore` nije štitio `.env` datoteke, pa je dokumentirani lokalni setup povećavao rizik slučajnog commita tajni. | Ignorirani su `.env` i `.env.*`, uz eksplicitnu dozvolu samo za `.env.example`; contract test sprečava regresiju. |
+| SEC-16 | srednja | Strukturirani PostgreSQL error objekt može sadržavati `detail`, query ili parametre s poslovnim/osobnim podacima. | Logger sada uz sigurnosne headere redigira DB `detail`, `where`, `query`, `internalQuery` i `parameters`, dok zadržava siguran error code i request ID. |
 
 ### Concurrency, terminal i vremenski rubni slučajevi
 
@@ -89,6 +95,7 @@ Finalni dokaz mora biti vezan uz isti PR commit:
 | CON-07 | srednja | Neograničeni batch, sequence, offset, queue depth i nonce povećavali su DoS/resource rizik. | HTTP/OpenAPI tvrdo ograničavaju batch na 500, body na 1 MiB i sva numerička/string polja. |
 | CON-08 | srednja | DST i datum organizacije bili su izvedeni iz browserove lokalne zone. | Frontend koristi organizacijsku IANA zonu, DST-aware pretvorbu, odbija nepostojeće wall-clock vrijeme i testira ljetni/zimski pomak. |
 | CON-09 | visoka | Novi DB time-order constraint zabranio je privremeni `check_out` bez `check_in`, iako offline terminalski ugovor namjerno podržava naknadnu rekoncilijaciju događaja. | Constraint sada dopušta samo taj nepotpuni međukorak; čim postoje oba vremena, baza i dalje zahtijeva ispravan redoslijed i najviše 16 sati. PostgreSQL integracija pokriva oba smjera dolaska. |
+| CON-10 | visoka | Terminal credential lookup vraćao je `valid_from`, ali servis nije odbijao vjerodajnicu prije početka njezina perioda valjanosti. | Device auth provjerava obje granice perioda prije dekripcije i potpisa; PostgreSQL integracija dokazuje fail-closed ponašanje prije `valid_from`. |
 
 ### API, frontend integracija, error handling i cache
 
@@ -117,6 +124,7 @@ Finalni dokaz mora biti vezan uz isti PR commit:
 | OPS-06 | srednja | Produkcijski build nije jamčio migracijske SQL artefakte. | Build kopira migracije i CI pokreće compiled migration smoke. |
 | OPS-07 | srednja | Graceful shutdown i idle pool greške nisu bili obrađeni. | SIGINT/SIGTERM zatvaraju Fastify pa pool; neočekivana idle DB greška se logira bez curenja resursa. |
 | OPS-08 | srednja | Dokumentacija je još opisivala statički demo i stare limite/migracije. | Dodan je glavni README, aktualizirani Architecture/Readiness/Handoff/Operations/OpenAPI i legacy upute pretvorene u pointer. |
+| OPS-09 | visoka | Primjer DB URL-a koristio je nepostojeću ulogu, a integracijske upute nisu davale izoliranu testnu bazu pa je novi developer mogao zapeti ili testirati nad pogrešnim podacima. | Lokalni primjer odgovara Compose bazi; zaseban profile pokreće `bss_test` na portu 5433 u `tmpfs`-u, uz izričitu zabranu dijeljene/produkcijske baze. |
 
 ## Potvrđene kontrole koje nisu zahtijevale promjenu
 
@@ -148,19 +156,30 @@ Finalni dokaz mora biti vezan uz isti PR commit:
 | REM-16 | niski | Nema generičkog retryja za PostgreSQL deadlock/serialization failure. | Trenutačni kanonski lockovi uklanjaju poznate raceove. Retry dodati samo na idempotentnoj service granici ako produkcijska metrika pokaže potrebu. |
 | REM-17 | niski | CI Postgres service koristi major tag umjesto immutable image digest-a. | Zaključati digest nakon što tim odredi cadence za sigurnosne nadogradnje; slijepo zamrzavanje imagea može zaustaviti patch updateove. |
 | REM-18 | srednji | SAST/secret scan i DAST nisu obvezni gateovi repozitorija. | Uključiti CodeQL/secret protection i staging DAST nakon organizacijskog odabira GitHub/security alata. Dependency audit i ručni secure-code pregled već su uključeni. |
+| REM-19 | srednji, privatnost | IP adresa i user-agent spremaju se kao neslani SHA-256 pseudonimi u sesiji; IP ima mali prostor vrijednosti i hash nije anonimnost. | Senior, DPO i security trebaju odlučiti pravnu osnovu, minimalni retention i treba li podatak ukloniti ili HMAC-irati posebnim rotirajućim ključem. To se ne smije tiho promijeniti bez incident/audit zahtjeva. |
 
 ## Procjena spremnosti
 
 | Područje | Ocjena | Napomena |
 | --- | ---: | --- |
-| Arhitektura i modularnost | 87% | dobar modularni monolit; dva service modula treba postupno razdvojiti |
-| Integritet, transakcije i concurrency | 95% | ključni raceovi i stale updatei zatvoreni; realni load test tek slijedi |
+| Arhitektura i modularnost | 89% | dobar modularni monolit i jasan developer put; dva service modula treba postupno razdvojiti |
+| Integritet, transakcije i concurrency | 96% | ključni raceovi, stale updatei i device validity rubovi zatvoreni; realni load test tek slijedi |
 | Tenant izolacija i RBAC | 96% | dvostruka aplikacijska + RLS granica; DB credential threat model je dokumentiran |
-| Auth i sigurnost | 93% | sigurne sesije i fail-fast config; KMS rotacija/WAF/SAST ovise o platformi |
+| Auth i sigurnost | 95% | stale pozivnica i session TOCTOU su zatvoreni; KMS rotacija/WAF/SAST ovise o platformi |
 | API i frontend integracija | 92% | svih 54 operacija pokriveno; dual schema source ostaje tehnički dug |
-| Testovi i CI | 94% | unit/contract/PG/browser/a11y; nedostaju load, WebKit/Firefox i DAST |
-| Operacije i deployment | 78% | kvalitetan runbook, ali hosting, PITR, monitoring i restore drill nisu još provedeni |
-| **Spremnost za neovisni senior code review** | **92%** | spremno nakon zelenih obveznih PR gateova |
+| Testovi i CI | 95% | unit/contract/PG/browser/a11y i onboarding contract; nedostaju load, WebKit/Firefox i DAST |
+| Operacije i deployment | 81% | reproducibilan lokalni start i kvalitetan runbook; hosting, PITR, monitoring i restore drill nisu još provedeni |
+| **Spremnost za neovisni senior code review** | **93%** | spremno nakon zelenih obveznih PR gateova |
+
+## Što senior obvezno treba pregledati
+
+1. potvrditi plan inkrementalnog razdvajanja dvaju velikih service modula bez promjene `MvpService`/OpenAPI ugovora;
+2. odobriti RLS threat model i runtime grantove, posebno činjenicu da kompromitirana izravna DB vjerodajnica nije tenant sandbox;
+3. odlučiti o retentionu i zaštiti IP/user-agent pseudonima te audit/osobnih podataka;
+4. pregledati KMS strategiju rotacije RFID peppera i terminalskog encryption ključa;
+5. odobriti stvarni hosting, privatnu mrežu, WAF/shared rate limit, observability i incident runbook;
+6. pregledati dokaz prvog PITR restore drilla, load/soak rezultate i ključne PostgreSQL query planove;
+7. odlučiti kada objediniti OpenAPI i Fastify schema izvore te kada bounded RFID N+1 opravdava API promjenu.
 
 ## Hoće li senior preporučiti prepisivanje?
 

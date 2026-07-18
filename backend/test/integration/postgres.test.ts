@@ -154,6 +154,18 @@ test("PostgreSQL migrations, RLS isolation, auth and manager scope", { skip: !da
 
   const admin = await auth.login("admin-a@example.test", adminPassword, { requestId: "integration-login" });
   assert.equal(admin.context.organization.id, ids.org1);
+  const staleActiveInvitationToken = createOpaqueToken();
+  await owner.query(
+    `INSERT INTO user_invitations (organization_id, email, role, token_hash, expires_at, invited_by)
+     VALUES ($1, 'admin-a@example.test', 'admin', $2, clock_timestamp() + interval '1 day', $3)`,
+    [ids.org1, hashToken(staleActiveInvitationToken), ids.admin1]
+  );
+  await assert.rejects(
+    auth.acceptInvitation(staleActiveInvitationToken, "Replacement-secure-password-2026!", {
+      requestId: "integration-active-invitation-reject"
+    }),
+    (error: unknown) => typeof error === "object" && error !== null && "code" in error && error.code === "UNAUTHENTICATED"
+  );
   await assert.rejects(
     service.updateUser(admin.actor, ids.admin1, { status: "blocked" }, admin.context.user.revision, "integration-last-admin"),
     (error: unknown) => typeof error === "object" && error !== null && "code" in error && error.code === "CONFLICT"
@@ -398,6 +410,19 @@ test("PostgreSQL migrations, RLS isolation, auth and manager scope", { skip: !da
     }, body, `integration-terminal-${sequence}`);
   };
 
+  await owner.query(
+    "UPDATE terminal_credentials SET valid_from = clock_timestamp() + interval '1 hour' WHERE terminal_id = $1",
+    [paired.terminal.id]
+  );
+  await assert.rejects(
+    ingest("check_in", randomUUID(), "2026-07-17T05:59:00.000Z", 1, "integration-nonce-future-credential-0000"),
+    (error: unknown) => typeof error === "object" && error !== null && "code" in error && error.code === "UNAUTHENTICATED"
+  );
+  await owner.query(
+    "UPDATE terminal_credentials SET valid_from = clock_timestamp() - interval '1 hour' WHERE terminal_id = $1",
+    [paired.terminal.id]
+  );
+
   const checkInEventId = randomUUID();
   const checkIn = await ingest("check_in", checkInEventId, "2026-07-17T06:00:00.000Z", 1, "integration-nonce-check-in-0001");
   assert.equal(checkIn.results[0]?.status, "synced");
@@ -625,6 +650,10 @@ test("PostgreSQL migrations, RLS isolation, auth and manager scope", { skip: !da
     `INSERT INTO user_invitations (organization_id, email, role, token_hash, expires_at, invited_by)
      VALUES ($1, 'accountant-invited@example.test', 'accountant', $2, clock_timestamp() + interval '1 day', $3)`,
     [ids.org1, hashToken(invitationToken), ids.admin1]
+  );
+  await assert.rejects(
+    auth.acceptInvitation(invitationToken, "too-short", { requestId: "integration-invitation-password-policy" }),
+    (error: unknown) => typeof error === "object" && error !== null && "code" in error && error.code === "VALIDATION_FAILED"
   );
   const accepted = await auth.acceptInvitation(invitationToken, "Invitation-secure-password-2026!", {
     requestId: "integration-invitation"
