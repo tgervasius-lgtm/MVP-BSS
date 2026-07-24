@@ -1,0 +1,35 @@
+# BSS MVP API smoke requests
+# Compatible with VS Code REST Client and JetBrains HTTP Client.
+# Replace placeholders locally. Never commit real credentials.
+
+@baseUrl = http://localhost:3000/api/v1
+@email = admin@example.test
+@password = LOCAL_ONLY_PLACEHOLDER
+@today = 2026-07-25
+
+### Login — client stores returned cookies
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{email}}",
+  "password": "{{password}}"
+}
+
+### Verified session context
+GET {{baseUrl}}/me
+
+### Refresh and rotate session cookies
+POST {{baseUrl}}/auth/refresh
+
+### Dashboard smoke
+GET {{baseUrl}}/dashboard-summary?date={{today}}
+
+### Organization — expected 200 for admin, 403 for insufficient role
+GET {{baseUrl}}/organization
+
+### Departments in effective scope
+GET {{baseUrl}}/departments
+
+### Idempotent logout
+POST {{baseUrl}}/auth/logout
