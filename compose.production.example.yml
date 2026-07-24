@@ -1,0 +1,53 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    restart: unless-stopped
+    env_file: backend/.env.production
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [private]
+
+  postgres:
+    image: postgres:16.4-bookworm
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: bss
+      POSTGRES_USER: bss_owner
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_owner_password
+    secrets:
+      - postgres_owner_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bss_owner -d bss"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks: [private]
+
+networks:
+  private:
+    internal: true
+
+volumes:
+  postgres_data:
+
+secrets:
+  postgres_owner_password:
+    file: ./secrets/postgres_owner_password.txt
+
+# REFERENCE ONLY: production requires managed TLS ingress, external secret/KMS,
+# off-host backups/PITR, central logs/metrics, WAF/shared rate limiting and a tested restore runbook.
