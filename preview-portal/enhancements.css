@@ -62,6 +62,13 @@
 .business-summary-grid strong { font-size: 1.9rem; color: var(--accent); letter-spacing: -.04em; }
 .business-summary-grid span { color: #59677f; }
 .business-summary-note { margin: 16px 0 0; color: #6b778d; font-size: .88rem; }
+.toast-center { position: fixed; right: 22px; bottom: 22px; z-index: 1000; display: grid; gap: 10px; width: min(360px,calc(100vw - 32px)); pointer-events: none; }
+.toast { display: grid; gap: 4px; padding: 15px 17px; border: 1px solid rgba(255,255,255,.12); border-radius: 14px; background: rgba(18,28,47,.96); color: #fff; box-shadow: 0 18px 48px rgba(10,18,32,.28); pointer-events: auto; cursor: pointer; }
+.toast strong { font-size: .95rem; }
+.toast span { color: #d6deea; font-size: .86rem; line-height: 1.4; }
+.toast-success { border-left: 4px solid #58d68d; }
+.toast-warning { border-left: 4px solid #f3b440; }
+.toast-info { border-left: 4px solid #75a7ff; }
 @media (max-width:900px) {
   .business-summary-grid,.command-center-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
 }
@@ -72,6 +79,7 @@
   .living-office p { grid-column: 1 / -1; }
   .kpi-details-header { align-items: center; }
   .terminal-status-panel .section-heading { align-items: flex-start; flex-direction: column; }
+  .toast-center { right: 16px; bottom: 16px; }
 }
 @media (prefers-reduced-motion:no-preference) {
   .living-office-dot { animation: livePulse 1.8s ease-in-out infinite; }
@@ -80,7 +88,13 @@
   .business-summary-grid article:nth-child(3) { animation-delay: .1s; }
   .business-summary-grid article:nth-child(4) { animation-delay: .15s; }
   .command-center,.kpi-details,.terminal-status-panel { animation: summaryEnter .24s ease both; }
+  .toast { animation: toastEnter .24s ease both; }
+  .value-pulse { animation: valuePulse .45s ease; }
+  .metric-pulse { animation: metricPulse .55s ease; }
 }
 @keyframes livePulse { 0%,100% { transform: scale(1); opacity: .8; } 50% { transform: scale(1.25); opacity: 1; } }
 @keyframes summaryEnter { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
 @keyframes cardScan { 0% { transform: translateX(0) rotate(-8deg); opacity: 0; } 25% { opacity: 1; } 75% { transform: translateX(-150px) rotate(2deg); opacity: 1; } 100% { transform: translateX(-175px) rotate(2deg); opacity: 0; } }
+@keyframes toastEnter { from { opacity: 0; transform: translateY(12px) scale(.98); } to { opacity: 1; transform: none; } }
+@keyframes valuePulse { 0%,100% { transform: scale(1); } 45% { transform: scale(1.12); color: var(--accent); } }
+@keyframes metricPulse { 0%,100% { box-shadow: none; } 45% { box-shadow: 0 0 0 5px var(--accent-soft); } }
