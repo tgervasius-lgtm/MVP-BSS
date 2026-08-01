@@ -1,14 +1,21 @@
 import { INITIAL_STATE, ROLES, configureDemo, getGuide, startDemo, selectRole, registerEmployee, approveLeave, resolveCorrection, reviewWorker, generateReport, resetDemo } from './state.js';
 import { getIndustryContext } from './industry-context.js';
-import { createMemoryAnalyticsSink } from './analytics.js';
+import { createAnalytics, ANALYTICS_EVENTS } from './analytics.js';
+import { createLivingOfficeController } from './living-office.js';
+import { createConversionPanel } from './conversion-panel.js';
+
+const enhancementStyles = document.createElement('link');
+enhancementStyles.rel = 'stylesheet';
+enhancementStyles.href = 'enhancements.css';
+document.head.append(enhancementStyles);
 
 let state = resetDemo();
 let previousRole = state.activeRole;
 let previousCompleted = 0;
-const analytics = createMemoryAnalyticsSink();
+const analytics = createAnalytics();
 const byId = (id) => document.getElementById(id);
 const elements = {
-  welcome: byId('welcomeView'), demo: byId('demoView'), start: byId('startButton'), reset: byId('resetButton'), restart: byId('restartButton'),
+  welcome: byId('welcomeView'), demo: byId('demoView'), reset: byId('resetButton'), restart: byId('restartButton'),
   profileForm: byId('profileForm'), industry: byId('industryInput'), employees: byId('employeesInput'), locations: byId('locationsInput'), shifts: byId('shiftsInput'),
   profileIndustry: byId('profileIndustry'), profileEmployees: byId('profileEmployees'), profileMeta: byId('profileMeta'), companyContext: byId('companyContext'),
   scan: byId('scanButton'), count: byId('presentCount'), planned: byId('plannedCount'), screen: byId('terminalScreen'), feed: byId('activityFeed'),
@@ -20,15 +27,26 @@ const elements = {
   guideStep: byId('guideStep'), guideText: byId('guideText'), guideProgress: byId('guideProgress'), completion: byId('completionView')
 };
 
-function analyticsProfile(extra = {}) {
-  return {
-    industry: state.profile.industry,
-    employees: state.profile.employees,
-    locations: state.profile.locations,
-    shifts: state.profile.shifts,
-    ...extra
-  };
-}
+const livingOffice = document.createElement('section');
+livingOffice.className = 'living-office hidden';
+livingOffice.setAttribute('aria-live', 'polite');
+livingOffice.innerHTML = '<span class="living-office-dot" aria-hidden="true"></span><div><time id="livingOfficeTime">06:58</time><p id="livingOfficeEvent">Tvrtka se priprema za početak smjene.</p></div>';
+elements.demo.prepend(livingOffice);
+const livingOfficeTime = byId('livingOfficeTime');
+const livingOfficeEvent = byId('livingOfficeEvent');
+const livingController = createLivingOfficeController({
+  onFrame(frame) {
+    livingOfficeTime.textContent = frame.time;
+    livingOfficeEvent.textContent = frame.event;
+  }
+});
+
+const conversionPanel = createConversionPanel({
+  onSelect(interest) {
+    analytics.track(ANALYTICS_EVENTS.INTEREST_SELECTED, { interest, profile: state.profile });
+  }
+});
+elements.completion.append(conversionPanel);
 
 function profileInput() {
   return {
@@ -65,7 +83,6 @@ function animateRoleChange() {
   const activeView = byId(`${state.activeRole}View`);
   activeView?.classList.remove('role-enter');
   requestAnimationFrame(() => activeView?.classList.add('role-enter'));
-  analytics.track('role_viewed', analyticsProfile({ role: state.activeRole }));
   previousRole = state.activeRole;
 }
 
@@ -86,12 +103,9 @@ function renderGuide(guide) {
   elements.guideStep.textContent = String(Math.min(guide.completed + 1, guide.total));
   elements.guideText.textContent = guide.guide;
   elements.guideProgress.style.width = `${guide.progress}%`;
-
-  if (guide.completed > previousCompleted) {
-    analytics.track('mission_completed', analyticsProfile({ mission: `step_${guide.completed}`, progress: guide.progress }));
-    previousCompleted = guide.completed;
-    if (guide.complete) analytics.track('demo_completed', analyticsProfile({ progress: 100 }));
-  }
+  livingOffice.classList.toggle('hidden', !state.started || guide.complete);
+  if (state.started && !guide.complete) livingController.start();
+  else livingController.stop();
 }
 
 function renderAttendance() {
@@ -130,6 +144,14 @@ function renderAction(button, status, done, pendingText, doneText) {
   button.disabled = done;
 }
 
+function trackProgress(guide) {
+  if (guide.completed > previousCompleted) {
+    analytics.track(ANALYTICS_EVENTS.MISSION_COMPLETED, { step: guide.completed, profile: state.profile });
+    previousCompleted = guide.completed;
+  }
+  if (guide.complete) analytics.track(ANALYTICS_EVENTS.DEMO_COMPLETED, { profile: state.profile });
+}
+
 function render() {
   const guide = getGuide(state);
   elements.welcome.classList.toggle('hidden', state.started);
@@ -143,6 +165,7 @@ function render() {
   renderAction(elements.generateReport, elements.reportStatus, state.reportGenerated, 'Nije generiran', 'Spreman za preuzimanje');
   elements.reviewWorker.disabled = state.workerReviewed;
   elements.reviewWorker.textContent = state.workerReviewed ? 'Podaci su potvrđeni' : 'Potvrdi da su podaci jasni';
+  trackProgress(guide);
 }
 
 function apply(action) {
@@ -152,13 +175,13 @@ function apply(action) {
 
 elements.profileForm.addEventListener('input', () => {
   state = configureDemo(state, profileInput());
-  analytics.track('demo_configured', analyticsProfile());
+  analytics.track(ANALYTICS_EVENTS.DEMO_CONFIGURED, { profile: state.profile });
   render();
 });
 elements.profileForm.addEventListener('submit', (event) => {
   event.preventDefault();
   state = configureDemo(state, profileInput());
-  analytics.track('demo_started', analyticsProfile());
+  analytics.track(ANALYTICS_EVENTS.DEMO_STARTED, { profile: state.profile });
   apply(startDemo);
 });
 elements.scan.addEventListener('click', () => apply(registerEmployee));
@@ -167,14 +190,15 @@ elements.approveLeave.addEventListener('click', () => apply(approveLeave));
 elements.reviewWorker.addEventListener('click', () => apply(reviewWorker));
 elements.generateReport.addEventListener('click', () => apply(generateReport));
 elements.reset.addEventListener('click', () => {
+  livingController.stop();
   state = resetDemo();
   previousRole = state.activeRole;
   previousCompleted = 0;
-  analytics.clear();
   render();
 });
 elements.restart.addEventListener('click', () => {
-  analytics.track('demo_restarted', analyticsProfile());
+  analytics.track(ANALYTICS_EVENTS.DEMO_RESTARTED, { profile: state.profile });
+  livingController.reset();
   state = startDemo(resetDemo(state.profile));
   previousRole = state.activeRole;
   previousCompleted = 0;
@@ -182,6 +206,7 @@ elements.restart.addEventListener('click', () => {
 });
 document.querySelectorAll('.role-button').forEach((button) => button.addEventListener('click', () => {
   state = selectRole(state, button.dataset.role);
+  analytics.track(ANALYTICS_EVENTS.ROLE_VIEWED, { role: state.activeRole, profile: state.profile });
   render();
 }));
 
