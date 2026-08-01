@@ -1,6 +1,6 @@
 .living-office {
   display: grid;
-  grid-template-columns: auto 1fr;
+  grid-template-columns: auto auto 1fr;
   gap: 14px;
   align-items: center;
   margin-bottom: 18px;
@@ -24,91 +24,65 @@
   background: #58d68d;
   box-shadow: 0 0 0 6px rgba(88,214,141,.12);
 }
-.conversion-panel {
-  margin-top: 28px;
+.business-summary {
+  margin: 30px 0 22px;
   padding-top: 28px;
   border-top: 1px solid #e3e9f2;
   text-align: left;
 }
-.conversion-panel h3 { margin: 0 0 8px; font-size: clamp(1.35rem,3vw,1.9rem); }
-.conversion-panel > div > p { color: #66738b; }
-.conversion-options {
-  display: grid;
-  grid-template-columns: repeat(3,minmax(0,1fr));
-  gap: 12px;
-  margin-top: 18px;
+.business-summary-heading h3 {
+  margin: 0 0 8px;
+  font-size: clamp(1.35rem,3vw,1.95rem);
+  letter-spacing: -.025em;
 }
-.conversion-option {
+.business-summary-heading > p:last-child { color: #66738b; }
+.business-summary-grid {
   display: grid;
-  gap: 6px;
-  min-height: 132px;
+  grid-template-columns: repeat(4,minmax(0,1fr));
+  gap: 12px;
+  margin-top: 20px;
+}
+.business-summary-grid article {
+  display: grid;
+  gap: 8px;
+  min-height: 138px;
   padding: 18px;
-  text-align: left;
+  align-content: start;
   border: 1px solid #dce4ef;
   border-radius: 16px;
-  background: #fff;
-  color: #172033;
-  cursor: pointer;
-  transition: transform .18s ease,border-color .18s ease,box-shadow .18s ease;
+  background: linear-gradient(180deg,#fff,#f8fafd);
 }
-.conversion-option strong { font-size: 1rem; }
-.conversion-option span { color: #67748b; }
-.conversion-option[aria-pressed="true"] {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-soft);
+.business-summary-grid strong {
+  font-size: 1.9rem;
+  color: var(--accent);
+  letter-spacing: -.04em;
 }
-.conversion-option:focus-visible { outline: 3px solid var(--accent-soft); outline-offset: 3px; }
-.lead-draft-form {
-  display: grid;
-  grid-template-columns: repeat(3,minmax(0,1fr));
-  gap: 12px;
-  margin-top: 18px;
+.business-summary-grid span { color: #59677f; }
+.business-summary-note {
+  margin: 16px 0 0;
+  color: #6b778d;
+  font-size: .88rem;
 }
-.lead-draft-form label {
-  display: grid;
-  gap: 7px;
-  color: #3f4b61;
-  font-size: .85rem;
-  font-weight: 750;
+@media (max-width:900px) {
+  .business-summary-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
 }
-.lead-draft-form input {
-  width: 100%;
-  min-height: 46px;
-  padding: 10px 12px;
-  border: 1px solid #cfd8e7;
-  border-radius: 11px;
-  background: #fff;
-  color: #172033;
-}
-.lead-draft-form input:focus {
-  outline: 0;
-  border-color: var(--accent);
-  box-shadow: 0 0 0 4px var(--accent-soft);
-}
-.lead-draft-form .button { align-self: end; min-height: 46px; }
-.lead-summary {
-  width: 100%;
-  min-height: 210px;
-  margin-top: 12px;
-  padding: 14px;
-  resize: vertical;
-  border: 1px solid #d6dfeb;
-  border-radius: 12px;
-  background: #f8fafd;
-  color: #24324a;
-  font: 500 .9rem/1.55 ui-monospace,SFMono-Regular,Menlo,monospace;
-}
-.copy-lead { margin-top: 10px; }
-.conversion-feedback { min-height: 24px; margin: 16px 0 0; color: #40506b; font-weight: 700; }
-@media (max-width:760px) {
-  .conversion-options,.lead-draft-form { grid-template-columns: 1fr; }
+@media (max-width:560px) {
+  .business-summary-grid { grid-template-columns: 1fr; }
   .living-office { grid-template-columns: auto 1fr; }
+  .living-office p { grid-column: 1 / -1; }
 }
 @media (prefers-reduced-motion:no-preference) {
-  .conversion-option:hover { transform: translateY(-2px); box-shadow: 0 12px 28px rgba(29,47,86,.09); }
   .living-office-dot { animation: livePulse 1.8s ease-in-out infinite; }
+  .business-summary-grid article { animation: summaryEnter .35s ease both; }
+  .business-summary-grid article:nth-child(2) { animation-delay: .05s; }
+  .business-summary-grid article:nth-child(3) { animation-delay: .1s; }
+  .business-summary-grid article:nth-child(4) { animation-delay: .15s; }
 }
 @keyframes livePulse {
   0%,100% { transform: scale(1); opacity: .8; }
   50% { transform: scale(1.25); opacity: 1; }
+}
+@keyframes summaryEnter {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
 }
