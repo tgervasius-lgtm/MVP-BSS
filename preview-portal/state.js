@@ -1,4 +1,5 @@
 import { applyExperienceEvent, createExperience, EXPERIENCE_EVENTS, getExperienceView } from './experience-engine.js';
+import { createCompanyProfile, DEFAULT_PROFILE, getProfileSummary } from './company-profile.js';
 
 export const ROLES = Object.freeze({
   director: 'Direktor',
@@ -8,17 +9,25 @@ export const ROLES = Object.freeze({
   accounting: 'Knjigovodstvo'
 });
 
-export const INITIAL_STATE = Object.freeze({
-  started: false,
-  activeRole: 'director',
-  experience: createExperience(),
-  presentCount: 47,
-  scanned: false,
-  leaveApproved: false,
-  correctionResolved: false,
-  workerReviewed: false,
-  reportGenerated: false
-});
+function createInitialState(profile = DEFAULT_PROFILE) {
+  const normalizedProfile = createCompanyProfile(profile);
+  const summary = getProfileSummary(normalizedProfile);
+  return {
+    started: false,
+    activeRole: 'director',
+    profile: normalizedProfile,
+    summary,
+    experience: createExperience(),
+    presentCount: summary.present,
+    scanned: false,
+    leaveApproved: false,
+    correctionResolved: false,
+    workerReviewed: false,
+    reportGenerated: false
+  };
+}
+
+export const INITIAL_STATE = Object.freeze(createInitialState());
 
 function advance(state, eventType, changes) {
   const experience = applyExperienceEvent(state.experience, eventType);
@@ -29,6 +38,11 @@ function advance(state, eventType, changes) {
 
 export function getGuide(state) {
   return getExperienceView(state.experience);
+}
+
+export function configureDemo(state, profileInput) {
+  if (state.started) return state;
+  return createInitialState(profileInput);
 }
 
 export function startDemo(state = INITIAL_STATE) {
@@ -63,9 +77,6 @@ export function generateReport(state) {
   return advance(state, EXPERIENCE_EVENTS.REPORT_GENERATED, { reportGenerated: true });
 }
 
-export function resetDemo() {
-  return {
-    ...INITIAL_STATE,
-    experience: createExperience()
-  };
+export function resetDemo(profile = DEFAULT_PROFILE) {
+  return createInitialState(profile);
 }
