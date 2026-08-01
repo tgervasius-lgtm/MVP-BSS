@@ -26,7 +26,7 @@ const ACTION_MESSAGES = Object.freeze({
 
 for (const [id, message] of Object.entries(ACTION_MESSAGES)) {
   document.getElementById(id)?.addEventListener('click', () => {
-    window.setTimeout(() => toastCenter.show(message), id === 'scanButton' ? 560 : 120);
+    toastCenter.schedule(message, id === 'scanButton' ? 560 : 120);
   });
 }
 
