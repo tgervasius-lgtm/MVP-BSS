@@ -1,3 +1,4 @@
+import './boot-entry.js';
 import { createToastCenter, pulseElement } from './notifications.js';
 
 const polishStyles = document.createElement('link');
