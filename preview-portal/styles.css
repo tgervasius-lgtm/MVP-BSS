@@ -6,6 +6,7 @@
 }
 * { box-sizing: border-box; }
 body { margin: 0; }
+button, input, select { font: inherit; }
 .shell { max-width: 1180px; margin: 0 auto; padding: 24px; }
 .topbar, .section-heading, .role-switcher { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 .topbar { margin-bottom: 24px; }
@@ -15,8 +16,14 @@ h1 { font-size: 1.35rem; margin-bottom: 0; }
 h2 { font-size: clamp(1.5rem, 4vw, 2.5rem); line-height: 1.12; }
 .panel, .metric { background: #fff; border: 1px solid #dfe5ef; border-radius: 20px; }
 .panel { padding: 28px; }
-.hero { display: grid; grid-template-columns: 1.5fr .8fr; gap: 28px; align-items: center; min-height: 430px; }
-.hero p { max-width: 650px; font-size: 1.08rem; color: #59647a; }
+.onboarding { display: grid; grid-template-columns: 1.35fr .75fr; gap: 32px; align-items: center; min-height: 520px; }
+.onboarding-copy > p { max-width: 700px; color: #59647a; font-size: 1.05rem; }
+.profile-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-top: 24px; }
+.profile-form label { display: grid; gap: 7px; color: #3f4b61; font-size: .88rem; font-weight: 700; }
+.profile-form input, .profile-form select { width: 100%; min-height: 46px; padding: 10px 12px; color: #172033; background: #fff; border: 1px solid #cfd8e7; border-radius: 11px; }
+.profile-form input:focus, .profile-form select:focus { outline: 3px solid #d5e1ff; border-color: #2457d6; }
+.profile-form .full { grid-column: 1 / -1; }
+.disclosure { display: block; margin-top: 14px; color: #738097; }
 .preview-card { padding: 24px; border-radius: 18px; background: #172033; color: #fff; display: flex; flex-direction: column; gap: 8px; }
 .preview-card strong { font-size: 2rem; }
 .muted { color: #aeb8cb; }
@@ -58,8 +65,8 @@ h2 { font-size: clamp(1.5rem, 4vw, 2.5rem); line-height: 1.12; }
 .terminal-screen small { color: #b9c4d7; }
 @media (max-width: 760px) {
   .shell { padding: 16px; }
-  .hero, .workspace, .guide-panel { grid-template-columns: 1fr; }
-  .metrics { grid-template-columns: 1fr; }
+  .onboarding, .workspace, .guide-panel { grid-template-columns: 1fr; }
+  .profile-form, .metrics { grid-template-columns: 1fr; }
   .objective, .topbar, .role-switcher { align-items: flex-start; }
   .topbar, .role-switcher { flex-direction: column; }
   .panel { padding: 20px; }
