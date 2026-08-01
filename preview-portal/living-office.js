@@ -54,13 +54,7 @@ export function getLivingOfficeFrame(step = 0, industry = 'ostalo') {
   const index = Math.min(Math.max(Number.parseInt(step, 10) || 0, 0), TIMES.length - 1);
   const key = normalizeIndustry(industry);
   const events = INDUSTRY_EVENTS[key];
-  return Object.freeze({
-    time: TIMES[index],
-    event: events[index],
-    index,
-    total: TIMES.length,
-    industry: key
-  });
+  return Object.freeze({ time: TIMES[index], event: events[index], index, total: TIMES.length, industry: key });
 }
 
 export function appendLivingOfficeEvent(feed, frame, maxItems = 8) {
@@ -89,13 +83,23 @@ export function createLivingOfficeController({
   intervalMs = 2400,
   feed = globalThis.document?.querySelector?.('#activityFeed'),
   resetControl = globalThis.document?.querySelector?.('#resetButton'),
-  industry = 'ostalo'
+  industry = 'ostalo',
+  getIndustry = () => globalThis.document?.querySelector?.('#industryInput')?.value ?? industry
 } = {}) {
   let step = 0;
   let timer = null;
   let activeIndustry = normalizeIndustry(industry);
 
+  function syncIndustry() {
+    const nextIndustry = normalizeIndustry(getIndustry?.());
+    if (nextIndustry === activeIndustry) return;
+    activeIndustry = nextIndustry;
+    step = 0;
+    clearLivingOfficeEvents(feed);
+  }
+
   function emit() {
+    syncIndustry();
     const frame = getLivingOfficeFrame(step, activeIndustry);
     onFrame?.(frame);
     appendLivingOfficeEvent(feed, frame);
@@ -110,6 +114,7 @@ export function createLivingOfficeController({
 
   function reset() {
     stop();
+    activeIndustry = normalizeIndustry(getIndustry?.());
     step = 0;
     clearLivingOfficeEvents(feed);
     onFrame?.(getLivingOfficeFrame(0, activeIndustry));
