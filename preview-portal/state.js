@@ -1,3 +1,5 @@
+import { applyExperienceEvent, createExperience, EXPERIENCE_EVENTS, getExperienceView } from './experience-engine.js';
+
 export const ROLES = Object.freeze({
   director: 'Direktor',
   admin: 'Administrator',
@@ -9,7 +11,7 @@ export const ROLES = Object.freeze({
 export const INITIAL_STATE = Object.freeze({
   started: false,
   activeRole: 'director',
-  guideStep: 0,
+  experience: createExperience(),
   presentCount: 47,
   scanned: false,
   leaveApproved: false,
@@ -17,6 +19,17 @@ export const INITIAL_STATE = Object.freeze({
   workerReviewed: false,
   reportGenerated: false
 });
+
+function advance(state, eventType, changes) {
+  const experience = applyExperienceEvent(state.experience, eventType);
+  if (experience === state.experience) return state;
+  const view = getExperienceView(experience);
+  return { ...state, ...changes, experience, activeRole: view.role };
+}
+
+export function getGuide(state) {
+  return getExperienceView(state.experience);
+}
 
 export function startDemo(state = INITIAL_STATE) {
   return { ...state, started: true };
@@ -28,30 +41,31 @@ export function selectRole(state, role) {
 }
 
 export function registerEmployee(state) {
-  if (state.scanned) return state;
-  return { ...state, presentCount: state.presentCount + 1, scanned: true, guideStep: Math.max(state.guideStep, 1), activeRole: 'admin' };
+  return advance(state, EXPERIENCE_EVENTS.EMPLOYEE_CHECKED_IN, {
+    presentCount: state.presentCount + 1,
+    scanned: true
+  });
 }
 
 export function resolveCorrection(state) {
-  if (state.correctionResolved) return state;
-  return { ...state, correctionResolved: true, guideStep: Math.max(state.guideStep, 2), activeRole: 'manager' };
+  return advance(state, EXPERIENCE_EVENTS.CORRECTION_RESOLVED, { correctionResolved: true });
 }
 
 export function approveLeave(state) {
-  if (state.leaveApproved) return state;
-  return { ...state, leaveApproved: true, guideStep: Math.max(state.guideStep, 3), activeRole: 'worker' };
+  return advance(state, EXPERIENCE_EVENTS.LEAVE_APPROVED, { leaveApproved: true });
 }
 
 export function reviewWorker(state) {
-  if (state.workerReviewed) return state;
-  return { ...state, workerReviewed: true, guideStep: Math.max(state.guideStep, 4), activeRole: 'accounting' };
+  return advance(state, EXPERIENCE_EVENTS.WORKER_REVIEWED, { workerReviewed: true });
 }
 
 export function generateReport(state) {
-  if (state.reportGenerated) return state;
-  return { ...state, reportGenerated: true, guideStep: 5 };
+  return advance(state, EXPERIENCE_EVENTS.REPORT_GENERATED, { reportGenerated: true });
 }
 
 export function resetDemo() {
-  return { ...INITIAL_STATE };
+  return {
+    ...INITIAL_STATE,
+    experience: createExperience()
+  };
 }
