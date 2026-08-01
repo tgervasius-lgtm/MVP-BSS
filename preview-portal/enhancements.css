@@ -59,6 +59,43 @@
   cursor: pointer;
 }
 .kpi-close:focus-visible { outline: 3px solid var(--accent-soft); outline-offset: 2px; }
+.terminal-sound-toggle {
+  width: 100%;
+  margin: 0 0 10px;
+  padding: 9px 12px;
+  border: 1px solid #dce4ef;
+  border-radius: 10px;
+  background: #f7f9fc;
+  color: #42506a;
+  font-weight: 750;
+  cursor: pointer;
+}
+.terminal-sound-toggle[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.terminal-sound-toggle:focus-visible { outline: 3px solid var(--accent-soft); outline-offset: 2px; }
+.terminal-screen { position: relative; overflow: hidden; }
+.rfid-card {
+  position: absolute;
+  right: -110px;
+  bottom: 20px;
+  width: 94px;
+  height: 60px;
+  padding: 10px;
+  border-radius: 10px;
+  background: linear-gradient(145deg,#f8fbff,#d7e3f7);
+  color: #18233a;
+  box-shadow: 0 12px 26px rgba(0,0,0,.28);
+  transform: rotate(-8deg);
+  display: grid;
+  align-content: space-between;
+  text-align: left;
+}
+.rfid-card span { font-size: .9rem; font-weight: 900; letter-spacing: .08em; }
+.rfid-card small { color: #5d6b82; font-size: .66rem; }
+.terminal-screen.reading .rfid-card { animation: cardScan .52s cubic-bezier(.22,.61,.36,1) both; }
 .business-summary {
   margin: 30px 0 22px;
   padding-top: 28px;
@@ -122,4 +159,10 @@
 @keyframes summaryEnter {
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: none; }
+}
+@keyframes cardScan {
+  0% { transform: translateX(0) rotate(-8deg); opacity: 0; }
+  25% { opacity: 1; }
+  75% { transform: translateX(-150px) rotate(2deg); opacity: 1; }
+  100% { transform: translateX(-175px) rotate(2deg); opacity: 0; }
 }
