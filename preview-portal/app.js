@@ -1,8 +1,11 @@
 import { INITIAL_STATE, ROLES, configureDemo, getGuide, startDemo, selectRole, registerEmployee, approveLeave, resolveCorrection, reviewWorker, generateReport, resetDemo } from './state.js';
 import { getIndustryContext } from './industry-context.js';
+import { createMemoryAnalyticsSink } from './analytics.js';
 
 let state = resetDemo();
 let previousRole = state.activeRole;
+let previousCompleted = 0;
+const analytics = createMemoryAnalyticsSink();
 const byId = (id) => document.getElementById(id);
 const elements = {
   welcome: byId('welcomeView'), demo: byId('demoView'), start: byId('startButton'), reset: byId('resetButton'), restart: byId('restartButton'),
@@ -16,6 +19,16 @@ const elements = {
   generateReport: byId('generateReportButton'), reportStatus: byId('reportStatus'),
   guideStep: byId('guideStep'), guideText: byId('guideText'), guideProgress: byId('guideProgress'), completion: byId('completionView')
 };
+
+function analyticsProfile(extra = {}) {
+  return {
+    industry: state.profile.industry,
+    employees: state.profile.employees,
+    locations: state.profile.locations,
+    shifts: state.profile.shifts,
+    ...extra
+  };
+}
 
 function profileInput() {
   return {
@@ -52,6 +65,7 @@ function animateRoleChange() {
   const activeView = byId(`${state.activeRole}View`);
   activeView?.classList.remove('role-enter');
   requestAnimationFrame(() => activeView?.classList.add('role-enter'));
+  analytics.track('role_viewed', analyticsProfile({ role: state.activeRole }));
   previousRole = state.activeRole;
 }
 
@@ -72,6 +86,12 @@ function renderGuide(guide) {
   elements.guideStep.textContent = String(Math.min(guide.completed + 1, guide.total));
   elements.guideText.textContent = guide.guide;
   elements.guideProgress.style.width = `${guide.progress}%`;
+
+  if (guide.completed > previousCompleted) {
+    analytics.track('mission_completed', analyticsProfile({ mission: `step_${guide.completed}`, progress: guide.progress }));
+    previousCompleted = guide.completed;
+    if (guide.complete) analytics.track('demo_completed', analyticsProfile({ progress: 100 }));
+  }
 }
 
 function renderAttendance() {
@@ -132,11 +152,13 @@ function apply(action) {
 
 elements.profileForm.addEventListener('input', () => {
   state = configureDemo(state, profileInput());
+  analytics.track('demo_configured', analyticsProfile());
   render();
 });
 elements.profileForm.addEventListener('submit', (event) => {
   event.preventDefault();
   state = configureDemo(state, profileInput());
+  analytics.track('demo_started', analyticsProfile());
   apply(startDemo);
 });
 elements.scan.addEventListener('click', () => apply(registerEmployee));
@@ -144,8 +166,20 @@ elements.resolveCorrection.addEventListener('click', () => apply(resolveCorrecti
 elements.approveLeave.addEventListener('click', () => apply(approveLeave));
 elements.reviewWorker.addEventListener('click', () => apply(reviewWorker));
 elements.generateReport.addEventListener('click', () => apply(generateReport));
-elements.reset.addEventListener('click', () => { state = resetDemo(); previousRole = state.activeRole; render(); });
-elements.restart.addEventListener('click', () => { state = startDemo(resetDemo(state.profile)); previousRole = state.activeRole; render(); });
+elements.reset.addEventListener('click', () => {
+  state = resetDemo();
+  previousRole = state.activeRole;
+  previousCompleted = 0;
+  analytics.clear();
+  render();
+});
+elements.restart.addEventListener('click', () => {
+  analytics.track('demo_restarted', analyticsProfile());
+  state = startDemo(resetDemo(state.profile));
+  previousRole = state.activeRole;
+  previousCompleted = 0;
+  render();
+});
 document.querySelectorAll('.role-button').forEach((button) => button.addEventListener('click', () => {
   state = selectRole(state, button.dataset.role);
   render();
