@@ -1,0 +1,16 @@
+.final-experience { margin: 24px 0; padding: 24px; border: 1px solid #dce4ef; border-radius: 20px; background: linear-gradient(180deg,#ffffff,#f6f9fd); text-align: left; }
+.final-experience-hero { display: grid; grid-template-columns: auto 1fr; gap: 16px; align-items: start; }
+.final-experience-mark { display: grid; place-items: center; width: 48px; height: 48px; border-radius: 15px; background: #15365f; color: #fff; font-size: 1.4rem; font-weight: 900; }
+.final-experience-hero h3 { margin: 2px 0 8px; font-size: clamp(1.45rem,3vw,2.1rem); }
+.final-experience-hero p:last-child { margin: 0; color: #647089; }
+.final-experience-score { display: grid; gap: 4px; margin: 22px 0; padding: 18px; border-radius: 16px; background: #172033; color: #fff; }
+.final-experience-score strong { font-size: clamp(2.2rem,7vw,4rem); line-height: 1; }
+.final-experience-score span { font-weight: 800; }
+.final-experience-score small { color: #b8c3d6; }
+.final-experience-steps { display: grid; gap: 10px; list-style: none; padding: 0; margin: 0; }
+.final-experience-steps li { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center; padding: 13px 14px; border: 1px solid #e2e8f1; border-radius: 13px; background: #fff; }
+.final-experience-steps li > span { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: #eaf2ff; color: #245da8; font-weight: 900; }
+.final-experience-steps small { color: #24805a; font-weight: 800; }
+@media (max-width:560px) { .final-experience { padding: 18px; } .final-experience-steps li { grid-template-columns: auto 1fr; } .final-experience-steps small { grid-column: 2; } }
+@media (prefers-reduced-motion:no-preference) { .final-experience { animation: finalExperienceEnter .38s ease both; } .final-experience-steps li { animation: finalExperienceEnter .28s ease both; } .final-experience-steps li:nth-child(2) { animation-delay: .04s; } .final-experience-steps li:nth-child(3) { animation-delay: .08s; } .final-experience-steps li:nth-child(4) { animation-delay: .12s; } .final-experience-steps li:nth-child(5) { animation-delay: .16s; } }
+@keyframes finalExperienceEnter { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
