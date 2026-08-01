@@ -17,13 +17,37 @@ export function getLivingOfficeFrame(step = 0) {
   });
 }
 
-export function createLivingOfficeController({ onFrame, intervalMs = 2400 } = {}) {
+export function appendLivingOfficeEvent(feed, frame, maxItems = 8) {
+  if (!feed || typeof feed.querySelector !== 'function' || typeof feed.append !== 'function') return false;
+  const key = `living-${frame.index}`;
+  if (feed.querySelector(`[data-live-event="${key}"]`)) return false;
+
+  const item = feed.ownerDocument?.createElement?.('li');
+  if (!item) return false;
+  item.dataset.liveEvent = key;
+  item.innerHTML = `<span>${frame.time}</span> ${frame.event}`;
+  feed.append(item);
+
+  const generated = Array.from(feed.querySelectorAll('[data-live-event]'));
+  while (generated.length > maxItems) {
+    generated.shift()?.remove();
+  }
+  return true;
+}
+
+export function clearLivingOfficeEvents(feed) {
+  if (!feed || typeof feed.querySelectorAll !== 'function') return;
+  feed.querySelectorAll('[data-live-event]').forEach((item) => item.remove());
+}
+
+export function createLivingOfficeController({ onFrame, intervalMs = 2400, feed = globalThis.document?.querySelector?.('#activityFeed') } = {}) {
   let step = 0;
   let timer = null;
 
   function emit() {
     const frame = getLivingOfficeFrame(step);
     onFrame?.(frame);
+    appendLivingOfficeEvent(feed, frame);
     step = (step + 1) % frame.total;
   }
 
@@ -40,6 +64,7 @@ export function createLivingOfficeController({ onFrame, intervalMs = 2400 } = {}
     },
     reset() {
       step = 0;
+      clearLivingOfficeEvents(feed);
       onFrame?.(getLivingOfficeFrame(0));
     }
   });
