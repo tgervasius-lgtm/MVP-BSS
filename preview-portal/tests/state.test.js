@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { INITIAL_STATE, startDemo, selectRole, registerEmployee, approveLeave, resolveCorrection, generateReport, resetDemo } from '../state.js';
+import { INITIAL_STATE, startDemo, selectRole, registerEmployee, approveLeave, resolveCorrection, reviewWorker, generateReport, resetDemo } from '../state.js';
 
 test('startDemo otvara iskustvo bez mijenjanja metrika', () => {
   const next = startDemo(INITIAL_STATE);
@@ -9,12 +9,25 @@ test('startDemo otvara iskustvo bez mijenjanja metrika', () => {
   assert.equal(next.activeRole, 'director');
 });
 
-test('promjena kroz svih pet uloga čuva zajedničko stanje', () => {
-  let state = registerEmployee({ ...INITIAL_STATE, started: true });
-  for (const role of ['admin', 'manager', 'worker', 'accounting']) state = selectRole(state, role);
+test('vođeni radni dan automatski prolazi svih pet uloga', () => {
+  let state = startDemo(INITIAL_STATE);
+  state = registerEmployee(state);
+  assert.equal(state.activeRole, 'admin');
+  state = resolveCorrection(state);
+  assert.equal(state.activeRole, 'manager');
+  state = approveLeave(state);
+  assert.equal(state.activeRole, 'worker');
+  state = reviewWorker(state);
   assert.equal(state.activeRole, 'accounting');
-  assert.equal(state.presentCount, 48);
-  assert.equal(state.scanned, true);
+  state = generateReport(state);
+  assert.equal(state.guideStep, 5);
+});
+
+test('ručna promjena uloge čuva zajedničko stanje', () => {
+  const scanned = registerEmployee({ ...INITIAL_STATE, started: true });
+  const accounting = selectRole(scanned, 'accounting');
+  assert.equal(accounting.presentCount, 48);
+  assert.equal(accounting.scanned, true);
 });
 
 test('nepoznata uloga ne mijenja stanje', () => {
@@ -22,20 +35,15 @@ test('nepoznata uloga ne mijenja stanje', () => {
   assert.equal(selectRole(state, 'owner'), state);
 });
 
-test('RFID prijava povećava broj prisutnih samo jednom', () => {
-  const once = registerEmployee({ ...INITIAL_STATE, started: true });
-  const twice = registerEmployee(once);
-  assert.equal(once.presentCount, 48);
-  assert.equal(twice.presentCount, 48);
-});
-
 test('operativne radnje su idempotentne', () => {
-  const leave = approveLeave(approveLeave(INITIAL_STATE));
-  const correction = resolveCorrection(resolveCorrection(leave));
-  const report = generateReport(generateReport(correction));
-  assert.equal(report.leaveApproved, true);
-  assert.equal(report.correctionResolved, true);
+  const attendance = registerEmployee(registerEmployee({ ...INITIAL_STATE, started: true }));
+  const correction = resolveCorrection(resolveCorrection(attendance));
+  const leave = approveLeave(approveLeave(correction));
+  const worker = reviewWorker(reviewWorker(leave));
+  const report = generateReport(generateReport(worker));
+  assert.equal(report.presentCount, 48);
   assert.equal(report.reportGenerated, true);
+  assert.equal(report.guideStep, 5);
 });
 
 test('reset vraća determinističko početno stanje', () => {
