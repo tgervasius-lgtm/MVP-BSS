@@ -1,0 +1,73 @@
+.living-office {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 14px;
+  align-items: center;
+  margin-bottom: 18px;
+  padding: 16px 18px;
+  border-radius: 16px;
+  background: rgba(23,32,51,.94);
+  color: #fff;
+  box-shadow: 0 12px 30px rgba(23,32,51,.16);
+}
+.living-office time {
+  min-width: 64px;
+  font-size: 1.2rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.living-office p { margin: 0; color: #d7dfec; }
+.living-office-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #58d68d;
+  box-shadow: 0 0 0 6px rgba(88,214,141,.12);
+}
+.conversion-panel {
+  margin-top: 28px;
+  padding-top: 28px;
+  border-top: 1px solid #e3e9f2;
+  text-align: left;
+}
+.conversion-panel h3 { margin: 0 0 8px; font-size: clamp(1.35rem,3vw,1.9rem); }
+.conversion-panel > div > p { color: #66738b; }
+.conversion-options {
+  display: grid;
+  grid-template-columns: repeat(3,minmax(0,1fr));
+  gap: 12px;
+  margin-top: 18px;
+}
+.conversion-option {
+  display: grid;
+  gap: 6px;
+  min-height: 132px;
+  padding: 18px;
+  text-align: left;
+  border: 1px solid #dce4ef;
+  border-radius: 16px;
+  background: #fff;
+  color: #172033;
+  cursor: pointer;
+  transition: transform .18s ease,border-color .18s ease,box-shadow .18s ease;
+}
+.conversion-option strong { font-size: 1rem; }
+.conversion-option span { color: #67748b; }
+.conversion-option[aria-pressed="true"] {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.conversion-option:focus-visible { outline: 3px solid var(--accent-soft); outline-offset: 3px; }
+.conversion-feedback { min-height: 24px; margin: 16px 0 0; color: #40506b; font-weight: 700; }
+@media (max-width:760px) {
+  .conversion-options { grid-template-columns: 1fr; }
+  .living-office { grid-template-columns: auto 1fr; }
+}
+@media (prefers-reduced-motion:no-preference) {
+  .conversion-option:hover { transform: translateY(-2px); box-shadow: 0 12px 28px rgba(29,47,86,.09); }
+  .living-office-dot { animation: livePulse 1.8s ease-in-out infinite; }
+}
+@keyframes livePulse {
+  0%,100% { transform: scale(1); opacity: .8; }
+  50% { transform: scale(1.25); opacity: 1; }
+}
