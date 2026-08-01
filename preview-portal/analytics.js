@@ -4,7 +4,6 @@ export const ANALYTICS_EVENTS = Object.freeze({
   MISSION_COMPLETED: 'mission_completed',
   ROLE_VIEWED: 'role_viewed',
   DEMO_COMPLETED: 'demo_completed',
-  INTEREST_SELECTED: 'lead_intent_selected',
   DEMO_RESTARTED: 'demo_restarted'
 });
 
@@ -31,7 +30,6 @@ function flattenPayload(payload) {
     employees: payload.employees ?? profile.employees,
     locations: payload.locations ?? profile.locations,
     shifts: payload.shifts ?? profile.shifts,
-    intent: payload.intent ?? payload.interest,
     progress: payload.progress ?? payload.step
   };
 }
@@ -50,7 +48,6 @@ export function createAnalyticsEvent(name, payload = {}, now = () => Date.now())
   if (input.industry) event.payload.industry = sanitizeText(input.industry);
   if (input.role) event.payload.role = sanitizeText(input.role);
   if (input.mission) event.payload.mission = sanitizeText(input.mission);
-  if (input.intent) event.payload.intent = sanitizeText(input.intent);
 
   const employees = boundedNumber(input.employees, 5, 1000);
   const locations = boundedNumber(input.locations, 1, 50);
