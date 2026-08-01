@@ -40,7 +40,12 @@ export function clearLivingOfficeEvents(feed) {
   feed.querySelectorAll('[data-live-event]').forEach((item) => item.remove());
 }
 
-export function createLivingOfficeController({ onFrame, intervalMs = 2400, feed = globalThis.document?.querySelector?.('#activityFeed') } = {}) {
+export function createLivingOfficeController({
+  onFrame,
+  intervalMs = 2400,
+  feed = globalThis.document?.querySelector?.('#activityFeed'),
+  resetControl = globalThis.document?.querySelector?.('#resetButton')
+} = {}) {
   let step = 0;
   let timer = null;
 
@@ -51,21 +56,28 @@ export function createLivingOfficeController({ onFrame, intervalMs = 2400, feed 
     step = (step + 1) % frame.total;
   }
 
+  function stop() {
+    if (!timer) return;
+    clearInterval(timer);
+    timer = null;
+  }
+
+  function reset() {
+    stop();
+    step = 0;
+    clearLivingOfficeEvents(feed);
+    onFrame?.(getLivingOfficeFrame(0));
+  }
+
+  resetControl?.addEventListener?.('click', reset);
+
   return Object.freeze({
     start() {
       if (timer) return;
       emit();
       timer = setInterval(emit, intervalMs);
     },
-    stop() {
-      if (!timer) return;
-      clearInterval(timer);
-      timer = null;
-    },
-    reset() {
-      step = 0;
-      clearLivingOfficeEvents(feed);
-      onFrame?.(getLivingOfficeFrame(0));
-    }
+    stop,
+    reset
   });
 }
