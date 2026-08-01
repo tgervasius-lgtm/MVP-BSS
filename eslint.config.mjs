@@ -30,7 +30,7 @@ export default [
     }
   },
   {
-    files:['**/*.mjs'],
+    files:['**/*.mjs','preview-portal/**/*.js'],
     languageOptions:{sourceType:'module'}
   }
 ];
