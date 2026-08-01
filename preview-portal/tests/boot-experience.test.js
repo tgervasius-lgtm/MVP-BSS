@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { DEFAULT_STEPS, normalizeBootSteps } from '../boot-experience.js';
+import { DEFAULT_STEPS, createBootExperience, normalizeBootSteps } from '../boot-experience.js';
 
 test('boot experience ima stabilan zadani slijed', () => {
   assert.equal(DEFAULT_STEPS.length, 4);
@@ -25,4 +25,35 @@ test('boot experience normalizira neispravne korake', () => {
 test('prazan slijed vraća zadane korake', () => {
   assert.equal(normalizeBootSteps([]), DEFAULT_STEPS);
   assert.equal(normalizeBootSteps(null), DEFAULT_STEPS);
+});
+
+test('reset prekida aktivnu boot sekvencu', async () => {
+  const classes = new Set(['hidden']);
+  const label = { textContent: '' };
+  const bar = { style: { width: '' } };
+  const overlay = {
+    className: '',
+    innerHTML: '',
+    setAttribute() {},
+    classList: {
+      add(...names) { names.forEach((name) => classes.add(name)); },
+      remove(...names) { names.forEach((name) => classes.delete(name)); }
+    },
+    querySelector(selector) {
+      if (selector === '.boot-step') return label;
+      if (selector === '.boot-progress span') return bar;
+      return null;
+    }
+  };
+  const documentRef = {
+    createElement() { return overlay; },
+    body: { append() {} }
+  };
+  const boot = createBootExperience({ documentRef, stepDelayMs: 0 });
+  const result = boot.run();
+  boot.reset();
+
+  assert.equal(await result, false);
+  assert.equal(boot.isRunning(), false);
+  assert.equal(classes.has('hidden'), true);
 });
