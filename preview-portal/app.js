@@ -1,15 +1,7 @@
-import { INITIAL_STATE, ROLES, startDemo, selectRole, registerEmployee, approveLeave, resolveCorrection, reviewWorker, generateReport, resetDemo } from './state.js';
+import { INITIAL_STATE, ROLES, getGuide, startDemo, selectRole, registerEmployee, approveLeave, resolveCorrection, reviewWorker, generateReport, resetDemo } from './state.js';
 
-let state = { ...INITIAL_STATE };
+let state = resetDemo();
 const byId = (id) => document.getElementById(id);
-const guideCopy = [
-  'Evidentirajte dolazak radnika putem virtualnog RFID terminala.',
-  'Provjerite i potvrdite nedostajuću odjavu zaposlenika.',
-  'Odobrite zahtjev za godišnji odmor kao voditelj.',
-  'Provjerite kako radnik vidi vlastitu evidenciju.',
-  'Generirajte obračunski izvještaj za knjigovodstvo.',
-  'Vođeni radni dan je završen.'
-];
 const elements = {
   welcome: byId('welcomeView'), demo: byId('demoView'), start: byId('startButton'), reset: byId('resetButton'), restart: byId('restartButton'),
   scan: byId('scanButton'), count: byId('presentCount'), screen: byId('terminalScreen'), feed: byId('activityFeed'),
@@ -21,24 +13,22 @@ const elements = {
   guideStep: byId('guideStep'), guideText: byId('guideText'), guideProgress: byId('guideProgress'), completion: byId('completionView')
 };
 
-function renderRole() {
-  const complete = state.guideStep >= 5;
-  elements.roleLabel.textContent = complete ? 'Završeno' : ROLES[state.activeRole];
+function renderRole(guide) {
+  elements.roleLabel.textContent = guide.complete ? 'Završeno' : ROLES[state.activeRole];
   document.querySelectorAll('.role-view').forEach((view) => view.classList.add('hidden'));
-  elements.completion.classList.toggle('hidden', !complete);
-  if (!complete) byId(`${state.activeRole}View`).classList.remove('hidden');
+  elements.completion.classList.toggle('hidden', !guide.complete);
+  if (!guide.complete) byId(`${state.activeRole}View`).classList.remove('hidden');
   document.querySelectorAll('.role-button').forEach((button) => {
-    const active = !complete && button.dataset.role === state.activeRole;
+    const active = !guide.complete && button.dataset.role === state.activeRole;
     button.classList.toggle('active', active);
     button.setAttribute('aria-pressed', String(active));
   });
 }
 
-function renderGuide() {
-  const visibleStep = Math.min(state.guideStep + 1, 5);
-  elements.guideStep.textContent = String(visibleStep);
-  elements.guideText.textContent = guideCopy[state.guideStep];
-  elements.guideProgress.style.width = `${Math.min((state.guideStep / 5) * 100, 100)}%`;
+function renderGuide(guide) {
+  elements.guideStep.textContent = String(Math.min(guide.completed + 1, guide.total));
+  elements.guideText.textContent = guide.guide;
+  elements.guideProgress.style.width = `${guide.progress}%`;
 }
 
 function renderAttendance() {
@@ -75,10 +65,11 @@ function renderAction(button, status, done, pendingText, doneText) {
 }
 
 function render() {
+  const guide = getGuide(state);
   elements.welcome.classList.toggle('hidden', state.started);
   elements.demo.classList.toggle('hidden', !state.started);
-  renderRole();
-  renderGuide();
+  renderRole(guide);
+  renderGuide(guide);
   renderAttendance();
   renderAction(elements.resolveCorrection, elements.correctionStatus, state.correctionResolved, 'Za provjeru', 'Korekcija potvrđena');
   renderAction(elements.approveLeave, elements.leaveStatus, state.leaveApproved, 'Čeka odluku', 'Odobreno');
