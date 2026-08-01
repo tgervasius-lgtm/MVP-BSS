@@ -1,12 +1,14 @@
-const ALLOWED_EVENTS = new Set([
-  'demo_configured',
-  'demo_started',
-  'mission_completed',
-  'role_viewed',
-  'demo_completed',
-  'lead_intent_selected',
-  'demo_restarted'
-]);
+export const ANALYTICS_EVENTS = Object.freeze({
+  DEMO_CONFIGURED: 'demo_configured',
+  DEMO_STARTED: 'demo_started',
+  MISSION_COMPLETED: 'mission_completed',
+  ROLE_VIEWED: 'role_viewed',
+  DEMO_COMPLETED: 'demo_completed',
+  INTEREST_SELECTED: 'lead_intent_selected',
+  DEMO_RESTARTED: 'demo_restarted'
+});
+
+const ALLOWED_EVENTS = new Set(Object.values(ANALYTICS_EVENTS));
 
 function sanitizeText(value, maxLength = 40) {
   return String(value ?? '')
@@ -21,9 +23,23 @@ function boundedNumber(value, min, max) {
   return Math.min(Math.max(parsed, min), max);
 }
 
+function flattenPayload(payload) {
+  const profile = payload.profile ?? {};
+  return {
+    ...payload,
+    industry: payload.industry ?? profile.industry,
+    employees: payload.employees ?? profile.employees,
+    locations: payload.locations ?? profile.locations,
+    shifts: payload.shifts ?? profile.shifts,
+    intent: payload.intent ?? payload.interest,
+    progress: payload.progress ?? payload.step
+  };
+}
+
 export function createAnalyticsEvent(name, payload = {}, now = () => Date.now()) {
   if (!ALLOWED_EVENTS.has(name)) throw new TypeError(`Unsupported analytics event: ${name}`);
 
+  const input = flattenPayload(payload);
   const event = {
     name,
     timestamp: now(),
@@ -31,15 +47,15 @@ export function createAnalyticsEvent(name, payload = {}, now = () => Date.now())
     payload: {}
   };
 
-  if (payload.industry) event.payload.industry = sanitizeText(payload.industry);
-  if (payload.role) event.payload.role = sanitizeText(payload.role);
-  if (payload.mission) event.payload.mission = sanitizeText(payload.mission);
-  if (payload.intent) event.payload.intent = sanitizeText(payload.intent);
+  if (input.industry) event.payload.industry = sanitizeText(input.industry);
+  if (input.role) event.payload.role = sanitizeText(input.role);
+  if (input.mission) event.payload.mission = sanitizeText(input.mission);
+  if (input.intent) event.payload.intent = sanitizeText(input.intent);
 
-  const employees = boundedNumber(payload.employees, 5, 1000);
-  const locations = boundedNumber(payload.locations, 1, 50);
-  const shifts = boundedNumber(payload.shifts, 1, 4);
-  const progress = boundedNumber(payload.progress, 0, 100);
+  const employees = boundedNumber(input.employees, 5, 1000);
+  const locations = boundedNumber(input.locations, 1, 50);
+  const shifts = boundedNumber(input.shifts, 1, 4);
+  const progress = boundedNumber(input.progress, 0, 100);
 
   if (employees !== undefined) event.payload.employeeBand = employees <= 20 ? '5-20' : employees <= 50 ? '21-50' : employees <= 100 ? '51-100' : employees <= 250 ? '101-250' : '251+';
   if (locations !== undefined) event.payload.locationBand = locations === 1 ? '1' : locations <= 3 ? '2-3' : '4+';
@@ -65,3 +81,5 @@ export function createMemoryAnalyticsSink() {
     }
   });
 }
+
+export const createAnalytics = createMemoryAnalyticsSink;
