@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { normalizeToast, pulseElement } from '../notifications.js';
+import { createToastCenter, normalizeToast, pulseElement } from '../notifications.js';
 
 test('normalizira toast i ograničava tekst', () => {
   const toast = normalizeToast({ title: '  Uspjeh ', message: ' Evidencija spremljena. ', tone: 'success' });
@@ -9,6 +9,50 @@ test('normalizira toast i ograničava tekst', () => {
 
 test('nepoznati tone vraća info', () => {
   assert.equal(normalizeToast({ tone: 'danger' }).tone, 'info');
+});
+
+test('clear otkazuje odgođene i aktivne toast timere', () => {
+  let timerId = 0;
+  const timers = new Map();
+  const cleared = [];
+
+  function createElement() {
+    return {
+      className: '',
+      innerHTML: '',
+      children: [],
+      setAttribute() {},
+      append(child) { this.children.push(child); },
+      replaceChildren() { this.children = []; },
+      addEventListener() {},
+      remove() { this.removed = true; }
+    };
+  }
+
+  const center = createToastCenter({
+    documentRef: { createElement },
+    setTimeoutRef(callback) {
+      const id = ++timerId;
+      timers.set(id, callback);
+      return id;
+    },
+    clearTimeoutRef(id) {
+      cleared.push(id);
+      timers.delete(id);
+    }
+  });
+
+  const delayed = center.schedule({ title: 'Kasnije' }, 120);
+  const item = center.show({ title: 'Sada' });
+  assert.equal(center.element.children.length, 1);
+  assert.equal(timers.size, 2);
+
+  center.clear();
+
+  assert.equal(center.element.children.length, 0);
+  assert.equal(timers.size, 0);
+  assert.deepEqual(cleared.sort((a, b) => a - b), [delayed, delayed + 1]);
+  assert.equal(item.removed, undefined);
 });
 
 test('pulseElement sigurno obrađuje valjani i nevaljani element', () => {
