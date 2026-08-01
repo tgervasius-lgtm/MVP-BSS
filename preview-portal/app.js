@@ -6,6 +6,7 @@ import { createBusinessSummaryPanel } from './business-summary.js';
 import { createKpiDetailsPanel } from './kpi-details.js';
 import { createRfidCardElement, createTerminalFeedback } from './terminal-effects.js';
 import { createTerminalFixtures, createTerminalStatusPanel } from './terminal-status.js';
+import { createCommandCenterPanel } from './command-center.js';
 
 const enhancementStyles = document.createElement('link');
 enhancementStyles.rel = 'stylesheet';
@@ -22,14 +23,13 @@ const byId = (id) => document.getElementById(id);
 const elements = {
   welcome: byId('welcomeView'), demo: byId('demoView'), reset: byId('resetButton'), restart: byId('restartButton'),
   profileForm: byId('profileForm'), industry: byId('industryInput'), employees: byId('employeesInput'), locations: byId('locationsInput'), shifts: byId('shiftsInput'),
-  profileIndustry: byId('profileIndustry'), profileEmployees: byId('employeesInput'), profileMeta: byId('profileMeta'), companyContext: byId('companyContext'),
+  profileIndustry: byId('profileIndustry'), profileEmployees: byId('profileEmployees'), profileMeta: byId('profileMeta'), companyContext: byId('companyContext'),
   scan: byId('scanButton'), count: byId('presentCount'), planned: byId('plannedCount'), screen: byId('terminalScreen'), feed: byId('activityFeed'),
   objective: byId('objectiveText'), status: byId('objectiveStatus'), roleLabel: byId('roleLabel'), approveLeave: byId('approveLeaveButton'),
   leaveStatus: byId('leaveStatus'), workerArrival: byId('workerArrival'), workerMessage: byId('workerMessage'), workerRow: byId('workerRow'), reviewWorker: byId('reviewWorkerButton'),
   resolveCorrection: byId('resolveCorrectionButton'), correctionStatus: byId('correctionStatus'), generateReport: byId('generateReportButton'), reportStatus: byId('reportStatus'),
   guideStep: byId('guideStep'), guideText: byId('guideText'), guideProgress: byId('guideProgress'), completion: byId('completionView')
 };
-elements.profileEmployees = byId('profileEmployees');
 
 const soundToggle = document.createElement('button');
 soundToggle.type = 'button';
@@ -52,8 +52,10 @@ const livingOfficeTime = byId('livingOfficeTime');
 const livingOfficeEvent = byId('livingOfficeEvent');
 const livingController = createLivingOfficeController({ onFrame(frame) { livingOfficeTime.textContent = frame.time; livingOfficeEvent.textContent = frame.event; } });
 
-const kpiPanel = createKpiDetailsPanel();
 const directorView = byId('directorView');
+const commandCenter = createCommandCenterPanel();
+directorView.prepend(commandCenter.element);
+const kpiPanel = createKpiDetailsPanel();
 directorView.append(kpiPanel.element);
 const kpiIds = ['present', 'late', 'absent'];
 document.querySelectorAll('#directorView .metrics .metric').forEach((metric, index) => {
@@ -131,6 +133,13 @@ function renderGuide(guide) {
   elements.guideProgress.style.width = `${guide.progress}%`;
   livingOffice.classList.toggle('hidden', !state.started || guide.complete);
   if (state.started && !guide.complete) livingController.start(); else livingController.stop();
+  commandCenter.update({
+    profile: state.profile,
+    summary: state.summary,
+    presentCount: state.presentCount,
+    completed: guide.completed,
+    total: guide.total
+  });
 }
 
 function renderAttendance() {
