@@ -3,6 +3,7 @@ import { getIndustryContext } from './industry-context.js';
 import { createAnalytics, ANALYTICS_EVENTS } from './analytics.js';
 import { createLivingOfficeController } from './living-office.js';
 import { createBusinessSummaryPanel } from './business-summary.js';
+import { createKpiDetailsPanel } from './kpi-details.js';
 
 const enhancementStyles = document.createElement('link');
 enhancementStyles.rel = 'stylesheet';
@@ -40,6 +41,25 @@ const livingController = createLivingOfficeController({
     livingOfficeTime.textContent = frame.time;
     livingOfficeEvent.textContent = frame.event;
   }
+});
+
+const kpiPanel = createKpiDetailsPanel();
+byId('directorView').append(kpiPanel.element);
+const kpiIds = ['present', 'late', 'absent'];
+document.querySelectorAll('#directorView .metrics .metric').forEach((metric, index) => {
+  const kpiId = kpiIds[index];
+  metric.dataset.kpi = kpiId;
+  metric.tabIndex = 0;
+  metric.setAttribute('role', 'button');
+  metric.setAttribute('aria-label', `Otvori detalje: ${metric.querySelector('span')?.textContent ?? ''}`);
+  const open = () => kpiPanel.show(kpiId, metric);
+  metric.addEventListener('click', open);
+  metric.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      open();
+    }
+  });
 });
 
 function profileInput() {
@@ -102,6 +122,7 @@ function renderRole(guide) {
     button.setAttribute('aria-pressed', String(active));
   });
   if (!guide.complete) animateRoleChange();
+  if (state.activeRole !== 'director' || guide.complete) kpiPanel.hide();
   renderSummary(guide.complete);
 }
 
@@ -201,6 +222,7 @@ elements.reviewWorker.addEventListener('click', () => apply(reviewWorker));
 elements.generateReport.addEventListener('click', () => apply(generateReport));
 elements.reset.addEventListener('click', () => {
   livingController.stop();
+  kpiPanel.hide();
   state = resetDemo();
   previousRole = state.activeRole;
   previousCompleted = 0;
@@ -210,6 +232,7 @@ elements.reset.addEventListener('click', () => {
 elements.restart.addEventListener('click', () => {
   analytics.track(ANALYTICS_EVENTS.DEMO_RESTARTED, { profile: state.profile });
   livingController.reset();
+  kpiPanel.hide();
   state = startDemo(resetDemo(state.profile));
   previousRole = state.activeRole;
   previousCompleted = 0;
