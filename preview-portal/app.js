@@ -5,6 +5,7 @@ import { createLivingOfficeController } from './living-office.js';
 import { createBusinessSummaryPanel } from './business-summary.js';
 import { createKpiDetailsPanel } from './kpi-details.js';
 import { createRfidCardElement, createTerminalFeedback } from './terminal-effects.js';
+import { createTerminalFixtures, createTerminalStatusPanel } from './terminal-status.js';
 
 const enhancementStyles = document.createElement('link');
 enhancementStyles.rel = 'stylesheet';
@@ -16,22 +17,19 @@ let previousRole = state.activeRole;
 let previousCompleted = 0;
 let completionTracked = false;
 const analytics = createAnalytics();
-const terminalFeedback = createTerminalFeedback({
-  audioFactory: () => new (window.AudioContext || window.webkitAudioContext)()
-});
+const terminalFeedback = createTerminalFeedback({ audioFactory: () => new (window.AudioContext || window.webkitAudioContext)() });
 const byId = (id) => document.getElementById(id);
 const elements = {
   welcome: byId('welcomeView'), demo: byId('demoView'), reset: byId('resetButton'), restart: byId('restartButton'),
   profileForm: byId('profileForm'), industry: byId('industryInput'), employees: byId('employeesInput'), locations: byId('locationsInput'), shifts: byId('shiftsInput'),
-  profileIndustry: byId('profileIndustry'), profileEmployees: byId('profileEmployees'), profileMeta: byId('profileMeta'), companyContext: byId('companyContext'),
+  profileIndustry: byId('profileIndustry'), profileEmployees: byId('employeesInput'), profileMeta: byId('profileMeta'), companyContext: byId('companyContext'),
   scan: byId('scanButton'), count: byId('presentCount'), planned: byId('plannedCount'), screen: byId('terminalScreen'), feed: byId('activityFeed'),
-  objective: byId('objectiveText'), status: byId('objectiveStatus'), roleLabel: byId('roleLabel'),
-  approveLeave: byId('approveLeaveButton'), leaveStatus: byId('leaveStatus'), workerArrival: byId('workerArrival'),
-  workerMessage: byId('workerMessage'), workerRow: byId('workerRow'), reviewWorker: byId('reviewWorkerButton'),
-  resolveCorrection: byId('resolveCorrectionButton'), correctionStatus: byId('correctionStatus'),
-  generateReport: byId('generateReportButton'), reportStatus: byId('reportStatus'),
+  objective: byId('objectiveText'), status: byId('objectiveStatus'), roleLabel: byId('roleLabel'), approveLeave: byId('approveLeaveButton'),
+  leaveStatus: byId('leaveStatus'), workerArrival: byId('workerArrival'), workerMessage: byId('workerMessage'), workerRow: byId('workerRow'), reviewWorker: byId('reviewWorkerButton'),
+  resolveCorrection: byId('resolveCorrectionButton'), correctionStatus: byId('correctionStatus'), generateReport: byId('generateReportButton'), reportStatus: byId('reportStatus'),
   guideStep: byId('guideStep'), guideText: byId('guideText'), guideProgress: byId('guideProgress'), completion: byId('completionView')
 };
+elements.profileEmployees = byId('profileEmployees');
 
 const soundToggle = document.createElement('button');
 soundToggle.type = 'button';
@@ -52,15 +50,11 @@ livingOffice.innerHTML = '<span class="living-office-dot" aria-hidden="true"></s
 elements.demo.prepend(livingOffice);
 const livingOfficeTime = byId('livingOfficeTime');
 const livingOfficeEvent = byId('livingOfficeEvent');
-const livingController = createLivingOfficeController({
-  onFrame(frame) {
-    livingOfficeTime.textContent = frame.time;
-    livingOfficeEvent.textContent = frame.event;
-  }
-});
+const livingController = createLivingOfficeController({ onFrame(frame) { livingOfficeTime.textContent = frame.time; livingOfficeEvent.textContent = frame.event; } });
 
 const kpiPanel = createKpiDetailsPanel();
-byId('directorView').append(kpiPanel.element);
+const directorView = byId('directorView');
+directorView.append(kpiPanel.element);
 const kpiIds = ['present', 'late', 'absent'];
 document.querySelectorAll('#directorView .metrics .metric').forEach((metric, index) => {
   const kpiId = kpiIds[index];
@@ -70,21 +64,17 @@ document.querySelectorAll('#directorView .metrics .metric').forEach((metric, ind
   metric.setAttribute('aria-label', `Otvori detalje: ${metric.querySelector('span')?.textContent ?? ''}`);
   const open = () => kpiPanel.show(kpiId, metric);
   metric.addEventListener('click', open);
-  metric.addEventListener('keydown', (event) => {
-    if (event.key === 'Enter' || event.key === ' ') {
-      event.preventDefault();
-      open();
-    }
-  });
+  metric.addEventListener('keydown', (event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); open(); } });
 });
 
 function profileInput() {
-  return {
-    industry: elements.industry.value,
-    employees: elements.employees.value,
-    locations: elements.locations.value,
-    shifts: elements.shifts.value
-  };
+  return { industry: elements.industry.value, employees: elements.employees.value, locations: elements.locations.value, shifts: elements.shifts.value };
+}
+
+function renderTerminalNetwork(context) {
+  directorView.querySelector('.terminal-status-panel')?.remove();
+  const panel = createTerminalStatusPanel(createTerminalFixtures({ terminals: state.summary.terminals, primaryArea: context.area }));
+  directorView.append(panel);
 }
 
 function renderProfile() {
@@ -97,15 +87,13 @@ function renderProfile() {
   elements.count.textContent = String(state.presentCount);
   elements.planned.textContent = `od ${summary.planned} planirana`;
   document.documentElement.dataset.industry = profile.industry.toLowerCase();
-
   const terminalLabel = elements.screen.querySelector('small');
   if (terminalLabel && !state.scanned) terminalLabel.textContent = `Terminal: ${context.area}`;
-
   const managerHeading = document.querySelector('#managerView .eyebrow');
   if (managerHeading) managerHeading.textContent = context.manager;
-
   const teamHeading = document.querySelector('#managerView .workspace .panel .eyebrow');
   if (teamHeading) teamHeading.textContent = `${context.team} · ${Math.max(5, Math.round(profile.employees * 0.35))} radnika`;
+  renderTerminalNetwork(context);
 }
 
 function animateRoleChange() {
@@ -119,12 +107,7 @@ function animateRoleChange() {
 function renderSummary(complete) {
   elements.completion.querySelector('.business-summary')?.remove();
   if (!complete) return;
-  const panel = createBusinessSummaryPanel({
-    profile: state.profile,
-    summary: state.summary,
-    presentCount: state.presentCount
-  });
-  elements.completion.insertBefore(panel, elements.restart);
+  elements.completion.insertBefore(createBusinessSummaryPanel({ profile: state.profile, summary: state.summary, presentCount: state.presentCount }), elements.restart);
 }
 
 function renderRole(guide) {
@@ -147,8 +130,7 @@ function renderGuide(guide) {
   elements.guideText.textContent = guide.guide;
   elements.guideProgress.style.width = `${guide.progress}%`;
   livingOffice.classList.toggle('hidden', !state.started || guide.complete);
-  if (state.started && !guide.complete) livingController.start();
-  else livingController.stop();
+  if (state.started && !guide.complete) livingController.start(); else livingController.stop();
 }
 
 function renderAttendance() {
@@ -215,61 +197,27 @@ function render() {
   trackProgress(guide);
 }
 
-function apply(action) {
-  state = action(state);
-  render();
-}
+function apply(action) { state = action(state); render(); }
 
 async function simulateRfidScan() {
   if (state.scanned || elements.scan.disabled) return;
   elements.scan.disabled = true;
-  const card = createRfidCardElement();
-  elements.screen.append(card);
+  elements.screen.append(createRfidCardElement());
   elements.screen.classList.add('reading');
   await new Promise((resolve) => window.setTimeout(resolve, 520));
   apply(registerEmployee);
   void terminalFeedback.playSuccess();
 }
 
-elements.profileForm.addEventListener('input', () => {
-  state = configureDemo(state, profileInput());
-  analytics.track(ANALYTICS_EVENTS.DEMO_CONFIGURED, { profile: state.profile });
-  render();
-});
-elements.profileForm.addEventListener('submit', (event) => {
-  event.preventDefault();
-  state = configureDemo(state, profileInput());
-  analytics.track(ANALYTICS_EVENTS.DEMO_STARTED, { profile: state.profile });
-  apply(startDemo);
-});
+elements.profileForm.addEventListener('input', () => { state = configureDemo(state, profileInput()); analytics.track(ANALYTICS_EVENTS.DEMO_CONFIGURED, { profile: state.profile }); render(); });
+elements.profileForm.addEventListener('submit', (event) => { event.preventDefault(); state = configureDemo(state, profileInput()); analytics.track(ANALYTICS_EVENTS.DEMO_STARTED, { profile: state.profile }); apply(startDemo); });
 elements.scan.addEventListener('click', simulateRfidScan);
 elements.resolveCorrection.addEventListener('click', () => apply(resolveCorrection));
 elements.approveLeave.addEventListener('click', () => apply(approveLeave));
 elements.reviewWorker.addEventListener('click', () => apply(reviewWorker));
 elements.generateReport.addEventListener('click', () => apply(generateReport));
-elements.reset.addEventListener('click', () => {
-  livingController.stop();
-  kpiPanel.hide();
-  state = resetDemo();
-  previousRole = state.activeRole;
-  previousCompleted = 0;
-  completionTracked = false;
-  render();
-});
-elements.restart.addEventListener('click', () => {
-  analytics.track(ANALYTICS_EVENTS.DEMO_RESTARTED, { profile: state.profile });
-  livingController.reset();
-  kpiPanel.hide();
-  state = startDemo(resetDemo(state.profile));
-  previousRole = state.activeRole;
-  previousCompleted = 0;
-  completionTracked = false;
-  render();
-});
-document.querySelectorAll('.role-button').forEach((button) => button.addEventListener('click', () => {
-  state = selectRole(state, button.dataset.role);
-  analytics.track(ANALYTICS_EVENTS.ROLE_VIEWED, { role: state.activeRole, profile: state.profile });
-  render();
-}));
+elements.reset.addEventListener('click', () => { livingController.stop(); kpiPanel.hide(); state = resetDemo(); previousRole = state.activeRole; previousCompleted = 0; completionTracked = false; render(); });
+elements.restart.addEventListener('click', () => { analytics.track(ANALYTICS_EVENTS.DEMO_RESTARTED, { profile: state.profile }); livingController.reset(); kpiPanel.hide(); state = startDemo(resetDemo(state.profile)); previousRole = state.activeRole; previousCompleted = 0; completionTracked = false; render(); });
+document.querySelectorAll('.role-button').forEach((button) => button.addEventListener('click', () => { state = selectRole(state, button.dataset.role); analytics.track(ANALYTICS_EVENTS.ROLE_VIEWED, { role: state.activeRole, profile: state.profile }); render(); }));
 
 render();
