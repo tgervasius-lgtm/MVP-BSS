@@ -7,9 +7,22 @@ test('living office vraća determinističke okvire', () => {
     time: '06:58',
     event: 'Marko Marić se prijavio.',
     index: 0,
-    total: 5
+    total: 5,
+    industry: 'ostalo'
   });
   assert.equal(getLivingOfficeFrame(3).time, '07:06');
+});
+
+test('living office prilagođava događaje djelatnosti', () => {
+  assert.match(getLivingOfficeFrame(1, 'Logistika').event, /skladišta/);
+  assert.match(getLivingOfficeFrame(2, 'Građevina').event, /teren/);
+  assert.match(getLivingOfficeFrame(4, 'Ured').event, /Voditelj tima/);
+});
+
+test('living office koristi siguran fallback za nepoznatu djelatnost', () => {
+  const frame = getLivingOfficeFrame(0, 'Nepoznata djelatnost');
+  assert.equal(frame.industry, 'ostalo');
+  assert.equal(frame.event, 'Marko Marić se prijavio.');
 });
 
 test('living office ograničava nevažeći korak', () => {
@@ -52,7 +65,14 @@ test('live feed ne duplicira isti događaj i ograničava broj zapisa', () => {
   appendLivingOfficeEvent(feed, getLivingOfficeFrame(1), 2);
   appendLivingOfficeEvent(feed, getLivingOfficeFrame(2), 2);
   assert.equal(feed.items.length, 2);
-  assert.equal(feed.items[0].dataset.liveEvent, 'living-1');
+  assert.equal(feed.items[0].dataset.liveEvent, 'living-ostalo-1');
+});
+
+test('isti korak iz različitih djelatnosti ima odvojeni ključ', () => {
+  const feed = createFeed();
+  appendLivingOfficeEvent(feed, getLivingOfficeFrame(0, 'Logistika'));
+  appendLivingOfficeEvent(feed, getLivingOfficeFrame(0, 'Ured'));
+  assert.equal(feed.items.length, 2);
 });
 
 test('reset uklanja samo generirane live događaje', () => {
