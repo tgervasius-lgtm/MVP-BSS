@@ -4,6 +4,7 @@ import { createAnalytics, ANALYTICS_EVENTS } from './analytics.js';
 import { createLivingOfficeController } from './living-office.js';
 import { createBusinessSummaryPanel } from './business-summary.js';
 import { createKpiDetailsPanel } from './kpi-details.js';
+import { createRfidCardElement, createTerminalFeedback } from './terminal-effects.js';
 
 const enhancementStyles = document.createElement('link');
 enhancementStyles.rel = 'stylesheet';
@@ -15,6 +16,9 @@ let previousRole = state.activeRole;
 let previousCompleted = 0;
 let completionTracked = false;
 const analytics = createAnalytics();
+const terminalFeedback = createTerminalFeedback({
+  audioFactory: () => new (window.AudioContext || window.webkitAudioContext)()
+});
 const byId = (id) => document.getElementById(id);
 const elements = {
   welcome: byId('welcomeView'), demo: byId('demoView'), reset: byId('resetButton'), restart: byId('restartButton'),
@@ -28,6 +32,18 @@ const elements = {
   generateReport: byId('generateReportButton'), reportStatus: byId('reportStatus'),
   guideStep: byId('guideStep'), guideText: byId('guideText'), guideProgress: byId('guideProgress'), completion: byId('completionView')
 };
+
+const soundToggle = document.createElement('button');
+soundToggle.type = 'button';
+soundToggle.className = 'terminal-sound-toggle';
+soundToggle.setAttribute('aria-pressed', 'false');
+soundToggle.textContent = 'Zvuk: isključen';
+soundToggle.addEventListener('click', () => {
+  const enabled = terminalFeedback.setEnabled(!terminalFeedback.isEnabled());
+  soundToggle.setAttribute('aria-pressed', String(enabled));
+  soundToggle.textContent = enabled ? 'Zvuk: uključen' : 'Zvuk: isključen';
+});
+elements.scan.insertAdjacentElement('beforebegin', soundToggle);
 
 const livingOffice = document.createElement('section');
 livingOffice.className = 'living-office hidden';
@@ -204,6 +220,17 @@ function apply(action) {
   render();
 }
 
+async function simulateRfidScan() {
+  if (state.scanned || elements.scan.disabled) return;
+  elements.scan.disabled = true;
+  const card = createRfidCardElement();
+  elements.screen.append(card);
+  elements.screen.classList.add('reading');
+  await new Promise((resolve) => window.setTimeout(resolve, 520));
+  apply(registerEmployee);
+  void terminalFeedback.playSuccess();
+}
+
 elements.profileForm.addEventListener('input', () => {
   state = configureDemo(state, profileInput());
   analytics.track(ANALYTICS_EVENTS.DEMO_CONFIGURED, { profile: state.profile });
@@ -215,7 +242,7 @@ elements.profileForm.addEventListener('submit', (event) => {
   analytics.track(ANALYTICS_EVENTS.DEMO_STARTED, { profile: state.profile });
   apply(startDemo);
 });
-elements.scan.addEventListener('click', () => apply(registerEmployee));
+elements.scan.addEventListener('click', simulateRfidScan);
 elements.resolveCorrection.addEventListener('click', () => apply(resolveCorrection));
 elements.approveLeave.addEventListener('click', () => apply(approveLeave));
 elements.reviewWorker.addEventListener('click', () => apply(reviewWorker));
