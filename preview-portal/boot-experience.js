@@ -22,6 +22,7 @@ export function createBootExperience({
   const sequence = normalizeBootSteps(steps);
   let running = false;
   let overlay = null;
+  let runVersion = 0;
 
   function ensureOverlay() {
     if (overlay) return overlay;
@@ -52,10 +53,11 @@ export function createBootExperience({
 
   async function run() {
     if (running) return false;
+    const version = ++runVersion;
     running = true;
     const element = ensureOverlay();
     if (!element) {
-      running = false;
+      if (version === runVersion) running = false;
       return true;
     }
     element.classList.remove('hidden');
@@ -67,19 +69,25 @@ export function createBootExperience({
       for (const step of sequence) {
         update(step);
         await new Promise((resolve) => globalThis.setTimeout(resolve, stepDelayMs));
+        if (version !== runVersion) return false;
       }
     }
 
+    if (version !== runVersion) return false;
     element.classList.remove('active');
     element.classList.add('complete');
-    if (!reducedMotion) await new Promise((resolve) => globalThis.setTimeout(resolve, 240));
+    if (!reducedMotion) {
+      await new Promise((resolve) => globalThis.setTimeout(resolve, 240));
+      if (version !== runVersion) return false;
+    }
     element.classList.add('hidden');
     element.classList.remove('complete');
-    running = false;
+    if (version === runVersion) running = false;
     return true;
   }
 
   function reset() {
+    runVersion += 1;
     running = false;
     overlay?.classList?.add('hidden');
     overlay?.classList?.remove('active', 'complete');
