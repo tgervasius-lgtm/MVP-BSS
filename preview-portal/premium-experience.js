@@ -2,13 +2,16 @@ import './boot-entry.js';
 import { createToastCenter, pulseElement } from './notifications.js';
 import { createDirectorIntelligencePanel } from './director-intelligence.js';
 import { createFinalExperiencePanel } from './final-experience.js';
+import { createReleasePolish } from './release-polish.js';
 
-for (const href of ['ux-polish.css', 'director-intelligence.css', 'final-experience.css']) {
+for (const href of ['ux-polish.css', 'director-intelligence.css', 'final-experience.css', 'release-polish.css']) {
   const stylesheet = document.createElement('link');
   stylesheet.rel = 'stylesheet';
   stylesheet.href = href;
   document.head.append(stylesheet);
 }
+
+createReleasePolish();
 
 const toastCenter = createToastCenter();
 document.body.append(toastCenter.element);
