@@ -7,6 +7,9 @@ const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const output=path.join(root,'dist');
 const files=['index.html','styles.css','app.js','manifest.json','sw.js','_headers'];
 const directories=['styles','src','icons','design-system','brand-book','output'];
+const previewFiles=['index.html','styles.css','app.js','state.js'];
+const previewSource=path.join(root,'preview-portal');
+const previewOutput=path.join(output,'preview');
 
 async function listFiles(directory,prefix=''){
   const entries=await readdir(directory,{withFileTypes:true});
@@ -36,7 +39,13 @@ for(const directory of directories){
   await cp(path.join(root,directory),path.join(output,directory),{recursive:true});
 }
 
-for(const htmlPath of ['index.html','design-system/index.html','brand-book/index.html']){
+await mkdir(previewOutput,{recursive:true});
+for(const file of previewFiles){
+  await ensureFile(path.join(previewSource,file));
+  await cp(path.join(previewSource,file),path.join(previewOutput,file));
+}
+
+for(const htmlPath of ['index.html','design-system/index.html','brand-book/index.html','preview/index.html']){
   const html=await readFile(path.join(output,htmlPath),'utf8');
   if(/<script(?![^>]*\bsrc=)[^>]*>/i.test(html))throw new Error(`Inline script nije dopušten: ${htmlPath}`);
 }
@@ -56,7 +65,8 @@ for(const file of builtFiles){
 await writeFile(path.join(output,'build-manifest.json'),JSON.stringify({
   schemaVersion:1,
   application:'BSS Demo 3.0',
+  previewPortalPath:'/preview/',
   files:hashes
 },null,2)+'\n');
 
-console.log(`BSS build dovršen: ${builtFiles.length+1} datoteka u dist/.`);
+console.log(`BSS build dovršen: ${builtFiles.length+1} datoteka u dist/. Preview Portal: /preview/.`);
