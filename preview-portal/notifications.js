@@ -8,12 +8,23 @@ export function normalizeToast(input = {}) {
   });
 }
 
-export function createToastCenter({ documentRef = globalThis.document, durationMs = DEFAULT_DURATION } = {}) {
+export function createToastCenter({
+  documentRef = globalThis.document,
+  durationMs = DEFAULT_DURATION,
+  setTimeoutRef = globalThis.setTimeout?.bind(globalThis),
+  clearTimeoutRef = globalThis.clearTimeout?.bind(globalThis)
+} = {}) {
   const region = documentRef?.createElement?.('section');
   if (!region) throw new TypeError('Toast center requires a document.');
   region.className = 'toast-center';
   region.setAttribute('aria-live', 'polite');
   region.setAttribute('aria-atomic', 'false');
+
+  const pendingTimers = new Set();
+
+  function forgetTimer(timer) {
+    if (timer !== undefined && timer !== null) pendingTimers.delete(timer);
+  }
 
   function show(input) {
     const toast = normalizeToast(input);
@@ -24,20 +35,39 @@ export function createToastCenter({ documentRef = globalThis.document, durationM
     item.innerHTML = `<strong>${toast.title}</strong><span>${toast.message}</span>`;
     region.append(item);
 
-    const remove = () => item.remove();
-    const timer = globalThis.setTimeout?.(remove, durationMs);
+    let timer;
+    const remove = () => {
+      forgetTimer(timer);
+      item.remove();
+    };
+    timer = setTimeoutRef?.(remove, durationMs);
+    if (timer !== undefined && timer !== null) pendingTimers.add(timer);
+
     item.addEventListener('click', () => {
-      if (timer) globalThis.clearTimeout?.(timer);
+      if (timer !== undefined && timer !== null) clearTimeoutRef?.(timer);
       remove();
     }, { once: true });
     return item;
   }
 
+  function schedule(input, delayMs = 0) {
+    const delay = Math.max(0, Number(delayMs) || 0);
+    let timer;
+    timer = setTimeoutRef?.(() => {
+      forgetTimer(timer);
+      show(input);
+    }, delay);
+    if (timer !== undefined && timer !== null) pendingTimers.add(timer);
+    return timer ?? null;
+  }
+
   function clear() {
+    for (const timer of pendingTimers) clearTimeoutRef?.(timer);
+    pendingTimers.clear();
     region.replaceChildren();
   }
 
-  return Object.freeze({ element: region, show, clear });
+  return Object.freeze({ element: region, show, schedule, clear });
 }
 
 export function pulseElement(element, className = 'value-pulse') {
