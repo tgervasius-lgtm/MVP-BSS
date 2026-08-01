@@ -1,10 +1,12 @@
-import { INITIAL_STATE, ROLES, getGuide, startDemo, selectRole, registerEmployee, approveLeave, resolveCorrection, reviewWorker, generateReport, resetDemo } from './state.js';
+import { INITIAL_STATE, ROLES, configureDemo, getGuide, startDemo, selectRole, registerEmployee, approveLeave, resolveCorrection, reviewWorker, generateReport, resetDemo } from './state.js';
 
 let state = resetDemo();
 const byId = (id) => document.getElementById(id);
 const elements = {
   welcome: byId('welcomeView'), demo: byId('demoView'), start: byId('startButton'), reset: byId('resetButton'), restart: byId('restartButton'),
-  scan: byId('scanButton'), count: byId('presentCount'), screen: byId('terminalScreen'), feed: byId('activityFeed'),
+  profileForm: byId('profileForm'), industry: byId('industryInput'), employees: byId('employeesInput'), locations: byId('locationsInput'), shifts: byId('shiftsInput'),
+  profileIndustry: byId('profileIndustry'), profileEmployees: byId('profileEmployees'), profileMeta: byId('profileMeta'), companyContext: byId('companyContext'),
+  scan: byId('scanButton'), count: byId('presentCount'), planned: byId('plannedCount'), screen: byId('terminalScreen'), feed: byId('activityFeed'),
   objective: byId('objectiveText'), status: byId('objectiveStatus'), roleLabel: byId('roleLabel'),
   approveLeave: byId('approveLeaveButton'), leaveStatus: byId('leaveStatus'), workerArrival: byId('workerArrival'),
   workerMessage: byId('workerMessage'), workerRow: byId('workerRow'), reviewWorker: byId('reviewWorkerButton'),
@@ -12,6 +14,25 @@ const elements = {
   generateReport: byId('generateReportButton'), reportStatus: byId('reportStatus'),
   guideStep: byId('guideStep'), guideText: byId('guideText'), guideProgress: byId('guideProgress'), completion: byId('completionView')
 };
+
+function profileInput() {
+  return {
+    industry: elements.industry.value,
+    employees: elements.employees.value,
+    locations: elements.locations.value,
+    shifts: elements.shifts.value
+  };
+}
+
+function renderProfile() {
+  const { profile, summary } = state;
+  elements.profileIndustry.textContent = profile.industry;
+  elements.profileEmployees.textContent = `${profile.employees} zaposlenika`;
+  elements.profileMeta.textContent = `${profile.locations} lokacija · ${summary.terminals} terminala · ${profile.shifts} smjene`;
+  elements.companyContext.textContent = `Simulacija za djelatnost ${profile.industry.toLowerCase()} · ${profile.employees} zaposlenika`;
+  elements.count.textContent = String(state.presentCount);
+  elements.planned.textContent = `od ${summary.planned} planirana`;
+}
 
 function renderRole(guide) {
   elements.roleLabel.textContent = guide.complete ? 'Završeno' : ROLES[state.activeRole];
@@ -68,6 +89,7 @@ function render() {
   const guide = getGuide(state);
   elements.welcome.classList.toggle('hidden', state.started);
   elements.demo.classList.toggle('hidden', !state.started);
+  renderProfile();
   renderRole(guide);
   renderGuide(guide);
   renderAttendance();
@@ -83,14 +105,22 @@ function apply(action) {
   render();
 }
 
-elements.start.addEventListener('click', () => apply(startDemo));
+elements.profileForm.addEventListener('input', () => {
+  state = configureDemo(state, profileInput());
+  render();
+});
+elements.profileForm.addEventListener('submit', (event) => {
+  event.preventDefault();
+  state = configureDemo(state, profileInput());
+  apply(startDemo);
+});
 elements.scan.addEventListener('click', () => apply(registerEmployee));
 elements.resolveCorrection.addEventListener('click', () => apply(resolveCorrection));
 elements.approveLeave.addEventListener('click', () => apply(approveLeave));
 elements.reviewWorker.addEventListener('click', () => apply(reviewWorker));
 elements.generateReport.addEventListener('click', () => apply(generateReport));
 elements.reset.addEventListener('click', () => { state = resetDemo(); render(); });
-elements.restart.addEventListener('click', () => { state = startDemo(resetDemo()); render(); });
+elements.restart.addEventListener('click', () => { state = startDemo(resetDemo(state.profile)); render(); });
 document.querySelectorAll('.role-button').forEach((button) => button.addEventListener('click', () => {
   state = selectRole(state, button.dataset.role);
   render();
