@@ -31,6 +31,12 @@ h2 { font-size: clamp(1.5rem, 4vw, 2.5rem); line-height: 1.12; }
 .secondary { background: #e9eef7; color: #24324a; }
 .full { width: 100%; }
 .hidden { display: none !important; }
+.guide-panel { margin-bottom: 18px; display: grid; grid-template-columns: 1fr minmax(180px, .45fr); gap: 24px; align-items: center; border-color: #b8c9f4; }
+.guide-panel h2 { font-size: 1.45rem; margin-bottom: 8px; }
+.guide-progress { height: 10px; border-radius: 999px; background: #e8edf6; overflow: hidden; }
+.guide-progress span { display: block; width: 0; height: 100%; background: #2457d6; transition: width .25s ease; }
+.completion { text-align: center; padding-block: 56px; }
+.completion p { max-width: 680px; margin-inline: auto; color: #59647a; }
 .role-switcher { margin-bottom: 18px; }
 .role-buttons { display: flex; gap: 8px; flex-wrap: wrap; }
 .role-button { background: #eef2f8; color: #44506a; }
@@ -52,7 +58,7 @@ h2 { font-size: clamp(1.5rem, 4vw, 2.5rem); line-height: 1.12; }
 .terminal-screen small { color: #b9c4d7; }
 @media (max-width: 760px) {
   .shell { padding: 16px; }
-  .hero, .workspace { grid-template-columns: 1fr; }
+  .hero, .workspace, .guide-panel { grid-template-columns: 1fr; }
   .metrics { grid-template-columns: 1fr; }
   .objective, .topbar, .role-switcher { align-items: flex-start; }
   .topbar, .role-switcher { flex-direction: column; }
