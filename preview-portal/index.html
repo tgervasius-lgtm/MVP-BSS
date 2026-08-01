@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="hr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="Interaktivni BSS Preview Portal za virtualnu tvrtku BSSProject d.o.o.">
+  <title>BSS Preview Portal</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <div><p class="eyebrow">BSS Preview Portal</p><h1>BSSProject d.o.o.</h1></div>
+      <button id="resetButton" class="button secondary" type="button">Resetiraj demo</button>
+    </header>
+
+    <section id="welcomeView" class="panel hero" aria-labelledby="welcomeTitle">
+      <div>
+        <span class="badge">Interaktivna simulacija</span>
+        <h2 id="welcomeTitle">Zamislite svoj prvi radni dan s BSS-om.</h2>
+        <p>Uđite kao direktor, pratite početak smjene i isprobajte kako virtualni RFID terminal odmah mijenja stanje u sustavu.</p>
+        <button id="startButton" class="button primary" type="button">Započni radni dan</button>
+      </div>
+      <div class="preview-card" aria-label="Sažetak virtualne tvrtke">
+        <p class="muted">Virtualna tvrtka</p><strong>68 zaposlenika</strong><span>2 lokacije · 3 terminala · 2 smjene</span>
+      </div>
+    </section>
+
+    <section id="demoView" class="hidden" aria-live="polite">
+      <div class="grid metrics">
+        <article class="metric"><span>Prisutni</span><strong id="presentCount">47</strong><small>od 52 planirana</small></article>
+        <article class="metric"><span>Kasne</span><strong>3</strong><small>potrebna provjera</small></article>
+        <article class="metric"><span>Odsutni</span><strong>6</strong><small>godišnji i bolovanje</small></article>
+      </div>
+
+      <section class="panel objective">
+        <div><p class="eyebrow">Vaš zadatak</p><h2>Provjerite početak jutarnje smjene.</h2><p id="objectiveText">Otvorite virtualni terminal i evidentirajte dolazak Ivana Horvata.</p></div>
+        <span id="objectiveStatus" class="status">U tijeku</span>
+      </section>
+
+      <div class="workspace">
+        <section class="panel dashboard">
+          <div class="section-heading"><div><p class="eyebrow">Direktorski pregled</p><h2>Početak smjene</h2></div><span class="badge">07:00</span></div>
+          <ul id="activityFeed" class="activity-list">
+            <li><span>06:58</span> Marko Marić se prijavio.</li>
+            <li><span>06:59</span> Ana Kovač se prijavila.</li>
+            <li><span>07:00</span> Jutarnja smjena je započela.</li>
+          </ul>
+        </section>
+
+        <section class="panel terminal" aria-labelledby="terminalTitle">
+          <p class="eyebrow">Virtualni RFID terminal</p><h2 id="terminalTitle">Prislonite karticu</h2>
+          <div id="terminalScreen" class="terminal-screen"><span class="terminal-icon">RFID</span><strong>Spremno za prijavu</strong><small>Terminal: Ulaz proizvodnja</small></div>
+          <button id="scanButton" class="button primary full" type="button">Simuliraj karticu Ivana Horvata</button>
+        </section>
+      </div>
+    </section>
+  </main>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
