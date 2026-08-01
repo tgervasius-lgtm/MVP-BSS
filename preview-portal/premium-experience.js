@@ -1,8 +1,9 @@
 import './boot-entry.js';
 import { createToastCenter, pulseElement } from './notifications.js';
 import { createDirectorIntelligencePanel } from './director-intelligence.js';
+import { createFinalExperiencePanel } from './final-experience.js';
 
-for (const href of ['ux-polish.css', 'director-intelligence.css']) {
+for (const href of ['ux-polish.css', 'director-intelligence.css', 'final-experience.css']) {
   const stylesheet = document.createElement('link');
   stylesheet.rel = 'stylesheet';
   stylesheet.href = href;
@@ -27,9 +28,13 @@ for (const [id, message] of Object.entries(ACTION_MESSAGES)) {
 }
 
 const presentCount = document.getElementById('presentCount');
+const plannedCount = document.getElementById('plannedCount');
+const industryInput = document.getElementById('industryInput');
 const employeesInput = document.getElementById('employeesInput');
 const locationsInput = document.getElementById('locationsInput');
 const directorView = document.getElementById('directorView');
+const completionView = document.getElementById('completionView');
+const restartButton = document.getElementById('restartButton');
 const intelligence = createDirectorIntelligencePanel();
 directorView?.append(intelligence.element);
 
@@ -39,6 +44,18 @@ function updateDirectorIntelligence() {
     locations: locationsInput?.value,
     present: presentCount?.textContent
   });
+}
+
+function renderFinalExperience() {
+  completionView?.querySelector('.final-experience')?.remove();
+  if (!completionView || completionView.classList.contains('hidden')) return;
+  const planned = plannedCount?.textContent?.match(/\d+/)?.[0] ?? 0;
+  const panel = createFinalExperiencePanel({
+    industry: industryInput?.value,
+    present: presentCount?.textContent,
+    planned
+  });
+  completionView.insertBefore(panel, restartButton ?? null);
 }
 
 let previousPresent = presentCount?.textContent ?? '';
@@ -55,13 +72,21 @@ if (presentCount) {
   observer.observe(presentCount, { childList: true, characterData: true, subtree: true });
 }
 
+if (completionView) {
+  const completionObserver = new MutationObserver(renderFinalExperience);
+  completionObserver.observe(completionView, { attributes: true, attributeFilter: ['class'] });
+}
+
 employeesInput?.addEventListener('input', updateDirectorIntelligence);
 locationsInput?.addEventListener('input', updateDirectorIntelligence);
+industryInput?.addEventListener('input', renderFinalExperience);
 updateDirectorIntelligence();
+renderFinalExperience();
 
 function clearExperienceFeedback() {
   toastCenter.clear();
+  completionView?.querySelector('.final-experience')?.remove();
 }
 
 document.getElementById('resetButton')?.addEventListener('click', clearExperienceFeedback);
-document.getElementById('restartButton')?.addEventListener('click', clearExperienceFeedback);
+restartButton?.addEventListener('click', clearExperienceFeedback);
