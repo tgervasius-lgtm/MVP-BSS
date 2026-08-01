@@ -1,8 +1,8 @@
-import { INITIAL_STATE, ROLES, configureDemo, getGuide, startDemo, selectRole, registerEmployee, approveLeave, resolveCorrection, reviewWorker, generateReport, resetDemo } from './state.js';
+import { ROLES, configureDemo, getGuide, startDemo, selectRole, registerEmployee, approveLeave, resolveCorrection, reviewWorker, generateReport, resetDemo } from './state.js';
 import { getIndustryContext } from './industry-context.js';
 import { createAnalytics, ANALYTICS_EVENTS } from './analytics.js';
 import { createLivingOfficeController } from './living-office.js';
-import { createConversionPanel } from './conversion-panel.js';
+import { createBusinessSummaryPanel } from './business-summary.js';
 
 const enhancementStyles = document.createElement('link');
 enhancementStyles.rel = 'stylesheet';
@@ -12,6 +12,7 @@ document.head.append(enhancementStyles);
 let state = resetDemo();
 let previousRole = state.activeRole;
 let previousCompleted = 0;
+let completionTracked = false;
 const analytics = createAnalytics();
 const byId = (id) => document.getElementById(id);
 const elements = {
@@ -40,13 +41,6 @@ const livingController = createLivingOfficeController({
     livingOfficeEvent.textContent = frame.event;
   }
 });
-
-const conversionPanel = createConversionPanel({
-  onSelect(interest) {
-    analytics.track(ANALYTICS_EVENTS.INTEREST_SELECTED, { interest, profile: state.profile });
-  }
-});
-elements.completion.append(conversionPanel);
 
 function profileInput() {
   return {
@@ -86,6 +80,17 @@ function animateRoleChange() {
   previousRole = state.activeRole;
 }
 
+function renderSummary(complete) {
+  elements.completion.querySelector('.business-summary')?.remove();
+  if (!complete) return;
+  const panel = createBusinessSummaryPanel({
+    profile: state.profile,
+    summary: state.summary,
+    presentCount: state.presentCount
+  });
+  elements.completion.insertBefore(panel, elements.restart);
+}
+
 function renderRole(guide) {
   elements.roleLabel.textContent = guide.complete ? 'Završeno' : ROLES[state.activeRole];
   document.querySelectorAll('.role-view').forEach((view) => view.classList.add('hidden'));
@@ -97,6 +102,7 @@ function renderRole(guide) {
     button.setAttribute('aria-pressed', String(active));
   });
   if (!guide.complete) animateRoleChange();
+  renderSummary(guide.complete);
 }
 
 function renderGuide(guide) {
@@ -133,6 +139,7 @@ function renderAttendance() {
     elements.screen.innerHTML = `<span class="terminal-icon">RFID</span><strong>Spremno za prijavu</strong><small>Terminal: ${context.area}</small>`;
     elements.scan.disabled = false;
     elements.scan.textContent = 'Simuliraj karticu Ivana Horvata';
+    elements.status.textContent = 'U tijeku';
     elements.status.classList.remove('complete');
     byId('ivanEvent')?.remove();
   }
@@ -149,7 +156,10 @@ function trackProgress(guide) {
     analytics.track(ANALYTICS_EVENTS.MISSION_COMPLETED, { step: guide.completed, profile: state.profile });
     previousCompleted = guide.completed;
   }
-  if (guide.complete) analytics.track(ANALYTICS_EVENTS.DEMO_COMPLETED, { profile: state.profile });
+  if (guide.complete && !completionTracked) {
+    analytics.track(ANALYTICS_EVENTS.DEMO_COMPLETED, { profile: state.profile });
+    completionTracked = true;
+  }
 }
 
 function render() {
@@ -194,6 +204,7 @@ elements.reset.addEventListener('click', () => {
   state = resetDemo();
   previousRole = state.activeRole;
   previousCompleted = 0;
+  completionTracked = false;
   render();
 });
 elements.restart.addEventListener('click', () => {
@@ -202,6 +213,7 @@ elements.restart.addEventListener('click', () => {
   state = startDemo(resetDemo(state.profile));
   previousRole = state.activeRole;
   previousCompleted = 0;
+  completionTracked = false;
   render();
 });
 document.querySelectorAll('.role-button').forEach((button) => button.addEventListener('click', () => {
