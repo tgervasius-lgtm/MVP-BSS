@@ -15,7 +15,7 @@
     </header>
 
     <section id="welcomeView" class="panel hero" aria-labelledby="welcomeTitle">
-      <div><span class="badge">Interaktivna simulacija</span><h2 id="welcomeTitle">Zamislite svoj prvi radni dan s BSS-om.</h2><p>Uđite kao direktor, zatim promijenite perspektivu i pogledajte isti radni dan očima voditelja i radnika.</p><button id="startButton" class="button primary" type="button">Započni radni dan</button></div>
+      <div><span class="badge">Interaktivna simulacija</span><h2 id="welcomeTitle">Zamislite svoj prvi radni dan s BSS-om.</h2><p>Prođite isti događaj kroz terminal, upravu, administraciju, voditelja, radnika i knjigovodstvo.</p><button id="startButton" class="button primary" type="button">Započni radni dan</button></div>
       <div class="preview-card"><p class="muted">Virtualna tvrtka</p><strong>68 zaposlenika</strong><span>2 lokacije · 3 terminala · 2 smjene</span></div>
     </section>
 
@@ -24,18 +24,22 @@
         <div><p class="eyebrow">Pogled sustava</p><strong id="roleLabel">Direktor</strong></div>
         <div class="role-buttons">
           <button class="role-button active" data-role="director" type="button">Direktor</button>
+          <button class="role-button" data-role="admin" type="button">Administrator</button>
           <button class="role-button" data-role="manager" type="button">Voditelj</button>
           <button class="role-button" data-role="worker" type="button">Radnik</button>
+          <button class="role-button" data-role="accounting" type="button">Knjigovodstvo</button>
         </div>
       </nav>
 
       <div id="directorView" class="role-view">
         <div class="grid metrics"><article class="metric"><span>Prisutni</span><strong id="presentCount">47</strong><small>od 52 planirana</small></article><article class="metric"><span>Kasne</span><strong>3</strong><small>potrebna provjera</small></article><article class="metric"><span>Odsutni</span><strong>6</strong><small>godišnji i bolovanje</small></article></div>
         <section class="panel objective"><div><p class="eyebrow">Vaš zadatak</p><h2>Provjerite početak jutarnje smjene.</h2><p id="objectiveText">Evidentirajte dolazak Ivana Horvata na virtualnom terminalu.</p></div><span id="objectiveStatus" class="status">U tijeku</span></section>
-        <div class="workspace">
-          <section class="panel dashboard"><div class="section-heading"><div><p class="eyebrow">Direktorski pregled</p><h2>Početak smjene</h2></div><span class="badge">07:00</span></div><ul id="activityFeed" class="activity-list"><li><span>06:58</span> Marko Marić se prijavio.</li><li><span>06:59</span> Ana Kovač se prijavila.</li><li><span>07:00</span> Jutarnja smjena je započela.</li></ul></section>
-          <section class="panel terminal"><p class="eyebrow">Virtualni RFID terminal</p><h2>Prislonite karticu</h2><div id="terminalScreen" class="terminal-screen"><span class="terminal-icon">RFID</span><strong>Spremno za prijavu</strong><small>Terminal: Ulaz proizvodnja</small></div><button id="scanButton" class="button primary full" type="button">Simuliraj karticu Ivana Horvata</button></section>
-        </div>
+        <div class="workspace"><section class="panel dashboard"><div class="section-heading"><div><p class="eyebrow">Direktorski pregled</p><h2>Početak smjene</h2></div><span class="badge">07:00</span></div><ul id="activityFeed" class="activity-list"><li><span>06:58</span> Marko Marić se prijavio.</li><li><span>06:59</span> Ana Kovač se prijavila.</li><li><span>07:00</span> Jutarnja smjena je započela.</li></ul></section><section class="panel terminal"><p class="eyebrow">Virtualni RFID terminal</p><h2>Prislonite karticu</h2><div id="terminalScreen" class="terminal-screen"><span class="terminal-icon">RFID</span><strong>Spremno za prijavu</strong><small>Terminal: Ulaz proizvodnja</small></div><button id="scanButton" class="button primary full" type="button">Simuliraj karticu Ivana Horvata</button></section></div>
+      </div>
+
+      <div id="adminView" class="role-view hidden">
+        <section class="panel objective"><div><p class="eyebrow">Administratorska kontrola</p><h2>Jedna evidencija zahtijeva provjeru.</h2><p>Petar Novak jučer nema evidentiranu odjavu. Sustav predlaže kraj smjene u 15:03.</p></div><span id="correctionStatus" class="status">Za provjeru</span></section>
+        <div class="workspace"><section class="panel"><p class="eyebrow">Audit pregled</p><h2>Petar Novak</h2><ul class="activity-list"><li><span>07:02</span> RFID prijava</li><li><span>15:03</span> Posljednja aktivnost voditelja</li><li><span>—</span> Nedostaje odjava</li></ul></section><section class="panel"><p class="eyebrow">Predložena korekcija</p><h2>Odjava 15:03</h2><p>Korekcija ostavlja zapis tko ju je izvršio i zašto.</p><button id="resolveCorrectionButton" class="button primary full" type="button">Potvrdi korekciju</button></section></div>
       </div>
 
       <div id="managerView" class="role-view hidden">
@@ -46,6 +50,11 @@
       <div id="workerView" class="role-view hidden">
         <div class="grid metrics"><article class="metric"><span>Danas evidentirano</span><strong id="workerArrival">—</strong><small>početak smjene</small></article><article class="metric"><span>Ovaj mjesec</span><strong>128 h</strong><small>obračunato</small></article><article class="metric"><span>Godišnji</span><strong>14 dana</strong><small>preostalo</small></article></div>
         <section class="panel"><p class="eyebrow">Moj pregled</p><h2>Ivan Horvat</h2><p id="workerMessage">Vaša današnja prijava još nije evidentirana.</p><ul class="activity-list"><li><span>30.7.</span> 06:59 – 15:04</li><li><span>31.7.</span> 07:01 – 15:02</li><li><span>1.8.</span> <strong id="workerRow">Čeka prijavu</strong></li></ul></section>
+      </div>
+
+      <div id="accountingView" class="role-view hidden">
+        <section class="panel objective"><div><p class="eyebrow">Mjesečni obračun</p><h2>Izvještaj je spreman za provjeru.</h2><p>Kolovoz · 68 zaposlenika · redovni, noćni i prekovremeni sati.</p></div><span id="reportStatus" class="status">Nije generiran</span></section>
+        <div class="workspace"><section class="panel"><p class="eyebrow">Sažetak fonda sati</p><h2>8.704 h</h2><ul class="activity-list"><li><span>8.241</span> redovni sati</li><li><span>311</span> noćni sati</li><li><span>152</span> prekovremeni sati</li></ul></section><section class="panel"><p class="eyebrow">Izvoz</p><h2>Obračunski paket</h2><p>Simulirani CSV/XLSX paket za računovodstvo.</p><button id="generateReportButton" class="button primary full" type="button">Generiraj izvještaj</button></section></div>
       </div>
     </section>
   </main>
