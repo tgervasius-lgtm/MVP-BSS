@@ -1,5 +1,10 @@
 import { createToastCenter, pulseElement } from './notifications.js';
 
+const polishStyles = document.createElement('link');
+polishStyles.rel = 'stylesheet';
+polishStyles.href = 'ux-polish.css';
+document.head.append(polishStyles);
+
 const toastCenter = createToastCenter();
 document.body.append(toastCenter.element);
 
