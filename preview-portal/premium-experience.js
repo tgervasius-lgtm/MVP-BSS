@@ -3,6 +3,7 @@ import { createToastCenter, pulseElement } from './notifications.js';
 import { createDirectorIntelligencePanel } from './director-intelligence.js';
 import { createFinalExperiencePanel } from './final-experience.js';
 import { createReleasePolish } from './release-polish.js';
+import { installMobileShell } from './mobile-shell.js';
 
 for (const href of ['ux-polish.css', 'director-intelligence.css', 'final-experience.css', 'release-polish.css']) {
   const stylesheet = document.createElement('link');
@@ -11,6 +12,7 @@ for (const href of ['ux-polish.css', 'director-intelligence.css', 'final-experie
   document.head.append(stylesheet);
 }
 
+installMobileShell();
 createReleasePolish();
 
 const toastCenter = createToastCenter();
