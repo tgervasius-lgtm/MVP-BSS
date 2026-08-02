@@ -1,3 +1,5 @@
+import { escapeHtml } from './html-safe.js';
+
 export const FINAL_STEPS = Object.freeze([
   Object.freeze({ key: 'attendance', label: 'RFID prijava evidentirana' }),
   Object.freeze({ key: 'correction', label: 'Administrativna korekcija potvrđena' }),
@@ -31,17 +33,17 @@ export function createFinalExperiencePanel(data) {
       <span class="final-experience-mark" aria-hidden="true">✓</span>
       <div>
         <p class="eyebrow">Operativni rezultat</p>
-        <h3 id="finalExperienceTitle">${model.headline}</h3>
-        <p>${model.valueStatement}</p>
+        <h3 id="finalExperienceTitle">${escapeHtml(model.headline)}</h3>
+        <p>${escapeHtml(model.valueStatement)}</p>
       </div>
     </div>
     <div class="final-experience-score">
       <strong>${model.attendanceRate}%</strong>
       <span>evidentirane planirane prisutnosti</span>
-      <small>${model.present} od ${model.planned} · ${model.industry}</small>
+      <small>${model.present} od ${model.planned} · ${escapeHtml(model.industry)}</small>
     </div>
     <ol class="final-experience-steps">
-      ${model.steps.map((step, index) => `<li><span>${index + 1}</span><strong>${step.label}</strong><small>Završeno</small></li>`).join('')}
+      ${model.steps.map((step, index) => `<li><span>${index + 1}</span><strong>${escapeHtml(step.label)}</strong><small>Završeno</small></li>`).join('')}
     </ol>
   `;
   return panel;
