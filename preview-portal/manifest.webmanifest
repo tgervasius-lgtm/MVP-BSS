@@ -1,0 +1,20 @@
+{
+  "name": "BSS Preview Portal",
+  "short_name": "BSS Preview",
+  "description": "Interaktivna simulacija BSS sustava evidencije radnog vremena.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#07111f",
+  "theme_color": "#0b1627",
+  "lang": "hr",
+  "icons": [
+    {
+      "src": "app-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
