@@ -1,3 +1,5 @@
+import { escapeHtml } from './html-safe.js';
+
 function plural(value, one, few, many) {
   const mod10 = value % 10;
   const mod100 = value % 100;
@@ -15,7 +17,7 @@ export function createBusinessSummary({ profile, summary, presentCount } = {}) {
   const present = Number(presentCount) || 0;
 
   return Object.freeze({
-    industry: profile?.industry || 'Tvrtka',
+    industry: String(profile?.industry || 'Tvrtka'),
     employees,
     locations,
     shifts,
@@ -39,13 +41,13 @@ export function createBusinessSummaryPanel(data) {
     <div class="business-summary-heading">
       <p class="eyebrow">Rezultat simulacije</p>
       <h3 id="businessSummaryTitle">Ovako je BSS povezao jedan radni dan.</h3>
-      <p>${result.industry} · ${result.profileLabel}</p>
+      <p>${escapeHtml(result.industry)} · ${escapeHtml(result.profileLabel)}</p>
     </div>
     <div class="business-summary-grid">
-      <article><strong>${result.present}</strong><span>${result.attendanceLabel}</span></article>
-      <article><strong>1</strong><span>${result.correctionLabel}</span></article>
-      <article><strong>1</strong><span>${result.leaveLabel}</span></article>
-      <article><strong>✓</strong><span>${result.reportLabel}</span></article>
+      <article><strong>${result.present}</strong><span>${escapeHtml(result.attendanceLabel)}</span></article>
+      <article><strong>1</strong><span>${escapeHtml(result.correctionLabel)}</span></article>
+      <article><strong>1</strong><span>${escapeHtml(result.leaveLabel)}</span></article>
+      <article><strong>✓</strong><span>${escapeHtml(result.reportLabel)}</span></article>
     </div>
     <p class="business-summary-note">Svi prikazani podaci su simulirani. Portal ne šalje niti sprema kontaktne ili osobne podatke.</p>
   `;
