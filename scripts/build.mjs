@@ -7,7 +7,6 @@ const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const output=path.join(root,'dist');
 const files=['index.html','styles.css','app.js','manifest.json','sw.js','_headers'];
 const directories=['styles','src','icons','design-system','brand-book','output'];
-const previewFiles=['index.html','styles.css','app.js','state.js'];
 const previewSource=path.join(root,'preview-portal');
 const previewOutput=path.join(output,'preview');
 
@@ -39,10 +38,9 @@ for(const directory of directories){
   await cp(path.join(root,directory),path.join(output,directory),{recursive:true});
 }
 
-await mkdir(previewOutput,{recursive:true});
-for(const file of previewFiles){
-  await ensureFile(path.join(previewSource,file));
-  await cp(path.join(previewSource,file),path.join(previewOutput,file));
+await cp(previewSource,previewOutput,{recursive:true});
+for(const developmentOnly of ['AGENTS.md','README.md','package.json','docs','tests']){
+  await rm(path.join(previewOutput,developmentOnly),{recursive:true,force:true});
 }
 
 for(const htmlPath of ['index.html','design-system/index.html','brand-book/index.html','preview/index.html']){
