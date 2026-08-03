@@ -51,9 +51,9 @@ Prije jednokratnog `bootstrap` koraka zamijenite lokalnu administratorsku lozink
 ```bash
 npm run check
 npm run test:e2e
-npm audit --omit=dev --audit-level=high
+npm audit --audit-level=high
 
-npm --prefix backend audit --omit=dev --audit-level=high
+npm --prefix backend audit --audit-level=high
 
 BSS_TEST_DATABASE_URL='postgres://…' \
 BSS_REQUIRE_POSTGRES_TESTS=true \
@@ -77,6 +77,7 @@ Detaljan runbook: [backend/OPERATIONS.md](backend/OPERATIONS.md).
 
 - [BACKEND_ARCHITECTURE.md](BACKEND_ARCHITECTURE.md) — arhitektura i granice
 - [DEVELOPER_GUIDE.md](DEVELOPER_GUIDE.md) — clean clone, struktura, migracije i razvojni workflow
+- [BSS_REPOSITORY_GOVERNANCE.md](BSS_REPOSITORY_GOVERNANCE.md) — obvezni PR gateovi, branch zaštita i odgovornosti
 - [BACKEND_READINESS_REPORT.md](BACKEND_READINESS_REPORT.md) — ugovorna spremnost Faze B
 - [BSS_PRODUCTION_READINESS_AUDIT.md](BSS_PRODUCTION_READINESS_AUDIT.md) — dubinski audit i preostali tehnički dug
 - [BSS_BACKEND_HANDOFF_V1.md](BSS_BACKEND_HANDOFF_V1.md) — predaja backend developeru

@@ -43,8 +43,8 @@ Prije `bootstrap` koraka postavlja se lokalna administratorska lozinka u ignorir
 
 ```bash
 npm run check
-npm audit --omit=dev --audit-level=high
-npm --prefix backend audit --omit=dev --audit-level=high
+npm audit --audit-level=high
+npm --prefix backend audit --audit-level=high
 
 BSS_TEST_DATABASE_URL='postgres://…' \
 BSS_REQUIRE_POSTGRES_TESTS=true \

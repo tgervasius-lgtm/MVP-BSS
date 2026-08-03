@@ -9,6 +9,9 @@ on:
       - "BACKEND_ARCHITECTURE.md"
       - "BSS_BACKEND_HANDOFF_V1.md"
       - "BACKEND_PHASE_B_REPORT.md"
+      - "DEVELOPER_GUIDE.md"
+      - "package.json"
+      - "scripts/check-architecture-budgets.mjs"
       - ".github/workflows/backend-quality.yml"
   push:
     branches:
@@ -21,6 +24,9 @@ on:
       - "BACKEND_ARCHITECTURE.md"
       - "BSS_BACKEND_HANDOFF_V1.md"
       - "BACKEND_PHASE_B_REPORT.md"
+      - "DEVELOPER_GUIDE.md"
+      - "package.json"
+      - "scripts/check-architecture-budgets.mjs"
       - ".github/workflows/backend-quality.yml"
 
 permissions:
@@ -67,8 +73,12 @@ jobs:
       - name: Install locked dependencies
         run: npm ci
 
-      - name: Production dependency audit
-        run: npm audit --omit=dev --audit-level=high
+      - name: All dependency audit
+        run: npm audit --audit-level=high
+
+      - name: Architecture growth guard
+        working-directory: .
+        run: node scripts/check-architecture-budgets.mjs
 
       - name: Typecheck
         run: npm run lint

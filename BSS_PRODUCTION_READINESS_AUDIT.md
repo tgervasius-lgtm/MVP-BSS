@@ -2,7 +2,7 @@
 
 | Stavka | Vrijednost |
 | --- | --- |
-| Datum | 18. 7. 2026. |
+| Datum | 18. 7. 2026.; kontinuirana sigurnosna provjera 3. 8. 2026. |
 | Opseg | cijeli repozitorij, frontend v1.0.0 + Backend MVP Faza B |
 | Grana | `agent/bss-backend-phase-b-v1` |
 | Cilj | neovisni senior code review; bez novih funkcionalnosti |
@@ -26,7 +26,7 @@ Finalni dokaz mora biti vezan uz isti PR commit:
 - PostgreSQL integracijski suite uz `BSS_REQUIRE_POSTGRES_TESTS=true` — lokalno se ne smije lažno proglasiti prolaznim bez PostgreSQL-a;
 - migracije `001`–`008`, stvarna `NOBYPASSRLS` runtime uloga i dvije organizacije;
 - full-stack Chromium desktop/mobile + axe protiv stvarnog Fastify/PostgreSQL procesa;
-- produkcijski dependency audit bez high/critical nalaza.
+- puni frontend i backend dependency audit bez high/critical nalaza.
 
 ## Pronađeni i ispravljeni problemi
 
@@ -81,6 +81,9 @@ Finalni dokaz mora biti vezan uz isti PR commit:
 | SEC-14 | visoka | Login i refresh su identitet provjeravali prije transakcije pa je konkurentno blokiranje tenanta/korisnika ili promjena uloge mogla stvoriti odmah nevaljanu novu sesiju. | Prije session inserta transakcija zaključava i ponovno provjerava aktivnu organizaciju i korisnika; login dodatno zahtijeva nepromijenjenu ulogu. |
 | SEC-15 | visoka | Root `.gitignore` nije štitio `.env` datoteke, pa je dokumentirani lokalni setup povećavao rizik slučajnog commita tajni. | Ignorirani su `.env` i `.env.*`, uz eksplicitnu dozvolu samo za `.env.example`; contract test sprečava regresiju. |
 | SEC-16 | srednja | Strukturirani PostgreSQL error objekt može sadržavati `detail`, query ili parametre s poslovnim/osobnim podacima. | Logger sada uz sigurnosne headere redigira DB `detail`, `where`, `query`, `internalQuery` i `parameters`, dok zadržava siguran error code i request ID. |
+| SEC-17 | visoka | Naknadno objavljeni advisories ponovno su učinili zaključani dependency graf ranjivim kroz `@fastify/static`, `find-my-way`, `fast-uri` i `brace-expansion`. | Lockovi su osvježeni na popravljene verzije; oba puna audita ponovno su na nuli, a dependency review i tjedni Dependabot sprečavaju da jednokratni audit zastari neprimijećeno. |
+| SEC-18 | visoka | Ručni audit nije davao trajnu zaštitu od novih code-scanning nalaza, slučajno commitanih tajni ili ranjive nove ovisnosti. | Dodani su CodeQL `security-extended`, Gitleaks i dependency-review workflowi na svaki PR, svi zaključani na pune action SHA vrijednosti. |
+| SEC-19 | srednja | Tri najveća legacy modula mogla su nastaviti rasti iako je modularizacija evidentirana kao obvezan dug. | Arhitektonski budžet zamrzava njihovu sadašnju veličinu i ograničava nove backend/frontend module; gate dopušta samo postupno smanjivanje. |
 
 ### Concurrency, terminal i vremenski rubni slučajevi
 
@@ -155,7 +158,7 @@ Finalni dokaz mora biti vezan uz isti PR commit:
 | REM-15 | niski | API sheme postoje i u OpenAPI-ju i u Fastify JSON Schema kodu; contract test dokazuje rute/operation ID, ne svaku semantičku razliku schema-to-schema. | Dugoročno generirati server/client tipove ili route sheme iz jednog izvora. Trenutačno hash, Redocly i ciljane contract provjere smanjuju drift. |
 | REM-16 | niski | Nema generičkog retryja za PostgreSQL deadlock/serialization failure. | Trenutačni kanonski lockovi uklanjaju poznate raceove. Retry dodati samo na idempotentnoj service granici ako produkcijska metrika pokaže potrebu. |
 | REM-17 | niski | CI Postgres service koristi major tag umjesto immutable image digest-a. | Zaključati digest nakon što tim odredi cadence za sigurnosne nadogradnje; slijepo zamrzavanje imagea može zaustaviti patch updateove. |
-| REM-18 | srednji | SAST/secret scan i DAST nisu obvezni gateovi repozitorija. | Uključiti CodeQL/secret protection i staging DAST nakon organizacijskog odabira GitHub/security alata. Dependency audit i ručni secure-code pregled već su uključeni. |
+| REM-18 | srednji | DAST još nije izveden protiv zasebnog staging okruženja; branch protection i GitHub push protection zahtijevaju jednokratnu vlasničku postavku. | CodeQL, PR secret scan, dependency review i Dependabot sada su u repozitoriju. Vlasnik treba primijeniti `BSS_REPOSITORY_GOVERNANCE.md`, a staging DAST dodati nakon izbora hostinga. |
 | REM-19 | srednji, privatnost | IP adresa i user-agent spremaju se kao neslani SHA-256 pseudonimi u sesiji; IP ima mali prostor vrijednosti i hash nije anonimnost. | Senior, DPO i security trebaju odlučiti pravnu osnovu, minimalni retention i treba li podatak ukloniti ili HMAC-irati posebnim rotirajućim ključem. To se ne smije tiho promijeniti bez incident/audit zahtjeva. |
 
 ## Procjena spremnosti

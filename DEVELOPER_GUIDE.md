@@ -49,15 +49,15 @@ Ako Docker nije dopušten, pokrenite vlastiti PostgreSQL 16 i promijenite samo `
 | `backend/contracts/frontend-screen-api-map-v1.json` | ekran → OpenAPI operation matrica i hash ugovora |
 | `backend/test` / `tests` | unit, contract, PostgreSQL, frontend i browser regresije |
 
-Za arhitektonske granice pročitajte `BACKEND_ARCHITECTURE.md`; za poznati dug i produkcijske rizike `BSS_PRODUCTION_READINESS_AUDIT.md`; za operacije, backup i restore `backend/OPERATIONS.md`.
+Za arhitektonske granice pročitajte `BACKEND_ARCHITECTURE.md`; za poznati dug i produkcijske rizike `BSS_PRODUCTION_READINESS_AUDIT.md`; za obvezne GitHub i review kontrole `BSS_REPOSITORY_GOVERNANCE.md`; za operacije, backup i restore `backend/OPERATIONS.md`.
 
 ## 3. Provjere prije promjene
 
 ```bash
 npm run check
 npm run test:e2e
-npm audit --omit=dev --audit-level=high
-npm --prefix backend audit --omit=dev --audit-level=high
+npm audit --audit-level=high
+npm --prefix backend audit --audit-level=high
 ```
 
 PostgreSQL integracijski suite radi nad odvojenom privremenom bazom na portu 5433. Ne usmjeravajte ga na razvojnu, dijeljenu ili produkcijsku bazu.
@@ -71,6 +71,8 @@ npm --prefix backend run test:integration
 ```
 
 `BSS_REQUIRE_POSTGRES_TESTS=true` je obvezan u CI-ju: preskočen DB test nije prolaz. Testni Postgres koristi `tmpfs`; uklanjanje kontejnera briše samo tu testnu bazu.
+
+`npm run check` prvo pokreće arhitektonski budžet. `app.js`, `PgPhaseAService` i `PgMvpService` smiju ostati isti ili se smanjivati, ali ne smiju rasti. Nova poslovna logika izdvaja se u manje module iza postojećih ugovora. GitHub zatim neovisno pokreće CodeQL, secret scan i dependency review; njihov crveni rezultat nije dopušteno zaobići bez dokumentirane sigurnosne odluke.
 
 ## 4. Dodavanje migracije
 
@@ -104,6 +106,8 @@ Novi developer ne treba veliki refaktor. Radite okomiti, mali rez ovim redom:
 8. dodajte unit/contract test, negativni RBAC/cross-tenant test i PostgreSQL integracijski scenarij;
 9. tek zatim povežite frontend adapter, bez vraćanja mock podataka;
 10. pokrenite cijeli quality gate i ažurirajte handoff/operativnu dokumentaciju.
+
+Svaki pull request koristi repozitorijski PR predložak. Autor mora navesti poslovni cilj, opseg, tenant/RBAC utjecaj, migracijski i operativni rizik te konkretan dokaz provjere. Dependabot tjedno otvara kontrolirane update PR-ove za oba npm projekta i GitHub Actions; nadogradnje i dalje moraju proći cijeli gate prije mergea.
 
 Velike `PgPhaseAService` i `PgMvpService` datoteke poznati su dug. Izdvajajte domenu inkrementalno iza postojećeg `MvpService` ugovora; nemojte ih prepisivati u jednom zahvatu.
 
