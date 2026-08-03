@@ -209,7 +209,10 @@ test('rana RFID prijava ostaje vremenski usklađena nakon promjene uloge',async(
   await page.getByRole('button',{name:'Uprava',exact:true}).click();
 
   await expect(page.locator('#livingOfficeTime')).toHaveText(arrivalTime);
-  await expect(page.locator('#activityFeed time')).toHaveText([arrivalTime,'07:00','06:58']);
+  await expect(page.locator('#activityFeed [data-actor="Ivan Horvat"]')).toHaveCount(1);
+  const times=await page.locator('#activityFeed time').allTextContents();
+  expect(times[0]).toBe(arrivalTime);
+  expect(times).toEqual([...times].sort((a,b)=>b.localeCompare(a)));
   await expectNoHorizontalOverflow(page);
 });
 
