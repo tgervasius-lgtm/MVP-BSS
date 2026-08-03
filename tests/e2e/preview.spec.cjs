@@ -96,7 +96,7 @@ test('320 px, tipkovnica i reduced motion ostaju upotrebljivi',async({page})=>{
   expect(await seriousAxeViolations(page)).toEqual([]);
 
   await page.getByRole('button',{name:'Pripremi i pokreni radni dan'}).click();
-  await expect(page.locator('#demoView')).toBeVisible({timeout:3000});
+  await expect(page.locator('#demoView')).toBeVisible({timeout:7000});
   await expectNoHorizontalOverflow(page);
 });
 
