@@ -252,6 +252,19 @@ test('320 px, tipkovnica i reduced motion ostaju upotrebljivi',async({page})=>{
   });
   expect(motion.animation).toBeLessThanOrEqual(0.001);
   expect(motion.transition).toBeLessThanOrEqual(0.001);
+  await page.getByRole('button',{name:'Otvori demo sustav'}).click();
+  await expect(page.locator('#demoView')).toBeVisible({timeout:7000});
+  const staticTime=await page.locator('#livingOfficeTime').textContent();
+  await page.waitForTimeout(2700);
+  await expect(page.locator('#livingOfficeTime')).toHaveText(staticTime);
+  const compactLayout=await page.locator('.command-overview').evaluate(element=>({
+    viewport:window.innerWidth,
+    columns:getComputedStyle(element).gridTemplateColumns
+  }));
+  if(compactLayout.viewport<=380)expect(compactLayout.columns.trim().split(/\s+/)).toHaveLength(1);
+  const exceptionOverflow=await page.locator('.attendance-exception').evaluateAll(elements=>elements.map(element=>element.scrollWidth-element.clientWidth));
+  expect(exceptionOverflow.every(value=>value<=1)).toBe(true);
+  await expectNoHorizontalOverflow(page);
   expect(await seriousAxeViolations(page)).toEqual([]);
 });
 

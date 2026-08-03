@@ -114,6 +114,33 @@ test('automatski slijed završava kronološki i ne vraća sat unatrag', async ()
   dom.window.close();
 });
 
+test('promjena djelatnosti tijekom slijeda ne vraća simulirani sat unatrag', async () => {
+  const { dom, feed } = createFeed();
+  const frames = [];
+  let currentIndustry = 'Proizvodnja';
+  const controller = createLivingOfficeController({
+    feed,
+    resetControl: null,
+    getIndustry: () => currentIndustry,
+    intervalMs: 2,
+    onFrame: (frame) => {
+      frames.push(`${frame.time}/${frame.industry}`);
+      if (frames.length === 2) currentIndustry = 'Logistika';
+    }
+  });
+  controller.start();
+  await new Promise((resolve) => setTimeout(resolve, 25));
+  controller.stop();
+  assert.deepEqual(frames, [
+    '06:58/proizvodnja',
+    '07:00/proizvodnja',
+    '07:01/logistika',
+    '07:06/logistika',
+    '07:12/logistika'
+  ]);
+  dom.window.close();
+});
+
 test('reduced-motion način ostavlja samo jedan statičan okvir', () => {
   const { dom, feed } = createFeed();
   const frames = [];

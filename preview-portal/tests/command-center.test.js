@@ -63,6 +63,7 @@ test('command center prikazuje jedan kompaktan graf i tri izravne KPI kontrole',
   assert.equal(panel.element.querySelector('#presentCount').textContent, '47');
   assert.equal(panel.element.querySelector('#lateCount').textContent, '3');
   assert.equal(panel.element.querySelector('#absentCount').textContent, '2');
+  assert.equal(panel.element.querySelector('[data-field="terminals-label"]').textContent, 'terminala online');
   assert.match(panel.element.querySelector('.attendance-ring').getAttribute('aria-label'), /47 prisutnih, 3 kasni i 2 odsutnih/);
   assert.match(panel.element.querySelector('[data-kpi="present"]').getAttribute('aria-label'), /90 posto/);
 

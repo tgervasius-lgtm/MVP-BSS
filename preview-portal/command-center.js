@@ -50,7 +50,7 @@ export function createCommandCenterPanel() {
     </div>
     <div class="command-meta" role="group" aria-label="Operativna infrastruktura">
       <span><strong data-field="locations">1</strong> <span data-field="locations-label">lokacija</span></span>
-      <span><strong data-field="terminals">1 / 1</strong> terminali online</span>
+      <span><strong data-field="terminals">1 / 1</strong> <span data-field="terminals-label">terminal online</span></span>
     </div>
     <div class="command-overview">
       <button class="attendance-ring-trigger command-kpi" data-kpi="present" type="button" aria-label="Otvori detalje prisutnih zaposlenika">
@@ -80,6 +80,7 @@ export function createCommandCenterPanel() {
     locations: section.querySelector('[data-field="locations"]'),
     locationsLabel: section.querySelector('[data-field="locations-label"]'),
     terminals: section.querySelector('[data-field="terminals"]'),
+    terminalsLabel: section.querySelector('[data-field="terminals-label"]'),
     present: section.querySelector('#presentCount'),
     planned: section.querySelector('#plannedCount'),
     late: section.querySelector('#lateCount'),
@@ -102,6 +103,7 @@ export function createCommandCenterPanel() {
       fields.locations.textContent = String(model.locations);
       fields.locationsLabel.textContent = model.locations === 1 ? 'lokacija' : model.locations < 5 ? 'lokacije' : 'lokacija';
       fields.terminals.textContent = `${model.online} / ${model.terminals}`;
+      fields.terminalsLabel.textContent = model.terminals === 1 ? 'terminal online' : 'terminala online';
       fields.present.textContent = String(model.presentCount);
       fields.planned.textContent = `od ${model.planned} planiranih`;
       fields.late.textContent = String(model.late);

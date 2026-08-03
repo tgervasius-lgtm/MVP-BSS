@@ -72,6 +72,7 @@ const livingController = createLivingOfficeController({
   onFrame: renderLivingOfficeFrame,
   autoAdvance: !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches,
   resetControl: null,
+  getIndustry: () => state.profile.industry,
   startStep: 2
 });
 

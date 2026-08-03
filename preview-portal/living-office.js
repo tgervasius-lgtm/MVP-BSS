@@ -161,7 +161,7 @@ export function createLivingOfficeController({
   feed = globalThis.document?.querySelector?.('#activityFeed'),
   resetControl = globalThis.document?.querySelector?.('#resetButton'),
   industry = 'ostalo',
-  getIndustry = () => globalThis.document?.querySelector?.('#industryInput')?.value ?? industry,
+  getIndustry = () => industry,
   autoAdvance = true,
   startStep = 0
 } = {}) {
@@ -175,8 +175,6 @@ export function createLivingOfficeController({
     const nextIndustry = normalizeIndustry(getIndustry?.());
     if (nextIndustry === activeIndustry) return;
     activeIndustry = nextIndustry;
-    step = initialStep;
-    staticEmitted = false;
     clearLivingOfficeEvents(feed);
   }
 
@@ -217,13 +215,6 @@ export function createLivingOfficeController({
       timer = setInterval(emit, intervalMs);
     },
     stop,
-    reset,
-    setIndustry(nextIndustry) {
-      const normalized = normalizeIndustry(nextIndustry);
-      if (normalized === activeIndustry) return activeIndustry;
-      activeIndustry = normalized;
-      reset();
-      return activeIndustry;
-    }
+    reset
   });
 }

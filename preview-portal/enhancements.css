@@ -117,6 +117,11 @@
   .terminal-status-panel .section-heading { align-items: flex-start; flex-direction: column; }
   .toast-center { right: 16px; bottom: 16px; }
 }
+@media (max-width:380px) {
+  .command-overview { grid-template-columns: 1fr; justify-items: center; gap: 18px; }
+  .attendance-ring-trigger,.attendance-exceptions { width: 100%; }
+  .attendance-exceptions > p { display: flex; }
+}
 @media (prefers-reduced-motion:no-preference) {
   .living-office-dot { animation: livePulse 1.8s ease-in-out infinite; }
   .business-summary-grid article { animation: summaryEnter .35s ease both; }
