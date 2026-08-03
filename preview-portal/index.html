@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <meta name="description" content="Interaktivni BSS Preview Portal za virtualnu tvrtku BSSProject d.o.o.">
+  <meta name="description" content="Personalizirani interaktivni BSS demo sustav za evidenciju radnog vremena.">
   <meta name="theme-color" content="#0b1627">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -18,50 +18,80 @@
 <body>
   <main class="shell">
     <header class="topbar">
-      <div><p class="eyebrow">BSS Preview Portal</p><h1>BSSProject d.o.o.</h1></div>
-      <button id="resetButton" class="button secondary" type="button">Resetiraj demo</button>
+      <div class="brand-lockup">
+        <span class="brand-mark" aria-hidden="true">BSS</span>
+        <div><p class="eyebrow">Bognar Smart Systems</p><h1>BSS Preview sustav</h1></div>
+      </div>
+      <div class="topbar-actions">
+        <span id="activeProfile" class="active-profile hidden">Demo profil nije otvoren</span>
+        <button id="resetButton" class="button secondary hidden" type="button">Promijeni profil</button>
+      </div>
     </header>
 
     <section id="welcomeView" class="panel onboarding" aria-labelledby="welcomeTitle">
       <div class="onboarding-copy">
-        <span class="badge">Interaktivna simulacija</span>
-        <h2 id="welcomeTitle">Pogledajte kako bi BSS izgledao u tvrtki poput vaše.</h2>
-        <p>Odaberite osnovni profil. Portal će pripremiti simulirani primjer prilagođen djelatnosti i veličini tvrtke, bez registracije.</p>
+        <span class="badge">Demo pristup bez registracije</span>
+        <h2 id="welcomeTitle">Otvorite vlastito BSS demo okruženje.</h2>
+        <p>Unesite samo opseg poslovanja. BSS će pripremiti realističan, ali potpuno simuliran sustav prilagođen veličini vaše tvrtke.</p>
         <form id="profileForm" class="profile-form">
           <label>Djelatnost
-            <select id="industryInput" name="industry">
+            <select id="industryInput" name="industry" required>
               <option>Proizvodnja</option><option>Građevina</option><option>Logistika</option><option>Trgovina</option><option>Ured</option><option>Ostalo</option>
             </select>
           </label>
           <label>Broj zaposlenika
-            <input id="employeesInput" name="employees" type="number" min="5" max="1000" value="68" inputmode="numeric">
+            <input id="employeesInput" name="employees" type="number" min="5" max="1000" value="68" inputmode="numeric" required>
           </label>
           <label>Broj lokacija
-            <input id="locationsInput" name="locations" type="number" min="1" max="8" value="2" inputmode="numeric">
+            <input id="locationsInput" name="locations" type="number" min="1" max="8" value="2" inputmode="numeric" required>
           </label>
           <label>Broj smjena
-            <select id="shiftsInput" name="shifts"><option value="1">1</option><option value="2" selected>2</option><option value="3">3</option><option value="4">4</option></select>
+            <select id="shiftsInput" name="shifts" required><option value="1">1</option><option value="2" selected>2</option><option value="3">3</option><option value="4">4</option></select>
           </label>
-          <button class="button primary full" type="submit">Pripremi i pokreni radni dan</button>
+          <fieldset class="experience-mode full">
+            <legend>Način pregleda</legend>
+            <label class="mode-option">
+              <input type="radio" name="experienceMode" value="free" checked>
+              <span><strong>Slobodno istraživanje</strong><small>Sve uloge i demo-radnje dostupne su odmah.</small></span>
+            </label>
+            <label class="mode-option">
+              <input type="radio" name="experienceMode" value="assisted">
+              <span><strong>Pregled uz preporuke</strong><small>Sustav ostaje otvoren, a portal predlaže sljedeću mogućnost.</small></span>
+            </label>
+          </fieldset>
+          <button class="button primary full" type="submit">Otvori demo sustav</button>
         </form>
-        <small class="disclosure">Podaci su simulirani i služe za prikaz procesa, ne predstavljaju stvarnu konfiguraciju vaše tvrtke.</small>
+        <small class="disclosure"><strong>Ne unosite imena radnika, OIB ni druge osobne podatke.</strong> Ovi agregirani odabiri obrađuju se samo u demo okruženju i ne stvaraju korisnički račun.</small>
       </div>
       <div class="preview-card" aria-live="polite">
-        <p class="muted">Primjer okruženja</p>
+        <p class="muted">Vaše demo okruženje</p>
         <strong id="profileIndustry">Proizvodnja</strong>
         <span id="profileEmployees">68 zaposlenika</span>
         <span id="profileMeta">2 lokacije · 2 terminala · 2 smjene</span>
+        <small>Brojke i primjeri radnika u sustavu bit će simulirani.</small>
       </div>
     </section>
 
     <section id="demoView" class="hidden">
-      <section class="panel guide-panel" aria-labelledby="guideTitle" aria-live="polite">
-        <div><p class="eyebrow" id="companyContext">Simulacija za djelatnost proizvodnja · 68 zaposlenika</p><h2 id="guideTitle">Korak <span id="guideStep">1</span> od 5</h2><p id="guideText">Evidentirajte dolazak radnika putem virtualnog RFID terminala.</p></div>
-        <div id="guideProgressBar" class="guide-progress" role="progressbar" aria-label="Napredak kroz demo" aria-valuemin="0" aria-valuemax="5" aria-valuenow="0"><span id="guideProgress"></span></div>
+      <section class="panel guide-panel" aria-labelledby="guideTitle">
+        <div class="workspace-context">
+          <span class="badge">Simulirani podaci</span>
+          <p class="eyebrow" id="companyContext">Proizvodnja · 68 zaposlenika · početak jutarnje smjene</p>
+          <h2 id="guideTitle">Vaše demo okruženje je spremno.</h2>
+          <p>Sami birate ulogu i redoslijed. Ni jedna demo-funkcija nije zaključana.</p>
+        </div>
+        <div class="guide-status">
+          <p class="guide-count" aria-live="polite" aria-atomic="true"><strong id="guideStep">0</strong><span>od 5 ključnih mogućnosti isprobano</span></p>
+          <div id="guideProgressBar" class="guide-progress" role="progressbar" aria-label="Isprobane mogućnosti demo sustava" aria-valuemin="0" aria-valuemax="5" aria-valuenow="0"><span id="guideProgress"></span></div>
+          <details id="guideDetails" class="guide-details">
+            <summary>Preporučeni sljedeći korak</summary>
+            <p id="guideText">Evidentirajte dolazak radnika putem virtualnog RFID terminala.</p>
+          </details>
+        </div>
       </section>
 
       <nav class="role-switcher panel" aria-label="Promjena demo uloge">
-        <div><p class="eyebrow">Trenutna perspektiva</p><strong id="roleLabel">Direktor</strong><small class="role-note">Pregledi su dostupni; operativne radnje otključavaju se redom.</small></div>
+        <div><p class="eyebrow">Demo ovlasti</p><strong>Pregled kao: <span id="roleLabel">Direktor</span></strong><small class="role-note">Otvorite bilo koju ulogu i isprobajte njezine dopuštene radnje.</small></div>
         <div class="role-buttons">
           <button class="role-button active" data-role="director" type="button">Direktor</button>
           <button class="role-button" data-role="admin" type="button">Administrator</button>
@@ -72,20 +102,20 @@
       </nav>
 
       <div id="directorView" class="role-view">
-        <div class="grid metrics"><article class="metric"><span>Prisutni</span><strong id="presentCount">47</strong><small id="plannedCount">od 52 planirana</small></article><article class="metric"><span>Kasne</span><strong>3</strong><small>potrebna provjera</small></article><article class="metric"><span>Odsutni</span><strong>6</strong><small>godišnji i bolovanje</small></article></div>
+        <div class="grid metrics"><article class="metric"><span>Prisutni</span><strong id="presentCount">47</strong><small id="plannedCount">od 52 planirana</small></article><article class="metric"><span>Kasne</span><strong id="lateCount">3</strong><small>potrebna provjera</small></article><article class="metric"><span>Odsutni</span><strong id="absentCount">2</strong><small>godišnji i bolovanje</small></article></div>
         <section class="panel objective"><div><p class="eyebrow">Vaš zadatak</p><h2>Provjerite početak jutarnje smjene.</h2><p id="objectiveText">Evidentirajte dolazak Ivana Horvata na virtualnom terminalu.</p></div><span id="objectiveStatus" class="status">U tijeku</span></section>
         <div class="workspace"><section class="panel dashboard"><div class="section-heading"><div><p class="eyebrow">Direktorski pregled</p><h2>Početak smjene</h2></div><span class="badge">07:00</span></div><ul id="activityFeed" class="activity-list"><li><span>06:58</span> Marko Marić se prijavio.</li><li><span>06:59</span> Ana Kovač se prijavila.</li><li><span>07:00</span> Jutarnja smjena je započela.</li></ul></section><section class="panel terminal"><p class="eyebrow">Virtualni RFID terminal</p><h2>Prislonite karticu</h2><div id="terminalScreen" class="terminal-screen"><span class="terminal-icon">RFID</span><strong>Spremno za prijavu</strong><small>Terminal: Ulaz proizvodnja</small></div><button id="scanButton" class="button primary full" type="button">Simuliraj karticu Ivana Horvata</button></section></div>
       </div>
 
       <div id="adminView" class="role-view hidden"><section class="panel objective"><div><p class="eyebrow">Administratorska kontrola</p><h2>Jedna evidencija zahtijeva provjeru.</h2><p>Petar Novak jučer nema evidentiranu odjavu. Sustav predlaže kraj smjene u 15:03.</p></div><span id="correctionStatus" class="status">Za provjeru</span></section><div class="workspace"><section class="panel"><p class="eyebrow">Audit pregled</p><h2>Petar Novak</h2><ul class="activity-list"><li><span>07:02</span> RFID prijava</li><li><span>15:03</span> Posljednja aktivnost voditelja</li><li><span>—</span> Nedostaje odjava</li></ul></section><section class="panel"><p class="eyebrow">Predložena korekcija</p><h2>Odjava 15:03</h2><p>Korekcija ostavlja zapis tko ju je izvršio i zašto.</p><button id="resolveCorrectionButton" class="button primary full" type="button">Potvrdi korekciju</button></section></div></div>
 
-      <div id="managerView" class="role-view hidden"><section class="panel objective"><div><p class="eyebrow">Voditelj proizvodnje</p><h2>Zahtjev čeka vašu odluku.</h2><p>Ana Kovač traži godišnji odmor od 17. do 21. kolovoza.</p></div><span id="leaveStatus" class="status">Čeka odluku</span></section><div class="workspace"><section class="panel"><p class="eyebrow">Tim A · 24 radnika</p><h2>Danas u smjeni</h2><ul class="activity-list"><li><span>22</span> prisutna radnika</li><li><span>1</span> radnik kasni</li><li><span>1</span> radnik na bolovanju</li></ul></section><section class="panel"><p class="eyebrow">Godišnji odmor</p><h2>Ana Kovač</h2><p>Preostalo: 14 dana · traži 5 dana.</p><button id="approveLeaveButton" class="button primary full" type="button">Odobri zahtjev</button></section></div></div>
+      <div id="managerView" class="role-view hidden"><section class="panel objective"><div><p class="eyebrow">Voditelj proizvodnje</p><h2>Zahtjev čeka vašu odluku.</h2><p>Ana Kovač traži godišnji odmor od 17. do 21. kolovoza.</p></div><span id="leaveStatus" class="status">Čeka odluku</span></section><div class="workspace"><section class="panel"><p class="eyebrow"><span id="managerTeamLabel">Tim A</span> · <span id="managerTeamSize">24</span> radnika</p><h2>Danas u smjeni</h2><ul class="activity-list"><li><span id="managerPresentCount">22</span> prisutna radnika</li><li><span id="managerLateCount">1</span> radnik kasni</li><li><span id="managerSickCount">1</span> radnik na bolovanju</li></ul></section><section class="panel"><p class="eyebrow">Godišnji odmor</p><h2>Ana Kovač</h2><p>Preostalo: 14 dana · traži 5 dana.</p><button id="approveLeaveButton" class="button primary full" type="button">Odobri zahtjev</button></section></div></div>
 
       <div id="workerView" class="role-view hidden"><div class="grid metrics"><article class="metric"><span>Danas evidentirano</span><strong id="workerArrival">—</strong><small>početak smjene</small></article><article class="metric"><span>Ovaj mjesec</span><strong>128 h</strong><small>obračunato</small></article><article class="metric"><span>Godišnji</span><strong>14 dana</strong><small>preostalo</small></article></div><section class="panel"><p class="eyebrow">Moj pregled</p><h2>Ivan Horvat</h2><p id="workerMessage">Vaša današnja prijava još nije evidentirana.</p><ul class="activity-list"><li><span>30.7.</span> 06:59 – 15:04</li><li><span>31.7.</span> 07:01 – 15:02</li><li><span>1.8.</span> <strong id="workerRow">Čeka prijavu</strong></li></ul><button id="reviewWorkerButton" class="button primary" type="button">Potvrdi da su podaci jasni</button></section></div>
 
-      <div id="accountingView" class="role-view hidden"><section class="panel objective"><div><p class="eyebrow">Mjesečni obračun</p><h2>Izvještaj je spreman za provjeru.</h2><p>Kolovoz · simulirani redovni, noćni i prekovremeni sati.</p></div><span id="reportStatus" class="status">Nije generiran</span></section><div class="workspace"><section class="panel"><p class="eyebrow">Sažetak fonda sati</p><h2>8.704 h</h2><ul class="activity-list"><li><span>8.241</span> redovni sati</li><li><span>311</span> noćni sati</li><li><span>152</span> prekovremeni sati</li></ul></section><section class="panel"><p class="eyebrow">Izvoz</p><h2>Obračunski paket</h2><p>Simulirani CSV/XLSX paket za računovodstvo.</p><button id="generateReportButton" class="button primary full" type="button">Generiraj izvještaj</button></section></div></div>
+      <div id="accountingView" class="role-view hidden"><section class="panel objective"><div><p class="eyebrow">Mjesečni obračun</p><h2>Izvještaj je spreman za provjeru.</h2><p>Kolovoz · simulirani redovni, noćni i prekovremeni sati.</p></div><span id="reportStatus" class="status">Nije generiran</span></section><div class="workspace"><section class="panel"><p class="eyebrow">Sažetak fonda sati</p><h2><span id="monthlyHours">8.704</span> h</h2><ul class="activity-list"><li><span id="regularHours">8.241</span> redovni sati</li><li><span id="nightHours">311</span> noćni sati</li><li><span id="overtimeHours">152</span> prekovremeni sati</li></ul></section><section class="panel"><p class="eyebrow">Izvoz</p><h2>Obračunski paket</h2><p>Simulirani CSV/XLSX paket za računovodstvo.</p><button id="generateReportButton" class="button primary full" type="button">Generiraj izvještaj</button></section></div></div>
 
-      <section id="completionView" class="panel completion hidden"><span class="badge">Radni dan završen</span><h2>Vidjeli ste cijeli tok podataka kroz BSS.</h2><p>Od RFID prijave do administrativne kontrole, odobrenja voditelja, radničkog pregleda i obračunskog izvještaja.</p><p>Za dogovor online prezentacije, demonstracije uživo ili pilot-suradnje javite se BSS timu koji vam je poslao ovu simulaciju.</p><button class="button primary" type="button" id="restartButton">Ponovi iskustvo</button></section>
+      <section id="completionView" class="panel completion hidden" aria-labelledby="completionTitle"><span class="badge">5 od 5 mogućnosti isprobano</span><h2 id="completionTitle">Demo sustav ostaje otvoren.</h2><p>Pregledali ste tok od RFID prijave do administrativne kontrole, odobrenja voditelja, radničkog pregleda i obračunskog izvještaja.</p><p>Možete nastaviti mijenjati uloge ili resetirati aktivnosti. Za online prezentaciju, demonstraciju uživo ili pilot-suradnju javite se BSS timu koji vam je poslao pristup.</p><button class="button primary" type="button" id="restartButton">Resetiraj demo aktivnosti</button></section>
     </section>
   </main>
   <script type="module" src="app.js"></script>

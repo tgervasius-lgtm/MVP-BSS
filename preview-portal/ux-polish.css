@@ -49,6 +49,24 @@ input:focus-visible,
   padding-bottom: max(16px, env(safe-area-inset-bottom));
 }
 
+@media (max-width: 760px) {
+  .topbar > *,
+  .role-switcher > *,
+  .guide-panel > * {
+    min-width: 0;
+  }
+
+  .guide-panel {
+    position: static;
+    gap: 16px;
+    padding: 20px;
+  }
+
+  .guide-panel h2 {
+    font-size: clamp(1.25rem, 5vw, 1.45rem);
+  }
+}
+
 @media (max-width: 720px) {
   .shell {
     width: min(100% - 24px, 1180px);
@@ -67,6 +85,7 @@ input:focus-visible,
 
   .role-buttons {
     display: flex;
+    max-width: 100%;
     width: 100%;
     overflow-x: auto;
     gap: 8px;
@@ -108,6 +127,15 @@ input:focus-visible,
     flex-direction: column;
   }
 
+  .topbar-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .active-profile {
+    max-width: 100%;
+  }
+
   .topbar .button {
     width: 100%;
   }
@@ -118,6 +146,11 @@ input:focus-visible,
   .command-center-head {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .guide-panel {
+    gap: 12px;
+    padding: 16px;
   }
 
   .metric strong,

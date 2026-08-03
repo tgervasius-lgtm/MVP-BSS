@@ -1,4 +1,4 @@
-# BSS Preview Portal — Product Requirements v1.0
+# BSS Preview Portal — Product Requirements v1.1
 
 ## 1. Objective
 Validate market interest before the physical BSS pilot by giving potential buyers a credible, interactive experience of using BSS in their own company.
@@ -6,17 +6,17 @@ Validate market interest before the physical BSS pilot by giving potential buyer
 The portal succeeds when a relevant visitor understands the product, completes meaningful interactions and requests an online presentation, a live demonstration or pilot participation.
 
 ## 2. Demo company
-**BSSProject d.o.o.**
+Interni demonstracijski fixture ostaje **BSSProject d.o.o.**, ali korisničko sučelje iskustvo prikazuje kao posjetiteljevo vlastito demo okruženje na temelju agregiranog profila.
 
 Default scenario:
 - Metal production and warehouse operations
 - 68 employees
 - 2 locations
-- 3 RFID terminals
+- 2 RFID terminals
 - 2 shifts
 - Simulated data clearly disclosed as demo data
 
-Visitor choices may adapt the labels, employee volume and scenario density, but v1 does not create a real tenant or claim true company-specific configuration.
+Visitor choices adapt the labels, employee volume and scenario density, but v1 does not create a real tenant or claim true company-specific configuration. The setup never asks for employee names, OIB or other personal data.
 
 ## 3. Target users
 Primary:
@@ -44,10 +44,10 @@ The portal must make the visitor feel that they are managing a normal workday wi
 2. Visitor starts the demo without registration.
 3. Visitor selects basic company context: industry, employee range, number of locations and shifts.
 4. Portal frames the experience as an example for a company of that profile.
-5. Visitor chooses a guided workday or free exploration.
+5. Visitor chooses free exploration (default) or the same open workspace with contextual recommendations.
 
-### Guided workday
-The default story begins shortly before a shift starts. The system introduces one event at a time and asks the visitor to act.
+### Assisted workday
+The story begins shortly before a shift starts. The system recommends one useful event at a time, but recommendations never lock modules, actions or role switching.
 
 Minimum scenario:
 1. Review attendance as the shift begins.
@@ -60,7 +60,7 @@ Minimum scenario:
 8. Complete the experience and choose a commercial next step.
 
 ### Free exploration
-The visitor can switch roles and inspect all permitted demo modules without guided interruptions.
+This is the primary path. The visitor can switch roles, execute all permitted demo actions in any order and continue using the workspace after completing all five capability checks.
 
 ## 5. Roles
 ### Owner / Director
@@ -116,6 +116,8 @@ Use professional game-design mechanics without making the product childish:
 - Optional role changes
 - Meaningful operational events
 - Completion summary
+
+Progress is descriptive, not a gate. Completion must never replace or close the demo workspace.
 
 No dark patterns, artificial waiting, false scarcity or misleading personalization.
 
@@ -196,7 +198,9 @@ Traffic volume alone is not treated as product-market validation.
 
 ## 13. Release gate
 The portal is ready for public marketing only when:
-- The complete guided scenario works without manual intervention.
+- Free exploration and assisted recommendations both use the same consistent sandbox state.
+- Every demo action works in any order without forcing a role change.
+- No persistent or sticky guidance surface covers application content at 320 px or larger.
 - All five roles show internally consistent data.
 - Terminal actions update the correct views.
 - Every primary CTA is connected to a functioning lead workflow.

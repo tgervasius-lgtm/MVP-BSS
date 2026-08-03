@@ -1,4 +1,3 @@
-import './boot-entry.js';
 import { createToastCenter, pulseElement } from './notifications.js';
 import { createDirectorIntelligencePanel } from './director-intelligence.js';
 import { createFinalExperiencePanel } from './final-experience.js';

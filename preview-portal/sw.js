@@ -1,5 +1,5 @@
 const PREVIEW_CACHE_PREFIX = 'bss-preview-portal-';
-const CACHE_NAME = `${PREVIEW_CACHE_PREFIX}rc1`;
+const CACHE_NAME = `${PREVIEW_CACHE_PREFIX}rc2`;
 const ASSETS = [
   './',
   './index.html',
@@ -8,12 +8,9 @@ const ASSETS = [
   './director-intelligence.css',
   './final-experience.css',
   './release-polish.css',
-  './boot-experience.css',
   './enhancements.css',
   './app.js',
   './premium-experience.js',
-  './boot-entry.js',
-  './boot-experience.js',
   './notifications.js',
   './director-intelligence.js',
   './final-experience.js',
@@ -30,7 +27,9 @@ const ASSETS = [
   './command-center.js',
   './cancellable-delay.js',
   './experience-engine.js',
+  './scenarios/morning-shift.js',
   './company-profile.js',
+  './operational-metrics.js',
   './html-safe.js',
   './manifest.webmanifest',
   './app-icon.svg',

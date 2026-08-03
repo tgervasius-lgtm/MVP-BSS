@@ -17,27 +17,30 @@ export function createExperience(scenario = MORNING_SHIFT_SCENARIO) {
 }
 
 export function applyExperienceEvent(experience, eventType, scenario = MORNING_SHIFT_SCENARIO) {
-  const step = scenario.steps[experience.currentStep];
-  if (!step || step.event !== eventType) return experience;
+  const scenarioEvents = new Set(scenario.steps.map((step) => step.event));
+  if (!scenarioEvents.has(eventType)) return experience;
   if (experience.completedEvents.includes(eventType)) return experience;
 
+  const completedEvents = [...experience.completedEvents, eventType];
   return {
     ...experience,
-    completedEvents: [...experience.completedEvents, eventType],
-    currentStep: Math.min(experience.currentStep + 1, scenario.steps.length)
+    completedEvents,
+    currentStep: completedEvents.length
   };
 }
 
 export function getExperienceView(experience, scenario = MORNING_SHIFT_SCENARIO) {
-  const total = scenario.steps.length;
-  const complete = experience.currentStep >= total;
-  const step = complete ? null : scenario.steps[experience.currentStep];
+  const scenarioEvents = [...new Set(scenario.steps.map((step) => step.event))];
+  const completedEvents = experience.completedEvents.filter((event) => scenarioEvents.includes(event));
+  const total = scenarioEvents.length;
+  const complete = completedEvents.length === total;
+  const step = complete ? null : scenario.steps.find((candidate) => !completedEvents.includes(candidate.event));
 
   return {
     complete,
-    completed: experience.currentStep,
+    completed: completedEvents.length,
     total,
-    progress: total === 0 ? 100 : Math.round((experience.currentStep / total) * 100),
+    progress: total === 0 ? 100 : Math.round((completedEvents.length / total) * 100),
     role: step?.role ?? 'accounting',
     stepId: step?.id ?? null,
     event: step?.event ?? null,

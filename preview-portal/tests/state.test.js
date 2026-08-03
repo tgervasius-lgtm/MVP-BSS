@@ -9,18 +9,23 @@ test('startDemo otvara iskustvo bez mijenjanja metrika', () => {
   assert.equal(next.activeRole, 'director');
 });
 
-test('vođeni radni dan automatski prolazi svih pet uloga', () => {
+test('sandbox radnje prolaze svih pet sposobnosti bilo kojim redoslijedom', () => {
   let state = startDemo(resetDemo());
-  state = registerEmployee(state);
-  assert.equal(state.activeRole, 'admin');
-  state = resolveCorrection(state);
-  assert.equal(state.activeRole, 'manager');
   state = approveLeave(state);
-  assert.equal(state.activeRole, 'worker');
-  state = reviewWorker(state);
-  assert.equal(state.activeRole, 'accounting');
+  assert.equal(state.leaveApproved, true);
+  assert.equal(state.scanned, false);
   state = generateReport(state);
+  assert.equal(state.reportGenerated, true);
+  assert.equal(state.correctionResolved, false);
+  state = reviewWorker(state);
+  assert.equal(state.workerReviewed, true);
+  state = resolveCorrection(state);
+  assert.equal(state.correctionResolved, true);
+  state = registerEmployee(state);
+  assert.equal(state.scanned, true);
+  assert.equal(state.presentCount, 48);
   assert.equal(getGuide(state).complete, true);
+  assert.equal(getGuide(state).completed, 5);
   assert.equal(getGuide(state).progress, 100);
 });
 
@@ -31,9 +36,13 @@ test('ručna promjena uloge čuva zajedničko stanje', () => {
   assert.equal(accounting.scanned, true);
 });
 
-test('događaj izvan redoslijeda ne mijenja stanje', () => {
+test('događaj izvan preporučenog redoslijeda ažurira samo svoju zastavicu', () => {
   const state = startDemo(resetDemo());
-  assert.equal(resolveCorrection(state), state);
+  const corrected = resolveCorrection(state);
+  assert.equal(corrected.correctionResolved, true);
+  assert.equal(corrected.scanned, false);
+  assert.equal(corrected.leaveApproved, false);
+  assert.equal(getGuide(corrected).completed, 1);
 });
 
 test('operativna radnja ne može napredovati prije pokretanja demonstracije', () => {
@@ -51,6 +60,15 @@ test('operativne radnje su idempotentne', () => {
   assert.equal(report.presentCount, 48);
   assert.equal(report.reportGenerated, true);
   assert.equal(getGuide(report).completed, 5);
+});
+
+test('operativna radnja čuva ručno odabranu aktivnu ulogu', () => {
+  let state = selectRole(startDemo(resetDemo()), 'accounting');
+  state = approveLeave(state);
+  assert.equal(state.activeRole, 'accounting');
+  state = selectRole(state, 'worker');
+  state = resolveCorrection(state);
+  assert.equal(state.activeRole, 'worker');
 });
 
 test('reset vraća determinističko početno stanje', () => {

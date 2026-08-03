@@ -30,19 +30,26 @@ test('analytics odbija nepoznat tip događaja', () => {
 
 test('vrijednosti se ograničavaju i čiste', () => {
   const event = createAnalyticsEvent('mission_completed', {
-    mission: '<RFID_SCAN>',
-    progress: 999
+    mission: '<report_generated>',
+    progress: 20
   }, () => 1);
 
-  assert.equal(event.payload.mission, 'RFID_SCAN');
-  assert.equal(event.payload.progress, 100);
+  assert.equal(event.payload.mission, 'report_generated');
+  assert.equal(event.payload.progress, 20);
 });
 
 test('memorijski sink omogućuje determinističku provjeru toka', () => {
   const sink = createMemoryAnalyticsSink();
+  sink.track('mode_selected', { mode: 'free', employees: 12 });
   sink.track('demo_started', { employees: 12 });
   sink.track('demo_completed', { progress: 100 });
-  assert.equal(sink.snapshot().length, 2);
+  assert.equal(sink.snapshot().length, 3);
+  assert.equal(sink.snapshot()[0].payload.mode, 'free');
   sink.clear();
   assert.deepEqual(sink.snapshot(), []);
+});
+
+test('analytics sprema samo podržani način pregleda', () => {
+  assert.equal(createAnalyticsEvent('mode_selected', { mode: 'assisted' }).payload.mode, 'assisted');
+  assert.equal(Object.hasOwn(createAnalyticsEvent('mode_selected', { mode: 'tajni-mod' }).payload, 'mode'), false);
 });

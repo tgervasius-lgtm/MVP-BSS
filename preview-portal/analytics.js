@@ -1,5 +1,6 @@
 export const ANALYTICS_EVENTS = Object.freeze({
   DEMO_CONFIGURED: 'demo_configured',
+  MODE_SELECTED: 'mode_selected',
   DEMO_STARTED: 'demo_started',
   MISSION_COMPLETED: 'mission_completed',
   ROLE_VIEWED: 'role_viewed',
@@ -48,6 +49,7 @@ export function createAnalyticsEvent(name, payload = {}, now = () => Date.now())
   if (input.industry) event.payload.industry = sanitizeText(input.industry);
   if (input.role) event.payload.role = sanitizeText(input.role);
   if (input.mission) event.payload.mission = sanitizeText(input.mission);
+  if (input.mode === 'free' || input.mode === 'assisted') event.payload.mode = input.mode;
 
   const employees = boundedNumber(input.employees, 5, 1000);
   const locations = boundedNumber(input.locations, 1, 50);

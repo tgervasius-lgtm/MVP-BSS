@@ -1,6 +1,6 @@
 # BSS Preview Portal
 
-Prvi interaktivni vertical slice za virtualnu tvrtku **BSSProject d.o.o.**
+Personalizirani, lokalni BSS sandbox za demonstracije potencijalnim pilot-klijentima.
 
 ## Pokretanje
 
@@ -20,12 +20,12 @@ npm test
 
 ## Trenutni tok
 
-1. Posjetitelj pokreće radni dan bez registracije.
-2. Ulazi u direktorski pregled.
-3. Dobiva zadatak provjeriti početak smjene.
-4. Simulira RFID prijavu Ivana Horvata.
-5. Broj prisutnih raste s 47 na 48.
-6. Aktivnost se pojavljuje u feedu.
-7. Reset vraća identično početno stanje.
+1. Posjetitelj bez registracije unosi samo djelatnost, broj zaposlenika, broj lokacija i broj smjena.
+2. Portal ne traži imena zaposlenika, OIB ni druge osobne podatke.
+3. Posjetitelj bira slobodno istraživanje ili otvoreni pregled uz preporuke.
+4. Sve demo-uloge i njihove operativne radnje dostupne su odmah.
+5. Radnje se mogu izvršiti bilo kojim redom; zajedničko stanje i pokazatelji ažuriraju se lokalno.
+6. Napredak prikazuje koje su mogućnosti isprobane, ali ne zaključava niti zatvara sustav.
+7. Promjena profila i reset aktivnosti ostaju deterministički.
 
 Portal ne koristi produkcijski API, autentikaciju ni bazu podataka.

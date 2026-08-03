@@ -33,8 +33,7 @@ function advance(state, eventType, changes) {
   if (!state.started) return state;
   const experience = applyExperienceEvent(state.experience, eventType);
   if (experience === state.experience) return state;
-  const view = getExperienceView(experience);
-  return { ...state, ...changes, experience, activeRole: view.role };
+  return { ...state, ...changes, experience };
 }
 
 export function getGuide(state) {

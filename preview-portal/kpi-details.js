@@ -16,11 +16,47 @@ export const KPI_DETAILS = Object.freeze({
   })
 });
 
-export function getKpiDetail(id) {
-  return KPI_DETAILS[id] ?? null;
+function safeCount(value) {
+  const parsed = Number.parseInt(value, 10);
+  return Number.isFinite(parsed) ? Math.max(0, parsed) : 0;
 }
 
-export function createKpiDetailsPanel() {
+export function buildKpiDetails(metrics = {}) {
+  const present = safeCount(metrics.present);
+  const late = safeCount(metrics.late);
+  const absent = safeCount(metrics.absent);
+  const vacation = Math.ceil(absent / 2);
+  const sick = Math.max(0, absent - vacation);
+  const absenceItems = [
+    vacation > 0 ? `${vacation} · godišnji odmor` : null,
+    sick > 0 ? `${sick} · bolovanje` : null
+  ].filter(Boolean);
+
+  return Object.freeze({
+    present: Object.freeze({
+      title: 'Prisutni zaposlenici',
+      summary: 'Agregirani broj prijava evidentiranih na simuliranim terminalima.',
+      items: Object.freeze([`${present} · evidentirano`, `${late + absent} · još nije prisutno`])
+    }),
+    late: Object.freeze({
+      title: 'Zaposlenici koji kasne',
+      summary: 'Simulirani agregat koji zahtijeva provjeru voditelja.',
+      items: Object.freeze(late > 0 ? [`${late} · čeka provjeru`] : ['Nema evidentiranih kašnjenja'])
+    }),
+    absent: Object.freeze({
+      title: 'Odsutni danas',
+      summary: 'Simulirana raspodjela odobrenih godišnjih odmora i bolovanja.',
+      items: Object.freeze(absent > 0 ? absenceItems : ['Nema evidentiranih odsutnosti'])
+    })
+  });
+}
+
+export function getKpiDetail(id, metrics) {
+  const details = metrics ? buildKpiDetails(metrics) : KPI_DETAILS;
+  return details[id] ?? null;
+}
+
+export function createKpiDetailsPanel({ getMetrics = () => null } = {}) {
   const aside = document.createElement('aside');
   aside.className = 'kpi-details hidden';
   aside.setAttribute('aria-live', 'polite');
@@ -46,7 +82,7 @@ export function createKpiDetailsPanel() {
   }
 
   function show(id, trigger) {
-    const detail = getKpiDetail(id);
+    const detail = getKpiDetail(id, getMetrics());
     if (!detail) return false;
     lastTrigger = trigger ?? null;
     title.textContent = detail.title;
