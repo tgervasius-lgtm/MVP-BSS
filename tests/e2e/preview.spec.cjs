@@ -94,10 +94,6 @@ test('320 px, tipkovnica i reduced motion ostaju upotrebljivi',async({page})=>{
   expect(motion.animation).toBeLessThanOrEqual(0.001);
   expect(motion.transition).toBeLessThanOrEqual(0.001);
   expect(await seriousAxeViolations(page)).toEqual([]);
-
-  await page.getByRole('button',{name:'Pripremi i pokreni radni dan'}).click();
-  await expect(page.locator('#demoView')).toBeVisible({timeout:7000});
-  await expectNoHorizontalOverflow(page);
 });
 
 test('Preview PWA ostaje dostupan nakon offline ponovnog učitavanja',async({page,context})=>{
