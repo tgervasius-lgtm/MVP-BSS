@@ -5,7 +5,7 @@ html {
 
 body {
   min-width: 320px;
-  padding-bottom: env(safe-area-inset-bottom);
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
 }
 
 button,
@@ -18,14 +18,12 @@ button:focus-visible,
 select:focus-visible,
 input:focus-visible,
 [role="button"]:focus-visible {
-  outline: 3px solid var(--accent-soft);
+  outline: 3px solid var(--focus-ring);
   outline-offset: 3px;
 }
 
 .role-switcher {
-  position: sticky;
-  top: 10px;
-  z-index: 20;
+  position: static;
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
 }
@@ -46,7 +44,7 @@ input:focus-visible,
   contain: layout paint;
 }
 
-.toast-region {
+.toast-center {
   padding-right: max(16px, env(safe-area-inset-right));
   padding-bottom: max(16px, env(safe-area-inset-bottom));
 }
@@ -65,10 +63,7 @@ input:focus-visible,
     font-size: clamp(1.2rem, 7vw, 1.7rem);
   }
 
-  .role-switcher {
-    top: 6px;
-    padding: 14px;
-  }
+  .role-switcher { padding: 14px; }
 
   .role-buttons {
     display: flex;
@@ -130,7 +125,7 @@ input:focus-visible,
     font-size: 1.55rem;
   }
 
-  .toast-region {
+  .toast-center {
     left: 8px;
     right: 8px;
   }

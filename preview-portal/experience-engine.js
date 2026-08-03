@@ -39,6 +39,8 @@ export function getExperienceView(experience, scenario = MORNING_SHIFT_SCENARIO)
     total,
     progress: total === 0 ? 100 : Math.round((experience.currentStep / total) * 100),
     role: step?.role ?? 'accounting',
+    stepId: step?.id ?? null,
+    event: step?.event ?? null,
     title: step?.title ?? 'Radni dan je završen.',
     guide: step?.guide ?? 'Pregledali ste cijeli tok od terminala do obračunskog izvještaja.'
   };

@@ -57,3 +57,34 @@ test('reset prekida aktivnu boot sekvencu', async () => {
   assert.equal(boot.isRunning(), false);
   assert.equal(classes.has('hidden'), true);
 });
+
+test('boot tijekom animacije zaključava pozadinu i nakon završetka je otključava', async () => {
+  const attributes = new Set();
+  const main = {
+    hasAttribute(name) { return attributes.has(name); },
+    setAttribute(name) { attributes.add(name); },
+    removeAttribute(name) { attributes.delete(name); }
+  };
+  const overlay = {
+    className: '',
+    innerHTML: '',
+    setAttribute() {},
+    focus() { this.focused = true; },
+    classList: { add() {}, remove() {} },
+    querySelector(selector) {
+      if (selector === '.boot-step') return { textContent: '' };
+      if (selector === '.boot-progress span') return { style: {} };
+      return null;
+    }
+  };
+  const documentRef = {
+    querySelector(selector) { return selector === 'main' ? main : null; },
+    createElement() { return overlay; },
+    body: { append() {} }
+  };
+  const boot = createBootExperience({ documentRef, reducedMotion: true });
+  const result = await boot.run();
+  assert.equal(result, true);
+  assert.equal(overlay.focused, true);
+  assert.equal(attributes.has('inert'), false);
+});

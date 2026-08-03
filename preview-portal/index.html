@@ -2,7 +2,7 @@
 <html lang="hr">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="description" content="Interaktivni BSS Preview Portal za virtualnu tvrtku BSSProject d.o.o.">
   <title>BSS Preview Portal</title>
   <link rel="stylesheet" href="styles.css">
@@ -29,7 +29,7 @@
             <input id="employeesInput" name="employees" type="number" min="5" max="1000" value="68" inputmode="numeric">
           </label>
           <label>Broj lokacija
-            <input id="locationsInput" name="locations" type="number" min="1" max="50" value="2" inputmode="numeric">
+            <input id="locationsInput" name="locations" type="number" min="1" max="8" value="2" inputmode="numeric">
           </label>
           <label>Broj smjena
             <select id="shiftsInput" name="shifts"><option value="1">1</option><option value="2" selected>2</option><option value="3">3</option><option value="4">4</option></select>
@@ -46,14 +46,14 @@
       </div>
     </section>
 
-    <section id="demoView" class="hidden" aria-live="polite">
-      <section class="panel guide-panel" aria-labelledby="guideTitle">
+    <section id="demoView" class="hidden">
+      <section class="panel guide-panel" aria-labelledby="guideTitle" aria-live="polite">
         <div><p class="eyebrow" id="companyContext">Simulacija za djelatnost proizvodnja · 68 zaposlenika</p><h2 id="guideTitle">Korak <span id="guideStep">1</span> od 5</h2><p id="guideText">Evidentirajte dolazak radnika putem virtualnog RFID terminala.</p></div>
-        <div class="guide-progress" aria-label="Napredak kroz demo"><span id="guideProgress"></span></div>
+        <div id="guideProgressBar" class="guide-progress" role="progressbar" aria-label="Napredak kroz demo" aria-valuemin="0" aria-valuemax="5" aria-valuenow="0"><span id="guideProgress"></span></div>
       </section>
 
       <nav class="role-switcher panel" aria-label="Promjena demo uloge">
-        <div><p class="eyebrow">Trenutna perspektiva</p><strong id="roleLabel">Direktor</strong></div>
+        <div><p class="eyebrow">Trenutna perspektiva</p><strong id="roleLabel">Direktor</strong><small class="role-note">Pregledi su dostupni; operativne radnje otključavaju se redom.</small></div>
         <div class="role-buttons">
           <button class="role-button active" data-role="director" type="button">Direktor</button>
           <button class="role-button" data-role="admin" type="button">Administrator</button>
@@ -77,7 +77,7 @@
 
       <div id="accountingView" class="role-view hidden"><section class="panel objective"><div><p class="eyebrow">Mjesečni obračun</p><h2>Izvještaj je spreman za provjeru.</h2><p>Kolovoz · simulirani redovni, noćni i prekovremeni sati.</p></div><span id="reportStatus" class="status">Nije generiran</span></section><div class="workspace"><section class="panel"><p class="eyebrow">Sažetak fonda sati</p><h2>8.704 h</h2><ul class="activity-list"><li><span>8.241</span> redovni sati</li><li><span>311</span> noćni sati</li><li><span>152</span> prekovremeni sati</li></ul></section><section class="panel"><p class="eyebrow">Izvoz</p><h2>Obračunski paket</h2><p>Simulirani CSV/XLSX paket za računovodstvo.</p><button id="generateReportButton" class="button primary full" type="button">Generiraj izvještaj</button></section></div></div>
 
-      <section id="completionView" class="panel completion hidden"><span class="badge">Radni dan završen</span><h2>Vidjeli ste cijeli tok podataka kroz BSS.</h2><p>Od RFID prijave do administrativne kontrole, odobrenja voditelja, radničkog pregleda i obračunskog izvještaja.</p><button class="button primary" type="button" id="restartButton">Ponovi iskustvo</button></section>
+      <section id="completionView" class="panel completion hidden"><span class="badge">Radni dan završen</span><h2>Vidjeli ste cijeli tok podataka kroz BSS.</h2><p>Od RFID prijave do administrativne kontrole, odobrenja voditelja, radničkog pregleda i obračunskog izvještaja.</p><p>Za dogovor online prezentacije, demonstracije uživo ili pilot-suradnje javite se BSS timu koji vam je poslao ovu simulaciju.</p><button class="button primary" type="button" id="restartButton">Ponovi iskustvo</button></section>
     </section>
   </main>
   <script type="module" src="app.js"></script>

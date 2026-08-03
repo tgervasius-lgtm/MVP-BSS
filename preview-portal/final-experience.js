@@ -19,7 +19,7 @@ export function createFinalExperienceModel({ industry = 'Tvrtka', present = 0, p
     attendanceRate,
     steps: FINAL_STEPS,
     headline: 'Radni dan uspješno je prošao kroz BSS.',
-    valueStatement: 'Jedan događaj ažurirao je terminal, evidenciju, upravljački pregled i obračunski tok bez ručnog prepisivanja podataka.'
+    valueStatement: 'Povezani koraci ažurirali su terminal, evidenciju, upravljački pregled i obračunski tok bez ručnog prepisivanja podataka.'
   });
 }
 

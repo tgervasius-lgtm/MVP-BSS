@@ -1,4 +1,4 @@
-const DEFAULT_DURATION = 2800;
+const DEFAULT_DURATION = 6000;
 
 export function normalizeToast(input = {}) {
   return Object.freeze({
@@ -32,7 +32,19 @@ export function createToastCenter({
 
     const item = documentRef.createElement('article');
     item.className = `toast toast-${toast.tone}`;
-    item.innerHTML = `<strong>${toast.title}</strong><span>${toast.message}</span>`;
+    const content = documentRef.createElement('div');
+    content.className = 'toast-content';
+    const title = documentRef.createElement('strong');
+    title.textContent = toast.title;
+    const message = documentRef.createElement('span');
+    message.textContent = toast.message;
+    const close = documentRef.createElement('button');
+    close.type = 'button';
+    close.className = 'toast-close';
+    close.setAttribute('aria-label', `Zatvori obavijest: ${toast.title || 'BSS obavijest'}`);
+    close.textContent = '×';
+    content.append(title, message);
+    item.append(content, close);
     region.append(item);
 
     let timer;
@@ -43,7 +55,7 @@ export function createToastCenter({
     timer = setTimeoutRef?.(remove, durationMs);
     if (timer !== undefined && timer !== null) pendingTimers.add(timer);
 
-    item.addEventListener('click', () => {
+    close.addEventListener('click', () => {
       if (timer !== undefined && timer !== null) clearTimeoutRef?.(timer);
       remove();
     }, { once: true });

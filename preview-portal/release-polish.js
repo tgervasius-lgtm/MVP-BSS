@@ -5,6 +5,7 @@ export function createReleasePolish({ documentRef = globalThis.document } = {}) 
   const main = documentRef?.querySelector?.('main');
 
   if (main && !main.id) main.id = 'mainContent';
+  main?.setAttribute?.('tabindex', '-1');
 
   if (documentRef?.body && !documentRef.getElementById?.('skipToContent')) {
     const skip = documentRef.createElement('a');

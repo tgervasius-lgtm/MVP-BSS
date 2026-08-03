@@ -41,7 +41,7 @@ test('release smoke: cijeli radni dan završava konzistentnim poslovnim rezultat
   assert.equal(business.industry, 'Proizvodnja');
   assert.equal(business.present, 48);
   assert.equal(business.planned, state.summary.planned);
-  assert.match(business.attendanceLabel, /^48 od /);
+  assert.match(business.attendanceLabel, /^od 52 /);
 
   const final = createFinalExperienceModel({
     industry: business.industry,

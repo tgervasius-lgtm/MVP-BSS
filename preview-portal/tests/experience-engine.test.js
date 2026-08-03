@@ -14,6 +14,8 @@ test('engine izračunava ulogu, tekst i napredak iz scenarija', () => {
   experience = applyExperienceEvent(experience, EXPERIENCE_EVENTS.EMPLOYEE_CHECKED_IN);
   const view = getExperienceView(experience);
   assert.equal(view.role, 'admin');
+  assert.equal(view.stepId, 'correction');
+  assert.equal(view.event, EXPERIENCE_EVENTS.CORRECTION_RESOLVED);
   assert.equal(view.completed, 1);
   assert.equal(view.progress, 20);
   assert.match(view.guide, /korekciju/i);
@@ -27,4 +29,5 @@ test('cijeli scenarij završava na 100 posto', () => {
   const view = getExperienceView(experience);
   assert.equal(view.complete, true);
   assert.equal(view.progress, 100);
+  assert.equal(view.event, null);
 });

@@ -24,7 +24,7 @@ export function createBusinessSummary({ profile, summary, presentCount } = {}) {
     terminals,
     planned,
     present,
-    attendanceLabel: `${present} od ${planned} planiranih zaposlenika evidentirano`,
+    attendanceLabel: `od ${planned} planiranih zaposlenika evidentirano`,
     correctionLabel: '1 administrativna korekcija potvrđena',
     leaveLabel: '1 zahtjev za godišnji odmor odobren',
     reportLabel: 'Obračunski izvještaj pripremljen',

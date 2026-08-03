@@ -11,7 +11,7 @@ test('poslovni sažetak koristi simulirani profil i rezultat radnog dana', () =>
 
   assert.equal(result.industry, 'Logistika');
   assert.equal(result.present, 48);
-  assert.equal(result.attendanceLabel, '48 od 52 planiranih zaposlenika evidentirano');
+  assert.equal(result.attendanceLabel, 'od 52 planiranih zaposlenika evidentirano');
   assert.match(result.profileLabel, /68 zaposlenika/);
   assert.match(result.profileLabel, /2 terminala/);
 });

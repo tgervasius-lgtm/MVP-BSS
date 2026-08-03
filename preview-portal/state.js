@@ -30,6 +30,7 @@ function createInitialState(profile = DEFAULT_PROFILE) {
 export const INITIAL_STATE = Object.freeze(createInitialState());
 
 function advance(state, eventType, changes) {
+  if (!state.started) return state;
   const experience = applyExperienceEvent(state.experience, eventType);
   if (experience === state.experience) return state;
   const view = getExperienceView(experience);

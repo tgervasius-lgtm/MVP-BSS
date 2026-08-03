@@ -5,15 +5,16 @@ function clamp(value, min, max) {
 }
 
 export function buildCommandCenterModel({ profile = {}, summary = {}, presentCount = 0, completed = 0, total = 5 } = {}) {
-  const locations = clamp(profile.locations, 1, 50);
+  const locations = clamp(profile.locations, 1, 8);
   const terminals = clamp(summary.terminals, 1, 8);
   const employees = clamp(profile.employees, 5, 1000);
+  const planned = clamp(summary.planned ?? employees, 1, employees);
   const progress = total > 0 ? Math.round((clamp(completed, 0, total) / total) * 100) : 0;
   const online = Math.max(1, terminals - (terminals >= 4 ? 1 : 0));
   const warnings = [];
 
   if (terminals >= 4) warnings.push('Jedan terminal završava sinkronizaciju.');
-  if (presentCount < Math.round(employees * 0.7)) warnings.push('Prisutnost je ispod očekivane razine za početak smjene.');
+  if (presentCount / planned < 0.9) warnings.push('Prisutnost je ispod očekivane razine za početak smjene.');
   if (warnings.length === 0) warnings.push('Nema kritičnih upozorenja.');
 
   return Object.freeze({

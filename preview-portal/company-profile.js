@@ -17,13 +17,13 @@ export function createCompanyProfile(input = {}) {
   return Object.freeze({
     industry: INDUSTRIES.has(input.industry) ? input.industry : DEFAULT_PROFILE.industry,
     employees: boundedInteger(input.employees, DEFAULT_PROFILE.employees, 5, 1000),
-    locations: boundedInteger(input.locations, DEFAULT_PROFILE.locations, 1, 50),
+    locations: boundedInteger(input.locations, DEFAULT_PROFILE.locations, 1, 8),
     shifts: boundedInteger(input.shifts, DEFAULT_PROFILE.shifts, 1, 4)
   });
 }
 
 export function getProfileSummary(profile) {
-  const terminals = Math.max(profile.locations, Math.ceil(profile.employees / 40));
+  const terminals = Math.min(8, Math.max(profile.locations, Math.ceil(profile.employees / 40)));
   const planned = Math.max(1, Math.round(profile.employees * 0.76));
   const present = Math.max(0, planned - Math.max(2, Math.round(planned * 0.1)));
   return Object.freeze({ terminals, planned, present });

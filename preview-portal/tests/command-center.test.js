@@ -5,7 +5,7 @@ import { buildCommandCenterModel } from '../command-center.js';
 test('gradi operativni pregled iz profila i napretka', () => {
   const model = buildCommandCenterModel({
     profile: { employees: 68, locations: 2 },
-    summary: { terminals: 3 },
+    summary: { terminals: 3, planned: 52 },
     presentCount: 48,
     completed: 2,
     total: 5
@@ -22,7 +22,7 @@ test('gradi operativni pregled iz profila i napretka', () => {
 test('označava sinkronizaciju i nisku prisutnost', () => {
   const model = buildCommandCenterModel({
     profile: { employees: 100, locations: 4 },
-    summary: { terminals: 6 },
+    summary: { terminals: 6, planned: 76 },
     presentCount: 50,
     completed: 5,
     total: 5

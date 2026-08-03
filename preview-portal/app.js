@@ -7,6 +7,7 @@ import { createKpiDetailsPanel } from './kpi-details.js';
 import { createRfidCardElement, createTerminalFeedback } from './terminal-effects.js';
 import { createTerminalFixtures, createTerminalStatusPanel } from './terminal-status.js';
 import { createCommandCenterPanel } from './command-center.js';
+import { createCancellableDelay } from './cancellable-delay.js';
 
 const enhancementStyles = document.createElement('link');
 enhancementStyles.rel = 'stylesheet';
@@ -19,16 +20,17 @@ let previousCompleted = 0;
 let completionTracked = false;
 const analytics = createAnalytics();
 const terminalFeedback = createTerminalFeedback({ audioFactory: () => new (window.AudioContext || window.webkitAudioContext)() });
+const scanDelay = createCancellableDelay();
 const byId = (id) => document.getElementById(id);
 const elements = {
-  welcome: byId('welcomeView'), demo: byId('demoView'), reset: byId('resetButton'), restart: byId('restartButton'),
+  welcome: byId('welcomeView'), demo: byId('demoView'), reset: byId('resetButton'), restart: byId('restartButton'), roleSwitcher: document.querySelector('.role-switcher'),
   profileForm: byId('profileForm'), industry: byId('industryInput'), employees: byId('employeesInput'), locations: byId('locationsInput'), shifts: byId('shiftsInput'),
   profileIndustry: byId('profileIndustry'), profileEmployees: byId('profileEmployees'), profileMeta: byId('profileMeta'), companyContext: byId('companyContext'),
   scan: byId('scanButton'), count: byId('presentCount'), planned: byId('plannedCount'), screen: byId('terminalScreen'), feed: byId('activityFeed'),
   objective: byId('objectiveText'), status: byId('objectiveStatus'), roleLabel: byId('roleLabel'), approveLeave: byId('approveLeaveButton'),
   leaveStatus: byId('leaveStatus'), workerArrival: byId('workerArrival'), workerMessage: byId('workerMessage'), workerRow: byId('workerRow'), reviewWorker: byId('reviewWorkerButton'),
   resolveCorrection: byId('resolveCorrectionButton'), correctionStatus: byId('correctionStatus'), generateReport: byId('generateReportButton'), reportStatus: byId('reportStatus'),
-  guideStep: byId('guideStep'), guideText: byId('guideText'), guideProgress: byId('guideProgress'), completion: byId('completionView')
+  guideTitle: byId('guideTitle'), guideStep: byId('guideStep'), guideText: byId('guideText'), guideProgressBar: byId('guideProgressBar'), guideProgress: byId('guideProgress'), completion: byId('completionView')
 };
 
 const soundToggle = document.createElement('button');
@@ -114,6 +116,7 @@ function renderSummary(complete) {
 
 function renderRole(guide) {
   elements.roleLabel.textContent = guide.complete ? 'Završeno' : ROLES[state.activeRole];
+  elements.roleSwitcher.classList.toggle('hidden', guide.complete);
   document.querySelectorAll('.role-view').forEach((view) => view.classList.add('hidden'));
   elements.completion.classList.toggle('hidden', !guide.complete);
   if (!guide.complete) byId(`${state.activeRole}View`).classList.remove('hidden');
@@ -131,6 +134,8 @@ function renderGuide(guide) {
   elements.guideStep.textContent = String(Math.min(guide.completed + 1, guide.total));
   elements.guideText.textContent = guide.guide;
   elements.guideProgress.style.width = `${guide.progress}%`;
+  elements.guideProgressBar.setAttribute('aria-valuemax', String(guide.total));
+  elements.guideProgressBar.setAttribute('aria-valuenow', String(guide.completed));
   livingOffice.classList.toggle('hidden', !state.started || guide.complete);
   if (state.started && !guide.complete) livingController.start(); else livingController.stop();
   commandCenter.update({
@@ -142,9 +147,10 @@ function renderGuide(guide) {
   });
 }
 
-function renderAttendance() {
+function renderAttendance(guide) {
   const context = getIndustryContext(state.profile.industry);
   elements.count.textContent = String(state.presentCount);
+  elements.screen.classList.remove('reading');
   if (state.scanned) {
     elements.screen.classList.add('success');
     elements.screen.innerHTML = `<span class="terminal-icon">✓</span><strong>Dobro došli, Ivan Horvat</strong><small>07:01 · ${context.area}</small>`;
@@ -165,18 +171,24 @@ function renderAttendance() {
   } else {
     elements.screen.classList.remove('success');
     elements.screen.innerHTML = `<span class="terminal-icon">RFID</span><strong>Spremno za prijavu</strong><small>Terminal: ${context.area}</small>`;
-    elements.scan.disabled = false;
+    elements.scan.disabled = guide.event !== 'EMPLOYEE_CHECKED_IN';
     elements.scan.textContent = 'Simuliraj karticu Ivana Horvata';
+    elements.objective.textContent = 'Evidentirajte dolazak Ivana Horvata na virtualnom terminalu.';
     elements.status.textContent = 'U tijeku';
     elements.status.classList.remove('complete');
+    elements.workerArrival.textContent = '—';
+    elements.workerMessage.textContent = 'Vaša današnja prijava još nije evidentirana.';
+    elements.workerRow.textContent = 'Čeka prijavu';
     byId('ivanEvent')?.remove();
   }
 }
 
-function renderAction(button, status, done, pendingText, doneText) {
-  status.textContent = done ? doneText : pendingText;
+function renderAction(button, status, done, available, pendingText, doneText) {
+  status.textContent = done ? doneText : available ? pendingText : 'Čeka prethodni korak';
   status.classList.toggle('complete', done);
-  button.disabled = done;
+  button.disabled = done || !available;
+  if (!done && !available) button.title = 'Dovršite trenutačni vođeni korak kako biste otključali ovu radnju.';
+  else button.removeAttribute('title');
 }
 
 function trackProgress(guide) {
@@ -197,11 +209,13 @@ function render() {
   renderProfile();
   renderRole(guide);
   renderGuide(guide);
-  renderAttendance();
-  renderAction(elements.resolveCorrection, elements.correctionStatus, state.correctionResolved, 'Za provjeru', 'Korekcija potvrđena');
-  renderAction(elements.approveLeave, elements.leaveStatus, state.leaveApproved, 'Čeka odluku', 'Odobreno');
-  renderAction(elements.generateReport, elements.reportStatus, state.reportGenerated, 'Nije generiran', 'Spreman za preuzimanje');
-  elements.reviewWorker.disabled = state.workerReviewed;
+  renderAttendance(guide);
+  renderAction(elements.resolveCorrection, elements.correctionStatus, state.correctionResolved, guide.event === 'CORRECTION_RESOLVED', 'Za provjeru', 'Korekcija potvrđena');
+  renderAction(elements.approveLeave, elements.leaveStatus, state.leaveApproved, guide.event === 'LEAVE_APPROVED', 'Čeka odluku', 'Odobreno');
+  renderAction(elements.generateReport, elements.reportStatus, state.reportGenerated, guide.event === 'REPORT_GENERATED', 'Nije generiran', 'Spreman za preuzimanje');
+  elements.reviewWorker.disabled = state.workerReviewed || guide.event !== 'WORKER_REVIEWED';
+  if (!state.workerReviewed && guide.event !== 'WORKER_REVIEWED') elements.reviewWorker.title = 'Dovršite trenutačni vođeni korak kako biste otključali ovu radnju.';
+  else elements.reviewWorker.removeAttribute('title');
   elements.reviewWorker.textContent = state.workerReviewed ? 'Podaci su potvrđeni' : 'Potvrdi da su podaci jasni';
   trackProgress(guide);
 }
@@ -213,20 +227,21 @@ async function simulateRfidScan() {
   elements.scan.disabled = true;
   elements.screen.append(createRfidCardElement());
   elements.screen.classList.add('reading');
-  await new Promise((resolve) => window.setTimeout(resolve, 520));
+  const active = await scanDelay.wait(520);
+  if (!active || !state.started) return;
   apply(registerEmployee);
   void terminalFeedback.playSuccess();
 }
 
 elements.profileForm.addEventListener('input', () => { state = configureDemo(state, profileInput()); analytics.track(ANALYTICS_EVENTS.DEMO_CONFIGURED, { profile: state.profile }); render(); });
-elements.profileForm.addEventListener('submit', (event) => { event.preventDefault(); state = configureDemo(state, profileInput()); analytics.track(ANALYTICS_EVENTS.DEMO_STARTED, { profile: state.profile }); apply(startDemo); });
+elements.profileForm.addEventListener('submit', (event) => { event.preventDefault(); state = configureDemo(state, profileInput()); analytics.track(ANALYTICS_EVENTS.DEMO_STARTED, { profile: state.profile }); apply(startDemo); elements.guideTitle.setAttribute('tabindex', '-1'); elements.guideTitle.focus(); });
 elements.scan.addEventListener('click', simulateRfidScan);
 elements.resolveCorrection.addEventListener('click', () => apply(resolveCorrection));
 elements.approveLeave.addEventListener('click', () => apply(approveLeave));
 elements.reviewWorker.addEventListener('click', () => apply(reviewWorker));
 elements.generateReport.addEventListener('click', () => apply(generateReport));
-elements.reset.addEventListener('click', () => { livingController.stop(); kpiPanel.hide(); state = resetDemo(); previousRole = state.activeRole; previousCompleted = 0; completionTracked = false; render(); });
-elements.restart.addEventListener('click', () => { analytics.track(ANALYTICS_EVENTS.DEMO_RESTARTED, { profile: state.profile }); livingController.reset(); kpiPanel.hide(); state = startDemo(resetDemo(state.profile)); previousRole = state.activeRole; previousCompleted = 0; completionTracked = false; render(); });
+elements.reset.addEventListener('click', () => { scanDelay.cancel(); livingController.stop(); kpiPanel.hide(); elements.profileForm.reset(); state = resetDemo(); previousRole = state.activeRole; previousCompleted = 0; completionTracked = false; render(); });
+elements.restart.addEventListener('click', () => { scanDelay.cancel(); analytics.track(ANALYTICS_EVENTS.DEMO_RESTARTED, { profile: state.profile }); livingController.reset(); kpiPanel.hide(); state = startDemo(resetDemo(state.profile)); previousRole = state.activeRole; previousCompleted = 0; completionTracked = false; render(); });
 document.querySelectorAll('.role-button').forEach((button) => button.addEventListener('click', () => { state = selectRole(state, button.dataset.role); analytics.track(ANALYTICS_EVENTS.ROLE_VIEWED, { role: state.activeRole, profile: state.profile }); render(); }));
 
 render();

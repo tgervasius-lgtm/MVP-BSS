@@ -36,6 +36,12 @@ test('događaj izvan redoslijeda ne mijenja stanje', () => {
   assert.equal(resolveCorrection(state), state);
 });
 
+test('operativna radnja ne može napredovati prije pokretanja demonstracije', () => {
+  const state = resetDemo();
+  assert.equal(registerEmployee(state), state);
+  assert.equal(resolveCorrection(state), state);
+});
+
 test('operativne radnje su idempotentne', () => {
   const attendance = registerEmployee(registerEmployee(startDemo(resetDemo())));
   const correction = resolveCorrection(resolveCorrection(attendance));

@@ -23,6 +23,8 @@ export function createBootExperience({
   let running = false;
   let overlay = null;
   let runVersion = 0;
+  const main = documentRef?.querySelector?.('main');
+  let mainWasInert = false;
 
   function ensureOverlay() {
     if (overlay) return overlay;
@@ -31,6 +33,7 @@ export function createBootExperience({
     overlay.className = 'boot-experience hidden';
     overlay.setAttribute('role', 'status');
     overlay.setAttribute('aria-live', 'polite');
+    overlay.setAttribute('tabindex', '-1');
     overlay.innerHTML = `
       <div class="boot-card">
         <span class="boot-mark" aria-hidden="true">BSS</span>
@@ -41,6 +44,16 @@ export function createBootExperience({
       </div>`;
     documentRef.body?.append?.(overlay);
     return overlay;
+  }
+
+  function lockBackground() {
+    mainWasInert = Boolean(main?.hasAttribute?.('inert'));
+    main?.setAttribute?.('inert', '');
+    overlay?.focus?.({ preventScroll: true });
+  }
+
+  function unlockBackground() {
+    if (!mainWasInert) main?.removeAttribute?.('inert');
   }
 
   function update(step) {
@@ -62,6 +75,7 @@ export function createBootExperience({
     }
     element.classList.remove('hidden');
     element.classList.add('active');
+    lockBackground();
 
     if (reducedMotion) {
       update(sequence.at(-1));
@@ -82,6 +96,7 @@ export function createBootExperience({
     }
     element.classList.add('hidden');
     element.classList.remove('complete');
+    unlockBackground();
     if (version === runVersion) running = false;
     return true;
   }
@@ -91,6 +106,7 @@ export function createBootExperience({
     running = false;
     overlay?.classList?.add('hidden');
     overlay?.classList?.remove('active', 'complete');
+    unlockBackground();
     update(sequence[0]);
   }
 

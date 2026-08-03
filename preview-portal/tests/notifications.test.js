@@ -22,7 +22,7 @@ test('clear otkazuje odgođene i aktivne toast timere', () => {
       innerHTML: '',
       children: [],
       setAttribute() {},
-      append(child) { this.children.push(child); },
+      append(...children) { this.children.push(...children); },
       replaceChildren() { this.children = []; },
       addEventListener() {},
       remove() { this.removed = true; }
