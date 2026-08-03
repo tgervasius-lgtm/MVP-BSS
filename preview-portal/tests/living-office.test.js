@@ -100,16 +100,31 @@ test('nulti i negativni limit sigurno odbijaju novi zapis', () => {
 test('automatski slijed završava kronološki i ne vraća sat unatrag', async () => {
   const { dom, feed } = createFeed();
   const frames = [];
+  let completeSequence;
+  const completed = new Promise((resolve) => { completeSequence = resolve; });
   const controller = createLivingOfficeController({
     feed,
     resetControl: null,
     getIndustry: () => 'Proizvodnja',
     intervalMs: 2,
-    onFrame: (frame) => frames.push(frame.time)
+    onFrame: (frame) => {
+      frames.push(frame.time);
+      if (frames.length === 5) completeSequence();
+    }
   });
   controller.start();
-  await new Promise((resolve) => setTimeout(resolve, 25));
-  controller.stop();
+  let sequenceTimeout;
+  try {
+    await Promise.race([
+      completed,
+      new Promise((_, reject) => {
+        sequenceTimeout = setTimeout(() => reject(new Error('Living Office sequence timed out.')), 500);
+      })
+    ]);
+  } finally {
+    clearTimeout(sequenceTimeout);
+    controller.stop();
+  }
   assert.deepEqual(frames, ['06:58', '07:00', '07:01', '07:06', '07:12']);
   dom.window.close();
 });
@@ -118,6 +133,8 @@ test('promjena djelatnosti tijekom slijeda ne vraća simulirani sat unatrag', as
   const { dom, feed } = createFeed();
   const frames = [];
   let currentIndustry = 'Proizvodnja';
+  let completeSequence;
+  const completed = new Promise((resolve) => { completeSequence = resolve; });
   const controller = createLivingOfficeController({
     feed,
     resetControl: null,
@@ -126,11 +143,22 @@ test('promjena djelatnosti tijekom slijeda ne vraća simulirani sat unatrag', as
     onFrame: (frame) => {
       frames.push(`${frame.time}/${frame.industry}`);
       if (frames.length === 2) currentIndustry = 'Logistika';
+      if (frames.length === 5) completeSequence();
     }
   });
   controller.start();
-  await new Promise((resolve) => setTimeout(resolve, 25));
-  controller.stop();
+  let sequenceTimeout;
+  try {
+    await Promise.race([
+      completed,
+      new Promise((_, reject) => {
+        sequenceTimeout = setTimeout(() => reject(new Error('Living Office industry sequence timed out.')), 500);
+      })
+    ]);
+  } finally {
+    clearTimeout(sequenceTimeout);
+    controller.stop();
+  }
   assert.deepEqual(frames, [
     '06:58/proizvodnja',
     '07:00/proizvodnja',
