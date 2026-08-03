@@ -1,22 +1,38 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { appendLivingOfficeEvent, clearLivingOfficeEvents, getLivingOfficeFrame } from '../living-office.js';
+import { JSDOM } from 'jsdom';
+import {
+  appendLivingOfficeEvent,
+  clearLivingOfficeEvents,
+  createLivingOfficeController,
+  getLivingOfficeFrame,
+  renderInitialActivityFeed
+} from '../living-office.js';
 
-test('living office vraća determinističke okvire', () => {
-  assert.deepEqual(getLivingOfficeFrame(0), {
-    time: '06:58',
-    event: 'Marko Marić se prijavio.',
-    index: 0,
-    total: 5,
-    industry: 'ostalo'
-  });
+function createFeed() {
+  const dom = new JSDOM('<!doctype html><ol id="feed"></ol>');
+  return { dom, feed: dom.window.document.getElementById('feed') };
+}
+
+test('living office vraća determinističke strukturirane okvire', () => {
+  const frame = getLivingOfficeFrame(0);
+  assert.equal(frame.time, '06:58');
+  assert.equal(frame.event, 'Marko Marić se prijavio.');
+  assert.equal(frame.actor, 'Marko Marić');
+  assert.equal(frame.action, 'Prijava');
+  assert.equal(frame.detail, 'Glavni terminal');
+  assert.equal(frame.tone, 'success');
+  assert.equal(frame.index, 0);
+  assert.equal(frame.total, 5);
+  assert.equal(frame.industry, 'ostalo');
   assert.equal(getLivingOfficeFrame(3).time, '07:06');
 });
 
 test('living office prilagođava događaje djelatnosti', () => {
   assert.match(getLivingOfficeFrame(1, 'Logistika').event, /skladišta/);
+  assert.equal(getLivingOfficeFrame(0, 'Logistika').detail, 'Ulaz skladišta');
   assert.match(getLivingOfficeFrame(2, 'Građevina').event, /teren/);
-  assert.match(getLivingOfficeFrame(4, 'Ured').event, /Voditelj tima/);
+  assert.equal(getLivingOfficeFrame(4, 'Ured').actor, 'Voditelj tima');
 });
 
 test('living office koristi siguran fallback za nepoznatu djelatnost', () => {
@@ -31,54 +47,85 @@ test('living office ograničava nevažeći korak', () => {
   assert.equal(getLivingOfficeFrame('nije-broj').index, 0);
 });
 
-function createFeed() {
-  const items = [];
-  const ownerDocument = {
-    createElement() {
-      return {
-        dataset: {},
-        innerHTML: '',
-        remove() {
-          const index = items.indexOf(this);
-          if (index >= 0) items.splice(index, 1);
-        }
-      };
-    }
-  };
+test('početni feed prikazuje tri sažeta strukturirana događaja, najnoviji prvi', () => {
+  const { dom, feed } = createFeed();
+  assert.equal(renderInitialActivityFeed(feed, 'Proizvodnja'), 3);
+  assert.equal(feed.children.length, 3);
+  assert.equal(feed.firstElementChild.dataset.actor, 'Ivan Horvat');
+  assert.equal(feed.firstElementChild.querySelector('time').getAttribute('datetime'), '07:01');
+  assert.match(feed.firstElementChild.querySelector('.activity-copy').textContent, /Čeka prijavu · Terminal hale/);
+  dom.window.close();
+});
 
-  return {
-    items,
-    ownerDocument,
-    append(item) { items.push(item); },
-    querySelector(selector) {
-      const key = selector.match(/"([^"]+)"/)?.[1];
-      return items.find((item) => item.dataset.liveEvent === key) ?? null;
-    },
-    querySelectorAll() { return items.slice(); }
-  };
-}
-
-test('live feed ne duplicira isti događaj i ograničava broj zapisa', () => {
-  const feed = createFeed();
+test('live feed ne duplicira događaj i ograničava ukupan broj zapisa', () => {
+  const { dom, feed } = createFeed();
   assert.equal(appendLivingOfficeEvent(feed, getLivingOfficeFrame(0), 2), true);
   assert.equal(appendLivingOfficeEvent(feed, getLivingOfficeFrame(0), 2), false);
   appendLivingOfficeEvent(feed, getLivingOfficeFrame(1), 2);
   appendLivingOfficeEvent(feed, getLivingOfficeFrame(2), 2);
-  assert.equal(feed.items.length, 2);
-  assert.equal(feed.items[0].dataset.liveEvent, 'living-ostalo-1');
+  assert.equal(feed.children.length, 2);
+  assert.equal(feed.firstElementChild.dataset.eventKey, 'living-ostalo-2');
+  assert.equal(feed.lastElementChild.dataset.eventKey, 'living-ostalo-1');
+  dom.window.close();
 });
 
 test('isti korak iz različitih djelatnosti ima odvojeni ključ', () => {
-  const feed = createFeed();
+  const { dom, feed } = createFeed();
   appendLivingOfficeEvent(feed, getLivingOfficeFrame(0, 'Logistika'));
   appendLivingOfficeEvent(feed, getLivingOfficeFrame(0, 'Ured'));
-  assert.equal(feed.items.length, 2);
+  assert.equal(feed.children.length, 2);
+  assert.notEqual(feed.children[0].dataset.eventKey, feed.children[1].dataset.eventKey);
+  dom.window.close();
 });
 
-test('reset uklanja samo generirane live događaje', () => {
-  const feed = createFeed();
-  appendLivingOfficeEvent(feed, getLivingOfficeFrame(0));
-  appendLivingOfficeEvent(feed, getLivingOfficeFrame(1));
+test('reset uklanja generirane događaje, ali zadržava početni prikaz', () => {
+  const { dom, feed } = createFeed();
+  renderInitialActivityFeed(feed, 'Logistika', 2);
+  appendLivingOfficeEvent(feed, getLivingOfficeFrame(3, 'Logistika'));
+  assert.equal(feed.children.length, 3);
   clearLivingOfficeEvents(feed);
-  assert.equal(feed.items.length, 0);
+  assert.equal(feed.querySelectorAll('[data-live-event]').length, 0);
+  assert.equal(feed.querySelectorAll('[data-seed-event]').length, 2);
+  dom.window.close();
+});
+
+test('nulti i negativni limit sigurno odbijaju novi zapis', () => {
+  const { dom, feed } = createFeed();
+  assert.equal(appendLivingOfficeEvent(feed, getLivingOfficeFrame(0), 0), false);
+  assert.equal(appendLivingOfficeEvent(feed, getLivingOfficeFrame(0), -4), false);
+  assert.equal(feed.children.length, 0);
+  dom.window.close();
+});
+
+test('automatski slijed završava kronološki i ne vraća sat unatrag', async () => {
+  const { dom, feed } = createFeed();
+  const frames = [];
+  const controller = createLivingOfficeController({
+    feed,
+    resetControl: null,
+    getIndustry: () => 'Proizvodnja',
+    intervalMs: 2,
+    onFrame: (frame) => frames.push(frame.time)
+  });
+  controller.start();
+  await new Promise((resolve) => setTimeout(resolve, 25));
+  controller.stop();
+  assert.deepEqual(frames, ['06:58', '07:00', '07:01', '07:06', '07:12']);
+  dom.window.close();
+});
+
+test('reduced-motion način ostavlja samo jedan statičan okvir', () => {
+  const { dom, feed } = createFeed();
+  const frames = [];
+  const controller = createLivingOfficeController({
+    feed,
+    resetControl: null,
+    autoAdvance: false,
+    onFrame: (frame) => frames.push(frame.time)
+  });
+  controller.start();
+  controller.start();
+  assert.deepEqual(frames, ['06:58']);
+  controller.stop();
+  dom.window.close();
 });

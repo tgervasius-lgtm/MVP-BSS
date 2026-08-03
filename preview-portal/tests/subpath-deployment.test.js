@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
+import { JSDOM } from 'jsdom';
 
 const indexUrl = new URL('../index.html', import.meta.url);
 const manifestUrl = new URL('../manifest.webmanifest', import.meta.url);
@@ -66,4 +67,26 @@ test('service worker predmemorira zatvoren skup svih statičkih JavaScript impor
       assert.ok(cachedAssets.has(dependency), `${asset} uvozi ${dependency}, ali ga Preview PWA ne predmemorira`);
     }
   }
+});
+
+test('novi HTML ostaje kompatibilan tijekom prvog refresha sa starim Preview runtimeom', async () => {
+  const [html, appSource] = await Promise.all([
+    readFile(indexUrl, 'utf8'),
+    readFile(new URL('../app.js', import.meta.url), 'utf8')
+  ]);
+  const dom = new JSDOM(html);
+  const documentRef = dom.window.document;
+  const compat = documentRef.getElementById('previewCompatKpis');
+
+  assert.ok(compat?.classList.contains('hidden'));
+  for (const id of ['presentCount', 'plannedCount', 'lateCount', 'absentCount']) {
+    const field = documentRef.getElementById(id);
+    assert.ok(field, `stari runtime i dalje nalazi #${id}`);
+    field.textContent = 'sigurno';
+  }
+
+  const removal = appSource.indexOf("byId('previewCompatKpis')?.remove()");
+  const creation = appSource.indexOf('createCommandCenterPanel()');
+  assert.ok(removal > -1 && removal < creation, 'novi runtime uklanja kompatibilni most prije stvaranja novih KPI ID-jeva');
+  dom.window.close();
 });

@@ -124,6 +124,69 @@ test('RFID očitavanje ostaje zaključano tijekom promjene uloge i potvrđuje se
   await expect(page.locator('.toast')).toContainText('uspješno je evidentiran');
 });
 
+test('direktorski command center i sažeti feed ostaju povezani s RFID stanjem',async({page})=>{
+  const errors=trackErrors(page);
+  await startPreview(page);
+
+  const commandCenter=page.locator('.command-center');
+  await expect(commandCenter.locator('.attendance-ring')).toHaveAttribute('aria-label',/47 prisutnih, 3 kasni i 2 odsutnih od 52/);
+  await expect(commandCenter.locator('button[data-kpi]')).toHaveCount(3);
+  await expect(page.locator('#directorView .metrics')).toHaveCount(0);
+
+  const lateButton=page.getByRole('button',{name:/Kasne: 3/});
+  await lateButton.click();
+  await expect(page.locator('.kpi-details')).toBeVisible();
+  await expect(page.locator('#kpiDetailsTitle')).toHaveText(/Zaposlenici koji kasne/);
+  await page.keyboard.press('Escape');
+  await expect(lateButton).toBeFocused();
+
+  const feed=page.locator('#activityFeed');
+  await expect(feed.locator('.activity-event')).toHaveCount(3);
+  await expect(feed.locator('.activity-event').first()).toContainText('Ivan Horvat');
+  await expect(feed.locator('.activity-event').first()).toContainText('Čeka prijavu');
+
+  await page.locator('#scanButton').click();
+  await expect(page.locator('#presentCount')).toHaveText('48',{timeout:2500});
+  await expect(feed.locator('[data-actor="Ivan Horvat"]')).toHaveCount(1);
+  await expect(page.locator('#ivanEvent')).toContainText('Prijava · Ulaz proizvodnje');
+  await expect(page.locator('#ivanEvent')).not.toContainText('Čeka prijavu');
+  await expect(commandCenter.locator('.attendance-ring')).toHaveAttribute('aria-label',/48 prisutnih, 2 kasni i 2 odsutnih od 52/);
+
+  await expectNoHorizontalOverflow(page);
+  expect(await seriousAxeViolations(page)).toEqual([]);
+  expect(errors).toEqual([]);
+});
+
+test('odgođena RFID prijava ne vraća simulirani sat ni feed unatrag',async({page})=>{
+  await startPreview(page);
+  await expect(page.locator('#livingOfficeTime')).toHaveText('07:12',{timeout:7000});
+
+  await page.locator('#scanButton').click();
+  await expect(page.locator('#presentCount')).toHaveText('48',{timeout:2500});
+  await expect(page.locator('#livingOfficeTime')).toHaveText('07:12');
+  await expect(page.locator('#ivanEvent time')).toHaveText('07:12');
+
+  const times=await page.locator('#activityFeed time').allTextContents();
+  const newestFirst=[...times].sort((a,b)=>b.localeCompare(a));
+  expect(times).toEqual(newestFirst);
+  await expect(page.locator('#activityFeed .activity-event')).toHaveCount(5);
+  await expectNoHorizontalOverflow(page);
+});
+
+test('rana RFID prijava ostaje vremenski usklađena nakon promjene uloge',async({page})=>{
+  await startPreview(page);
+  await page.locator('#scanButton').click();
+  await expect(page.locator('#presentCount')).toHaveText('48',{timeout:2500});
+
+  const arrivalTime=await page.locator('#ivanEvent time').textContent();
+  await page.getByRole('button',{name:'Voditelj',exact:true}).click();
+  await page.getByRole('button',{name:'Direktor',exact:true}).click();
+
+  await expect(page.locator('#livingOfficeTime')).toHaveText(arrivalTime);
+  await expect(page.locator('#activityFeed time')).toHaveText([arrivalTime,'07:00','06:58']);
+  await expectNoHorizontalOverflow(page);
+});
+
 test('agregirani profil skalira KPI-jeve, tim i fond sati na granicama',async({page})=>{
   await page.goto('/preview/');
   await page.locator('#employeesInput').fill('5');

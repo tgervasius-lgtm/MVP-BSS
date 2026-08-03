@@ -23,6 +23,19 @@ test('DOM integracija otvara personalizirani sandbox bez zaključavanja radnji',
 
   assert.equal(document.getElementById('demoView').classList.contains('hidden'), false);
   assert.match(document.getElementById('activeProfile').textContent, /120 zaposlenika/);
+  assert.equal(document.querySelectorAll('#presentCount').length, 1);
+  assert.equal(document.querySelectorAll('#directorView .metrics').length, 0);
+  assert.equal(document.querySelectorAll('.command-center button[data-kpi]').length, 3);
+  assert.equal(document.querySelectorAll('#activityFeed .activity-event').length, 3);
+
+  const presentKpi = document.querySelector('[data-kpi="present"]');
+  presentKpi.click();
+  const kpiDetails = document.querySelector('.kpi-details');
+  assert.equal(kpiDetails.classList.contains('hidden'), false);
+  assert.match(document.getElementById('kpiDetailsTitle').textContent, /Prisutni/);
+  kpiDetails.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+  assert.equal(kpiDetails.classList.contains('hidden'), true);
+  assert.equal(document.activeElement, presentKpi);
 
   document.querySelector('[data-role="accounting"]').click();
   const report = document.getElementById('generateReportButton');
@@ -55,6 +68,20 @@ test('DOM integracija otvara personalizirani sandbox bez zaključavanja radnji',
   assert.match(document.getElementById('terminalScreen').textContent, /Očitavanje kartice/);
   await new Promise((resolve) => setTimeout(resolve, 560));
   assert.equal(Number.parseInt(document.getElementById('presentCount').textContent, 10), presentBeforeScan + 1);
+  assert.equal(document.querySelectorAll('#activityFeed [data-actor="Ivan Horvat"]').length, 1);
+  assert.equal(document.getElementById('ivanEvent'), document.querySelector('#activityFeed .activity-event'));
+  assert.match(document.getElementById('ivanEvent').textContent, /Prijava · Ulaz proizvodnje/);
+  assert.doesNotMatch(document.getElementById('ivanEvent').textContent, /Čeka prijavu/);
+  assert.match(document.querySelector('.attendance-ring').getAttribute('aria-label'), new RegExp(`${presentBeforeScan + 1} prisutnih`));
+
+  const arrivalTime = document.getElementById('livingOfficeTime').textContent;
+  document.querySelector('[data-role="manager"]').click();
+  document.querySelector('[data-role="director"]').click();
+  assert.equal(document.getElementById('livingOfficeTime').textContent, arrivalTime);
+  assert.deepEqual(
+    [...document.querySelectorAll('#activityFeed time')].map((time) => time.textContent),
+    [arrivalTime, '07:00', '06:58']
+  );
 
   document.getElementById('resetButton').click();
   dom.window.close();

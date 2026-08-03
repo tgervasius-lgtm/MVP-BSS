@@ -41,13 +41,17 @@ const directorView = document.getElementById('directorView');
 const completionView = document.getElementById('completionView');
 const restartButton = document.getElementById('restartButton');
 const intelligence = createDirectorIntelligencePanel();
-directorView?.append(intelligence.element);
+const commandCenter = directorView?.querySelector('.command-center');
+const kpiDetails = directorView?.querySelector('.kpi-details');
+if (kpiDetails || commandCenter) (kpiDetails ?? commandCenter).insertAdjacentElement('afterend', intelligence.element);
+else directorView?.append(intelligence.element);
 
 function updateDirectorIntelligence() {
   intelligence.update({
     employees: employeesInput?.value,
     locations: locationsInput?.value,
-    present: presentCount?.textContent
+    present: presentCount?.textContent,
+    planned: plannedCount?.textContent?.match(/\d+/)?.[0]
   });
 }
 
@@ -70,7 +74,7 @@ if (presentCount) {
     if (current !== previousPresent) {
       previousPresent = current;
       pulseElement(presentCount);
-      pulseElement(presentCount.closest('.metric'), 'metric-pulse');
+      pulseElement(presentCount.closest('.attendance-ring-trigger'), 'metric-pulse');
       updateDirectorIntelligence();
     }
   });

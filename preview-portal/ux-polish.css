@@ -37,9 +37,7 @@ input:focus-visible,
   white-space: nowrap;
 }
 
-.activity-list,
 .terminal-status-grid,
-.command-center-grid,
 .business-summary-grid {
   contain: layout paint;
 }
@@ -109,10 +107,6 @@ input:focus-visible,
     border-radius: 16px;
   }
 
-  .command-alerts ul {
-    display: grid;
-  }
-
   .terminal-screen {
     min-height: 180px;
   }
@@ -153,8 +147,7 @@ input:focus-visible,
     padding: 16px;
   }
 
-  .metric strong,
-  .command-center-grid strong {
+  .metric strong {
     font-size: 1.55rem;
   }
 
@@ -193,7 +186,11 @@ input:focus-visible,
 
   .status,
   .badge,
-  .command-system-status {
+  .command-system-status,
+  .command-meta > span,
+  .attendance-ring,
+  .attendance-exception,
+  .command-health {
     border: 1px solid currentColor;
   }
 }

@@ -1,5 +1,5 @@
 const PREVIEW_CACHE_PREFIX = 'bss-preview-portal-';
-const CACHE_NAME = `${PREVIEW_CACHE_PREFIX}rc2`;
+const CACHE_NAME = `${PREVIEW_CACHE_PREFIX}rc3`;
 const ASSETS = [
   './',
   './index.html',

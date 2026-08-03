@@ -45,6 +45,23 @@ const INDUSTRY_EVENTS = Object.freeze({
   ])
 });
 
+const INDUSTRY_ACTIVITY_CONTEXT = Object.freeze({
+  proizvodnja: Object.freeze({ arrival: 'Ulaz proizvodnje', shift: 'Proizvodna linija', pending: 'Terminal hale', review: '1 evidencija smjene', manager: 'Voditelj proizvodnje' }),
+  logistika: Object.freeze({ arrival: 'Ulaz skladišta', shift: 'Skladišna smjena', pending: 'Prvi utovar', review: '1 skladišna evidencija', manager: 'Voditelj logistike' }),
+  građevina: Object.freeze({ arrival: 'Ulaz gradilišta', shift: 'Terenska smjena', pending: 'Izlazak na teren', review: '1 terenska evidencija', manager: 'Voditelj gradilišta' }),
+  trgovina: Object.freeze({ arrival: 'Ulaz poslovnice', shift: 'Otvaranje poslovnice', pending: 'Početak rada', review: '1 evidencija poslovnice', manager: 'Voditelj trgovine' }),
+  ured: Object.freeze({ arrival: 'Recepcija ureda', shift: 'Radni dan', pending: 'Prvi sastanak', review: '1 fleksibilna evidencija', manager: 'Voditelj tima' }),
+  ostalo: Object.freeze({ arrival: 'Glavni terminal', shift: 'Jutarnja smjena', pending: 'Početak smjene', review: '1 evidencija', manager: 'Voditelj' })
+});
+
+const ACTIVITY_BLUEPRINTS = Object.freeze([
+  Object.freeze({ actor: 'Marko Marić', action: 'Prijava', detail: 'arrival', tone: 'success', initials: 'MM' }),
+  Object.freeze({ actor: 'Jutarnja smjena', action: 'Započela', detail: 'shift', tone: 'system', initials: 'JS' }),
+  Object.freeze({ actor: 'Ivan Horvat', action: 'Čeka prijavu', detail: 'pending', tone: 'pending', initials: 'IH' }),
+  Object.freeze({ actor: 'Administrator', action: 'Za provjeru', detail: 'review', tone: 'review', initials: 'AD' }),
+  Object.freeze({ actor: 'Voditelj', action: 'Godišnji odmor', detail: '1 zahtjev', tone: 'request', initials: 'VO' })
+]);
+
 function normalizeIndustry(industry = 'ostalo') {
   const value = String(industry).trim().toLocaleLowerCase('hr-HR');
   return Object.hasOwn(INDUSTRY_EVENTS, value) ? value : 'ostalo';
@@ -54,22 +71,82 @@ export function getLivingOfficeFrame(step = 0, industry = 'ostalo') {
   const index = Math.min(Math.max(Number.parseInt(step, 10) || 0, 0), TIMES.length - 1);
   const key = normalizeIndustry(industry);
   const events = INDUSTRY_EVENTS[key];
-  return Object.freeze({ time: TIMES[index], event: events[index], index, total: TIMES.length, industry: key });
+  const context = INDUSTRY_ACTIVITY_CONTEXT[key];
+  const blueprint = ACTIVITY_BLUEPRINTS[index];
+  const actor = index === 4 ? context.manager : blueprint.actor;
+  const detail = Object.hasOwn(context, blueprint.detail) ? context[blueprint.detail] : blueprint.detail;
+  return Object.freeze({
+    time: TIMES[index],
+    event: events[index],
+    actor,
+    action: blueprint.action,
+    detail,
+    tone: blueprint.tone,
+    initials: index === 4 ? actor.split(/\s+/).map((part) => part[0]).join('').slice(0, 2).toLocaleUpperCase('hr-HR') : blueprint.initials,
+    index,
+    total: TIMES.length,
+    industry: key
+  });
+}
+
+export function createActivityFeedItem(documentRef, frame, { id, source = 'live' } = {}) {
+  if (!documentRef?.createElement || !frame) return null;
+  const item = documentRef.createElement('li');
+  const avatar = documentRef.createElement('span');
+  const copy = documentRef.createElement('span');
+  const actor = documentRef.createElement('strong');
+  const detail = documentRef.createElement('small');
+  const time = documentRef.createElement('time');
+
+  item.className = `activity-event ${frame.tone || 'system'}`;
+  if (id) item.id = id;
+  item.dataset.activityState = frame.tone || 'system';
+  item.dataset.actor = frame.actor || '';
+  item.dataset.eventKey = `living-${frame.industry ?? 'ostalo'}-${frame.index}`;
+  item.dataset[source === 'seed' ? 'seedEvent' : 'liveEvent'] = item.dataset.eventKey;
+
+  avatar.className = 'activity-avatar';
+  avatar.setAttribute('aria-hidden', 'true');
+  avatar.textContent = frame.initials || 'BSS';
+  copy.className = 'activity-copy';
+  actor.textContent = frame.actor || 'BSS sustav';
+  detail.textContent = [frame.action, frame.detail].filter(Boolean).join(' · ');
+  time.textContent = frame.time || '—';
+  if (frame.time) time.setAttribute('datetime', frame.time);
+  copy.append(actor, detail);
+  item.append(avatar, copy, time);
+  return item;
+}
+
+export function renderInitialActivityFeed(feed, industry = 'ostalo', count = 3) {
+  if (!feed?.ownerDocument?.createElement || typeof feed.replaceChildren !== 'function') return 0;
+  const parsed = Number.parseInt(count, 10);
+  const limit = Number.isFinite(parsed) ? Math.min(Math.max(parsed, 0), TIMES.length) : 3;
+  const items = Array.from({ length: limit }, (_, index) => createActivityFeedItem(
+    feed.ownerDocument,
+    getLivingOfficeFrame(index, industry),
+    { source: 'seed' }
+  )).filter(Boolean).reverse();
+  feed.replaceChildren(...items);
+  return items.length;
 }
 
 export function appendLivingOfficeEvent(feed, frame, maxItems = 8) {
   if (!feed || typeof feed.querySelector !== 'function' || typeof feed.append !== 'function') return false;
   const key = `living-${frame.industry ?? 'ostalo'}-${frame.index}`;
-  if (feed.querySelector(`[data-live-event="${key}"]`)) return false;
+  if (feed.querySelector(`[data-event-key="${key}"]`)) return false;
 
-  const item = feed.ownerDocument?.createElement?.('li');
+  const parsed = Number.parseInt(maxItems, 10);
+  const limit = Number.isFinite(parsed) ? Math.min(Math.max(parsed, 0), 20) : 8;
+  if (limit === 0) return false;
+
+  const item = createActivityFeedItem(feed.ownerDocument, frame);
   if (!item) return false;
-  item.dataset.liveEvent = key;
-  item.innerHTML = `<span>${frame.time}</span> ${frame.event}`;
-  feed.append(item);
+  const newestFirst = typeof feed.prepend === 'function';
+  if (newestFirst) feed.prepend(item); else feed.append(item);
 
-  const generated = Array.from(feed.querySelectorAll('[data-live-event]'));
-  while (generated.length > maxItems) generated.shift()?.remove();
+  const visible = Array.from(feed.querySelectorAll('[data-event-key]'));
+  while (visible.length > limit) (newestFirst ? visible.pop() : visible.shift())?.remove();
   return true;
 }
 
@@ -84,17 +161,22 @@ export function createLivingOfficeController({
   feed = globalThis.document?.querySelector?.('#activityFeed'),
   resetControl = globalThis.document?.querySelector?.('#resetButton'),
   industry = 'ostalo',
-  getIndustry = () => globalThis.document?.querySelector?.('#industryInput')?.value ?? industry
+  getIndustry = () => globalThis.document?.querySelector?.('#industryInput')?.value ?? industry,
+  autoAdvance = true,
+  startStep = 0
 } = {}) {
-  let step = 0;
+  const initialStep = Math.min(Math.max(Number.parseInt(startStep, 10) || 0, 0), TIMES.length - 1);
+  let step = initialStep;
   let timer = null;
+  let staticEmitted = false;
   let activeIndustry = normalizeIndustry(industry);
 
   function syncIndustry() {
     const nextIndustry = normalizeIndustry(getIndustry?.());
     if (nextIndustry === activeIndustry) return;
     activeIndustry = nextIndustry;
-    step = 0;
+    step = initialStep;
+    staticEmitted = false;
     clearLivingOfficeEvents(feed);
   }
 
@@ -102,8 +184,10 @@ export function createLivingOfficeController({
     syncIndustry();
     const frame = getLivingOfficeFrame(step, activeIndustry);
     onFrame?.(frame);
-    appendLivingOfficeEvent(feed, frame);
-    step = (step + 1) % frame.total;
+    appendLivingOfficeEvent(feed, frame, 5);
+    step += 1;
+    if (step >= frame.total) stop();
+    return frame;
   }
 
   function stop() {
@@ -115,17 +199,21 @@ export function createLivingOfficeController({
   function reset() {
     stop();
     activeIndustry = normalizeIndustry(getIndustry?.());
-    step = 0;
+    step = initialStep;
+    staticEmitted = false;
     clearLivingOfficeEvents(feed);
-    onFrame?.(getLivingOfficeFrame(0, activeIndustry));
+    onFrame?.(getLivingOfficeFrame(initialStep, activeIndustry));
   }
 
   resetControl?.addEventListener?.('click', reset);
 
   return Object.freeze({
     start() {
-      if (timer) return;
-      emit();
+      if (timer || step >= TIMES.length) return;
+      if (!autoAdvance && staticEmitted) return;
+      const frame = emit();
+      staticEmitted = true;
+      if (!autoAdvance || step >= frame.total) return;
       timer = setInterval(emit, intervalMs);
     },
     stop,

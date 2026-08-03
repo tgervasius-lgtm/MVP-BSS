@@ -1,7 +1,7 @@
 import { ROLES, configureDemo, getGuide, startDemo, selectRole, registerEmployee, approveLeave, resolveCorrection, reviewWorker, generateReport, resetDemo } from './state.js';
 import { getIndustryContext } from './industry-context.js';
 import { createAnalytics, ANALYTICS_EVENTS } from './analytics.js';
-import { createLivingOfficeController } from './living-office.js';
+import { createActivityFeedItem, createLivingOfficeController, renderInitialActivityFeed } from './living-office.js';
 import { createBusinessSummaryPanel } from './business-summary.js';
 import { createKpiDetailsPanel } from './kpi-details.js';
 import { createRfidCardElement, createTerminalFeedback } from './terminal-effects.js';
@@ -20,10 +20,17 @@ let previousRole = state.activeRole;
 let completionTracked = false;
 let experienceMode = 'free';
 let scanPending = false;
+let scanEventTime = '07:01';
+let activityFeedIndustry = null;
 const analytics = createAnalytics();
 const terminalFeedback = createTerminalFeedback({ audioFactory: () => new (window.AudioContext || window.webkitAudioContext)() });
 const scanDelay = createCancellableDelay();
 const byId = (id) => document.getElementById(id);
+const directorView = byId('directorView');
+byId('previewCompatKpis')?.remove();
+directorView.querySelector('.metrics')?.remove();
+const commandCenter = createCommandCenterPanel();
+directorView.prepend(commandCenter.element);
 const elements = {
   welcome: byId('welcomeView'), demo: byId('demoView'), reset: byId('resetButton'), restart: byId('restartButton'), roleSwitcher: document.querySelector('.role-switcher'),
   profileForm: byId('profileForm'), industry: byId('industryInput'), employees: byId('employeesInput'), locations: byId('locationsInput'), shifts: byId('shiftsInput'),
@@ -50,32 +57,33 @@ elements.scan.insertAdjacentElement('beforebegin', soundToggle);
 
 const livingOffice = document.createElement('section');
 livingOffice.className = 'living-office hidden';
-livingOffice.setAttribute('aria-live', 'polite');
-livingOffice.innerHTML = '<span class="living-office-dot" aria-hidden="true"></span><div><time id="livingOfficeTime">06:58</time><p id="livingOfficeEvent">Tvrtka se priprema za početak smjene.</p></div>';
+livingOffice.setAttribute('aria-label', 'Simulirana aktivnost sustava');
+livingOffice.innerHTML = '<span class="living-office-dot" aria-hidden="true"></span><span class="living-office-label">Uživo</span><time id="livingOfficeTime">06:58</time><div class="living-office-copy"><strong id="livingOfficeActor">BSS sustav</strong><small id="livingOfficeEvent">Priprema početka smjene</small></div>';
 elements.demo.prepend(livingOffice);
 const livingOfficeTime = byId('livingOfficeTime');
+const livingOfficeActor = byId('livingOfficeActor');
 const livingOfficeEvent = byId('livingOfficeEvent');
-const livingController = createLivingOfficeController({ onFrame(frame) { livingOfficeTime.textContent = frame.time; livingOfficeEvent.textContent = frame.event; } });
+function renderLivingOfficeFrame(frame) {
+  livingOfficeTime.textContent = frame.time;
+  livingOfficeActor.textContent = frame.actor;
+  livingOfficeEvent.textContent = [frame.action, frame.detail].filter(Boolean).join(' · ');
+}
+const livingController = createLivingOfficeController({
+  onFrame: renderLivingOfficeFrame,
+  autoAdvance: !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches,
+  resetControl: null,
+  startStep: 2
+});
 
-const directorView = byId('directorView');
-const commandCenter = createCommandCenterPanel();
-directorView.prepend(commandCenter.element);
 const kpiPanel = createKpiDetailsPanel({ getMetrics: () => buildOperationalMetrics({
   profile: state.profile,
   summary: state.summary,
   presentCount: state.presentCount
 }) });
-directorView.append(kpiPanel.element);
-const kpiIds = ['present', 'late', 'absent'];
-document.querySelectorAll('#directorView .metrics .metric').forEach((metric, index) => {
-  const kpiId = kpiIds[index];
-  metric.dataset.kpi = kpiId;
-  metric.tabIndex = 0;
-  metric.setAttribute('role', 'button');
-  metric.setAttribute('aria-label', `Otvori detalje: ${metric.querySelector('span')?.textContent ?? ''}`);
-  const open = () => kpiPanel.show(kpiId, metric);
-  metric.addEventListener('click', open);
-  metric.addEventListener('keydown', (event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); open(); } });
+commandCenter.element.insertAdjacentElement('afterend', kpiPanel.element);
+commandCenter.element.querySelectorAll('[data-kpi]').forEach((trigger) => {
+  const open = () => kpiPanel.show(trigger.dataset.kpi, trigger);
+  trigger.addEventListener('click', open);
 });
 
 function profileInput() {
@@ -121,6 +129,10 @@ function renderProfile() {
   const managerHeading = document.querySelector('#managerView .eyebrow');
   if (managerHeading) managerHeading.textContent = context.manager;
   byId('managerTeamLabel').textContent = context.team;
+  if (activityFeedIndustry !== profile.industry) {
+    renderInitialActivityFeed(elements.feed, profile.industry);
+    activityFeedIndustry = profile.industry;
+  }
   renderTerminalNetwork(context);
 }
 
@@ -181,37 +193,40 @@ function renderGuide(guide) {
   elements.guideProgressBar.setAttribute('aria-valuemax', String(guide.total));
   elements.guideProgressBar.setAttribute('aria-valuenow', String(guide.completed));
   livingOffice.classList.toggle('hidden', !state.started || guide.complete);
-  if (state.started && !guide.complete) livingController.start(); else livingController.stop();
+  if (state.started && !guide.complete && !state.scanned) livingController.start(); else livingController.stop();
   commandCenter.update({
     profile: state.profile,
     summary: state.summary,
-    presentCount: state.presentCount,
-    completed: guide.completed,
-    total: guide.total
+    presentCount: state.presentCount
   });
 }
 
 function renderAttendance() {
   const context = getIndustryContext(state.profile.industry);
+  const arrivalTime = scanEventTime;
   elements.count.textContent = String(state.presentCount);
   elements.screen.classList.remove('reading');
   if (state.scanned) {
     elements.screen.classList.add('success');
-    elements.screen.innerHTML = `<span class="terminal-icon">✓</span><strong>Dobro došli, Ivan Horvat</strong><small>07:01 · ${context.area}</small>`;
+    elements.screen.innerHTML = `<span class="terminal-icon">✓</span><strong>Dobro došli, Ivan Horvat</strong><small>${arrivalTime} · ${context.area}</small>`;
     elements.scan.disabled = true;
     elements.scan.textContent = 'Prijava je evidentirana';
     elements.objective.textContent = 'RFID prijava je evidentirana i svi povezani pregledi su ažurirani.';
     elements.status.textContent = 'Završeno';
     elements.status.classList.add('complete');
-    elements.workerArrival.textContent = '07:01';
+    elements.workerArrival.textContent = arrivalTime;
     elements.workerMessage.textContent = `Vaša današnja prijava uspješno je evidentirana na terminalu ${context.area}.`;
-    elements.workerRow.textContent = '07:01 – smjena u tijeku';
+    elements.workerRow.textContent = `${arrivalTime} – smjena u tijeku`;
     if (!byId('ivanEvent')) {
-      const event = document.createElement('li');
-      event.id = 'ivanEvent';
-      event.innerHTML = `<span>07:01</span> Ivan Horvat se prijavio · ${context.area}.`;
-      elements.feed.append(event);
+      elements.feed.querySelectorAll('[data-actor="Ivan Horvat"]').forEach((event) => event.remove());
+      const event = createActivityFeedItem(document, {
+        time: arrivalTime, actor: 'Ivan Horvat', action: 'Prijava', detail: context.area,
+        tone: 'success', initials: 'IH', industry: state.profile.industry.toLocaleLowerCase('hr-HR'), index: 'rfid'
+      }, { id: 'ivanEvent' });
+      if (event) elements.feed.prepend(event);
     }
+    livingController.stop();
+    renderLivingOfficeFrame({ time: arrivalTime, actor: 'Ivan Horvat', action: 'Prijava evidentirana', detail: context.area });
   } else if (scanPending) {
     elements.screen.classList.remove('success');
     elements.screen.classList.add('reading');
@@ -286,6 +301,7 @@ function apply(action, mission) {
 
 async function simulateRfidScan() {
   if (state.scanned || scanPending || elements.scan.disabled) return;
+  scanEventTime = livingOfficeTime.textContent || '07:01';
   scanPending = true;
   render();
   const active = await scanDelay.wait(520);
@@ -294,6 +310,7 @@ async function simulateRfidScan() {
     if (state.started) render();
     return;
   }
+  if ((livingOfficeTime.textContent || '') > scanEventTime) scanEventTime = livingOfficeTime.textContent;
   scanPending = false;
   apply(registerEmployee, 'rfid_check_in');
   void terminalFeedback.playSuccess();
@@ -319,9 +336,11 @@ elements.generateReport.addEventListener('click', () => apply(generateReport, 'r
 elements.reset.addEventListener('click', () => {
   scanDelay.cancel();
   scanPending = false;
-  livingController.stop();
+  scanEventTime = '07:01';
+  livingController.reset();
   kpiPanel.hide();
   state = resetDemo(state.profile);
+  activityFeedIndustry = null;
   previousRole = state.activeRole;
   completionTracked = false;
   elements.guideDetails.open = false;
@@ -329,7 +348,7 @@ elements.reset.addEventListener('click', () => {
   byId('welcomeTitle')?.setAttribute('tabindex', '-1');
   byId('welcomeTitle')?.focus();
 });
-elements.restart.addEventListener('click', () => { scanDelay.cancel(); scanPending = false; analytics.track(ANALYTICS_EVENTS.DEMO_RESTARTED, { profile: state.profile }); livingController.reset(); kpiPanel.hide(); state = startDemo(resetDemo(state.profile)); previousRole = state.activeRole; completionTracked = false; render(); });
+elements.restart.addEventListener('click', () => { scanDelay.cancel(); scanPending = false; scanEventTime = '07:01'; analytics.track(ANALYTICS_EVENTS.DEMO_RESTARTED, { profile: state.profile }); livingController.reset(); kpiPanel.hide(); activityFeedIndustry = null; state = startDemo(resetDemo(state.profile)); previousRole = state.activeRole; completionTracked = false; render(); });
 document.querySelectorAll('.role-button').forEach((button) => button.addEventListener('click', () => { state = selectRole(state, button.dataset.role); analytics.track(ANALYTICS_EVENTS.ROLE_VIEWED, { role: state.activeRole, profile: state.profile }); render(); }));
 
 render();

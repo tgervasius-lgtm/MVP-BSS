@@ -4,15 +4,16 @@ function clamp(value, min, max) {
   return Math.min(Math.max(number, min), max);
 }
 
-export function buildAttendanceTrend({ employees = 68, present = 47 } = {}) {
-  const total = clamp(employees, 5, 1000);
+export function buildAttendanceTrend({ employees = 68, planned, present = 47 } = {}) {
+  const employeesTotal = clamp(employees, 5, 1000);
+  const total = clamp(planned ?? employeesTotal, 1, employeesTotal);
   const current = clamp(present, 0, total);
   const ratios = [0.18, 0.46, 0.72, 0.9, 1];
-  const times = ['06:30', '06:45', '07:00', '07:15', '07:30'];
+  const times = ['06:30', '06:45', '06:55', '07:00', '07:05'];
   return Object.freeze(ratios.map((ratio, index) => Object.freeze({
     time: times[index],
     value: Math.min(current, Math.round(current * ratio)),
-    percent: current === 0 ? 0 : Math.round(ratio * 100)
+    percent: total === 0 ? 0 : Math.round((Math.min(current, Math.round(current * ratio)) / total) * 100)
   })));
 }
 
@@ -32,31 +33,32 @@ export function createDirectorIntelligencePanel({ documentRef = globalThis.docum
   element.className = 'panel director-intelligence';
   element.setAttribute('aria-label', 'Direktorski trendovi');
 
-  function update({ employees, locations, present }) {
-    const trend = buildAttendanceTrend({ employees, present });
+  function update({ employees, locations, present, planned }) {
+    const trend = buildAttendanceTrend({ employees, present, planned });
     const distribution = buildLocationDistribution({ employees, locations });
     const maxEmployees = Math.max(...distribution.map((item) => item.employees), 1);
+    const latest = trend.at(-1);
 
     element.innerHTML = `
       <div class="section-heading">
-        <div><p class="eyebrow">Director Intelligence</p><h2>Jutarnji operativni trend</h2></div>
+        <div><p class="eyebrow">Trend smjene</p><h2>Prijave kroz jutro</h2></div>
         <span class="badge">Simulirani podaci</span>
       </div>
       <div class="director-intelligence-grid">
         <article>
-          <h3>Prisutnost kroz jutro</h3>
-          <div class="attendance-trend" role="img" aria-label="Trend prijavljenih zaposlenika kroz jutro">
+          <h3>Tempo dolazaka</h3>
+          <div class="attendance-trend" role="img" aria-label="Broj prijavljenih raste od ${trend[0].value} u ${trend[0].time} do ${latest.value} u ${latest.time}; ${latest.percent} posto planirane smjene je prisutno.">
             ${trend.map((point) => `<div class="trend-column"><span style="height:${Math.max(point.percent, 4)}%"></span><strong>${point.value}</strong><small>${point.time}</small></div>`).join('')}
           </div>
         </article>
         <article>
-          <h3>Raspodjela po lokacijama</h3>
+          <h3>Simulirana raspodjela zaposlenika</h3>
           <ul class="location-distribution">
             ${distribution.map((item) => `<li><div><strong>${item.name}</strong><small>${item.employees} zaposlenika</small></div><span aria-hidden="true"><i style="width:${Math.round((item.employees / maxEmployees) * 100)}%"></i></span></li>`).join('')}
           </ul>
         </article>
       </div>
-      <p class="director-intelligence-note">Vizualizacija je dio demonstracijskog scenarija i ne predstavlja stvarne podatke tvrtke.</p>`;
+      <p class="director-intelligence-note">Vizualizacija je prilagođena agregiranom demo profilu.</p>`;
   }
 
   return Object.freeze({ element, update });

@@ -28,4 +28,10 @@ npm test
 6. Napredak prikazuje koje su mogućnosti isprobane, ali ne zaključava niti zatvara sustav.
 7. Promjena profila i reset aktivnosti ostaju deterministički.
 
+## Direktorski prikaz
+
+- Operativni pregled spaja prisutne, zakašnjele i odsutne u jednu kompozicijsku vizualizaciju planirane smjene.
+- Lokacije i status terminala prikazani su kao kompaktni sistemski pokazatelji; napredak demo-radnji ostaje isključivo u vodiču.
+- Aktivnosti su strukturirani simulirani događaji s imenom, vrstom, lokacijom i vremenom. Slijed se ne ponavlja unatrag, a RFID prijava zamjenjuje prethodni status čekanja.
+
 Portal ne koristi produkcijski API, autentikaciju ni bazu podataka.
