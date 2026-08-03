@@ -6,6 +6,7 @@ on:
   push:
     branches:
       - 'agent/**'
+      - 'feature/**'
 
 permissions:
   contents: read

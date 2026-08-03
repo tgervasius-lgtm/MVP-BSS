@@ -26,6 +26,11 @@ module.exports=defineConfig({
     {
       name:'mobile-chromium',
       use:{...devices['iPhone 13'],browserName:'chromium'}
+    },
+    {
+      name:'preview-320-chromium',
+      testMatch:/preview\.spec\.cjs/,
+      use:{browserName:'chromium',viewport:{width:320,height:568},deviceScaleFactor:2,isMobile:true,hasTouch:true}
     }
   ]
 });
