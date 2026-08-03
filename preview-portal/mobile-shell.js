@@ -5,7 +5,8 @@ const HEAD_ENTRIES = Object.freeze([
   Object.freeze({ tag: 'meta', key: 'name', value: 'apple-mobile-web-app-status-bar-style', attributes: { content: 'black-translucent' } }),
   Object.freeze({ tag: 'meta', key: 'name', value: 'apple-mobile-web-app-title', attributes: { content: 'BSS Preview' } }),
   Object.freeze({ tag: 'link', key: 'rel', value: 'manifest', attributes: { href: 'manifest.webmanifest' } }),
-  Object.freeze({ tag: 'link', key: 'rel', value: 'icon', attributes: { href: 'app-icon.svg', type: 'image/svg+xml' } })
+  Object.freeze({ tag: 'link', key: 'rel', value: 'icon', attributes: { href: 'app-icon.svg', type: 'image/svg+xml' } }),
+  Object.freeze({ tag: 'link', key: 'rel', value: 'apple-touch-icon', attributes: { href: 'app-icon-192.png', sizes: '192x192' } })
 ]);
 
 function findEntry(documentRef, entry) {
@@ -31,6 +32,19 @@ export function installMobileShell(documentRef = globalThis.document) {
 
   documentRef.documentElement?.classList?.add('app-shell-ready');
   return created;
+}
+
+export async function registerPreviewServiceWorker(navigatorRef = globalThis.navigator) {
+  if (!navigatorRef?.serviceWorker?.register) return null;
+
+  try {
+    return await navigatorRef.serviceWorker.register('sw.js', {
+      scope: './',
+      updateViaCache: 'none'
+    });
+  } catch {
+    return null;
+  }
 }
 
 export { HEAD_ENTRIES };

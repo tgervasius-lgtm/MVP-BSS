@@ -48,11 +48,16 @@ for(const htmlPath of ['index.html','design-system/index.html','brand-book/index
   if(/<script(?![^>]*\bsrc=)[^>]*>/i.test(html))throw new Error(`Inline script nije dopušten: ${htmlPath}`);
 }
 
-const worker=await readFile(path.join(output,'sw.js'),'utf8');
-const cached=[...worker.matchAll(/['"](\.\/[^'"]+)['"]/g)]
-  .map(match=>match[1])
-  .filter(asset=>asset!=='./');
-for(const asset of new Set(cached))await ensureFile(path.join(output,asset.slice(2)));
+async function validateWorkerAssets(workerPath,assetRoot){
+  const worker=await readFile(workerPath,'utf8');
+  const cached=[...worker.matchAll(/['"](\.\/[^'"]+)['"]/g)]
+    .map(match=>match[1])
+    .filter(asset=>asset!=='./');
+  for(const asset of new Set(cached))await ensureFile(path.join(assetRoot,asset.slice(2)));
+}
+
+await validateWorkerAssets(path.join(output,'sw.js'),output);
+await validateWorkerAssets(path.join(previewOutput,'sw.js'),previewOutput);
 
 const builtFiles=(await listFiles(output)).filter(file=>file!=='build-manifest.json');
 const hashes={};

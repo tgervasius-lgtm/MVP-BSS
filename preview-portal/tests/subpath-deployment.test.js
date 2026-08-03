@@ -5,6 +5,7 @@ import { readFile } from 'node:fs/promises';
 const indexUrl = new URL('../index.html', import.meta.url);
 const manifestUrl = new URL('../manifest.webmanifest', import.meta.url);
 const mobileShellUrl = new URL('../mobile-shell.js', import.meta.url);
+const workerUrl = new URL('../sw.js', import.meta.url);
 
 function collectAssetReferences(html) {
   return [...html.matchAll(/(?:src|href)=["']([^"']+)["']/g)].map((match) => match[1]);
@@ -25,8 +26,10 @@ test('PWA manifest ostaje ograničen na preview podputanju', async () => {
 
   assert.equal(manifest.start_url, './');
   assert.equal(manifest.scope, './');
+  assert.equal(manifest.id, './');
   assert.equal(manifest.display, 'standalone');
-  assert.equal(manifest.icons[0].src, 'app-icon.svg');
+  assert.deepEqual(manifest.icons.slice(0, 2).map((icon) => icon.sizes), ['192x192', '512x512']);
+  assert.equal(manifest.icons.every((icon) => !icon.src.startsWith('/')), true);
 });
 
 test('mobile shell registrira samo relativne preview assete', async () => {
@@ -35,4 +38,14 @@ test('mobile shell registrira samo relativne preview assete', async () => {
   assert.match(source, /href: 'manifest\.webmanifest'/);
   assert.match(source, /href: 'app-icon\.svg'/);
   assert.doesNotMatch(source, /href: '\//);
+});
+
+test('service worker koristi zaseban preview cache i relativni scope', async () => {
+  const source = await readFile(workerUrl, 'utf8');
+
+  assert.match(source, /bss-preview-portal-/);
+  assert.match(source, /self\.registration\.scope/);
+  assert.match(source, /\.\/index\.html/);
+  assert.match(source, /\.\/manifest\.webmanifest/);
+  assert.doesNotMatch(source, /filter\(key\s*=>\s*key\s*!==\s*CACHE_NAME/);
 });
