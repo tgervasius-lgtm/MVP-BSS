@@ -15,7 +15,7 @@ test('engine preporučuje prvu nezavršenu radnju i napredak računa po jedinstv
   let experience = createExperience();
   experience = applyExperienceEvent(experience, EXPERIENCE_EVENTS.LEAVE_APPROVED);
   const view = getExperienceView(experience);
-  assert.equal(view.role, 'director');
+  assert.equal(view.role, 'admin');
   assert.equal(view.stepId, 'attendance');
   assert.equal(view.event, EXPERIENCE_EVENTS.EMPLOYEE_CHECKED_IN);
   assert.equal(view.completed, 1);
@@ -28,7 +28,7 @@ test('cijeli scenarij završava na 100 posto i izvan izvornog redoslijeda', () =
   for (const event of [
     EXPERIENCE_EVENTS.REPORT_GENERATED,
     EXPERIENCE_EVENTS.CORRECTION_RESOLVED,
-    EXPERIENCE_EVENTS.WORKER_REVIEWED,
+    EXPERIENCE_EVENTS.WORKER_LEAVE_SUBMITTED,
     EXPERIENCE_EVENTS.EMPLOYEE_CHECKED_IN,
     EXPERIENCE_EVENTS.LEAVE_APPROVED
   ]) {

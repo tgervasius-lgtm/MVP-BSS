@@ -5,42 +5,42 @@ const INDUSTRY_EVENTS = Object.freeze({
     'Marko Marić se prijavio na ulazu proizvodnje.',
     'Jutarnja smjena i proizvodna linija su pokrenute.',
     'Ivan Horvat čeka prijavu na terminalu hale.',
-    'Administrator ima jednu evidenciju smjene za provjeru.',
+    'Uprava ima jednu evidenciju smjene za provjeru.',
     'Voditelj proizvodnje ima jedan zahtjev za godišnji odmor.'
   ]),
   logistika: Object.freeze([
     'Marko Marić se prijavio na ulazu skladišta.',
     'Jutarnja smjena skladišta je započela.',
     'Ivan Horvat čeka prijavu prije prvog utovara.',
-    'Administrator provjerava jednu nedostajuću odjavu iz skladišta.',
+    'Uprava provjerava jednu nedostajuću odjavu iz skladišta.',
     'Voditelj logistike ima jedan zahtjev za godišnji odmor.'
   ]),
   građevina: Object.freeze([
     'Marko Marić se prijavio na ulazu gradilišta.',
     'Terenska smjena na gradilištu je započela.',
     'Ivan Horvat čeka prijavu prije izlaska na teren.',
-    'Administrator provjerava jednu terensku evidenciju.',
+    'Uprava provjerava jednu terensku evidenciju.',
     'Voditelj gradilišta ima jedan zahtjev za godišnji odmor.'
   ]),
   trgovina: Object.freeze([
     'Marko Marić se prijavio na ulazu poslovnice.',
     'Jutarnja smjena poslovnice je započela.',
     'Ivan Horvat čeka prijavu prije otvaranja trgovine.',
-    'Administrator provjerava jednu evidenciju iz poslovnice.',
+    'Uprava provjerava jednu evidenciju iz poslovnice.',
     'Voditelj trgovine ima jedan zahtjev za godišnji odmor.'
   ]),
   ured: Object.freeze([
     'Marko Marić se prijavio na recepciji ureda.',
     'Radni dan uredskog tima je započeo.',
     'Ivan Horvat čeka prijavu prije prvog sastanka.',
-    'Administrator provjerava jednu fleksibilnu evidenciju.',
+    'Uprava provjerava jednu fleksibilnu evidenciju.',
     'Voditelj tima ima jedan zahtjev za godišnji odmor.'
   ]),
   ostalo: Object.freeze([
     'Marko Marić se prijavio.',
     'Jutarnja smjena je započela.',
     'Ivan Horvat čeka prijavu na terminalu.',
-    'Administrator ima jednu evidenciju za provjeru.',
+    'Uprava ima jednu evidenciju za provjeru.',
     'Voditelj ima jedan zahtjev za godišnji odmor.'
   ])
 });
@@ -58,7 +58,7 @@ const ACTIVITY_BLUEPRINTS = Object.freeze([
   Object.freeze({ actor: 'Marko Marić', action: 'Prijava', detail: 'arrival', tone: 'success', initials: 'MM' }),
   Object.freeze({ actor: 'Jutarnja smjena', action: 'Započela', detail: 'shift', tone: 'system', initials: 'JS' }),
   Object.freeze({ actor: 'Ivan Horvat', action: 'Čeka prijavu', detail: 'pending', tone: 'pending', initials: 'IH' }),
-  Object.freeze({ actor: 'Administrator', action: 'Za provjeru', detail: 'review', tone: 'review', initials: 'AD' }),
+  Object.freeze({ actor: 'Uprava', action: 'Za provjeru', detail: 'review', tone: 'review', initials: 'UP' }),
   Object.freeze({ actor: 'Voditelj', action: 'Godišnji odmor', detail: '1 zahtjev', tone: 'request', initials: 'VO' })
 ]);
 

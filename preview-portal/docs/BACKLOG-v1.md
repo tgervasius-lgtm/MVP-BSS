@@ -38,14 +38,13 @@
 - [ ] BSSProject d.o.o. demo header
 - [ ] Demo disclosure and reset
 - [ ] Role switcher
-- [ ] Owner/director dashboard
-- [ ] Administrator workspace
+- [ ] Unified Administration workspace with owner-level KPIs
 - [ ] Manager workspace
 - [ ] Employee self-service view
 - [ ] Accounting read-only reports view
 - [ ] Shared consistent fixture data
 
-**Exit:** all five roles work and show only role-appropriate information.
+**Exit:** all four roles work, share consistent state and show only role-appropriate information.
 
 ## Milestone 4 — Scenario engine
 - [ ] Deterministic state machine
@@ -135,7 +134,7 @@
 The first executable slice must let a visitor:
 1. Open the preview route.
 2. Enter the guided demo without registration.
-3. See BSSProject d.o.o. as owner/director.
+3. See BSSProject d.o.o. through the unified Administration workspace.
 4. Receive the objective to check shift attendance.
 5. Open the virtual terminal and register one employee.
 6. Return to the dashboard and see the present count increase.

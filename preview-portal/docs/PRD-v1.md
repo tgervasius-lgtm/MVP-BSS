@@ -1,4 +1,4 @@
-# BSS Preview Portal — Product Requirements v1.1
+# BSS Preview Portal — Product Requirements v1.2
 
 ## 1. Objective
 Validate market interest before the physical BSS pilot by giving potential buyers a credible, interactive experience of using BSS in their own company.
@@ -56,22 +56,16 @@ Minimum scenario:
 4. Switch to manager view and decide on a leave request.
 5. Switch to employee view and inspect personal hours and leave balance.
 6. Switch to accounting view and preview/export a monthly report.
-7. Return to owner view and review the operational summary.
+7. Return to the Administration view and review the operational summary.
 8. Complete the experience and choose a commercial next step.
 
 ### Free exploration
 This is the primary path. The visitor can switch roles, execute all permitted demo actions in any order and continue using the workspace after completing all five capability checks.
 
 ## 5. Roles
-### Owner / Director
-- Company-wide KPI overview
-- Attendance and absence summary
-- Overtime and exception overview
-- Location comparison
-- Reports
-- Cannot be distracted by low-value configuration detail
-
-### Administrator
+### Administration / Uprava
+- Combines the owner-level overview with the real `admin` permission model; there is no separate Director demo role.
+- Company-wide KPI, attendance, absence, exception and location overview
 - Employees
 - Shifts
 - Time records and exceptions
@@ -84,12 +78,12 @@ This is the primary path. The visitor can switch roles, execute all permitted de
 - Own team only
 - Attendance and exceptions
 - Leave request decisions
-- Team schedule
+- Team schedule and scoped team report
 
 ### Employee
 - Personal time records
 - Personal schedule
-- Leave balance and requests
+- Leave balance and functional local leave request
 - Personal notifications
 
 ### Accounting
@@ -201,7 +195,8 @@ The portal is ready for public marketing only when:
 - Free exploration and assisted recommendations both use the same consistent sandbox state.
 - Every demo action works in any order without forcing a role change.
 - No persistent or sticky guidance surface covers application content at 320 px or larger.
-- All five roles show internally consistent data.
+- All four roles show internally consistent data.
+- A worker leave request is visible to the manager and the manager decision returns to the worker view.
 - Terminal actions update the correct views.
 - Every primary CTA is connected to a functioning lead workflow.
 - Analytics events are verified.

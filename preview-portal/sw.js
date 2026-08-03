@@ -1,10 +1,11 @@
 const PREVIEW_CACHE_PREFIX = 'bss-preview-portal-';
-const CACHE_NAME = `${PREVIEW_CACHE_PREFIX}rc3`;
+const CACHE_NAME = `${PREVIEW_CACHE_PREFIX}rc4`;
 const ASSETS = [
   './',
   './index.html',
   './styles.css',
   './ux-polish.css',
+  './role-workspaces.css',
   './director-intelligence.css',
   './final-experience.css',
   './release-polish.css',
@@ -30,6 +31,7 @@ const ASSETS = [
   './scenarios/morning-shift.js',
   './company-profile.js',
   './operational-metrics.js',
+  './workspace-tabs.js',
   './html-safe.js',
   './manifest.webmanifest',
   './app-icon.svg',

@@ -6,7 +6,7 @@ import {
   registerEmployee,
   resolveCorrection,
   approveLeave,
-  reviewWorker,
+  submitWorkerLeave,
   generateReport,
   getGuide
 } from '../state.js';
@@ -24,7 +24,7 @@ test('release smoke: cijeli radni dan završava konzistentnim poslovnim rezultat
   state = registerEmployee(state);
   state = resolveCorrection(state);
   state = approveLeave(state);
-  state = reviewWorker(state);
+  state = submitWorkerLeave(state, { start: '2026-08-10', days: 2 });
   state = generateReport(state);
 
   const guide = getGuide(state);
@@ -60,7 +60,7 @@ test('release smoke: reset nakon završetka uklanja sav operativni napredak', ()
   state = registerEmployee(state);
   state = resolveCorrection(state);
   state = approveLeave(state);
-  state = reviewWorker(state);
+  state = submitWorkerLeave(state, { start: '2026-08-10', days: 2 });
   state = generateReport(state);
 
   const reset = resetDemo(state.profile);
@@ -71,7 +71,8 @@ test('release smoke: reset nakon završetka uklanja sav operativni napredak', ()
   assert.equal(reset.presentCount, 47);
   assert.equal(reset.correctionResolved, false);
   assert.equal(reset.leaveApproved, false);
-  assert.equal(reset.workerReviewed, false);
+  assert.equal(reset.workerLeaveRequest, null);
+  assert.equal(reset.workerCardReplaced, false);
   assert.equal(reset.reportGenerated, false);
   assert.equal(guide.completed, 0);
   assert.equal(guide.complete, false);

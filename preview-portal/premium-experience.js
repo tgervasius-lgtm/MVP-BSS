@@ -4,7 +4,7 @@ import { createFinalExperiencePanel } from './final-experience.js';
 import { createReleasePolish } from './release-polish.js';
 import { installMobileShell, registerPreviewServiceWorker } from './mobile-shell.js';
 
-for (const href of ['ux-polish.css', 'director-intelligence.css', 'final-experience.css', 'release-polish.css']) {
+for (const href of ['ux-polish.css', 'role-workspaces.css', 'director-intelligence.css', 'final-experience.css', 'release-polish.css']) {
   const stylesheet = document.createElement('link');
   stylesheet.rel = 'stylesheet';
   stylesheet.href = href;
@@ -22,8 +22,10 @@ const ACTION_MESSAGES = Object.freeze({
   scanButton: Object.freeze({ title: 'RFID prijava', message: 'Ivan Horvat uspješno je evidentiran.', tone: 'success' }),
   resolveCorrectionButton: Object.freeze({ title: 'Korekcija potvrđena', message: 'Audit zapis je ažuriran i spreman za pregled.', tone: 'success' }),
   approveLeaveButton: Object.freeze({ title: 'Zahtjev odobren', message: 'Godišnji odmor evidentiran je u rasporedu.', tone: 'success' }),
-  reviewWorkerButton: Object.freeze({ title: 'Pregled završen', message: 'Radnik je potvrdio da su podaci jasni.', tone: 'info' }),
-  generateReportButton: Object.freeze({ title: 'Izvještaj spreman', message: 'Obračunski paket je generiran.', tone: 'success' })
+  approveWorkerLeaveButton: Object.freeze({ title: 'Zahtjev odobren', message: 'Ivan Horvat vidi odluku u svom radničkom pregledu.', tone: 'success' }),
+  rejectWorkerLeaveButton: Object.freeze({ title: 'Zahtjev odbijen', message: 'Odluka Voditelja odmah je vidljiva radniku.', tone: 'warning' }),
+  replaceCardButton: Object.freeze({ title: 'RFID kartica zamijenjena', message: 'Nova kartica je aktivna, a prethodna evidencija ostaje sačuvana.', tone: 'info' }),
+  generateReportButton: Object.freeze({ title: 'Pregled spreman', message: 'Tablični obračunski preview je generiran.', tone: 'success' })
 });
 
 for (const [id, message] of Object.entries(ACTION_MESSAGES)) {
@@ -32,19 +34,27 @@ for (const [id, message] of Object.entries(ACTION_MESSAGES)) {
   });
 }
 
+document.getElementById('workerLeaveForm')?.addEventListener('submit', () => {
+  toastCenter.schedule({
+    title: 'Zahtjev poslan',
+    message: 'Zahtjev Ivana Horvata sada je vidljiv Voditelju.',
+    tone: 'success'
+  }, 120);
+});
+
 const presentCount = document.getElementById('presentCount');
 const plannedCount = document.getElementById('plannedCount');
 const industryInput = document.getElementById('industryInput');
 const employeesInput = document.getElementById('employeesInput');
 const locationsInput = document.getElementById('locationsInput');
-const directorView = document.getElementById('directorView');
+const adminView = document.getElementById('adminView');
 const completionView = document.getElementById('completionView');
 const restartButton = document.getElementById('restartButton');
 const intelligence = createDirectorIntelligencePanel();
-const commandCenter = directorView?.querySelector('.command-center');
-const kpiDetails = directorView?.querySelector('.kpi-details');
+const commandCenter = adminView?.querySelector('.command-center');
+const kpiDetails = adminView?.querySelector('.kpi-details');
 if (kpiDetails || commandCenter) (kpiDetails ?? commandCenter).insertAdjacentElement('afterend', intelligence.element);
-else directorView?.append(intelligence.element);
+else document.getElementById('adminOverviewPanel')?.append(intelligence.element);
 
 function updateDirectorIntelligence() {
   intelligence.update({

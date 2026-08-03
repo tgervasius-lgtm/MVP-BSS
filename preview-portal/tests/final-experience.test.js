@@ -7,6 +7,7 @@ test('final experience računa stopu prisutnosti', () => {
   assert.equal(model.attendanceRate, 92);
   assert.equal(model.industry, 'Proizvodnja');
   assert.equal(model.steps.length, 5);
+  assert.match(model.steps[3].label, /zahtjev za godišnji/i);
 });
 
 test('final experience ograničava nevažeće vrijednosti', () => {

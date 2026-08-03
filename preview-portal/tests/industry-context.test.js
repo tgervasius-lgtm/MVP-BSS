@@ -8,6 +8,7 @@ test('svaka glavna djelatnost dobiva relevantan operativni kontekst', () => {
   assert.equal(getIndustryContext('Logistika').team, 'Skladišni tim');
   assert.equal(getIndustryContext('Trgovina').moment, 'otvaranje poslovnice');
   assert.equal(getIndustryContext('Ured').area, 'Glavni ulaz');
+  assert.deepEqual(getIndustryContext('Ured').units, ['Operativni tim', 'Podrška']);
 });
 
 test('nepoznata djelatnost koristi siguran opći kontekst', () => {

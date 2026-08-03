@@ -31,7 +31,7 @@ export function buildLocationDistribution({ employees = 68, locations = 2 } = {}
 export function createDirectorIntelligencePanel({ documentRef = globalThis.document } = {}) {
   const element = documentRef.createElement('section');
   element.className = 'panel director-intelligence';
-  element.setAttribute('aria-label', 'Direktorski trendovi');
+  element.setAttribute('aria-label', 'Upravljački trendovi');
 
   function update({ employees, locations, present, planned }) {
     const trend = buildAttendanceTrend({ employees, present, planned });

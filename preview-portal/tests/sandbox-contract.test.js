@@ -22,16 +22,24 @@ test('onboarding traži samo agregirani profil i zadano otvara slobodni sandbox'
 });
 
 test('sandbox UI nema sekvencijalno zaključavanje niti skriva sustav nakon dovršetka', async () => {
-  const app = await source('app.js');
+  const [app, html] = await Promise.all([source('app.js'), source('index.html')]);
 
   assert.doesNotMatch(app, /guide\.event\s*===/);
   assert.doesNotMatch(app, /Čeka prethodni korak|Dovršite trenutačni vođeni korak/);
   assert.match(app, /elements\.roleSwitcher\.classList\.remove\('hidden'\)/);
   assert.match(app, /button\.disabled = done/);
-  for (const mission of ['rfid_check_in', 'correction_resolved', 'leave_approved', 'worker_reviewed', 'report_generated']) {
+  for (const mission of ['rfid_check_in', 'correction_resolved', 'leave_approved', 'worker_leave_submitted', 'report_generated']) {
     assert.match(app, new RegExp(`['"]${mission}['"]`));
   }
   assert.match(app, /MISSION_COMPLETED[\s\S]*mission,[\s\S]*progress: after\.progress/);
+  assert.equal((html.match(/data-role=/g) ?? []).length, 4);
+  assert.doesNotMatch(html, /data-role=["']director["']/);
+  assert.doesNotMatch(html, /Potvrdi da su podaci jasni/);
+  assert.match(html, /data-role="admin"[^>]*>Uprava</);
+  assert.match(html, /id="workerLeaveForm"/);
+  assert.match(html, /id="reportPreview"/);
+  assert.match(html, /Jedno očitanje, tri povezana pregleda/);
+  assert.doesNotMatch(html, /Fond sati za izvještaj/);
 });
 
 test('mobilni vodič ni u jednom CSS sloju nije sticky ili fixed', async () => {

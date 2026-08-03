@@ -14,6 +14,7 @@ test('poslovni sažetak koristi simulirani profil i rezultat radnog dana', () =>
   assert.equal(result.attendanceLabel, 'od 52 planiranih zaposlenika evidentirano');
   assert.match(result.profileLabel, /68 zaposlenika/);
   assert.match(result.profileLabel, /2 terminala/);
+  assert.match(result.leaveLabel, /novi zahtjev predan/);
 });
 
 test('poslovni sažetak sigurno obrađuje nepotpune podatke', () => {

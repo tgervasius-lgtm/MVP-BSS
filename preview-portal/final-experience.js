@@ -4,7 +4,7 @@ export const FINAL_STEPS = Object.freeze([
   Object.freeze({ key: 'attendance', label: 'RFID prijava evidentirana' }),
   Object.freeze({ key: 'correction', label: 'Administrativna korekcija potvrđena' }),
   Object.freeze({ key: 'leave', label: 'Zahtjev za godišnji odmor odobren' }),
-  Object.freeze({ key: 'worker', label: 'Radnički pregled potvrđen' }),
+  Object.freeze({ key: 'worker', label: 'Radnički zahtjev za godišnji poslan' }),
   Object.freeze({ key: 'report', label: 'Obračunski izvještaj pripremljen' })
 ]);
 

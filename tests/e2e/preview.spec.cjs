@@ -21,6 +21,18 @@ async function startPreview(page){
   await expect(page.locator('#guideTitle')).toBeFocused();
 }
 
+async function openAdminTerminals(page){
+  await page.getByRole('button',{name:'Uprava',exact:true}).click();
+  await page.locator('#adminTerminalsTab').click();
+  await expect(page.locator('#adminTerminalsPanel')).toBeVisible();
+}
+
+async function openAdminRecords(page){
+  await page.getByRole('button',{name:'Uprava',exact:true}).click();
+  await page.locator('#adminRecordsTab').click();
+  await expect(page.locator('#adminRecordsPanel')).toBeVisible();
+}
+
 async function expectNoHorizontalOverflow(page){
   const overflow=await page.evaluate(()=>document.documentElement.scrollWidth-document.documentElement.clientWidth);
   expect(overflow,'Preview Portal ima horizontalni overflow').toBeLessThanOrEqual(1);
@@ -35,20 +47,23 @@ test('otvoreni sandbox izvršava mogućnosti bilo kojim redom i ostaje dostupan 
   await expect(page.locator('#generateReportButton')).toBeEnabled();
   await page.locator('#generateReportButton').click();
   await expect(page.locator('#accountingView')).toBeVisible();
+  await expect(page.locator('#reportPreview')).toBeVisible();
 
   await page.getByRole('button',{name:'Voditelj',exact:true}).click();
+  await page.locator('#managerRequestsTab').click();
   await page.locator('#approveLeaveButton').click();
   await expect(page.locator('#managerView')).toBeVisible();
 
-  await page.getByRole('button',{name:'Administrator',exact:true}).click();
+  await openAdminRecords(page);
   await page.locator('#resolveCorrectionButton').click();
   await expect(page.locator('#adminView')).toBeVisible();
 
   await page.getByRole('button',{name:'Radnik',exact:true}).click();
-  await page.locator('#reviewWorkerButton').click();
+  await page.locator('#workerLeaveTab').click();
+  await page.locator('#workerLeaveRequestButton').click();
   await expect(page.locator('#workerView')).toBeVisible();
 
-  await page.getByRole('button',{name:'Direktor',exact:true}).click();
+  await openAdminTerminals(page);
   await page.locator('#scanButton').click();
   await expect(page.locator('#presentCount')).toHaveText('48',{timeout:2500});
 
@@ -57,11 +72,16 @@ test('otvoreni sandbox izvršava mogućnosti bilo kojim redom i ostaje dostupan 
   await expect(page.locator('.final-experience')).toContainText('Radni dan uspješno je prošao kroz BSS.');
   await expect(page.locator('.final-experience-steps li')).toHaveCount(5);
   await expect(page.locator('.role-switcher')).toBeVisible();
-  await expect(page.locator('#directorView')).toBeVisible();
+  await expect(page.locator('#adminView')).toBeVisible();
+  await expect(page.locator('.role-button')).toHaveCount(4);
+  await expect(page.locator('[data-role="director"]')).toHaveCount(0);
   await expect(page.locator('#guideProgressBar')).toHaveAttribute('aria-valuenow','5');
   await expectNoHorizontalOverflow(page);
   expect(await seriousAxeViolations(page)).toEqual([]);
   expect(errors).toEqual([]);
+  await page.locator('#restartButton').click();
+  await expect(page.locator('#completionView')).toBeHidden();
+  await expect(page.locator('#guideTitle')).toBeFocused();
 });
 
 test('uloge i operativne radnje nisu zaključane niti prisilno mijenjaju prikaz',async({page})=>{
@@ -75,7 +95,7 @@ test('uloge i operativne radnje nisu zaključane niti prisilno mijenjaju prikaz'
   await expect(page.locator('#accountingView')).toBeVisible();
   await expect(page.locator('#roleLabel')).toHaveText('Knjigovodstvo');
   await expect(page.locator('#guideProgressBar')).toHaveAttribute('aria-valuenow','1');
-  await expect(page.locator('.toast')).toContainText('Izvještaj spreman');
+  await expect(page.locator('.toast')).toContainText('Pregled spreman');
 });
 
 test('pregled uz preporuke ostaje otvoren sandbox i ažurira sljedeću preporuku',async({page})=>{
@@ -85,6 +105,7 @@ test('pregled uz preporuke ostaje otvoren sandbox i ažurira sljedeću preporuku
 
   await expect(page.locator('#guideDetails')).toHaveAttribute('open','');
   await expect(page.locator('#guideText')).toContainText(/RFID/i);
+  await page.locator('#adminTerminalsTab').click();
   await page.locator('#scanButton').click();
   await expect(page.locator('#presentCount')).toHaveText('48',{timeout:2500});
   await expect(page.locator('#guideText')).toContainText(/korekciju/i);
@@ -95,6 +116,7 @@ test('pregled uz preporuke ostaje otvoren sandbox i ažurira sljedeću preporuku
 
 test('reset tijekom RFID animacije prekida odgođenu radnju i vraća početne podatke',async({page})=>{
   await startPreview(page);
+  await openAdminTerminals(page);
   await page.locator('#scanButton').click();
   await page.locator('#resetButton').click();
   await page.waitForTimeout(750);
@@ -112,9 +134,10 @@ test('reset tijekom RFID animacije prekida odgođenu radnju i vraća početne po
 
 test('RFID očitavanje ostaje zaključano tijekom promjene uloge i potvrđuje se samo jednom',async({page})=>{
   await startPreview(page);
+  await openAdminTerminals(page);
   await page.locator('#scanButton').click();
-  await page.getByRole('button',{name:'Administrator',exact:true}).click();
-  await page.getByRole('button',{name:'Direktor',exact:true}).click();
+  await page.getByRole('button',{name:'Voditelj',exact:true}).click();
+  await page.getByRole('button',{name:'Uprava',exact:true}).click();
 
   await expect(page.locator('#scanButton')).toBeDisabled();
   await expect(page.locator('#scanButton')).toHaveText(/očitava/i);
@@ -124,14 +147,14 @@ test('RFID očitavanje ostaje zaključano tijekom promjene uloge i potvrđuje se
   await expect(page.locator('.toast')).toContainText('uspješno je evidentiran');
 });
 
-test('direktorski command center i sažeti feed ostaju povezani s RFID stanjem',async({page})=>{
+test('upravljački command center i sažeti feed ostaju povezani s RFID stanjem',async({page})=>{
   const errors=trackErrors(page);
   await startPreview(page);
 
   const commandCenter=page.locator('.command-center');
   await expect(commandCenter.locator('.attendance-ring')).toHaveAttribute('aria-label',/47 prisutnih, 3 kasni i 2 odsutnih od 52/);
   await expect(commandCenter.locator('button[data-kpi]')).toHaveCount(3);
-  await expect(page.locator('#directorView .metrics')).toHaveCount(0);
+  await expect(page.locator('#adminView .metrics')).toHaveCount(0);
 
   const lateButton=page.getByRole('button',{name:/Kasne: 3/});
   await lateButton.click();
@@ -145,6 +168,7 @@ test('direktorski command center i sažeti feed ostaju povezani s RFID stanjem',
   await expect(feed.locator('.activity-event').first()).toContainText('Ivan Horvat');
   await expect(feed.locator('.activity-event').first()).toContainText('Čeka prijavu');
 
+  await page.locator('#adminTerminalsTab').click();
   await page.locator('#scanButton').click();
   await expect(page.locator('#presentCount')).toHaveText('48',{timeout:2500});
   await expect(feed.locator('[data-actor="Ivan Horvat"]')).toHaveCount(1);
@@ -161,6 +185,7 @@ test('odgođena RFID prijava ne vraća simulirani sat ni feed unatrag',async({pa
   await startPreview(page);
   await expect(page.locator('#livingOfficeTime')).toHaveText('07:12',{timeout:7000});
 
+  await openAdminTerminals(page);
   await page.locator('#scanButton').click();
   await expect(page.locator('#presentCount')).toHaveText('48',{timeout:2500});
   await expect(page.locator('#livingOfficeTime')).toHaveText('07:12');
@@ -175,12 +200,13 @@ test('odgođena RFID prijava ne vraća simulirani sat ni feed unatrag',async({pa
 
 test('rana RFID prijava ostaje vremenski usklađena nakon promjene uloge',async({page})=>{
   await startPreview(page);
+  await openAdminTerminals(page);
   await page.locator('#scanButton').click();
   await expect(page.locator('#presentCount')).toHaveText('48',{timeout:2500});
 
   const arrivalTime=await page.locator('#ivanEvent time').textContent();
   await page.getByRole('button',{name:'Voditelj',exact:true}).click();
-  await page.getByRole('button',{name:'Direktor',exact:true}).click();
+  await page.getByRole('button',{name:'Uprava',exact:true}).click();
 
   await expect(page.locator('#livingOfficeTime')).toHaveText(arrivalTime);
   await expect(page.locator('#activityFeed time')).toHaveText([arrivalTime,'07:00','06:58']);
@@ -189,6 +215,7 @@ test('rana RFID prijava ostaje vremenski usklađena nakon promjene uloge',async(
 
 test('agregirani profil skalira KPI-jeve, tim i fond sati na granicama',async({page})=>{
   await page.goto('/preview/');
+  await page.locator('#industryInput').selectOption('Ured');
   await page.locator('#employeesInput').fill('5');
   await page.locator('#locationsInput').fill('1');
   await page.locator('#shiftsInput').selectOption('1');
@@ -199,6 +226,18 @@ test('agregirani profil skalira KPI-jeve, tim i fond sati na granicama',async({p
   await expect(page.locator('#absentCount')).toHaveText('1');
   await page.getByRole('button',{name:'Voditelj',exact:true}).click();
   await expect(page.locator('#managerTeamSize')).toHaveText('2');
+  await expect(page.locator('#managerTeamRoster li:not([hidden])')).toHaveCount(2);
+  await expect(page.locator('#managerTeamRoster li:not([hidden]) .roster-status')).toHaveText(['Prisutna','Prisutna']);
+  await expect(page.locator('#managerTeamRoster li:not([hidden])').last()).toContainText('Ana Kovač');
+  await expect(page.locator('#managerLeaveCoverage')).toHaveText('50%');
+  await expect(page.locator('#managerPrimaryUnit')).toHaveText('Operativni tim');
+  await expect(page.locator('#managerSecondaryUnit')).toHaveText('Podrška');
+  await expect(page.locator('[data-manager-planned]')).toHaveText(['16 h','16 h','16 h']);
+  await expect(page.locator('[data-manager-recorded]')).toHaveText(['15 h','16 h','15 h']);
+  await page.getByRole('button',{name:'Radnik',exact:true}).click();
+  await expect(page.locator('#workerContext')).toContainText('Uredski tim');
+  await page.locator('#workerHoursTab').click();
+  await expect(page.locator('#workerNightHours')).toHaveText('0 h');
   await page.getByRole('button',{name:'Knjigovodstvo',exact:true}).click();
   await expect(page.locator('#monthlyHours')).toHaveText('640');
   await expect(page.locator('#nightHours')).toHaveText('0');
@@ -213,6 +252,48 @@ test('agregirani profil skalira KPI-jeve, tim i fond sati na granicama',async({p
   await page.getByRole('button',{name:'Knjigovodstvo',exact:true}).click();
   await expect(page.locator('#monthlyHours')).toHaveText(/32[.\s]?000/);
   await expectNoHorizontalOverflow(page);
+});
+
+test('radnički zahtjev i RFID kartica povezuju Radnika, Voditelja i Upravu',async({page})=>{
+  const errors=trackErrors(page);
+  await startPreview(page);
+
+  await page.getByRole('button',{name:'Radnik',exact:true}).click();
+  await expect(page.locator('.worker-today-card')).toContainText('Moj radni dan');
+  await expect(page.locator('.worker-summary-card')).toHaveCount(4);
+  await expect(page.locator('#reviewWorkerButton')).toHaveCount(0);
+  await page.locator('#workerLeaveTab').click();
+  await page.locator('#workerLeaveStart').fill('2026-08-11');
+  await page.locator('#workerLeaveDays').selectOption('3');
+  await page.locator('#workerLeaveRequestButton').click();
+  await expect(page.locator('#workerLeaveRequestStatus')).toContainText('3 radna dana');
+  await expect(page.locator('#workerLeaveRequestStatus')).toContainText('Čeka odluku Voditelja');
+
+  await page.getByRole('button',{name:'Voditelj',exact:true}).click();
+  await page.locator('#managerRequestsTab').click();
+  await expect(page.locator('#workerLeaveManagerCard')).toBeVisible();
+  await expect(page.locator('#managerWorkerLeaveDays')).toHaveText('3 radna dana');
+  await page.locator('#approveWorkerLeaveButton').click();
+  await expect(page.locator('#managerWorkerLeaveStatus')).toHaveText('Odobreno');
+
+  await page.getByRole('button',{name:'Radnik',exact:true}).click();
+  await expect(page.locator('#workerLeaveSummary')).toHaveText('odobreno');
+  await expect(page.locator('#workerLeaveRequestStatus')).toContainText('Odobreno');
+
+  await openAdminRecords(page);
+  await page.locator('#replaceCardButton').click();
+  await expect(page.locator('#adminWorkerCardCode')).toHaveText('BSS-7304');
+  await expect(page.locator('#replaceCardButton')).toBeDisabled();
+  await page.getByRole('button',{name:'Radnik',exact:true}).click();
+  await expect(page.locator('#workerCardStatus')).toHaveText('Nova kartica aktivna');
+
+  await page.locator('#resetButton').click();
+  await expect(page.locator('#workerLeaveStart')).toHaveValue('2026-08-10');
+  await expect(page.locator('#workerLeaveDays')).toHaveValue('2');
+
+  await expectNoHorizontalOverflow(page);
+  expect(await seriousAxeViolations(page)).toEqual([]);
+  expect(errors).toEqual([]);
 });
 
 test('mobilni vodič je običan blok i odlazi sa sadržajem pri skrolanju',async({page})=>{
@@ -264,6 +345,20 @@ test('320 px, tipkovnica i reduced motion ostaju upotrebljivi',async({page})=>{
   if(compactLayout.viewport<=380)expect(compactLayout.columns.trim().split(/\s+/)).toHaveLength(1);
   const exceptionOverflow=await page.locator('.attendance-exception').evaluateAll(elements=>elements.map(element=>element.scrollWidth-element.clientWidth));
   expect(exceptionOverflow.every(value=>value<=1)).toBe(true);
+
+  await page.getByRole('button',{name:'Radnik',exact:true}).click();
+  const workerLayout=await page.locator('.worker-quick-grid').evaluate(element=>({
+    viewport:window.innerWidth,
+    columns:getComputedStyle(element).gridTemplateColumns.trim().split(/\s+/).length
+  }));
+  if(workerLayout.viewport<=420)expect(workerLayout.columns).toBe(2);
+  else expect(workerLayout.columns).toBeGreaterThanOrEqual(2);
+  await page.locator('#workerTodayTab').focus();
+  await page.keyboard.press('ArrowRight');
+  await expect(page.locator('#workerHoursTab')).toBeFocused();
+  await expect(page.locator('#workerHoursPanel')).toBeVisible();
+  const workerOverflow=await page.locator('#workerView').evaluate(element=>element.scrollWidth-element.clientWidth);
+  expect(workerOverflow).toBeLessThanOrEqual(1);
   await expectNoHorizontalOverflow(page);
   expect(await seriousAxeViolations(page)).toEqual([]);
 });

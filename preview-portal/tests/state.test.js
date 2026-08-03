@@ -1,12 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { INITIAL_STATE, getGuide, startDemo, selectRole, registerEmployee, approveLeave, resolveCorrection, reviewWorker, generateReport, resetDemo } from '../state.js';
+import { INITIAL_STATE, ROLES, getGuide, startDemo, selectRole, registerEmployee, approveLeave, resolveCorrection, generateReport, replaceWorkerCard, submitWorkerLeave, decideWorkerLeave, resetDemo } from '../state.js';
 
 test('startDemo otvara iskustvo bez mijenjanja metrika', () => {
   const next = startDemo(resetDemo());
   assert.equal(next.started, true);
   assert.equal(next.presentCount, 47);
-  assert.equal(next.activeRole, 'director');
+  assert.equal(next.activeRole, 'admin');
+  assert.deepEqual(Object.keys(ROLES), ['admin', 'manager', 'worker', 'accounting']);
+  assert.equal(Object.hasOwn(ROLES, 'director'), false);
 });
 
 test('sandbox radnje prolaze svih pet sposobnosti bilo kojim redoslijedom', () => {
@@ -17,8 +19,8 @@ test('sandbox radnje prolaze svih pet sposobnosti bilo kojim redoslijedom', () =
   state = generateReport(state);
   assert.equal(state.reportGenerated, true);
   assert.equal(state.correctionResolved, false);
-  state = reviewWorker(state);
-  assert.equal(state.workerReviewed, true);
+  state = submitWorkerLeave(state, { start: '2026-08-10', days: 2 });
+  assert.equal(state.workerLeaveRequest.status, 'pending');
   state = resolveCorrection(state);
   assert.equal(state.correctionResolved, true);
   state = registerEmployee(state);
@@ -55,11 +57,51 @@ test('operativne radnje su idempotentne', () => {
   const attendance = registerEmployee(registerEmployee(startDemo(resetDemo())));
   const correction = resolveCorrection(resolveCorrection(attendance));
   const leave = approveLeave(approveLeave(correction));
-  const worker = reviewWorker(reviewWorker(leave));
+  const worker = submitWorkerLeave(submitWorkerLeave(leave), { start: '2026-08-10', days: 2 });
   const report = generateReport(generateReport(worker));
   assert.equal(report.presentCount, 48);
   assert.equal(report.reportGenerated, true);
   assert.equal(getGuide(report).completed, 5);
+});
+
+test('dodatne radnje radnika i Uprave dijele stanje, ali ne lažiraju novi guided korak', () => {
+  let state = startDemo(resetDemo());
+  state = replaceWorkerCard(state);
+  assert.equal(state.workerCardReplaced, true);
+  assert.equal(replaceWorkerCard(state), state);
+
+  state = submitWorkerLeave(state, { start: '2026-08-10', days: 5 });
+  assert.deepEqual(state.workerLeaveRequest, {
+    id: 'ivan-horvat-demo-leave',
+    start: '2026-08-10',
+    days: 5,
+    status: 'pending'
+  });
+  assert.equal(getGuide(state).completed, 1);
+
+  state = decideWorkerLeave(state, 'approved');
+  assert.equal(state.workerLeaveRequest.status, 'approved');
+  assert.equal(decideWorkerLeave(state, 'rejected'), state);
+  assert.equal(getGuide(state).completed, 1);
+});
+
+test('radnički zahtjev normalizira demo ulaz i odbija nevaljanu odluku', () => {
+  const started = startDemo(resetDemo());
+  const submitted = submitWorkerLeave(started, { start: '2026-99-99', days: 99 });
+  assert.equal(submitted.workerLeaveRequest.start, '2026-08-10');
+  assert.equal(submitted.workerLeaveRequest.days, 5);
+  assert.equal(decideWorkerLeave(submitted, 'unknown'), submitted);
+});
+
+test('radnički zahtjev prihvaća samo radni dan unutar demo razdoblja', () => {
+  const started = startDemo(resetDemo());
+  const weekend = submitWorkerLeave(started, { start: '2026-08-08', days: 2 });
+  const outsideRange = submitWorkerLeave(started, { start: '2027-01-04', days: 2 });
+  const valid = submitWorkerLeave(started, { start: '2026-08-11', days: 2 });
+
+  assert.equal(weekend.workerLeaveRequest.start, '2026-08-10');
+  assert.equal(outsideRange.workerLeaveRequest.start, '2026-08-10');
+  assert.equal(valid.workerLeaveRequest.start, '2026-08-11');
 });
 
 test('operativna radnja čuva ručno odabranu aktivnu ulogu', () => {

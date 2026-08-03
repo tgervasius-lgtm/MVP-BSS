@@ -26,7 +26,7 @@ export function createBusinessSummary({ profile, summary, presentCount } = {}) {
     present,
     attendanceLabel: `od ${planned} planiranih zaposlenika evidentirano`,
     correctionLabel: '1 administrativna korekcija potvrđena',
-    leaveLabel: '1 zahtjev za godišnji odmor odobren',
+    leaveLabel: '1 zahtjev odobren · 1 novi zahtjev predan',
     reportLabel: 'Obračunski izvještaj pripremljen',
     profileLabel: `${employees} ${plural(employees, 'zaposlenik', 'zaposlenika', 'zaposlenika')} · ${locations} ${plural(locations, 'lokacija', 'lokacije', 'lokacija')} · ${shifts} ${plural(shifts, 'smjena', 'smjene', 'smjena')} · ${terminals} ${plural(terminals, 'terminal', 'terminala', 'terminala')}`
   });

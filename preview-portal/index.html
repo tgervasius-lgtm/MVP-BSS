@@ -91,31 +91,157 @@
       </section>
 
       <nav class="role-switcher panel" aria-label="Promjena demo uloge">
-        <div><p class="eyebrow">Demo ovlasti</p><strong>Pregled kao: <span id="roleLabel">Direktor</span></strong><small class="role-note">Otvorite bilo koju ulogu i isprobajte njezine dopuštene radnje.</small></div>
+        <div><p class="eyebrow">Radni prostor</p><strong>Pregled kao: <span id="roleLabel">Uprava</span></strong><small class="role-note">Uprava objedinjuje vlasnički pregled i administratorske funkcije.</small></div>
         <div class="role-buttons">
-          <button class="role-button active" data-role="director" type="button">Direktor</button>
-          <button class="role-button" data-role="admin" type="button">Administrator</button>
-          <button class="role-button" data-role="manager" type="button">Voditelj</button>
-          <button class="role-button" data-role="worker" type="button">Radnik</button>
-          <button class="role-button" data-role="accounting" type="button">Knjigovodstvo</button>
+          <button class="role-button active" data-role="admin" type="button" aria-controls="adminView">Uprava</button>
+          <button class="role-button" data-role="manager" type="button" aria-controls="managerView">Voditelj</button>
+          <button class="role-button" data-role="worker" type="button" aria-controls="workerView">Radnik</button>
+          <button class="role-button" data-role="accounting" type="button" aria-controls="accountingView">Knjigovodstvo</button>
         </div>
       </nav>
 
-      <div id="directorView" class="role-view">
+      <section id="adminView" class="role-view" aria-labelledby="adminWorkspaceTitle">
         <div id="previewCompatKpis" class="grid metrics hidden"><article class="metric"><span>Prisutni</span><strong id="presentCount">47</strong><small id="plannedCount">od 52 planirana</small></article><article class="metric"><span>Kasne</span><strong id="lateCount">3</strong></article><article class="metric"><span>Odsutni</span><strong id="absentCount">2</strong></article></div>
-        <section class="panel objective"><div><p class="eyebrow">Vaš zadatak</p><h2>Provjerite početak jutarnje smjene.</h2><p id="objectiveText">Evidentirajte dolazak Ivana Horvata na virtualnom terminalu.</p></div><span id="objectiveStatus" class="status">U tijeku</span></section>
-        <div class="workspace"><section class="panel dashboard activity-panel"><div class="section-heading"><div><p class="eyebrow">Direktorski pregled</p><h2>Prijave uživo</h2></div><span class="live-badge"><i aria-hidden="true"></i>Simulacija</span></div><ol id="activityFeed" class="activity-list activity-stream" aria-label="Posljednje simulirane aktivnosti"></ol></section><section class="panel terminal"><p class="eyebrow">Virtualni RFID terminal</p><h2>Prislonite karticu</h2><div id="terminalScreen" class="terminal-screen"><span class="terminal-icon">RFID</span><strong>Spremno za prijavu</strong><small>Terminal: Ulaz proizvodnje</small></div><button id="scanButton" class="button primary full" type="button">Simuliraj karticu Ivana Horvata</button></section></div>
-      </div>
+        <h2 id="adminWorkspaceTitle" class="visually-hidden">Upravljački i administratorski radni prostor</h2>
+        <div class="workspace-tabs" data-workspace-tabs>
+          <div class="workspace-tablist" role="tablist" aria-label="Moduli Uprave">
+            <button id="adminOverviewTab" class="workspace-tab" type="button" role="tab" data-workspace-tab aria-selected="true" aria-controls="adminOverviewPanel">Pregled tvrtke</button>
+            <button id="adminRecordsTab" class="workspace-tab" type="button" role="tab" data-workspace-tab aria-selected="false" aria-controls="adminRecordsPanel" tabindex="-1">Evidencije i radnici</button>
+            <button id="adminTerminalsTab" class="workspace-tab" type="button" role="tab" data-workspace-tab aria-selected="false" aria-controls="adminTerminalsPanel" tabindex="-1">Terminali</button>
+          </div>
 
-      <div id="adminView" class="role-view hidden"><section class="panel objective"><div><p class="eyebrow">Administratorska kontrola</p><h2>Jedna evidencija zahtijeva provjeru.</h2><p>Petar Novak jučer nema evidentiranu odjavu. Sustav predlaže kraj smjene u 15:03.</p></div><span id="correctionStatus" class="status">Za provjeru</span></section><div class="workspace"><section class="panel"><p class="eyebrow">Audit pregled</p><h2>Petar Novak</h2><ul class="activity-list"><li><span>07:02</span> RFID prijava</li><li><span>15:03</span> Posljednja aktivnost voditelja</li><li><span>—</span> Nedostaje odjava</li></ul></section><section class="panel"><p class="eyebrow">Predložena korekcija</p><h2>Odjava 15:03</h2><p>Korekcija ostavlja zapis tko ju je izvršio i zašto.</p><button id="resolveCorrectionButton" class="button primary full" type="button">Potvrdi korekciju</button></section></div></div>
+          <section id="adminOverviewPanel" class="workspace-tabpanel" role="tabpanel" aria-labelledby="adminOverviewTab">
+            <div class="workspace admin-overview-grid">
+              <section class="panel dashboard activity-panel">
+                <div class="section-heading"><div><p class="eyebrow">Upravljački pregled</p><h2>Prijave uživo</h2></div><span class="live-badge"><i aria-hidden="true"></i>Simulacija</span></div>
+                <ol id="activityFeed" class="activity-list activity-stream" aria-label="Posljednje simulirane aktivnosti"></ol>
+              </section>
+              <section class="panel priority-panel" aria-labelledby="priorityTitle">
+                <p class="eyebrow">Operativni prioriteti</p><h2 id="priorityTitle">3 stavke za pažnju</h2>
+                <ul class="priority-list">
+                  <li id="adminCorrectionPriority"><span id="adminCorrectionPriorityIcon" class="priority-icon warning" aria-hidden="true">!</span><div><strong id="adminCorrectionPriorityTitle">Nedostaje odjava</strong><small id="adminCorrectionPriorityMeta">Petar Novak · jučer</small></div><span id="adminCorrectionPriorityCount">1</span></li>
+                  <li><span class="priority-icon info" aria-hidden="true">○</span><div><strong>Zahtjevi za godišnji</strong><small id="adminLeaveQueueText">1 čeka odluku</small></div><span id="adminLeaveQueueCount">1</span></li>
+                  <li><span class="priority-icon success" aria-hidden="true">✓</span><div><strong>Terminali</strong><small id="adminTerminalHealthText">Mreža stabilna</small></div><span>OK</span></li>
+                </ul>
+              </section>
+            </div>
+          </section>
 
-      <div id="managerView" class="role-view hidden"><section class="panel objective"><div><p class="eyebrow">Voditelj proizvodnje</p><h2>Zahtjev čeka vašu odluku.</h2><p>Ana Kovač traži godišnji odmor od 17. do 21. kolovoza.</p></div><span id="leaveStatus" class="status">Čeka odluku</span></section><div class="workspace"><section class="panel"><p class="eyebrow"><span id="managerTeamLabel">Tim A</span> · <span id="managerTeamSize">24</span> radnika</p><h2>Danas u smjeni</h2><ul class="activity-list"><li><span id="managerPresentCount">22</span> prisutna radnika</li><li><span id="managerLateCount">1</span> radnik kasni</li><li><span id="managerSickCount">1</span> radnik na bolovanju</li></ul></section><section class="panel"><p class="eyebrow">Godišnji odmor</p><h2>Ana Kovač</h2><p>Preostalo: 14 dana · traži 5 dana.</p><button id="approveLeaveButton" class="button primary full" type="button">Odobri zahtjev</button></section></div></div>
+          <section id="adminRecordsPanel" class="workspace-tabpanel" role="tabpanel" aria-labelledby="adminRecordsTab" hidden>
+            <section class="panel objective"><div><p class="eyebrow">Kontrola evidencije</p><h2>Jedan zapis zahtijeva provjeru.</h2><p>Petar Novak jučer nema evidentiranu odjavu. Sustav predlaže kraj smjene u 15:03.</p></div><span id="correctionStatus" class="status">Za provjeru</span></section>
+            <div class="workspace">
+              <section class="panel"><p class="eyebrow">Audit trag</p><h2>Petar Novak</h2><ol class="audit-timeline"><li><time datetime="07:02">07:02</time><div><strong>RFID prijava</strong><small id="adminAuditArea">Ulaz proizvodnje</small></div></li><li><time datetime="15:03">15:03</time><div><strong>Posljednja potvrđena aktivnost</strong><small id="adminAuditManager">Voditelj proizvodnje</small></div></li><li class="attention"><span>—</span><div><strong>Nedostaje odjava</strong><small>Potrebna administrativna odluka</small></div></li></ol></section>
+              <section class="panel correction-card"><p class="eyebrow">Predložena korekcija</p><h2>Odjava 15:03</h2><p>Potvrdom se sprema vrijeme, razlog i audit zapis osobe koja je izvršila korekciju.</p><dl class="compact-facts"><div><dt>Stara vrijednost</dt><dd>Nema odjave</dd></div><div><dt>Nova vrijednost</dt><dd>15:03</dd></div><div><dt>Razlog</dt><dd>Nedostajući zapis</dd></div></dl><button id="resolveCorrectionButton" class="button primary full" type="button">Potvrdi korekciju</button></section>
+            </div>
+            <section class="panel worker-admin-card" aria-labelledby="adminWorkerTitle">
+              <div class="worker-admin-identity"><span class="worker-avatar" aria-hidden="true">IH</span><div><p class="eyebrow">Profil radnika i RFID</p><h2 id="adminWorkerTitle">Ivan Horvat</h2><p id="adminWorkerContext">Proizvodni tim · Jutarnja smjena</p></div><span class="status complete">Aktivan</span></div>
+              <dl class="worker-admin-facts"><div><dt>RFID kartica</dt><dd id="adminWorkerCardCode">BSS-2841</dd></div><div><dt>Status kartice</dt><dd id="adminWorkerCardStatus">Aktivna</dd></div><div><dt>Zadnja prijava</dt><dd id="adminWorkerLastPunch">Čeka današnju prijavu</dd></div></dl>
+              <div class="worker-admin-action"><div><p>Zamjena kartice čuva postojeću evidenciju i audit trag.</p><small id="adminWorkerCardAudit" class="card-audit-note hidden">Audit: Uprava je aktivirala BSS-7304 i deaktivirala prethodnu karticu.</small></div><button id="replaceCardButton" class="button secondary" type="button">Zamijeni RFID karticu</button></div>
+            </section>
+          </section>
 
-      <div id="workerView" class="role-view hidden"><div class="grid metrics"><article class="metric"><span>Danas evidentirano</span><strong id="workerArrival">—</strong><small>početak smjene</small></article><article class="metric"><span>Ovaj mjesec</span><strong>128 h</strong><small>obračunato</small></article><article class="metric"><span>Godišnji</span><strong>14 dana</strong><small>preostalo</small></article></div><section class="panel"><p class="eyebrow">Moj pregled</p><h2>Ivan Horvat</h2><p id="workerMessage">Vaša današnja prijava još nije evidentirana.</p><ul class="activity-list"><li><span>30.7.</span> 06:59 – 15:04</li><li><span>31.7.</span> 07:01 – 15:02</li><li><span>1.8.</span> <strong id="workerRow">Čeka prijavu</strong></li></ul><button id="reviewWorkerButton" class="button primary" type="button">Potvrdi da su podaci jasni</button></section></div>
+          <section id="adminTerminalsPanel" class="workspace-tabpanel" role="tabpanel" aria-labelledby="adminTerminalsTab" hidden>
+            <section class="panel objective"><div><p class="eyebrow">Virtualni terminal</p><h2>Provjerite početak jutarnje smjene.</h2><p id="objectiveText">Evidentirajte dolazak Ivana Horvata na virtualnom terminalu.</p></div><span id="objectiveStatus" class="status">U tijeku</span></section>
+            <div class="workspace terminal-workspace">
+              <section class="panel terminal"><p class="eyebrow">RFID/NFC simulacija</p><h2>Prislonite karticu</h2><div id="terminalScreen" class="terminal-screen"><span class="terminal-icon">RFID</span><strong>Spremno za prijavu</strong><small>Terminal: Ulaz proizvodnje</small></div><button id="scanButton" class="button primary full" type="button">Simuliraj karticu Ivana Horvata</button></section>
+              <section class="panel terminal-explainer"><p class="eyebrow">Što se ažurira</p><h2>Jedno očitanje, tri povezana pregleda</h2><ol class="connected-flow"><li><span>1</span>Prisutnost Uprave</li><li><span>2</span>Aktivnost uživo</li><li><span>3</span>Osobna evidencija radnika</li></ol></section>
+            </div>
+            <div id="adminTerminalNetwork"></div>
+          </section>
+        </div>
+      </section>
 
-      <div id="accountingView" class="role-view hidden"><section class="panel objective"><div><p class="eyebrow">Mjesečni obračun</p><h2>Izvještaj je spreman za provjeru.</h2><p>Kolovoz · simulirani redovni, noćni i prekovremeni sati.</p></div><span id="reportStatus" class="status">Nije generiran</span></section><div class="workspace"><section class="panel"><p class="eyebrow">Sažetak fonda sati</p><h2><span id="monthlyHours">8.704</span> h</h2><ul class="activity-list"><li><span id="regularHours">8.241</span> redovni sati</li><li><span id="nightHours">311</span> noćni sati</li><li><span id="overtimeHours">152</span> prekovremeni sati</li></ul></section><section class="panel"><p class="eyebrow">Izvoz</p><h2>Obračunski paket</h2><p>Simulirani CSV/XLSX paket za računovodstvo.</p><button id="generateReportButton" class="button primary full" type="button">Generiraj izvještaj</button></section></div></div>
+      <section id="managerView" class="role-view hidden" aria-labelledby="managerWorkspaceTitle">
+        <h2 id="managerWorkspaceTitle" class="visually-hidden">Radni prostor Voditelja</h2>
+        <div class="workspace-tabs" data-workspace-tabs>
+          <div class="workspace-tablist" role="tablist" aria-label="Moduli Voditelja">
+            <button id="managerTodayTab" class="workspace-tab" type="button" role="tab" data-workspace-tab aria-selected="true" aria-controls="managerTodayPanel">Danas</button>
+            <button id="managerRequestsTab" class="workspace-tab" type="button" role="tab" data-workspace-tab aria-selected="false" aria-controls="managerRequestsPanel" tabindex="-1">Zahtjevi <span id="managerRequestBadge" class="tab-count">1</span></button>
+            <button id="managerReportTab" class="workspace-tab" type="button" role="tab" data-workspace-tab aria-selected="false" aria-controls="managerReportPanel" tabindex="-1">Izvještaj tima</button>
+          </div>
 
-      <section id="completionView" class="panel completion hidden" aria-labelledby="completionTitle"><span class="badge">5 od 5 mogućnosti isprobano</span><h2 id="completionTitle">Demo sustav ostaje otvoren.</h2><p>Pregledali ste tok od RFID prijave do administrativne kontrole, odobrenja voditelja, radničkog pregleda i obračunskog izvještaja.</p><p>Možete nastaviti mijenjati uloge ili resetirati aktivnosti. Za online prezentaciju, demonstraciju uživo ili pilot-suradnju javite se BSS timu koji vam je poslao pristup.</p><button class="button primary" type="button" id="restartButton">Resetiraj demo aktivnosti</button></section>
+          <section id="managerTodayPanel" class="workspace-tabpanel" role="tabpanel" aria-labelledby="managerTodayTab">
+            <section class="panel manager-team-hero">
+              <div class="section-heading"><div><p class="eyebrow"><span id="managerTeamLabel">Tim A</span> · <span id="managerTeamSize">24</span> radnika</p><h2>Današnja smjena</h2></div><span class="live-badge"><i aria-hidden="true"></i>U tijeku</span></div>
+              <div class="manager-coverage"><div><strong id="managerCoverageLabel">92%</strong><span>kapaciteta tima je prisutno</span></div><div class="coverage-track" role="progressbar" aria-label="Prisutnost tima" aria-valuemin="0" aria-valuemax="100" aria-valuenow="92"><span id="managerCoverageBar"></span></div></div>
+              <div class="team-status-grid"><article><span class="status-dot success" aria-hidden="true"></span><div><strong id="managerPresentCount">22</strong><small>prisutna</small></div></article><article><span class="status-dot warning" aria-hidden="true"></span><div><strong id="managerLateCount">1</strong><small>kasni</small></div></article><article><span class="status-dot info" aria-hidden="true"></span><div><strong id="managerSickCount">1</strong><small>bolovanje</small></div></article></div>
+            </section>
+            <div class="workspace manager-today-grid">
+              <section class="panel"><p class="eyebrow">Članovi tima</p><h2>Status uživo</h2><ul id="managerTeamRoster" class="team-roster"><li><span class="worker-avatar small" aria-hidden="true">MK</span><div><strong>Marija Kralj</strong><small>06:56 · Ulaz proizvodnje</small></div><span class="roster-status success">Prisutna</span></li><li><span class="worker-avatar small" aria-hidden="true">PN</span><div><strong>Petar Novak</strong><small>07:08 · Potrebna provjera</small></div><span class="roster-status warning">Kasni</span></li><li><span class="worker-avatar small" aria-hidden="true">AK</span><div><strong>Ana Kovač</strong><small>Odobreno bolovanje</small></div><span class="roster-status info">Odsutna</span></li></ul></section>
+              <section class="panel shift-plan"><p class="eyebrow">Plan smjene</p><h2>07:00 – 15:00</h2><dl class="compact-facts"><div><dt id="managerPrimaryUnit">Linija A</dt><dd id="managerPrimaryUnitStatus">Popunjeno</dd></div><div><dt id="managerSecondaryUnit">Linija B</dt><dd id="managerSecondaryUnitStatus">1 zamjena</dd></div><div><dt>Voditelj</dt><dd>Marko Marić</dd></div></dl><p class="shift-note"><span aria-hidden="true">✓</span>Kapacitet ostaje iznad planiranog minimuma.</p></section>
+            </div>
+          </section>
+
+          <section id="managerRequestsPanel" class="workspace-tabpanel" role="tabpanel" aria-labelledby="managerRequestsTab" hidden>
+            <section class="panel objective"><div><p class="eyebrow">Odluke Voditelja</p><h2>Zahtjev čeka vašu odluku.</h2><p>Prije odluke vidite saldo radnika i utjecaj na pokrivenost smjene.</p></div><span id="leaveStatus" class="status">Čeka odluku</span></section>
+            <div class="request-grid">
+              <article class="panel leave-request-card"><div class="request-card-head"><span class="worker-avatar" aria-hidden="true">AK</span><div><p class="eyebrow">Godišnji odmor</p><h2>Ana Kovač</h2><p>17.–21. kolovoza · 5 radnih dana</p></div></div><dl class="compact-facts"><div><dt>Preostalo</dt><dd>14 dana</dd></div><div><dt>Pokrivenost nakon odobrenja</dt><dd id="managerLeaveCoverage">96%</dd></div></dl><button id="approveLeaveButton" class="button primary full" type="button">Odobri zahtjev</button></article>
+              <article id="workerLeaveManagerCard" class="panel leave-request-card hidden" aria-live="polite"><div class="request-card-head"><span class="worker-avatar" aria-hidden="true">IH</span><div><p class="eyebrow">Novi zahtjev iz Radničkog portala</p><h2>Ivan Horvat</h2><p id="managerWorkerLeavePeriod">Termin nije odabran</p></div></div><dl class="compact-facts"><div><dt>Trajanje</dt><dd id="managerWorkerLeaveDays">—</dd></div><div><dt>Status</dt><dd id="managerWorkerLeaveStatus">Čeka odluku</dd></div></dl><div class="button-row"><button id="approveWorkerLeaveButton" class="button primary" type="button">Odobri</button><button id="rejectWorkerLeaveButton" class="button secondary" type="button">Odbij</button></div></article>
+            </div>
+          </section>
+
+          <section id="managerReportPanel" class="workspace-tabpanel" role="tabpanel" aria-labelledby="managerReportTab" hidden>
+            <section class="panel manager-report">
+              <div class="section-heading"><div><p class="eyebrow">Tjedni pregled tima</p><h2>Planirani i evidentirani sati</h2></div><span class="badge">Samo vlastiti tim</span></div>
+              <div class="report-summary-grid"><article><span>Planirano</span><strong id="managerPlannedHours">960 h</strong></article><article><span>Evidentirano</span><strong id="managerRecordedHours">918 h</strong></article><article><span>Prekovremeno</span><strong id="managerOvertimeHours">11 h</strong></article></div>
+              <div class="weekly-bars" role="img" aria-label="Evidentirani sati tima od ponedjeljka do petka"><div><span style="--bar:94%"></span><strong>Pon</strong><small>94%</small></div><div><span style="--bar:97%"></span><strong>Uto</strong><small>97%</small></div><div><span style="--bar:91%"></span><strong>Sri</strong><small>91%</small></div><div><span style="--bar:96%"></span><strong>Čet</strong><small>96%</small></div><div><span style="--bar:93%"></span><strong>Pet</strong><small>93%</small></div></div>
+              <details class="report-details"><summary>Prikaži dnevni pregled i iznimke</summary><div class="responsive-table" role="region" aria-label="Dnevni pregled tima" tabindex="0"><table><thead><tr><th>Dan</th><th>Planirano</th><th>Evidentirano</th><th>Iznimke</th></tr></thead><tbody id="managerDailyRows"><tr><td>Ponedjeljak</td><td data-manager-planned>192 h</td><td data-manager-recorded>181 h</td><td data-manager-exceptions>2</td></tr><tr><td>Utorak</td><td data-manager-planned>192 h</td><td data-manager-recorded>186 h</td><td data-manager-exceptions>1</td></tr><tr><td>Srijeda</td><td data-manager-planned>192 h</td><td data-manager-recorded>175 h</td><td data-manager-exceptions>3</td></tr></tbody></table></div></details>
+            </section>
+          </section>
+        </div>
+      </section>
+
+      <section id="workerView" class="role-view hidden" aria-labelledby="workerWorkspaceTitle">
+        <div class="worker-dashboard">
+          <section class="panel worker-today-card">
+            <div class="worker-today-head"><span class="worker-avatar large" aria-hidden="true">IH</span><div><p class="eyebrow">Osobni radni prostor</p><h2 id="workerWorkspaceTitle">Moj radni dan</h2><p id="workerContext">Ivan Horvat · Proizvodni tim</p></div><span id="workerShiftStatus" class="status">Čeka prijavu</span></div>
+            <p id="workerMessage" class="worker-status-message" role="status" aria-live="polite" aria-atomic="true">Vaša današnja prijava još nije evidentirana.</p>
+            <dl class="worker-today-facts"><div><dt>Planirana smjena</dt><dd>07:00 – 15:00</dd></div><div><dt>Dolazak</dt><dd id="workerArrival">Nije evidentiran</dd></div><div><dt>Lokacija</dt><dd id="workerLocation">Ulaz proizvodnje</dd></div><div><dt>RFID kartica</dt><dd id="workerCardStatus">Aktivna</dd></div></dl>
+            <div class="worker-shift-progress"><div><strong id="workerShiftProgressLabel">Smjena nije započela</strong><span>Planirano 8 h</span></div><div class="coverage-track" role="progressbar" aria-label="Napredak današnje smjene" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span id="workerShiftProgressBar"></span></div></div>
+          </section>
+
+          <div class="worker-quick-grid">
+            <article class="worker-summary-card"><span>Ovaj mjesec</span><strong>128 h</strong><small>od 168 planiranih</small><progress value="128" max="168" aria-label="128 od 168 planiranih sati"></progress></article>
+            <article class="worker-summary-card"><span>Godišnji</span><strong>14 dana</strong><small id="workerLeaveSummary">nema aktivnog zahtjeva</small></article>
+            <article class="worker-summary-card"><span>Prekovremeno</span><strong id="workerOvertimeSummary">2 h 14 min</strong><small>ovaj mjesec</small></article>
+            <article class="worker-summary-card"><span>Sljedeća smjena</span><strong>07:00</strong><small id="workerNextShiftContext">sutra · proizvodni tim</small></article>
+          </div>
+
+          <div class="workspace-tabs worker-tabs" data-workspace-tabs>
+            <div class="workspace-tablist" role="tablist" aria-label="Moduli Radnika">
+              <button id="workerTodayTab" class="workspace-tab" type="button" role="tab" data-workspace-tab aria-selected="true" aria-controls="workerTodayPanel">Evidencija</button>
+              <button id="workerHoursTab" class="workspace-tab" type="button" role="tab" data-workspace-tab aria-selected="false" aria-controls="workerHoursPanel" tabindex="-1">Moji sati</button>
+              <button id="workerLeaveTab" class="workspace-tab" type="button" role="tab" data-workspace-tab aria-selected="false" aria-controls="workerLeavePanel" tabindex="-1">Godišnji</button>
+            </div>
+
+            <section id="workerTodayPanel" class="workspace-tabpanel" role="tabpanel" aria-labelledby="workerTodayTab">
+              <section class="panel"><div class="section-heading"><div><p class="eyebrow">Zadnje evidencije</p><h2>Moji dolasci i odlasci</h2></div><span class="badge">Samo moji podaci</span></div><ol class="worker-punch-list"><li><time datetime="2026-07-30">30.7.</time><div><strong>06:59 – 15:04</strong><small>8 h 05 min · Uredno</small></div><span class="roster-status success">Potvrđeno</span></li><li><time datetime="2026-07-31">31.7.</time><div><strong>07:01 – 15:02</strong><small>8 h 01 min · Uredno</small></div><span class="roster-status success">Potvrđeno</span></li><li><time datetime="2026-08-01">1.8.</time><div><strong id="workerRow">Čeka prijavu</strong><small id="workerRowDetail">Današnja smjena</small></div><span id="workerRowStatus" class="roster-status warning">Otvoreno</span></li></ol></section>
+            </section>
+
+            <section id="workerHoursPanel" class="workspace-tabpanel" role="tabpanel" aria-labelledby="workerHoursTab" hidden>
+              <section class="panel worker-hours-panel"><div class="section-heading"><div><p class="eyebrow">Kolovoz 2026.</p><h2>128 od 168 planiranih sati</h2></div><span class="status complete">Uredno</span></div><div id="workerHoursComposition" class="hours-composition" role="img" aria-label="Raspodjela osobnih sati"><span id="workerRegularBar" class="regular" style="--share:94.68%"></span><span id="workerOvertimeBar" class="overtime" style="--share:1.74%"></span><span id="workerNightBar" class="night" style="--share:3.58%"></span></div><dl class="hours-legend"><div><dt><i class="regular" aria-hidden="true"></i>Redovni sati</dt><dd id="workerRegularHours">121 h 12 min</dd></div><div><dt><i class="overtime" aria-hidden="true"></i>Prekovremeni</dt><dd id="workerOvertimeHours">2 h 14 min</dd></div><div><dt><i class="night" aria-hidden="true"></i>Noćni</dt><dd id="workerNightHours">4 h 34 min</dd></div></dl><details class="report-details"><summary>Prikaži dnevni detalj</summary><div class="responsive-table" role="region" aria-label="Dnevni detalj osobnih sati" tabindex="0"><table><thead><tr><th>Datum</th><th>Dolazak</th><th>Odlazak</th><th>Ukupno</th></tr></thead><tbody><tr><td>30.7.</td><td>06:59</td><td>15:04</td><td>8 h 05 min</td></tr><tr><td>31.7.</td><td>07:01</td><td>15:02</td><td>8 h 01 min</td></tr></tbody></table></div></details></section>
+            </section>
+
+            <section id="workerLeavePanel" class="workspace-tabpanel" role="tabpanel" aria-labelledby="workerLeaveTab" hidden>
+              <div class="workspace worker-leave-grid">
+                <section class="panel leave-balance-card"><p class="eyebrow">Saldo za 2026.</p><h2>14 dana raspoloživo</h2><div class="leave-balance-bar" role="img" aria-label="Od 24 dana godišnjeg, iskorišteno je 7, planirano 3 i raspoloživo 14"><span class="used" style="--share:29.17%"></span><span class="planned" style="--share:12.5%"></span><span class="available" style="--share:58.33%"></span></div><dl class="hours-legend"><div><dt><i class="used" aria-hidden="true"></i>Iskorišteno</dt><dd>7 dana</dd></div><div><dt><i class="planned" aria-hidden="true"></i>Planirano</dt><dd>3 dana</dd></div><div><dt><i class="available" aria-hidden="true"></i>Raspoloživo</dt><dd>14 dana</dd></div></dl></section>
+                <section class="panel worker-leave-form-card"><p class="eyebrow">Novi zahtjev</p><h2>Zatraži godišnji odmor</h2><form id="workerLeaveForm" class="worker-leave-form"><label for="workerLeaveStart">Prvi dan<input id="workerLeaveStart" name="workerLeaveStart" type="date" min="2026-08-04" max="2026-12-18" value="2026-08-10" required></label><label for="workerLeaveDays">Trajanje<select id="workerLeaveDays" name="workerLeaveDays"><option value="1">1 radni dan</option><option value="2" selected>2 radna dana</option><option value="3">3 radna dana</option><option value="5">5 radnih dana</option></select></label><button id="workerLeaveRequestButton" class="button primary full" type="submit">Pošalji zahtjev Voditelju</button></form><p id="workerLeaveRequestStatus" class="form-status" role="status" aria-live="polite">Zahtjev još nije poslan.</p></section>
+              </div>
+            </section>
+          </div>
+        </div>
+      </section>
+
+      <section id="accountingView" class="role-view hidden" aria-labelledby="accountingWorkspaceTitle">
+        <section class="panel objective"><div><p class="eyebrow">Knjigovodstveni pregled</p><h2 id="accountingWorkspaceTitle">Mjesečni fond sati spreman je za provjeru.</h2><p>Kolovoz · simulirani redovni, noćni i prekovremeni sati.</p></div><span id="reportStatus" class="status">Nije generiran</span></section>
+        <div class="workspace accounting-grid">
+          <section class="panel accounting-summary"><div class="section-heading"><div><p class="eyebrow">Sažetak fonda sati</p><h2><span id="monthlyHours">8.704</span> h</h2></div><span class="badge">Simulirani podaci</span></div><div class="report-composition" role="img" aria-label="Raspodjela redovnih, noćnih i prekovremenih sati"><span id="regularHoursBar" class="regular"></span><span id="nightHoursBar" class="night"></span><span id="overtimeHoursBar" class="overtime"></span></div><dl class="hours-legend"><div><dt><i class="regular" aria-hidden="true"></i>Redovni sati</dt><dd id="regularHours">8.241</dd></div><div><dt><i class="night" aria-hidden="true"></i>Noćni sati</dt><dd id="nightHours">311</dd></div><div><dt><i class="overtime" aria-hidden="true"></i>Prekovremeni</dt><dd id="overtimeHours">152</dd></div></dl></section>
+          <section class="panel report-action-card"><p class="eyebrow">Obračunski pregled</p><h2>Provjerite podatke prije izvoza</h2><p>Generiranje otvara tablični preview po kategorijama sati. Ne pokreće stvarni obračun plaće.</p><button id="generateReportButton" class="button primary full" type="button">Generiraj pregled</button></section>
+        </div>
+        <section id="reportPreview" class="panel report-preview hidden" aria-live="polite"><div class="section-heading"><div><p class="eyebrow">Generirani pregled</p><h2>Kolovoz 2026. · spremno za kontrolu</h2></div><span class="status complete">Generirano</span></div><div class="responsive-table" role="region" aria-label="Pregled fonda sati" tabindex="0"><table><thead><tr><th>Kategorija</th><th>Sati</th><th>Udio</th><th>Status</th></tr></thead><tbody><tr><td>Redovni sati</td><td id="reportRegularPreview">8.241</td><td id="reportRegularShare">94,7%</td><td>Uredno</td></tr><tr><td>Noćni sati</td><td id="reportNightPreview">311</td><td id="reportNightShare">3,6%</td><td>Provjereno</td></tr><tr><td>Prekovremeni</td><td id="reportOvertimePreview">152</td><td id="reportOvertimeShare">1,7%</td><td>Provjereno</td></tr></tbody></table></div><p class="report-preview-note">Preview pokazuje strukturu budućeg CSV/XLSX izvoza bez stvarnog preuzimanja ili payroll obračuna.</p></section>
+      </section>
+
+      <section id="completionView" class="panel completion hidden" aria-labelledby="completionTitle"><span class="badge">5 od 5 ključnih tokova isprobano</span><h2 id="completionTitle">Demo sustav ostaje otvoren.</h2><p>Pregledali ste povezani tok od RFID prijave i administrativne korekcije do odluke Voditelja, radničkog zahtjeva i knjigovodstvenog pregleda.</p><p>Možete nastaviti istraživati module, riješiti novi radnički zahtjev ili resetirati aktivnosti. Za online prezentaciju, demonstraciju uživo ili pilot-suradnju javite se BSS timu koji vam je poslao pristup.</p><button class="button primary" type="button" id="restartButton">Resetiraj demo aktivnosti</button></section>
     </section>
   </main>
   <script type="module" src="app.js"></script>
