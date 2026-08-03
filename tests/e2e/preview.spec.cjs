@@ -155,23 +155,25 @@ test('agregirani profil skalira KPI-jeve, tim i fond sati na granicama',async({p
 test('mobilni vodič je običan blok i odlazi sa sadržajem pri skrolanju',async({page})=>{
   await startPreview(page);
   const guide=page.locator('.guide-panel');
-  const movement=await guide.evaluate(element=>{
+  await page.evaluate(()=>{
     document.documentElement.style.scrollBehavior='auto';
     window.scrollTo(0,0);
-    const before=element.getBoundingClientRect().top;
-    const target=Math.min(400,document.documentElement.scrollHeight-window.innerHeight);
-    window.scrollTo(0,target);
-    return {
-      position:getComputedStyle(element).position,
-      before,
-      after:element.getBoundingClientRect().top,
-      scrollY:window.scrollY
-    };
   });
-  expect(movement.position).toBe('static');
-  expect(movement.scrollY).toBeGreaterThan(100);
-  expect(movement.after).toBeLessThan(movement.before-100);
-  expect(Math.abs((movement.before-movement.after)-movement.scrollY)).toBeLessThanOrEqual(1);
+  await expect.poll(()=>page.evaluate(()=>window.scrollY)).toBe(0);
+
+  const before=await guide.evaluate(element=>({
+    position:getComputedStyle(element).position,
+    top:element.getBoundingClientRect().top
+  }));
+  const target=await page.evaluate(()=>Math.min(400,document.documentElement.scrollHeight-window.innerHeight));
+  expect(before.position).toBe('static');
+  expect(target).toBeGreaterThan(100);
+
+  await page.evaluate(scrollTarget=>window.scrollTo(0,scrollTarget),target);
+  await expect.poll(()=>page.evaluate(()=>window.scrollY)).toBeGreaterThanOrEqual(target-1);
+  const after=await guide.evaluate(element=>({top:element.getBoundingClientRect().top,scrollY:window.scrollY}));
+  expect(after.top).toBeLessThan(before.top-100);
+  expect(Math.abs((before.top-after.top)-after.scrollY)).toBeLessThanOrEqual(1);
   await expectNoHorizontalOverflow(page);
 });
 
