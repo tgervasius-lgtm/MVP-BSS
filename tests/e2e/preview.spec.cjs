@@ -155,11 +155,23 @@ test('agregirani profil skalira KPI-jeve, tim i fond sati na granicama',async({p
 test('mobilni vodič je običan blok i odlazi sa sadržajem pri skrolanju',async({page})=>{
   await startPreview(page);
   const guide=page.locator('.guide-panel');
-  const before=await guide.evaluate(element=>({position:getComputedStyle(element).position,top:element.getBoundingClientRect().top}));
-  expect(before.position).toBe('static');
-  await page.evaluate(()=>window.scrollTo(0,Math.min(700,document.documentElement.scrollHeight-window.innerHeight)));
-  const after=await guide.evaluate(element=>element.getBoundingClientRect().top);
-  expect(after).toBeLessThan(before.top-100);
+  const movement=await guide.evaluate(element=>{
+    document.documentElement.style.scrollBehavior='auto';
+    window.scrollTo(0,0);
+    const before=element.getBoundingClientRect().top;
+    const target=Math.min(400,document.documentElement.scrollHeight-window.innerHeight);
+    window.scrollTo(0,target);
+    return {
+      position:getComputedStyle(element).position,
+      before,
+      after:element.getBoundingClientRect().top,
+      scrollY:window.scrollY
+    };
+  });
+  expect(movement.position).toBe('static');
+  expect(movement.scrollY).toBeGreaterThan(100);
+  expect(movement.after).toBeLessThan(movement.before-100);
+  expect(Math.abs((movement.before-movement.after)-movement.scrollY)).toBeLessThanOrEqual(1);
   await expectNoHorizontalOverflow(page);
 });
 
