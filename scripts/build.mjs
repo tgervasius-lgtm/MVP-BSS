@@ -7,6 +7,8 @@ const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const output=path.join(root,'dist');
 const files=['index.html','styles.css','app.js','manifest.json','sw.js','_headers'];
 const directories=['styles','src','icons','design-system','brand-book','output'];
+const previewSource=path.join(root,'preview-portal');
+const previewOutput=path.join(output,'preview');
 
 async function listFiles(directory,prefix=''){
   const entries=await readdir(directory,{withFileTypes:true});
@@ -36,16 +38,26 @@ for(const directory of directories){
   await cp(path.join(root,directory),path.join(output,directory),{recursive:true});
 }
 
-for(const htmlPath of ['index.html','design-system/index.html','brand-book/index.html']){
+await cp(previewSource,previewOutput,{recursive:true});
+for(const developmentOnly of ['AGENTS.md','README.md','package.json','docs','tests']){
+  await rm(path.join(previewOutput,developmentOnly),{recursive:true,force:true});
+}
+
+for(const htmlPath of ['index.html','design-system/index.html','brand-book/index.html','preview/index.html']){
   const html=await readFile(path.join(output,htmlPath),'utf8');
   if(/<script(?![^>]*\bsrc=)[^>]*>/i.test(html))throw new Error(`Inline script nije dopušten: ${htmlPath}`);
 }
 
-const worker=await readFile(path.join(output,'sw.js'),'utf8');
-const cached=[...worker.matchAll(/['"](\.\/[^'"]+)['"]/g)]
-  .map(match=>match[1])
-  .filter(asset=>asset!=='./');
-for(const asset of new Set(cached))await ensureFile(path.join(output,asset.slice(2)));
+async function validateWorkerAssets(workerPath,assetRoot){
+  const worker=await readFile(workerPath,'utf8');
+  const cached=[...worker.matchAll(/['"](\.\/[^'"]+)['"]/g)]
+    .map(match=>match[1])
+    .filter(asset=>asset!=='./');
+  for(const asset of new Set(cached))await ensureFile(path.join(assetRoot,asset.slice(2)));
+}
+
+await validateWorkerAssets(path.join(output,'sw.js'),output);
+await validateWorkerAssets(path.join(previewOutput,'sw.js'),previewOutput);
 
 const builtFiles=(await listFiles(output)).filter(file=>file!=='build-manifest.json');
 const hashes={};
@@ -56,7 +68,8 @@ for(const file of builtFiles){
 await writeFile(path.join(output,'build-manifest.json'),JSON.stringify({
   schemaVersion:1,
   application:'BSS Demo 3.0',
+  previewPortalPath:'/preview/',
   files:hashes
 },null,2)+'\n');
 
-console.log(`BSS build dovršen: ${builtFiles.length+1} datoteka u dist/.`);
+console.log(`BSS build dovršen: ${builtFiles.length+1} datoteka u dist/. Preview Portal: /preview/.`);

@@ -3,7 +3,9 @@
   "version": "3.0.0",
   "private": true,
   "scripts": {
-    "test": "node --test tests/app.test.cjs",
+    "test:app": "node --test tests/app.test.cjs",
+    "test:preview": "npm --prefix preview-portal test",
+    "test": "npm run test:app && npm run test:preview",
     "build": "node scripts/build.mjs",
     "serve:dist": "node scripts/serve-dist.mjs",
     "lint": "eslint .",
@@ -16,7 +18,7 @@
     "@axe-core/playwright": "^4.12.1",
     "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.61.1",
-    "eslint": "^10.7.0",
+    "eslint": "^10.8.0",
     "jsdom": "26.1.0"
   }
 }
