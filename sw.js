@@ -1,4 +1,4 @@
-const CACHE_NAME = 'bss-refactor-v1-r8';
+const CACHE_NAME = 'bss-refactor-v1-r7';
 const ASSETS = [
   './index.html','./styles.css','./app.js','./manifest.json','./icons/icon.svg',
   './styles/base.css','./styles/layouts.css','./styles/components.css','./styles/screens.css',
