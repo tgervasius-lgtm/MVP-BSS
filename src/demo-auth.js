@@ -44,10 +44,10 @@
       panel.id='demoCredentials';
       panel.className='demo-credentials';
       panel.setAttribute('aria-label','Podaci za javni demo pristup');
+      panel.innerHTML=`<div><span>Email</span><b>${credentials.email}</b></div><div><span>Lozinka</span><b>${credentials.password}</b></div><p>Javni demo: podaci su već upisani. Samo klikni „Uđi u BSS”.</p>`;
       const loginRow=section.querySelector('.login-row');
       loginRow?.before(panel);
     }
-    panel.innerHTML=`<div><span>Email</span><b>${credentials.email}</b></div><div><span>Lozinka</span><b>${credentials.password}</b></div><p>Javni demo: podaci su već upisani. Samo klikni „Uđi u BSS”.</p>`;
     configuring=false;
   }
 
