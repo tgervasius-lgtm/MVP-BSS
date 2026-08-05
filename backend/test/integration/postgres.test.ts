@@ -345,9 +345,10 @@ test("PostgreSQL migrations, RLS isolation, auth and manager scope", { skip: !da
      ), sync AS (
        INSERT INTO terminal_sync_events (
          organization_id, terminal_id, device_event_id, sequence, worker_id,
-         occurred_at, event_type, status, request_id
+         occurred_at, received_at, event_type, status, request_id
        ) SELECT $1, terminal.id, gen_random_uuid(), 1, $2,
-           '2026-07-13T06:00:00Z', 'check_in', 'synced', 'integration-sync' FROM terminal
+           '2026-07-13T06:00:00Z', '2026-07-13T06:00:01Z',
+           'check_in', 'synced', 'integration-sync' FROM terminal
      )
      SELECT terminal.id AS terminal FROM terminal`,
     [ids.org1, ids.worker1, JSON.stringify({ id: ids.shift1, name: "Jutarnja", startTime: "08:00", endTime: "16:00", breakMinutes: 30 }), ids.admin1]
