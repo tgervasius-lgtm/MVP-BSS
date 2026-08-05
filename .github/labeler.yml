@@ -1,0 +1,49 @@
+frontend:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'src/**'
+          - 'public/**'
+          - 'index.html'
+          - 'playwright.config.*'
+          - 'tests/e2e/**'
+
+backend:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'backend/**'
+          - 'server/**'
+          - 'api/**'
+          - 'migrations/**'
+          - 'prisma/**'
+
+ci:
+  - changed-files:
+      - any-glob-to-any-file:
+          - '.github/**'
+          - 'package.json'
+          - 'package-lock.json'
+
+cloudflare:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'wrangler.toml'
+          - 'wrangler.json*'
+          - '_headers'
+          - '_redirects'
+          - 'functions/**'
+          - 'workers/**'
+
+security:
+  - changed-files:
+      - any-glob-to-any-file:
+          - '.github/workflows/security.yml'
+          - '**/*auth*'
+          - '**/*security*'
+          - '**/*permission*'
+          - '**/*rbac*'
+
+documentation:
+  - changed-files:
+      - any-glob-to-any-file:
+          - '**/*.md'
+          - 'docs/**'
