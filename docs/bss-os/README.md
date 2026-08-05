@@ -6,7 +6,7 @@ Repository source of truth: `tgervasius-lgtm/MVP-BSS`
 
 ## Purpose
 
-BSS OS is the governance layer for product, software, hardware, operations, sales and pilot readiness. It does not replace technical documentation. It links decisions, risks, feature status, commercial workflow and readiness evidence so the project can be continued by Codex, an external developer or a future internal team without relying on chat history.
+BSS OS is the governance layer for product, software, hardware, operations, sales, pricing and pilot readiness. It does not replace technical documentation. It links decisions, risks, feature status, commercial workflow, pricing controls and readiness evidence so the project can be continued by Codex, an external developer or a future internal team without relying on chat history.
 
 ## Sources of truth
 
@@ -27,6 +27,7 @@ BSS OS is the governance layer for product, software, hardware, operations, sale
 | GDPR/data governance baseline | `docs/bss-os/GDPR_DATA_GOVERNANCE_BASELINE.md` |
 | Legal operations templates | `docs/bss-os/LEGAL_OPERATIONS_TEMPLATE_PACK.md` |
 | Sales and customer onboarding | `docs/bss-os/SALES_CUSTOMER_ONBOARDING_OS.md` |
+| Pricing and commercial offers | `docs/bss-os/PRICING_COMMERCIAL_OFFER_BASELINE.md` |
 
 ## Status language
 
@@ -51,7 +52,8 @@ BSS OS is the governance layer for product, software, hardware, operations, sale
 6. Preview and demo behavior must never be represented as production behavior.
 7. Production readiness requires closure of repository, infrastructure, operations, security, privacy and hardware blockers, not only green application tests.
 8. Real prospect and customer personal data must not be committed to the public product repository.
+9. Assumptions and working price bands must not be presented as approved customer prices.
 
 ## Update discipline
 
-Update these registers when a change affects product scope, architecture, API, data, security, deployment, terminal behavior, privacy, hardware, sales, customer onboarding, pilot readiness or developer handoff.
+Update these registers when a change affects product scope, architecture, API, data, security, deployment, terminal behavior, privacy, hardware, sales, pricing, customer onboarding, pilot readiness or developer handoff.
