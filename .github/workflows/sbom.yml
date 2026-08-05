@@ -1,0 +1,58 @@
+name: BSS dependency inventory
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '43 4 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sbom-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  generate-sbom:
+    name: Generate SBOM
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: npm ci
+
+      - name: Generate frontend CycloneDX SBOM
+        run: npm sbom --sbom-format=cyclonedx > bss-frontend-sbom.cdx.json
+
+      - name: Generate backend CycloneDX SBOM
+        working-directory: backend
+        run: npm sbom --sbom-format=cyclonedx > ../bss-backend-sbom.cdx.json
+
+      - name: Validate generated inventories
+        run: |
+          node -e "for (const file of ['bss-frontend-sbom.cdx.json','bss-backend-sbom.cdx.json']) { const data=require('./'+file); if (data.bomFormat !== 'CycloneDX' || !Array.isArray(data.components)) throw new Error('Invalid SBOM: '+file); console.log(file+': '+data.components.length+' components'); }"
+
+      - name: Upload SBOM artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: bss-sbom-${{ github.sha }}
+          path: |
+            bss-frontend-sbom.cdx.json
+            bss-backend-sbom.cdx.json
+          if-no-files-found: error
+          retention-days: 90
