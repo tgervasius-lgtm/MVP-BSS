@@ -1,0 +1,47 @@
+name: BSS parallel deliverables gate
+
+on:
+  pull_request:
+    paths:
+      - 'hardware/**'
+      - 'backend/Dockerfile'
+      - 'compose.production.example.yml'
+      - 'backend/test/contract/openapi-governance.test.ts'
+      - 'openapi/**'
+      - 'api-client/**'
+      - '.github/workflows/parallel-deliverables.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  contract-and-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            backend/package-lock.json
+      - name: Install backend dependencies
+        working-directory: backend
+        run: npm ci
+      - name: Validate OpenAPI and contract tests
+        working-directory: backend
+        run: npm run check
+      - name: Validate controlled hardware inputs
+        shell: bash
+        run: |
+          test -s hardware/cad/bss_terminal_parametric.scad
+          test -s hardware/BSS_PROTOTYPE_BOM.csv
+          grep -q 'HOLD: confirm exact Nextion model' hardware/cad/bss_terminal_parametric.scad
+          grep -q 'CONFIRM' hardware/BSS_PROTOTYPE_BOM.csv
+      - name: Build backend container
+        run: docker build -f backend/Dockerfile -t bss-backend:${{ github.sha }} .
+      - name: Validate production compose syntax
+        run: docker compose -f compose.production.example.yml config >/dev/null

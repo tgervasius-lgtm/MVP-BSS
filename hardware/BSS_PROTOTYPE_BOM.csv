@@ -1,0 +1,12 @@
+Item,Subsystem,Required model/status,Qty,Measured dimensions required,Verification gate
+Compute,Raspberry Pi 5 exact RAM variant,CONFIRM,1,board plus cooler envelope,Do not freeze enclosure before cooler and cable check
+Display,Nextion 4.3 inch exact SKU,CONFIRM,1,PCB/display/bezel/cutout/mount holes,Physical caliper measurement or manufacturer drawing
+RFID,RC522 board exact supplier revision,CONFIRM,1,PCB/antenna/headers/mount holes,Read range test through selected front material
+Audio,Active buzzer 5V exact module,CONFIRM,1,module and connector envelope,Electrical compatibility and sound test
+Power,USB-C power supply for Pi 5,CONFIRM,1,plug bend radius and strain relief,Continuous load and thermal test
+Cooling,Pi 5 cooler/fan exact model,CONFIRM,1,total installed height and airflow path,30 minute thermal soak
+Enclosure,Printed prototype shell,GENERATED FROM CONTROLLED CAD,1,190x125x48 initial envelope,Fit check after all measured inputs
+Fasteners,M2.5/M3 brass inserts and screws,SELECT AFTER HOLE CONFIRMATION,1 set,insert OD/depth/screw length,Pull-out and repeated assembly test
+Cabling,Internal USB/UART/GPIO harness,CONFIRM,1,bend radius/connector height/length,No cable pressure on display or antenna
+Mounting,Wall screws/plugs or mounting plate,CONFIRM,1,hole pattern and wall type,Static load plus service removal test
+Label,Prototype serial/QR and electrical label,DRAFT,1,label area,Must not cover vents or RFID zone
