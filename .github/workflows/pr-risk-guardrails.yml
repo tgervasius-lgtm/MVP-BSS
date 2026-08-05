@@ -1,0 +1,119 @@
+name: BSS PR risk guardrails
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened, edited, ready_for_review]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+concurrency:
+  group: pr-risk-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  classify-risk:
+    name: Classify PR size and risk
+    runs-on: ubuntu-latest
+    steps:
+      - name: Apply size and risk labels
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const issue_number = context.issue.number;
+            const pr = context.payload.pull_request;
+
+            const changedFiles = pr.changed_files;
+            const changedLines = pr.additions + pr.deletions;
+
+            let sizeLabel = 'size/S';
+            if (changedFiles > 40 || changedLines > 2000) sizeLabel = 'size/XL';
+            else if (changedFiles > 20 || changedLines > 1000) sizeLabel = 'size/L';
+            else if (changedFiles > 8 || changedLines > 400) sizeLabel = 'size/M';
+
+            const labelDefinitions = {
+              'size/S': ['0E8A16', 'Mala, fokusirana promjena'],
+              'size/M': ['FBCA04', 'Srednje velika promjena'],
+              'size/L': ['D93F0B', 'Velika promjena; potreban pojačan pregled'],
+              'size/XL': ['B60205', 'Prevelika promjena; preporučeno razdvajanje'],
+              'risk/high': ['B60205', 'Promjena dira više rizičnih područja'],
+            };
+
+            for (const [name, [color, description]] of Object.entries(labelDefinitions)) {
+              try {
+                await github.rest.issues.getLabel({ owner, repo, name });
+              } catch (error) {
+                if (error.status !== 404) throw error;
+                await github.rest.issues.createLabel({ owner, repo, name, color, description });
+              }
+            }
+
+            const current = await github.rest.issues.listLabelsOnIssue({ owner, repo, issue_number });
+            const removable = current.data
+              .map(label => label.name)
+              .filter(name => name.startsWith('size/') || name === 'risk/high');
+
+            for (const name of removable) {
+              await github.rest.issues.removeLabel({ owner, repo, issue_number, name }).catch(error => {
+                if (error.status !== 404) throw error;
+              });
+            }
+
+            const files = await github.paginate(github.rest.pulls.listFiles, {
+              owner,
+              repo,
+              pull_number: issue_number,
+              per_page: 100,
+            });
+
+            const riskAreas = new Set();
+            for (const file of files) {
+              const path = file.filename;
+              if (path.startsWith('backend/')) riskAreas.add('backend');
+              if (path.startsWith('backend/migrations/') || path.includes('/migrations/')) riskAreas.add('database');
+              if (path.includes('auth') || path.includes('rbac') || path.includes('security')) riskAreas.add('security');
+              if (path.startsWith('.github/workflows/')) riskAreas.add('ci');
+              if (path.includes('openapi') || path.includes('contracts/')) riskAreas.add('contracts');
+              if (path.includes('cloudflare') || path.includes('Dockerfile') || path.includes('compose')) riskAreas.add('deployment');
+            }
+
+            const labels = [sizeLabel];
+            if (riskAreas.size >= 3 || sizeLabel === 'size/XL') labels.push('risk/high');
+
+            await github.rest.issues.addLabels({ owner, repo, issue_number, labels });
+
+            const marker = '<!-- bss-pr-risk-guardrails -->';
+            const shouldWarn = sizeLabel === 'size/L' || sizeLabel === 'size/XL' || labels.includes('risk/high');
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner,
+              repo,
+              issue_number,
+              per_page: 100,
+            });
+            const previous = comments.find(comment => comment.body?.includes(marker));
+
+            if (shouldWarn) {
+              const body = `${marker}\n## Automatska procjena rizika\n\n- veličina: **${sizeLabel.replace('size/', '')}**\n- promijenjene datoteke: **${changedFiles}**\n- dodane + obrisane linije: **${changedLines}**\n- rizična područja: **${[...riskAreas].join(', ') || 'nisu prepoznata'}**\n\nOvaj PR zahtijeva pojačan pregled. Ako obuhvaća više nepovezanih ciljeva, razdvojite ga prije mergea. Oznaka nije automatska zabrana mergea, nego kontrola tehničkog i poslovnog rizika.`;
+              if (previous) {
+                await github.rest.issues.updateComment({ owner, repo, comment_id: previous.id, body });
+              } else {
+                await github.rest.issues.createComment({ owner, repo, issue_number, body });
+              }
+            } else if (previous) {
+              await github.rest.issues.deleteComment({ owner, repo, comment_id: previous.id });
+            }
+
+            core.summary
+              .addHeading('BSS PR risk classification')
+              .addTable([
+                [{ data: 'Metric', header: true }, { data: 'Result', header: true }],
+                ['Size', sizeLabel],
+                ['Files', String(changedFiles)],
+                ['Changed lines', String(changedLines)],
+                ['Risk areas', [...riskAreas].join(', ') || 'none'],
+              ])
+              .write();
