@@ -1,6 +1,11 @@
 name: BSS Frontend v1.0.0 Handoff Package
 
 on:
+  pull_request:
+    branches: [main]
+    paths:
+      - scripts/build_frontend_handoff_package.py
+      - .github/workflows/frontend-handoff-package-v1.yml
   push:
     branches: [main]
     paths:
@@ -9,12 +14,17 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
+
+concurrency:
+  group: frontend-handoff-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  package:
-    name: build-and-publish-handoff-zip
+  verify:
+    name: verify-immutable-handoff-package
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout package builder
         uses: actions/checkout@v6
@@ -28,22 +38,61 @@ jobs:
           path: release-source
 
       - name: Build deterministic handoff package
+        shell: bash
         run: |
+          set -euo pipefail
+          mkdir -p artifacts
           python3 builder/scripts/build_frontend_handoff_package.py \
             --source release-source \
             --output-dir artifacts \
-            | tee artifacts-build-summary.json
+            | tee artifacts/build-summary.json
 
       - name: Verify archive and checksum
         run: |
+          set -euo pipefail
           unzip -t artifacts/BSS_Frontend_v1.0.0_Handoff.zip
           sha256sum artifacts/BSS_Frontend_v1.0.0_Handoff.zip \
             | tee artifacts/BSS_Frontend_v1.0.0_Handoff.zip.sha256
+
+      - name: Upload verified handoff artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: bss-frontend-handoff-v1-${{ github.sha }}
+          path: artifacts/
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Record verification summary
+        run: |
+          echo '## BSS Frontend v1.0.0 Handoff Verification' >> "$GITHUB_STEP_SUMMARY"
+          echo '' >> "$GITHUB_STEP_SUMMARY"
+          echo '- Source: immutable tag `frontend-v1.0.0`' >> "$GITHUB_STEP_SUMMARY"
+          echo '- Verification: source contract + ZIP integrity + SHA-256 PASS' >> "$GITHUB_STEP_SUMMARY"
+          echo '' >> "$GITHUB_STEP_SUMMARY"
+          echo '```json' >> "$GITHUB_STEP_SUMMARY"
+          cat artifacts/build-summary.json >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+  publish:
+    name: publish-verified-handoff-package
+    if: github.event_name != 'pull_request'
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - name: Download verified handoff artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: bss-frontend-handoff-v1-${{ github.sha }}
+          path: artifacts
 
       - name: Publish package on the official GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          set -euo pipefail
           gh release view frontend-v1.0.0 \
             --repo tgervasius-lgtm/MVP-BSS
           gh release upload frontend-v1.0.0 \
@@ -52,14 +101,10 @@ jobs:
             --repo tgervasius-lgtm/MVP-BSS \
             --clobber
 
-      - name: Record handoff summary
+      - name: Record publication summary
         run: |
-          echo '## BSS Frontend v1.0.0 Handoff' >> "$GITHUB_STEP_SUMMARY"
+          echo '## BSS Frontend v1.0.0 Handoff Publication' >> "$GITHUB_STEP_SUMMARY"
           echo '' >> "$GITHUB_STEP_SUMMARY"
-          echo '- Source: immutable tag `frontend-v1.0.0`' >> "$GITHUB_STEP_SUMMARY"
+          echo '- Release: `frontend-v1.0.0`' >> "$GITHUB_STEP_SUMMARY"
           echo '- Asset: `BSS_Frontend_v1.0.0_Handoff.zip`' >> "$GITHUB_STEP_SUMMARY"
-          echo '- Verification: ZIP integrity + SHA-256 PASS' >> "$GITHUB_STEP_SUMMARY"
-          echo '' >> "$GITHUB_STEP_SUMMARY"
-          echo '```json' >> "$GITHUB_STEP_SUMMARY"
-          cat artifacts-build-summary.json >> "$GITHUB_STEP_SUMMARY"
-          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          echo '- Verification: immutable source + ZIP integrity + SHA-256 PASS' >> "$GITHUB_STEP_SUMMARY"
