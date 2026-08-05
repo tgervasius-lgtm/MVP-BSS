@@ -20,7 +20,8 @@ Svaka promjena koja utječe na arhitekturu, podatke, sigurnost, deployment, term
 | Arhitektura | Granice frontend/backend/terminal/baza su dokumentirane; nema skrivenih runtime ovisnosti | PARTIAL | `BACKEND_ARCHITECTURE.md`, developer guide; završna provjera nakon integracije |
 | Frontend kvaliteta | Lint, testovi, build, accessibility i ključni E2E tokovi prolaze | AUTOMATED | BSS quality gate |
 | Backend kvaliteta | TypeScript, build, unit/contract/integration testovi i PostgreSQL tokovi prolaze | AUTOMATED | Backend/full-stack quality gateovi |
-| API ugovor | OpenAPI je jedinstven, lintan, verzioniran i pokriva stvarne operacije | PARTIAL | OpenAPI governance testovi; dugoročno jedan izvor schema ugovora |
+| API ugovor — struktura | OpenAPI je sintaktički i strukturno valjan, nema neriješenih referenci, duplih operation ID-jeva ni nedostajućih path parametara | AUTOMATED | `redocly.yaml` + BSS API and dependency governance gate |
+| API-runtime usklađenost | Implementirani endpointi, statusi i response sheme odgovaraju OpenAPI ugovoru | PARTIAL | Postojeći contract testovi; proširiti automatski runtime drift dokaz za sve operacije |
 | Baza i migracije | Clean database migrira od nule; rollback/forward strategija je dokumentirana | PARTIAL | PostgreSQL migration CI; produkcijski rehearsal ostaje otvoren |
 | Tenant izolacija | Cross-tenant pristup je tehnički blokiran i regresijski testiran | AUTOMATED | RLS i cross-tenant CI testovi |
 | Autentikacija i sesije | Login, refresh, logout, invitation i revocation imaju testirane sigurnosne granice | PARTIAL | Backend audit i auth/concurrency testovi; vanjski security review prije produkcije |
@@ -28,10 +29,10 @@ Svaka promjena koja utječe na arhitekturu, podatke, sigurnost, deployment, term
 | Audit log | Kritične radnje ostavljaju neizmjenjiv, tenant-scoped i razumljiv trag | PARTIAL | Backend implementacija; retention i zaštita pseudonima ostaju otvoreni |
 | Tajne i ključevi | Nema tajni u Git povijesti; rotacija, KMS i incident postupak su definirani | PARTIAL | `.env` zaštita, security gate; produkcijski KMS/rotacija je EXTERNAL |
 | Static security | CodeQL i dependency audit prolaze kontinuirano | AUTOMATED | BSS security gate |
-| Dependency održavanje | Zaključane verzije, automatske nadogradnje i pregled promjena | AUTOMATED | Dependabot + dependency audit |
-| SBOM | Frontend i backend CycloneDX inventar se generira i arhivira | PARTIAL | PR #42; nakon mergea potvrditi prvi artefakt |
+| Dependency održavanje | Zaključane verzije, automatske nadogradnje i pregled novih ranjivosti/licencija | AUTOMATED | Dependabot, npm audit i GitHub dependency review |
+| SBOM | Frontend i backend CycloneDX inventar se generira, validira i arhivira | AUTOMATED | BSS dependency inventory; potvrđen artefakt za `main` commit |
 | PR veličina i rizik | Veliki i višepodručni PR-ovi dobivaju automatsko upozorenje | AUTOMATED | PR size/risk guardrail u `main` |
-| PR dokumentacija | Cilj, rizik, testni dokaz i rollback su obvezni | PARTIAL | PR #41; nakon mergea postaje AUTOMATED |
+| PR dokumentacija | Cilj, rizik, testni dokaz i rollback su obvezni | AUTOMATED | BSS PR governance gate |
 | Vlasništvo koda | Kritični dijelovi imaju formalnog vlasnika | DONE | `.github/CODEOWNERS` |
 | Branch zaštita | `main` blokira direktan push, traži zelene checkove i review | EXTERNAL | GitHub repository settings; uključiti required checks i CODEOWNERS review |
 | Unit testovi | Ključna poslovna pravila imaju stabilne, brze testove | PARTIAL | Postojeći suite; coverage pragovi se tek trebaju formalizirati |
@@ -60,7 +61,7 @@ Svaka promjena koja utječe na arhitekturu, podatke, sigurnost, deployment, term
 | Operativna dokumentacija | Deploy, rollback, backup, restore, incident i troubleshooting postoje | PARTIAL | Dio runbookova postoji; produkcijski detalji nakon hostinga |
 | Handoff paket | Kod, dokumenti, API, DB, testovi, tajne-popis i otvoreni rizici su predani | PARTIAL | Postojeći handoff artefakti; finalizirati na feature freezeu |
 | Vendor lock-in | Repo, domena, cloud, tajne, billing i administracija ostaju pod BSS kontrolom | OPEN | Napraviti access/ownership register prije vanjskog programera |
-| Licencije | Dependency licence su poznate i neprihvatljive licence blokirane | OPEN | SBOM je temelj; dodati licence policy scan |
+| Licencije | Novouvedene dependency licence su automatski provjerene i neprihvaćene licence blokirane | AUTOMATED | GitHub dependency review s eksplicitnom SPDX allowlistom |
 | Release verzioniranje | Tag, changelog, migracije i artefakti su reproducibilni | PARTIAL | Frontend release proces postoji; objediniti za cijeli sustav |
 | Neovisni audit | Senior reviewer provjerava arhitekturu, auth, RLS, GDPR i operacije | OPEN | Planirati nakon feature freezea, prije prvog plaćenog klijenta |
 | Penetration test | Vanjski test stvarnog staging/production sustava | OPEN | Nakon hostinga i prije većeg komercijalnog rollouta |
