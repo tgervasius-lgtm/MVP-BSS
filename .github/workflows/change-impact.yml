@@ -1,0 +1,152 @@
+name: BSS change impact gate
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: change-impact-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  validate-change-impact:
+    name: Validate change impact
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Validate coupled files and conditional evidence
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          files_output="$(gh api --paginate "repos/$REPOSITORY/pulls/$PR_NUMBER/files?per_page=100" --jq '.[].filename')"
+          mapfile -t files <<< "$files_output"
+          failures=()
+          normalized_body="$(printf '%s' "$PR_BODY" | tr '[:upper:]' '[:lower:]')"
+
+          has_file() {
+            local needle="$1"
+            printf '%s\n' "${files[@]}" | grep -Fxq -- "$needle"
+          }
+
+          has_section() {
+            local marker
+            for marker in "$@"; do
+              if grep -Fq "$marker" <<< "$normalized_body"; then
+                return 0
+              fi
+            done
+            return 1
+          }
+
+          require_section() {
+            local label="$1"
+            shift
+            if ! has_section "$@"; then
+              failures+=("Nedostaje uvjetni odjeljak: $label")
+            fi
+          }
+
+          if has_file "package.json" && ! has_file "package-lock.json"; then
+            failures+=("Promjena root package.json mora uključiti root package-lock.json")
+          fi
+
+          if has_file "backend/package.json" && ! has_file "backend/package-lock.json"; then
+            failures+=("Promjena backend/package.json mora uključiti backend/package-lock.json")
+          fi
+
+          for file in "${files[@]}"; do
+            if [[ "$file" == backend/migrations/*.up.sql ]]; then
+              companion="${file%.up.sql}.down.sql"
+              if ! has_file "$companion"; then
+                failures+=("Migracija $file nema promijenjen pripadajući rollback $companion")
+              fi
+            elif [[ "$file" == backend/migrations/*.down.sql ]]; then
+              companion="${file%.down.sql}.up.sql"
+              if ! has_file "$companion"; then
+                failures+=("Rollback $file nema promijenjenu pripadajuću migraciju $companion")
+              fi
+            fi
+          done
+
+          contract_impact=false
+          data_impact=false
+          readiness_impact=false
+          product_code_impact=false
+          tests_changed=false
+
+          for file in "${files[@]}"; do
+            case "$file" in
+              openapi/*|backend/src/http/routes/*|backend/src/services/contracts.ts|backend/contracts/*)
+                contract_impact=true
+                ;;
+            esac
+
+            case "$file" in
+              backend/migrations/*|backend/src/db/*|backend/deploy/runtime-grants.sql)
+                data_impact=true
+                ;;
+            esac
+
+            case "$file" in
+              .github/workflows/*|.github/CODEOWNERS|backend/src/security/*|backend/src/http/routes/auth.ts|backend/src/services/pg-auth-service.ts|backend/src/db/tenant.ts|backend/migrations/*|backend/deploy/*|openapi/*|wrangler.toml|_headers|hardware/*|cad/*|terminal/*)
+                readiness_impact=true
+                ;;
+            esac
+
+            case "$file" in
+              app.js|index.html|manifest.json|sw.js|styles.css|src/*|src/**/*|styles/*|styles/**/*|backend/src/*|backend/src/**/*)
+                product_code_impact=true
+                ;;
+            esac
+
+            case "$file" in
+              tests/*|tests/**/*|backend/test/*|backend/test/**/*)
+                tests_changed=true
+                ;;
+            esac
+          done
+
+          if [[ "$contract_impact" == true ]]; then
+            require_section "Contract impact / Utjecaj na API ugovor" \
+              "## contract impact" \
+              "## utjecaj na api" \
+              "## utjecaj na ugovor"
+          fi
+
+          if [[ "$data_impact" == true ]]; then
+            require_section "Data and migration impact / Utjecaj na podatke i migracije" \
+              "## data and migration impact" \
+              "## utjecaj na podatke" \
+              "## utjecaj na migracije"
+          fi
+
+          if [[ "$readiness_impact" == true ]] && ! has_file "BSS_READINESS_MATRIX.md"; then
+            require_section "Readiness impact / Utjecaj na spremnost" \
+              "## readiness impact" \
+              "## utjecaj na spremnost"
+          fi
+
+          if [[ "$product_code_impact" == true && "$tests_changed" == false ]]; then
+            require_section "Test impact / Utjecaj na testove" \
+              "## test impact" \
+              "## utjecaj na testove"
+          fi
+
+          if (( ${#failures[@]} > 0 )); then
+            printf 'BSS change impact gate nije prošao:\n\n'
+            printf ' - %s\n' "${failures[@]}"
+            printf '\nDopuni povezane datoteke ili uvjetne PR odjeljke prije mergea.\n'
+            exit 1
+          fi
+
+          echo "BSS change impact gate: PASS"
