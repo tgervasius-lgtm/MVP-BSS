@@ -25,6 +25,7 @@ BSS OS is the governance layer for product, software, hardware, operations, sale
 | Infrastructure proposal | `docs/bss-os/ADR-001-INFRASTRUCTURE-BASELINE.md` |
 | Pilot readiness | `docs/bss-os/PILOT_READINESS_PACKAGE.md` |
 | Pilot installation and acceptance | `docs/bss-os/PILOT_INSTALLATION_ACCEPTANCE_PACK.md` |
+| Demo and role-based training | `docs/bss-os/DEMO_TRAINING_PLAYBOOK.md` |
 | GDPR/data governance baseline | `docs/bss-os/GDPR_DATA_GOVERNANCE_BASELINE.md` |
 | Legal operations templates | `docs/bss-os/LEGAL_OPERATIONS_TEMPLATE_PACK.md` |
 | Sales and customer onboarding | `docs/bss-os/SALES_CUSTOMER_ONBOARDING_OS.md` |
@@ -58,7 +59,8 @@ BSS OS is the governance layer for product, software, hardware, operations, sale
 9. Assumptions and working price bands must not be presented as approved customer prices.
 10. Proposed support response targets must not be presented as contractual SLA commitments before approval and signed customer terms.
 11. An installation checklist or customer signature must not be presented as proof of physical readiness when a critical acceptance test is failed, blocked or unsupported by evidence.
+12. A successful demo, completed training session or participant signature must not be presented as proof of production readiness or permission to process live employee data.
 
 ## Update discipline
 
-Update these registers when a change affects product scope, architecture, API, data, security, deployment, terminal behavior, privacy, hardware, sales, pricing, customer onboarding, installation, acceptance, support, incident response, pilot readiness or developer handoff.
+Update these registers when a change affects product scope, architecture, API, data, security, deployment, terminal behavior, privacy, hardware, sales, pricing, customer onboarding, demo, training, installation, acceptance, support, incident response, pilot readiness or developer handoff.
