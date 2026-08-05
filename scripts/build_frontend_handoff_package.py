@@ -22,6 +22,9 @@ APP_BASELINE = "91323c7cdbbbbf7b965c4926c94a11af6d31bf62"
 FREEZE_DATE = "2026-07-13"
 REPOSITORY = "https://github.com/tgervasius-lgtm/MVP-BSS"
 PRODUCTION_URL = "https://mvp-bss.pages.dev/"
+HANDOFF_STATUS = "FRONTEND_FROZEN_READY_FOR_BACKEND_CONTRACT_REVIEW"
+OPENAPI_PATH_COUNT = 33
+OPENAPI_OPERATION_COUNT = 43
 
 SOURCE_FILES = (
     "BSS_FRONTEND_RELEASE_V1.md",
@@ -52,6 +55,7 @@ SOURCE_DIRECTORIES = (
 README = f"""# BSS Frontend v1.0.0 Handoff
 
 Ovo je službeni dokumentacijski paket zamrznutog BSS frontend demonstratora za predaju backend programeru.
+Paket vjerno opisuje immutable Git tag `{RELEASE_TAG}`; kasniji backend napredak prati se zasebno na grani `main`.
 
 | Stavka | Vrijednost |
 | --- | --- |
@@ -62,13 +66,13 @@ Ovo je službeni dokumentacijski paket zamrznutog BSS frontend demonstratora za 
 | Datum freezea | {FREEZE_DATE}. |
 | Repozitorij | {REPOSITORY} |
 | Produkcijski demonstrator | {PRODUCTION_URL} |
-| Status | Frontend frozen; OpenAPI v1 odobren; Backend Faza A nije uključena u ZIP |
+| Status | Frontend frozen i spreman za Backend Contract Review; backend implementacija nije uključena u ZIP |
 
 ## Preporučeni redoslijed čitanja
 
 1. `BSS_FRONTEND_RELEASE_V1.md` — službeni status, funkcije, ograničenja i freeze pravila.
-2. `BSS_BACKEND_HANDOFF_V1.md` — arhitektura, sigurnosne granice i redoslijed integracije.
-3. `openapi/bss-mvp-api-v1.yaml` — odobreni OpenAPI 3.1 ugovor v1; 40 putanja i 51 operacija.
+2. `BSS_BACKEND_HANDOFF_V1.md` — arhitektura, sigurnosne granice i redoslijed backend integracije.
+3. `openapi/bss-mvp-api-v1.yaml` — review nacrt OpenAPI 3.1 ugovora iz immutable releasea; {OPENAPI_PATH_COUNT} putanje i {OPENAPI_OPERATION_COUNT} operacije.
 4. `BSS_SCREEN_MAP_V1.md` + `bss-frontend-handoff-v1.json` — ekrani, uloge, domene i strojno čitljiv ugovor.
 5. `BSS_REPORTING_PROFILE_V1.md` — XLSX/CSV format, kontrole i metapodaci.
 6. `BSS_DESIGN_SYSTEM_V1.md` + `design-system/` — zaključani UI ugovor i živi vodič.
@@ -86,7 +90,7 @@ Ovo je službeni dokumentacijski paket zamrznutog BSS frontend demonstratora za 
 
 ## Važne granice
 
-- Backend Contract Review je završen; implementacija slijedi odobreni verzionirani ugovor.
+- Backend Contract Review je sljedeći korak ovog immutable frontend releasea; kasniji review i implementacija nisu retroaktivno dio taga.
 - Frontend demo podaci nisu službena evidencija i ne sadrže stvarni backend, bazu ni autentikaciju.
 - Serverski RBAC, tenant/scope provjere, audit i poslovni izračuni moraju biti provedeni na backendu.
 - `sharedLeave`, PDF/PDF-A poslovni izvoz i ostale v1.1 stavke ne ulaze u backend v1 bez zasebne odluke.
@@ -119,8 +123,10 @@ def validate_source(source: Path) -> None:
         raise SystemExit("Release dokument nije usklađen s očekivanim tagom i baselineom.")
 
     handoff = json.loads((source / "bss-frontend-handoff-v1.json").read_text(encoding="utf-8"))
-    if handoff.get("status") != "FRONTEND_FROZEN_BACKEND_CONTRACT_APPROVED":
-        raise SystemExit("Handoff manifest nema frozen status.")
+    if handoff.get("status") != HANDOFF_STATUS:
+        raise SystemExit(
+            f"Handoff manifest nema očekivani immutable release status: {HANDOFF_STATUS}."
+        )
     if handoff.get("release", {}).get("tag") != RELEASE_TAG:
         raise SystemExit("Handoff manifest nema očekivani release tag.")
     if handoff.get("baseline", {}).get("commit") != APP_BASELINE:
@@ -130,9 +136,11 @@ def validate_source(source: Path) -> None:
     paths_section = re.search(r"^paths:\n([\s\S]*?)^components:", openapi, re.MULTILINE)
     path_count = len(re.findall(r"^  /[^\n]+:", paths_section.group(1) if paths_section else "", re.MULTILINE))
     operation_count = len(re.findall(r"^      operationId:", openapi, re.MULTILINE))
-    if (path_count, operation_count) != (40, 51):
+    if (path_count, operation_count) != (OPENAPI_PATH_COUNT, OPENAPI_OPERATION_COUNT):
         raise SystemExit(
-            f"OpenAPI inventar nije zaključan: pronađeno {path_count} putanja i {operation_count} operacija."
+            "OpenAPI inventar immutable releasea nije zaključan: "
+            f"očekivano {OPENAPI_PATH_COUNT}/{OPENAPI_OPERATION_COUNT}, "
+            f"pronađeno {path_count}/{operation_count}."
         )
 
 
@@ -182,7 +190,7 @@ def build_package(source: Path, output_dir: Path) -> tuple[Path, dict[str, objec
         package_info = {
             "package": "BSS Frontend v1.0.0 Handoff",
             "version": VERSION,
-            "status": "FRONTEND_FROZEN_BACKEND_CONTRACT_APPROVED",
+            "status": HANDOFF_STATUS,
             "freezeDate": FREEZE_DATE,
             "releaseTag": RELEASE_TAG,
             "releaseCommit": RELEASE_COMMIT,
@@ -198,9 +206,7 @@ def build_package(source: Path, output_dir: Path) -> tuple[Path, dict[str, objec
             json.dumps(package_info, ensure_ascii=False, indent=2, sort_keys=True),
         )
 
-        payload_paths = sorted(
-            path for path in package_root.rglob("*") if path.is_file()
-        )
+        payload_paths = sorted(path for path in package_root.rglob("*") if path.is_file())
         manifest_entries = [
             {
                 "path": path.relative_to(package_root).as_posix(),
@@ -223,8 +229,7 @@ def build_package(source: Path, output_dir: Path) -> tuple[Path, dict[str, objec
         )
 
         checksum_paths = sorted(
-            path
-            for path in package_root.rglob("*")
+            path for path in package_root.rglob("*")
             if path.is_file() and path.name != "SHA256SUMS.txt"
         )
         checksum_text = "\n".join(
@@ -275,6 +280,9 @@ def build_package(source: Path, output_dir: Path) -> tuple[Path, dict[str, objec
         "archiveFiles": len(archive_names),
         "releaseTag": RELEASE_TAG,
         "releaseCommit": RELEASE_COMMIT,
+        "handoffStatus": HANDOFF_STATUS,
+        "openapiPaths": OPENAPI_PATH_COUNT,
+        "openapiOperations": OPENAPI_OPERATION_COUNT,
     }
     return zip_path, summary
 
