@@ -29,12 +29,14 @@ Svaka promjena koja utječe na arhitekturu, podatke, sigurnost, deployment, term
 | Audit log | Kritične radnje ostavljaju neizmjenjiv, tenant-scoped i razumljiv trag | PARTIAL | Backend implementacija; retention i zaštita pseudonima ostaju otvoreni |
 | Tajne i ključevi | Nema tajni u Git povijesti; rotacija, KMS i incident postupak su definirani | PARTIAL | `.env` zaštita, security gate; produkcijski KMS/rotacija je EXTERNAL |
 | Static security | CodeQL i dependency audit prolaze kontinuirano | AUTOMATED | BSS security gate |
+| CI/CD workflow ispravnost | Workflow YAML, izrazi i ugrađene shell skripte statički se provjeravaju prije mergea | AUTOMATED | BSS workflow static validation; actionlint v1.7.12 s provjerenim binary checksumom |
+| GitHub Actions supply chain | Sve remote Action ovisnosti koriste nepromjenjivu punu commit SHA referencu | AUTOMATED | Immutable-reference policy + svi postojeći workflowi pinani na potvrđene SHA vrijednosti |
 | Dependency održavanje | Zaključane verzije, automatske nadogradnje i pregled novih ranjivosti/licencija | AUTOMATED | Dependabot, npm audit i GitHub dependency review |
-| SBOM | Frontend i backend CycloneDX inventar se generira, validira i arhivira | AUTOMATED | BSS dependency inventory; potvrđen artefakt za `main` commit |
+| SBOM | Frontend i backend CycloneDX inventar se generira, validira i arhivira | AUTOMATED | BSS dependency inventory; potvrđen artefakt za aktualni `main` commit |
 | PR veličina i rizik | Veliki i višepodručni PR-ovi dobivaju automatsko upozorenje | AUTOMATED | PR size/risk guardrail u `main` |
 | PR dokumentacija | Cilj, rizik, testni dokaz i rollback su obvezni | AUTOMATED | BSS PR governance gate |
 | Vlasništvo koda | Kritični dijelovi imaju formalnog vlasnika | DONE | `.github/CODEOWNERS` |
-| Branch zaštita | `main` blokira direktan push, traži zelene checkove i review | EXTERNAL | GitHub repository settings; uključiti required checks i CODEOWNERS review |
+| Branch zaštita | `main` blokira direktan push, traži zelene checkove i review | EXTERNAL | GitHub repository settings; integracija nema permission za čitanje ili promjenu branch protectiona, zato ručno potvrditi required checks i CODEOWNERS review |
 | Unit testovi | Ključna poslovna pravila imaju stabilne, brze testove | PARTIAL | Postojeći suite; coverage pragovi se tek trebaju formalizirati |
 | Integration testovi | API, baza, migracije i RLS rade u stvarnom PostgreSQL-u | AUTOMATED | GitHub CI PostgreSQL 16 testovi |
 | E2E testovi | Glavni tokovi svih uloga rade kroz browser i backend | PARTIAL | Postojeći Playwright/axe tokovi; proširiti nakon finalne integracije |
@@ -59,7 +61,8 @@ Svaka promjena koja utječe na arhitekturu, podatke, sigurnost, deployment, term
 | RFID pouzdanost | Doseg, orijentacija, metalno kućište i pogrešna očitanja testirani | OPEN | Bench test na stvarnom prototipu |
 | Developer onboarding | Clean clone do lokalnog rada je moguć samo iz dokumentacije | PARTIAL | `DEVELOPER_GUIDE.md`; obvezan neovisni clean-room test |
 | Operativna dokumentacija | Deploy, rollback, backup, restore, incident i troubleshooting postoje | PARTIAL | Dio runbookova postoji; produkcijski detalji nakon hostinga |
-| Handoff paket | Kod, dokumenti, API, DB, testovi, tajne-popis i otvoreni rizici su predani | PARTIAL | Postojeći handoff artefakti; finalizirati na feature freezeu |
+| Frontend handoff artefakt | Immutable frontend tag reproducibilno daje validiran ZIP, manifest, checksum i release asset | AUTOMATED | PR verify + post-merge publish workflow; verify i publish potvrđeni na aktualnom `main` |
+| Handoff paket | Kod, dokumenti, API, DB, testovi, tajne-popis i otvoreni rizici su predani | PARTIAL | Postojeći handoff artefakti; finalizirati cijeli sustav na feature freezeu |
 | Vendor lock-in | Repo, domena, cloud, tajne, billing i administracija ostaju pod BSS kontrolom | OPEN | Napraviti access/ownership register prije vanjskog programera |
 | Licencije | Novouvedene dependency licence su automatski provjerene i neprihvaćene licence blokirane | AUTOMATED | GitHub dependency review s eksplicitnom SPDX allowlistom |
 | Release verzioniranje | Tag, changelog, migracije i artefakti su reproducibilni | PARTIAL | Frontend release proces postoji; objediniti za cijeli sustav |
