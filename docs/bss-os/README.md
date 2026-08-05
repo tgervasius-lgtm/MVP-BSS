@@ -6,7 +6,7 @@ Repository source of truth: `tgervasius-lgtm/MVP-BSS`
 
 ## Purpose
 
-BSS OS is the governance layer for product, software, hardware, operations, finance, releases, sales, pricing and pilot readiness. It does not replace technical documentation, statutory accounting or signed legal documents. It links decisions, risks, feature status, release/change control, commercial workflow, finance controls, asset controls, pricing controls and readiness evidence so the project can be continued by Codex, an external developer or a future internal team without relying on chat history.
+BSS OS is the governance layer for product, software, hardware, operations, finance, releases, identity/access/security, sales, pricing and pilot readiness. It does not replace technical documentation, statutory accounting or signed legal documents. It links decisions, risks, feature status, release/change control, identity and secret controls, commercial workflow, finance controls, asset controls, pricing controls and readiness evidence so the project can be continued by Codex, an external developer or a future internal team without relying on chat history.
 
 ## Sources of truth
 
@@ -23,6 +23,7 @@ BSS OS is the governance layer for product, software, hardware, operations, fina
 | Feature status | `docs/bss-os/PRODUCT_FEATURE_REGISTRY.md` |
 | Current operating priorities | `docs/bss-os/CONTROL_BOARD.md` |
 | Founder governance | `docs/bss-os/FOUNDER_OPERATING_SYSTEM.md` |
+| Identity, access and secrets | `docs/bss-os/IDENTITY_ACCESS_SECRETS_MANAGEMENT_OS.md` |
 | Finance and cashflow governance | `docs/bss-os/FINANCE_CASHFLOW_OPERATING_SYSTEM.md` |
 | Procurement, inventory and assets | `docs/bss-os/PROCUREMENT_INVENTORY_ASSET_MANAGEMENT_OS.md` |
 | External developers and vendors | `docs/bss-os/EXTERNAL_DEVELOPER_VENDOR_MANAGEMENT_PACK.md` |
@@ -77,7 +78,10 @@ BSS OS is the governance layer for product, software, hardware, operations, fina
 20. A similar-looking component or changed revision is not an approved substitute until compatibility, required retesting and the change decision are documented.
 21. Merged, deployed, verified and released are separate software and product states; a successful pull request is not a production release.
 22. Customer-facing release notes and product claims must match the Product Feature Registry and the actual verified release scope.
+23. Requested, approved, provisioned and active are separate access states; role, employment or contract status does not automatically grant system access.
+24. Possession of a password, token, key or recovery method is not authorization to use it; credential use requires current approved purpose and scope.
+25. Passwords, tokens, private keys, recovery codes, device secrets and real access inventories must never be committed to the public repository.
 
 ## Update discipline
 
-Update these registers when a change affects founder roles, decision rights, spending controls, budgets, commitments, invoices, receivables, subscriptions, grants, cashflow, runway, payment authorization, procurement, approved parts, suppliers, inventory, assets, BOMs, configuration traceability, custody, spares, repairs, RMAs, disposal, release candidates, versioning, deployment approval, rollout, rollback, migrations, release notes, product communication, critical access, vendor engagement, external development, deliverable acceptance, intellectual-property evidence, product scope, architecture, API, data, security, deployment, terminal behavior, privacy, hardware, sales, pricing, customer onboarding, customer administration, demo, training, installation, acceptance, support, incident response, pilot readiness, pilot evaluation, post-pilot conversion or developer handoff.
+Update these registers when a change affects founder roles, decision rights, spending controls, budgets, commitments, invoices, receivables, subscriptions, grants, cashflow, runway, payment authorization, procurement, approved parts, suppliers, inventory, assets, BOMs, configuration traceability, custody, spares, repairs, RMAs, disposal, release candidates, versioning, deployment approval, rollout, rollback, migrations, release notes, product communication, identity classes, access requests, system owners, MFA, recovery, service accounts, secrets, credential rotation, production access, customer-data access, break-glass access, joiner/mover/leaver processes, critical access, vendor engagement, external development, deliverable acceptance, intellectual-property evidence, product scope, architecture, API, data, security, deployment, terminal behavior, privacy, hardware, sales, pricing, customer onboarding, customer administration, demo, training, installation, acceptance, support, incident response, pilot readiness, pilot evaluation, post-pilot conversion or developer handoff.
