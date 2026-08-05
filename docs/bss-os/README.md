@@ -6,7 +6,7 @@ Repository source of truth: `tgervasius-lgtm/MVP-BSS`
 
 ## Purpose
 
-BSS OS is the governance layer for product, software, hardware, operations, finance, sales, pricing and pilot readiness. It does not replace technical documentation, statutory accounting or signed legal documents. It links decisions, risks, feature status, commercial workflow, finance controls, pricing controls and readiness evidence so the project can be continued by Codex, an external developer or a future internal team without relying on chat history.
+BSS OS is the governance layer for product, software, hardware, operations, finance, sales, pricing and pilot readiness. It does not replace technical documentation, statutory accounting or signed legal documents. It links decisions, risks, feature status, commercial workflow, finance controls, asset controls, pricing controls and readiness evidence so the project can be continued by Codex, an external developer or a future internal team without relying on chat history.
 
 ## Sources of truth
 
@@ -24,6 +24,7 @@ BSS OS is the governance layer for product, software, hardware, operations, fina
 | Current operating priorities | `docs/bss-os/CONTROL_BOARD.md` |
 | Founder governance | `docs/bss-os/FOUNDER_OPERATING_SYSTEM.md` |
 | Finance and cashflow governance | `docs/bss-os/FINANCE_CASHFLOW_OPERATING_SYSTEM.md` |
+| Procurement, inventory and assets | `docs/bss-os/PROCUREMENT_INVENTORY_ASSET_MANAGEMENT_OS.md` |
 | External developers and vendors | `docs/bss-os/EXTERNAL_DEVELOPER_VENDOR_MANAGEMENT_PACK.md` |
 | Infrastructure proposal | `docs/bss-os/ADR-001-INFRASTRUCTURE-BASELINE.md` |
 | Pilot readiness | `docs/bss-os/PILOT_READINESS_PACKAGE.md` |
@@ -71,7 +72,9 @@ BSS OS is the governance layer for product, software, hardware, operations, fina
 16. Time spent, an open pull request, a screenshot or a verbal promise is not an accepted vendor deliverable without the agreed evidence and acceptance result.
 17. Budget, forecast, scenario, commitment, invoice and paid actual are separate financial states and must not be presented as interchangeable.
 18. A supplier invoice alone is not payment authorization; payment requires an approved commitment, matching evidence, acceptance where applicable and authorized approval.
+19. Ordered, received, inspected, accepted, available and deployed are separate hardware and inventory states.
+20. A similar-looking component or changed revision is not an approved substitute until compatibility, required retesting and the change decision are documented.
 
 ## Update discipline
 
-Update these registers when a change affects founder roles, decision rights, spending controls, budgets, commitments, invoices, receivables, subscriptions, grants, cashflow, runway, payment authorization, critical access, vendor engagement, external development, procurement, deliverable acceptance, intellectual-property evidence, product scope, architecture, API, data, security, deployment, terminal behavior, privacy, hardware, sales, pricing, customer onboarding, customer administration, demo, training, installation, acceptance, support, incident response, pilot readiness, pilot evaluation, post-pilot conversion or developer handoff.
+Update these registers when a change affects founder roles, decision rights, spending controls, budgets, commitments, invoices, receivables, subscriptions, grants, cashflow, runway, payment authorization, procurement, approved parts, suppliers, inventory, assets, BOMs, configuration traceability, custody, spares, repairs, RMAs, disposal, critical access, vendor engagement, external development, deliverable acceptance, intellectual-property evidence, product scope, architecture, API, data, security, deployment, terminal behavior, privacy, hardware, sales, pricing, customer onboarding, customer administration, demo, training, installation, acceptance, support, incident response, pilot readiness, pilot evaluation, post-pilot conversion or developer handoff.
