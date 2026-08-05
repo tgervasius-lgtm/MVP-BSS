@@ -1,0 +1,72 @@
+name: BSS PR governance gate
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr-governance-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  validate-pr-governance:
+    name: Validate PR governance
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Validate title and required evidence
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          PR_DRAFT: ${{ github.event.pull_request.draft }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          failures=()
+
+          if [[ ! "$PR_TITLE" =~ ^(feat|fix|chore|ci|docs|refactor|test|build|perf|security|release)(\([a-z0-9._/-]+\))?:\ .+ ]]; then
+            failures+=("Naslov mora koristiti format: type(scope): jasan opis, npr. fix(auth): prevent stale session reuse")
+          fi
+
+          if (( ${#PR_TITLE} > 100 )); then
+            failures+=("Naslov PR-a mora imati najviše 100 znakova")
+          fi
+
+          normalized_body="$(printf '%s' "$PR_BODY" | tr '[:upper:]' '[:lower:]')"
+
+          require_any() {
+            local label="$1"
+            shift
+            local found=false
+            for marker in "$@"; do
+              if grep -Fq "$marker" <<< "$normalized_body"; then
+                found=true
+                break
+              fi
+            done
+            if [[ "$found" == false ]]; then
+              failures+=("Nedostaje odjeljak ili dokaz za: $label")
+            fi
+          }
+
+          require_any "cilj/opseg promjene" "## cilj" "## svrha" "## sažetak" "## što je promijenjeno" "## sto je promijenjeno"
+          require_any "rizik i sigurnosni utjecaj" "## rizik" "## sigurnost" "## utjecaj" "## impact"
+          require_any "provjeru/testove" "## provjera" "## validacija" "## test" "## lokalni dokaz" "## verification"
+          require_any "rollback ili granice promjene" "## rollback" "## granice" "## rollback plan" "## scope boundaries"
+
+          if [[ "$PR_DRAFT" != "true" && ${#PR_BODY} -lt 250 ]]; then
+            failures+=("PR koji nije draft mora imati najmanje 250 znakova opisa s dovoljno konteksta za neovisni review")
+          fi
+
+          if (( ${#failures[@]} > 0 )); then
+            printf 'BSS PR governance gate nije prošao:\n\n'
+            printf ' - %s\n' "${failures[@]}"
+            printf '\nDopuni PR prije mergea. Ovaj gate ne provjerava kvalitetu implementacije; provjerava da je promjena transparentno objašnjena i dokaziva.\n'
+            exit 1
+          fi
+
+          echo "BSS PR governance gate: PASS"
