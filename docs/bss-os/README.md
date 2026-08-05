@@ -6,7 +6,7 @@ Repository source of truth: `tgervasius-lgtm/MVP-BSS`
 
 ## Purpose
 
-BSS OS is the governance layer for product, software, hardware, operations, finance, releases, identity/access/security, sales, pricing and pilot readiness. It does not replace technical documentation, statutory accounting or signed legal documents. It links decisions, risks, feature status, release/change control, identity and secret controls, commercial workflow, finance controls, asset controls, pricing controls and readiness evidence so the project can be continued by Codex, an external developer or a future internal team without relying on chat history.
+BSS OS is the governance layer for product, software, hardware, operations, finance, releases, identity/access/security, backup/recovery/continuity, sales, pricing and pilot readiness. It does not replace technical documentation, statutory accounting or signed legal documents. It links decisions, risks, feature status, release/change control, identity and secret controls, backup and continuity controls, commercial workflow, finance controls, asset controls, pricing controls and readiness evidence so the project can be continued by Codex, an external developer or a future internal team without relying on chat history.
 
 ## Sources of truth
 
@@ -24,6 +24,7 @@ BSS OS is the governance layer for product, software, hardware, operations, fina
 | Current operating priorities | `docs/bss-os/CONTROL_BOARD.md` |
 | Founder governance | `docs/bss-os/FOUNDER_OPERATING_SYSTEM.md` |
 | Identity, access and secrets | `docs/bss-os/IDENTITY_ACCESS_SECRETS_MANAGEMENT_OS.md` |
+| Backup, disaster recovery and continuity | `docs/bss-os/BACKUP_DISASTER_RECOVERY_BUSINESS_CONTINUITY_OS.md` |
 | Finance and cashflow governance | `docs/bss-os/FINANCE_CASHFLOW_OPERATING_SYSTEM.md` |
 | Procurement, inventory and assets | `docs/bss-os/PROCUREMENT_INVENTORY_ASSET_MANAGEMENT_OS.md` |
 | External developers and vendors | `docs/bss-os/EXTERNAL_DEVELOPER_VENDOR_MANAGEMENT_PACK.md` |
@@ -81,7 +82,11 @@ BSS OS is the governance layer for product, software, hardware, operations, fina
 23. Requested, approved, provisioned and active are separate access states; role, employment or contract status does not automatically grant system access.
 24. Possession of a password, token, key or recovery method is not authorization to use it; credential use requires current approved purpose and scope.
 25. Passwords, tokens, private keys, recovery codes, device secrets and real access inventories must never be committed to the public repository.
+26. A successful backup job, snapshot or configured retention policy is not proof that data or service can be restored.
+27. Proposed RPO and RTO values are planning targets, not contractual SLA commitments, until measured through successful restore drills and formally approved.
+28. Provider-native recovery must not be treated as the only critical-data recovery path; independent encrypted recovery evidence is required before live-pilot approval.
+29. Real backup locations, provider account identifiers, encryption keys, recovery credentials and customer recovery data must remain outside the public repository.
 
 ## Update discipline
 
-Update these registers when a change affects founder roles, decision rights, spending controls, budgets, commitments, invoices, receivables, subscriptions, grants, cashflow, runway, payment authorization, procurement, approved parts, suppliers, inventory, assets, BOMs, configuration traceability, custody, spares, repairs, RMAs, disposal, release candidates, versioning, deployment approval, rollout, rollback, migrations, release notes, product communication, identity classes, access requests, system owners, MFA, recovery, service accounts, secrets, credential rotation, production access, customer-data access, break-glass access, joiner/mover/leaver processes, critical access, vendor engagement, external development, deliverable acceptance, intellectual-property evidence, product scope, architecture, API, data, security, deployment, terminal behavior, privacy, hardware, sales, pricing, customer onboarding, customer administration, demo, training, installation, acceptance, support, incident response, pilot readiness, pilot evaluation, post-pilot conversion or developer handoff.
+Update these registers when a change affects founder roles, decision rights, spending controls, budgets, commitments, invoices, receivables, subscriptions, grants, cashflow, runway, payment authorization, procurement, approved parts, suppliers, inventory, assets, BOMs, configuration traceability, custody, spares, repairs, RMAs, disposal, release candidates, versioning, deployment approval, rollout, rollback, migrations, release notes, product communication, identity classes, access requests, system owners, MFA, recovery, service accounts, secrets, credential rotation, production access, customer-data access, break-glass access, joiner/mover/leaver processes, backup scope, backup schedules, retention, encryption, independent copies, restore authorization, PITR, RPO/RTO, disaster declaration, manual fallback, business continuity, founder unavailability, provider recovery, failover, failback, restore drills, critical access, vendor engagement, external development, deliverable acceptance, intellectual-property evidence, product scope, architecture, API, data, security, deployment, terminal behavior, privacy, hardware, sales, pricing, customer onboarding, customer administration, demo, training, installation, acceptance, support, incident response, pilot readiness, pilot evaluation, post-pilot conversion or developer handoff.
