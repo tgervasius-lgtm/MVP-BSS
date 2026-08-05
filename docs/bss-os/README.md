@@ -24,6 +24,7 @@ BSS OS is the governance layer for product, software, hardware, operations, sale
 | Current operating priorities | `docs/bss-os/CONTROL_BOARD.md` |
 | Infrastructure proposal | `docs/bss-os/ADR-001-INFRASTRUCTURE-BASELINE.md` |
 | Pilot readiness | `docs/bss-os/PILOT_READINESS_PACKAGE.md` |
+| Pilot success and post-pilot review | `docs/bss-os/PILOT_SUCCESS_POST_PILOT_REVIEW_PACK.md` |
 | Pilot installation and acceptance | `docs/bss-os/PILOT_INSTALLATION_ACCEPTANCE_PACK.md` |
 | Demo and role-based training | `docs/bss-os/DEMO_TRAINING_PLAYBOOK.md` |
 | Customer administration | `docs/bss-os/CUSTOMER_ADMIN_MANUAL.md` |
@@ -62,7 +63,8 @@ BSS OS is the governance layer for product, software, hardware, operations, sale
 11. An installation checklist or customer signature must not be presented as proof of physical readiness when a critical acceptance test is failed, blocked or unsupported by evidence.
 12. A successful demo, completed training session or participant signature must not be presented as proof of production readiness or permission to process live employee data.
 13. Process documentation without verified screenshots and click paths must not be presented as an authoritative user-interface manual.
+14. A positive pilot narrative, customer enthusiasm or weighted score must not override a failed critical security, privacy, tenant-isolation, safety or data-integrity gate.
 
 ## Update discipline
 
-Update these registers when a change affects product scope, architecture, API, data, security, deployment, terminal behavior, privacy, hardware, sales, pricing, customer onboarding, customer administration, demo, training, installation, acceptance, support, incident response, pilot readiness or developer handoff.
+Update these registers when a change affects product scope, architecture, API, data, security, deployment, terminal behavior, privacy, hardware, sales, pricing, customer onboarding, customer administration, demo, training, installation, acceptance, support, incident response, pilot readiness, pilot evaluation, post-pilot conversion or developer handoff.
