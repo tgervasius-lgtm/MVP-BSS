@@ -1,0 +1,14 @@
+extends:
+  - minimal
+
+apis:
+  bss-mvp@v1:
+    root: ./openapi/bss-mvp-api-v1.yaml
+
+rules:
+  no-unresolved-refs: error
+  struct: error
+  operation-operationId: warn
+  operation-operationId-unique: error
+  path-parameters-defined: error
+  security-defined: warn

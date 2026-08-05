@@ -1,0 +1,74 @@
+name: BSS API and dependency governance
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'openapi/**'
+      - 'redocly.yaml'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'backend/package.json'
+      - 'backend/package-lock.json'
+      - 'backend/src/http/**'
+      - 'backend/src/services/contracts.ts'
+      - '.github/workflows/api-dependency-governance.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'openapi/**'
+      - 'redocly.yaml'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'backend/package.json'
+      - 'backend/package-lock.json'
+      - 'backend/src/http/**'
+      - 'backend/src/services/contracts.ts'
+      - '.github/workflows/api-dependency-governance.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: api-dependency-governance-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  openapi-lint:
+    name: OpenAPI structural validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      REDOCLY_TELEMETRY: 'off'
+      REDOCLY_SUPPRESS_UPDATE_NOTICE: 'true'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Node 22.12
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.12.0'
+
+      - name: Lint BSS OpenAPI contract
+        run: npx --yes @redocly/cli@2.41.1 lint openapi/bss-mvp-api-v1.yaml --config redocly.yaml
+
+  dependency-review:
+    name: New dependency vulnerability and license review
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Review dependency changes
+        uses: actions/dependency-review-action@v5
+        with:
+          fail-on-severity: moderate
+          allow-licenses: >-
+            MIT, Apache-2.0, BSD-2-Clause, BSD-3-Clause, ISC, 0BSD,
+            CC0-1.0, Unlicense, MPL-2.0, Python-2.0, BlueOak-1.0.0, Zlib
+          comment-summary-in-pr: never
+          show-openssf-scorecard: true
