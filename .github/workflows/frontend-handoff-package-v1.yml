@@ -64,14 +64,20 @@ jobs:
 
       - name: Record verification summary
         run: |
-          echo '## BSS Frontend v1.0.0 Handoff Verification' >> "$GITHUB_STEP_SUMMARY"
-          echo '' >> "$GITHUB_STEP_SUMMARY"
-          echo '- Source: immutable tag `frontend-v1.0.0`' >> "$GITHUB_STEP_SUMMARY"
-          echo '- Verification: source contract + ZIP integrity + SHA-256 PASS' >> "$GITHUB_STEP_SUMMARY"
-          echo '' >> "$GITHUB_STEP_SUMMARY"
-          echo '```json' >> "$GITHUB_STEP_SUMMARY"
-          cat artifacts/build-summary.json >> "$GITHUB_STEP_SUMMARY"
-          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          {
+            cat <<'MARKDOWN'
+          ## BSS Frontend v1.0.0 Handoff Verification
+
+          - Source: immutable tag frontend-v1.0.0
+          - Verification: source contract + ZIP integrity + SHA-256 PASS
+
+          ```json
+          MARKDOWN
+            cat artifacts/build-summary.json
+            cat <<'MARKDOWN'
+          ```
+          MARKDOWN
+          } >> "$GITHUB_STEP_SUMMARY"
 
   publish:
     name: publish-verified-handoff-package
@@ -103,8 +109,10 @@ jobs:
 
       - name: Record publication summary
         run: |
-          echo '## BSS Frontend v1.0.0 Handoff Publication' >> "$GITHUB_STEP_SUMMARY"
-          echo '' >> "$GITHUB_STEP_SUMMARY"
-          echo '- Release: `frontend-v1.0.0`' >> "$GITHUB_STEP_SUMMARY"
-          echo '- Asset: `BSS_Frontend_v1.0.0_Handoff.zip`' >> "$GITHUB_STEP_SUMMARY"
-          echo '- Verification: immutable source + ZIP integrity + SHA-256 PASS' >> "$GITHUB_STEP_SUMMARY"
+          cat >> "$GITHUB_STEP_SUMMARY" <<'MARKDOWN'
+          ## BSS Frontend v1.0.0 Handoff Publication
+
+          - Release: frontend-v1.0.0
+          - Asset: BSS_Frontend_v1.0.0_Handoff.zip
+          - Verification: immutable source + ZIP integrity + SHA-256 PASS
+          MARKDOWN
