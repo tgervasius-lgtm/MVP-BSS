@@ -104,13 +104,13 @@ jobs:
             esac
 
             case "$file" in
-              app.js|index.html|manifest.json|sw.js|styles.css|src/*|src/**/*|styles/*|styles/**/*|backend/src/*|backend/src/**/*)
+              app.js|index.html|manifest.json|sw.js|styles.css|src/*|styles/*|backend/src/*)
                 product_code_impact=true
                 ;;
             esac
 
             case "$file" in
-              tests/*|tests/**/*|backend/test/*|backend/test/**/*)
+              tests/*|backend/test/*)
                 tests_changed=true
                 ;;
             esac
