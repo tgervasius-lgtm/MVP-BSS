@@ -27,6 +27,7 @@ BSS OS is the governance layer for product, software, hardware, operations, sale
 | GDPR/data governance baseline | `docs/bss-os/GDPR_DATA_GOVERNANCE_BASELINE.md` |
 | Legal operations templates | `docs/bss-os/LEGAL_OPERATIONS_TEMPLATE_PACK.md` |
 | Sales and customer onboarding | `docs/bss-os/SALES_CUSTOMER_ONBOARDING_OS.md` |
+| Customer discovery and outreach | `docs/bss-os/CUSTOMER_DISCOVERY_OUTREACH_PACK.md` |
 | Pricing and commercial offers | `docs/bss-os/PRICING_COMMERCIAL_OFFER_BASELINE.md` |
 
 ## Status language
