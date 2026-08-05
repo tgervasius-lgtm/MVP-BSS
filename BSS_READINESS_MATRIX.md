@@ -27,8 +27,9 @@ Svaka promjena koja utječe na arhitekturu, podatke, sigurnost, deployment, term
 | Autentikacija i sesije | Login, refresh, logout, invitation i revocation imaju testirane sigurnosne granice | PARTIAL | Backend audit i auth/concurrency testovi; vanjski security review prije produkcije |
 | RBAC | Svaka operacija ima dopuštene uloge i negativne testove | PARTIAL | OpenAPI RBAC deklaracije i contract testovi; potpuna matrica prije pilota |
 | Audit log | Kritične radnje ostavljaju neizmjenjiv, tenant-scoped i razumljiv trag | PARTIAL | Backend implementacija; retention i zaštita pseudonima ostaju otvoreni |
-| Tajne i ključevi | Nema tajni u Git povijesti; rotacija, KMS i incident postupak su definirani | PARTIAL | `.env` zaštita, security gate; produkcijski KMS/rotacija je EXTERNAL |
+| Tajne i ključevi | Nema tajni u Git povijesti; rotacija, KMS i incident postupak su definirani | PARTIAL | Gitleaks full-history zaštita je automatizirana; produkcijski KMS, rotacija i incident rehearsal ostaju EXTERNAL |
 | Static security | CodeQL i dependency audit prolaze kontinuirano | AUTOMATED | BSS security gate |
+| Secret scanning | Trenutačni kod i puna dostupna Git povijest blokiraju neodobrene credentiale bez izlaganja vrijednosti u logovima | AUTOMATED | Gitleaks v8.30.1, checksum-verificirani binary, `--all` history scan, redaction i uska fingerprint allowlista |
 | CI/CD workflow ispravnost | Workflow YAML, izrazi i ugrađene shell skripte statički se provjeravaju prije mergea | AUTOMATED | BSS workflow static validation; actionlint v1.7.12 s provjerenim binary checksumom |
 | GitHub Actions supply chain | Sve remote Action ovisnosti koriste nepromjenjivu punu commit SHA referencu | AUTOMATED | Immutable-reference policy + svi postojeći workflowi pinani na potvrđene SHA vrijednosti |
 | Dependency održavanje | Zaključane verzije, automatske nadogradnje i pregled novih ranjivosti/licencija | AUTOMATED | Dependabot, npm audit i GitHub dependency review |
@@ -36,7 +37,7 @@ Svaka promjena koja utječe na arhitekturu, podatke, sigurnost, deployment, term
 | PR veličina i rizik | Veliki i višepodručni PR-ovi dobivaju automatsko upozorenje | AUTOMATED | PR size/risk guardrail u `main` |
 | PR dokumentacija | Cilj, rizik, testni dokaz i rollback su obvezni | AUTOMATED | BSS PR governance gate |
 | Vlasništvo koda | Kritični dijelovi imaju formalnog vlasnika | DONE | `.github/CODEOWNERS` |
-| Branch zaštita | `main` blokira direktan push, traži zelene checkove i review | EXTERNAL | GitHub repository settings; integracija nema permission za čitanje ili promjenu branch protectiona, zato ručno potvrditi required checks i CODEOWNERS review |
+| Branch zaštita | `main` zahtijeva PR, aktualnu granu, riješene razgovore i šest zelenih GitHub Actions checkova; zabranjeni su deletion, force push i bypass | AUTOMATED | Aktivni repository ruleset `main` za `refs/heads/main`; squash-only, 0 approvals tijekom solo-founder faze, bypass lista prazna |
 | Unit testovi | Ključna poslovna pravila imaju stabilne, brze testove | PARTIAL | Postojeći suite; coverage pragovi se tek trebaju formalizirati |
 | Integration testovi | API, baza, migracije i RLS rade u stvarnom PostgreSQL-u | AUTOMATED | GitHub CI PostgreSQL 16 testovi |
 | E2E testovi | Glavni tokovi svih uloga rade kroz browser i backend | PARTIAL | Postojeći Playwright/axe tokovi; proširiti nakon finalne integracije |
@@ -73,7 +74,7 @@ Svaka promjena koja utječe na arhitekturu, podatke, sigurnost, deployment, term
 
 BSS se ne smije označiti kao `production ready` dok nisu zatvoreni najmanje:
 
-1. branch protection i obvezni CI checkovi;
+1. branch protection i obvezni CI checkovi — zatvoreno na razini repozitorija;
 2. staging okruženje jednako produkcijskom po ključnim servisima;
 3. stvarni backup + uspješan restore/PITR drill;
 4. monitoring, error tracking i incident alerti;
