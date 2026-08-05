@@ -1,0 +1,37 @@
+# BSS code ownership
+#
+# Trenutačni vlasnik repozitorija je zadani reviewer za cijeli projekt.
+# Kako se tim širi, specifične osobe ili GitHub timovi trebaju se dodati
+# uz odgovarajuća područja umjesto uklanjanja globalnog vlasnika bez odluke osnivača.
+
+* @tgervasius-lgtm
+
+# Kritična aplikacijska područja
+/backend/ @tgervasius-lgtm
+/src/ @tgervasius-lgtm
+/preview/ @tgervasius-lgtm
+
+# API ugovori, baza i migracije
+/backend/openapi/ @tgervasius-lgtm
+/backend/migrations/ @tgervasius-lgtm
+/backend/contracts/ @tgervasius-lgtm
+
+# Sigurnost, automatizacija i deployment
+/.github/ @tgervasius-lgtm
+/.github/workflows/ @tgervasius-lgtm
+Dockerfile @tgervasius-lgtm
+**/Dockerfile @tgervasius-lgtm
+*compose*.yml @tgervasius-lgtm
+*compose*.yaml @tgervasius-lgtm
+
+# Dependency i build ugovori
+package.json @tgervasius-lgtm
+package-lock.json @tgervasius-lgtm
+/backend/package.json @tgervasius-lgtm
+/backend/package-lock.json @tgervasius-lgtm
+
+# Dokumentacija koja definira handoff, arhitekturu i operacije
+/AGENTS.md @tgervasius-lgtm
+/DEVELOPER_GUIDE.md @tgervasius-lgtm
+/BACKEND_ARCHITECTURE.md @tgervasius-lgtm
+/BSS_PRODUCTION_READINESS_AUDIT.md @tgervasius-lgtm
