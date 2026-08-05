@@ -22,6 +22,7 @@ BSS OS is the governance layer for product, software, hardware, operations, sale
 | Risks | `docs/bss-os/RISK_REGISTER.md` |
 | Feature status | `docs/bss-os/PRODUCT_FEATURE_REGISTRY.md` |
 | Current operating priorities | `docs/bss-os/CONTROL_BOARD.md` |
+| Founder governance | `docs/bss-os/FOUNDER_OPERATING_SYSTEM.md` |
 | Infrastructure proposal | `docs/bss-os/ADR-001-INFRASTRUCTURE-BASELINE.md` |
 | Pilot readiness | `docs/bss-os/PILOT_READINESS_PACKAGE.md` |
 | Pilot success and post-pilot review | `docs/bss-os/PILOT_SUCCESS_POST_PILOT_REVIEW_PACK.md` |
@@ -64,7 +65,8 @@ BSS OS is the governance layer for product, software, hardware, operations, sale
 12. A successful demo, completed training session or participant signature must not be presented as proof of production readiness or permission to process live employee data.
 13. Process documentation without verified screenshots and click paths must not be presented as an authoritative user-interface manual.
 14. A positive pilot narrative, customer enthusiasm or weighted score must not override a failed critical security, privacy, tenant-isolation, safety or data-integrity gate.
+15. A founder discussion, chat agreement or personal assumption is not an approved company decision until it is recorded through the authorized decision process.
 
 ## Update discipline
 
-Update these registers when a change affects product scope, architecture, API, data, security, deployment, terminal behavior, privacy, hardware, sales, pricing, customer onboarding, customer administration, demo, training, installation, acceptance, support, incident response, pilot readiness, pilot evaluation, post-pilot conversion or developer handoff.
+Update these registers when a change affects founder roles, decision rights, spending controls, critical access, product scope, architecture, API, data, security, deployment, terminal behavior, privacy, hardware, sales, pricing, customer onboarding, customer administration, demo, training, installation, acceptance, support, incident response, pilot readiness, pilot evaluation, post-pilot conversion or developer handoff.
