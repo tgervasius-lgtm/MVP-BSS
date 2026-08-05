@@ -29,6 +29,7 @@ BSS OS is the governance layer for product, software, hardware, operations, sale
 | Sales and customer onboarding | `docs/bss-os/SALES_CUSTOMER_ONBOARDING_OS.md` |
 | Customer discovery and outreach | `docs/bss-os/CUSTOMER_DISCOVERY_OUTREACH_PACK.md` |
 | Pricing and commercial offers | `docs/bss-os/PRICING_COMMERCIAL_OFFER_BASELINE.md` |
+| Support and incident operations | `docs/bss-os/SUPPORT_INCIDENT_OPERATING_SYSTEM.md` |
 
 ## Status language
 
@@ -54,7 +55,8 @@ BSS OS is the governance layer for product, software, hardware, operations, sale
 7. Production readiness requires closure of repository, infrastructure, operations, security, privacy and hardware blockers, not only green application tests.
 8. Real prospect and customer personal data must not be committed to the public product repository.
 9. Assumptions and working price bands must not be presented as approved customer prices.
+10. Proposed support response targets must not be presented as contractual SLA commitments before approval and signed customer terms.
 
 ## Update discipline
 
-Update these registers when a change affects product scope, architecture, API, data, security, deployment, terminal behavior, privacy, hardware, sales, pricing, customer onboarding, pilot readiness or developer handoff.
+Update these registers when a change affects product scope, architecture, API, data, security, deployment, terminal behavior, privacy, hardware, sales, pricing, customer onboarding, support, incident response, pilot readiness or developer handoff.
