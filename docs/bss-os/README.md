@@ -22,6 +22,10 @@ BSS OS is the governance layer for product, software, hardware, operations and p
 | Risks | `docs/bss-os/RISK_REGISTER.md` |
 | Feature status | `docs/bss-os/PRODUCT_FEATURE_REGISTRY.md` |
 | Current operating priorities | `docs/bss-os/CONTROL_BOARD.md` |
+| Infrastructure proposal | `docs/bss-os/ADR-001-INFRASTRUCTURE-BASELINE.md` |
+| Pilot readiness | `docs/bss-os/PILOT_READINESS_PACKAGE.md` |
+| GDPR/data governance baseline | `docs/bss-os/GDPR_DATA_GOVERNANCE_BASELINE.md` |
+| Legal operations templates | `docs/bss-os/LEGAL_OPERATIONS_TEMPLATE_PACK.md` |
 
 ## Status language
 
