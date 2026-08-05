@@ -42,7 +42,7 @@ security:
           - '**/*permission*'
           - '**/*rbac*'
 
- документација:
+documentation:
   - changed-files:
       - any-glob-to-any-file:
           - '**/*.md'
