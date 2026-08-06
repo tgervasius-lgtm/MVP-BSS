@@ -173,6 +173,24 @@ test("authorized MVP reads allow normal traffic and reject an excessive burst", 
   assert.equal(independentClient.statusCode, 200);
 });
 
+test("worker deactivation explicitly limits excessive authorized writes", async (t) => {
+  const app = await buildApp({ config, authService: new FakeAuthService(), phaseAService: new FakePhaseAService(), logger: false });
+  t.after(() => app.close());
+  const request = () => app.inject({
+    method: "POST",
+    url: `/api/v1/workers/${IDS.worker}/deactivate`,
+    headers: { origin: config.publicOrigin, "if-match": '"1"' },
+    cookies: { bss_session: "admin" }
+  });
+
+  for (let attempt = 0; attempt < 30; attempt += 1) {
+    assert.equal((await request()).statusCode, 200);
+  }
+  const limited = await request();
+  assert.equal(limited.statusCode, 429);
+  assert.equal(limited.json().code, "RATE_LIMITED");
+});
+
 test("completed Phase A contracts expose scoped drill-downs without raw credentials", async (t) => {
   const app = await buildApp({ config, authService: new FakeAuthService(), phaseAService: new FakePhaseAService(), logger: false });
   t.after(() => app.close());
