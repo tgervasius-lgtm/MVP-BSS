@@ -8,6 +8,8 @@ import { paginationSchema, revisionHeaderSchema, uuidSchema } from "../schema.js
 
 type Dependencies = Readonly<{ phaseAService: PhaseAService; authenticate: Authenticate }>;
 
+const administrationWriteRateLimit = { max: 30, timeWindow: "1 minute" } as const;
+
 const idParams = (name: string) => ({
   type: "object",
   additionalProperties: false,
@@ -378,7 +380,10 @@ export async function registerPhaseARoutes(app: FastifyInstance, dependencies: D
 
   app.post<{ Params: { workerId: string }; Headers: { "if-match": string } }>(
     "/api/v1/workers/:workerId/deactivate",
-    { config: { rateLimit: { max: 30, timeWindow: "1 minute" } }, schema: { params: idParams("workerId"), headers: revisionHeader } },
+    {
+      config: { rateLimit: administrationWriteRateLimit },
+      schema: { params: idParams("workerId"), headers: revisionHeader }
+    },
     async (request, reply) => {
       const { actor } = await authenticate(request);
       requirePermission(actor, "workers", "write");
