@@ -6,6 +6,7 @@
   let configuring=false;
 
   function configureLogin(){
+    if(root.BSS_API_ACTIVE)return;
     if(configuring)return;
     const section=root.document?.querySelector('#login');
     if(!section)return;

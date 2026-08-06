@@ -146,6 +146,33 @@ test("readiness reports database unavailability without changing liveness", asyn
   assert.deepEqual(readiness.json(), { status: "unavailable" });
 });
 
+test("authorized MVP reads allow normal traffic and reject an excessive burst", async (t) => {
+  const app = await buildApp({ config, authService: new FakeAuthService(), phaseAService: new FakePhaseAService(), logger: false });
+  t.after(() => app.close());
+  const request = () => app.inject({
+    method: "GET",
+    url: "/api/v1/approved-leave-calendar?from=2026-01-01&to=2026-12-31",
+    cookies: { bss_session: "admin" }
+  });
+
+  const allowed = await request();
+  assert.equal(allowed.statusCode, 200);
+  for (let attempt = 1; attempt < 120; attempt += 1) {
+    assert.equal((await request()).statusCode, 200);
+  }
+  const limited = await request();
+  assert.equal(limited.statusCode, 429);
+  assert.equal(limited.json().code, "RATE_LIMITED");
+
+  const independentClient = await app.inject({
+    method: "GET",
+    url: "/api/v1/approved-leave-calendar?from=2026-01-01&to=2026-12-31",
+    remoteAddress: "192.0.2.10",
+    cookies: { bss_session: "admin" }
+  });
+  assert.equal(independentClient.statusCode, 200);
+});
+
 test("completed Phase A contracts expose scoped drill-downs without raw credentials", async (t) => {
   const app = await buildApp({ config, authService: new FakeAuthService(), phaseAService: new FakePhaseAService(), logger: false });
   t.after(() => app.close());

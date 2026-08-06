@@ -124,6 +124,17 @@ export async function buildApp(dependencies: AppDependencies): Promise<FastifyIn
   }
 
   app.setErrorHandler((error, request, reply) => {
+    const rateLimited = typeof error === "object" && error !== null && (
+      ("statusCode" in error && error.statusCode === 429) ||
+      ("code" in error && error.code === "RATE_LIMITED")
+    );
+    if (rateLimited) {
+      return reply.status(429).send({
+        code: "RATE_LIMITED",
+        message: "PreviĹˇe zahtjeva. PokuĹˇajte ponovno kasnije.",
+        requestId: request.id
+      });
+    }
     if (error instanceof AppError) {
       return reply.status(error.statusCode).send({
         code: error.code,

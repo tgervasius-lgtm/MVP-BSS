@@ -30,6 +30,17 @@ async function login(page){
   await expect(page.locator('#content .screen')).toBeVisible();
 }
 
+test('full-stack prije autentikacije posluĹľuje login ljusku stvarnog backenda',async({page})=>{
+  const response=await page.goto('/');
+  expect(response?.status()).toBe(200);
+  expect(response?.headers()['content-type']).toContain('text/html');
+  expect(response?.headers()['cache-control']).toContain('no-store');
+  await expect(page.locator('#loginEmail')).toBeVisible();
+  await expect(page.locator('#loginPassword')).toBeVisible();
+  await expect(page.getByRole('button',{name:'Prijavi se'})).toBeVisible();
+  await expect(page.locator('#loginIdentity')).toHaveCount(0);
+});
+
 test('stvarni PostgreSQL backend prijavljuje administratora i otvara svaki ugovoreni ekran',async({page})=>{
   const errors=trackErrors(page);
   const response=await page.goto('/');

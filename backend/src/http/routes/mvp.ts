@@ -34,6 +34,13 @@ const dateRange = {
 const requestStatuses = ["pending", "approved", "rejected", "cancelled"] as const;
 const attendanceStatuses = ["active", "complete", "late", "incomplete", "corrected"] as const;
 const reportTypes = ["monthly_summary", "attendance_journal", "exceptions", "approved_absences", "correction_log"] as const;
+const readRateLimit = { max: 120, timeWindow: "1 minute" } as const;
+const writeRateLimit = { max: 60, timeWindow: "1 minute" } as const;
+const decisionRateLimit = { max: 30, timeWindow: "1 minute" } as const;
+const reportReadRateLimit = { max: 60, timeWindow: "1 minute" } as const;
+const reportGenerateRateLimit = { max: 10, timeWindow: "1 minute" } as const;
+const administrationRateLimit = { max: 30, timeWindow: "1 minute" } as const;
+const deviceAdministrationRateLimit = { max: 20, timeWindow: "1 minute" } as const;
 
 function etag(reply: FastifyReply, revision: string): void {
   reply.header("ETag", `"${revision}"`);
@@ -78,6 +85,7 @@ export async function registerMvpRoutes(app: FastifyInstance, dependencies: Depe
   app.get<{ Querystring: { from: string; to: string } }>(
     "/api/v1/approved-leave-calendar",
     {
+      config: { rateLimit: readRateLimit },
       schema: {
         querystring: { type: "object", additionalProperties: false, required: ["from", "to"], properties: dateRange }
       }
@@ -94,6 +102,7 @@ export async function registerMvpRoutes(app: FastifyInstance, dependencies: Depe
   }>(
     "/api/v1/attendance",
     {
+      config: { rateLimit: readRateLimit },
       schema: {
         querystring: {
           type: "object", additionalProperties: false, required: ["from", "to"],
@@ -113,6 +122,7 @@ export async function registerMvpRoutes(app: FastifyInstance, dependencies: Depe
   app.get<{ Params: { workerId: string }; Querystring: { from: string; to: string; cursor?: string; limit?: number } }>(
     "/api/v1/workers/:workerId/attendance",
     {
+      config: { rateLimit: readRateLimit },
       schema: {
         params: idParams("workerId"),
         querystring: { type: "object", additionalProperties: false, required: ["from", "to"], properties: { ...dateRange, ...pagination } }
@@ -130,6 +140,7 @@ export async function registerMvpRoutes(app: FastifyInstance, dependencies: Depe
   }>(
     "/api/v1/leave-requests",
     {
+      config: { rateLimit: readRateLimit },
       schema: {
         querystring: {
           type: "object", additionalProperties: false, required: ["from", "to"],
@@ -148,6 +159,7 @@ export async function registerMvpRoutes(app: FastifyInstance, dependencies: Depe
   app.post<{ Body: LeaveRequestWrite }>(
     "/api/v1/leave-requests",
     {
+      config: { rateLimit: writeRateLimit },
       schema: {
         body: {
           type: "object", additionalProperties: false, required: ["typeCode", "startDate", "endDate"],
@@ -178,7 +190,7 @@ export async function registerMvpRoutes(app: FastifyInstance, dependencies: Depe
 
   app.post<{ Params: { requestId: string }; Headers: { "if-match": string }; Body: { note?: string } }>(
     "/api/v1/leave-requests/:requestId/approve",
-    { schema: { params: idParams("requestId"), headers: revisionHeader, body: decisionBody } },
+    { config: { rateLimit: decisionRateLimit }, schema: { params: idParams("requestId"), headers: revisionHeader, body: decisionBody } },
     async (request, reply) => {
       const { actor } = await authenticate(request);
       requirePermission(actor, "leave", "write");
@@ -191,7 +203,7 @@ export async function registerMvpRoutes(app: FastifyInstance, dependencies: Depe
 
   app.post<{ Params: { requestId: string }; Headers: { "if-match": string }; Body: { note: string } }>(
     "/api/v1/leave-requests/:requestId/reject",
-    { schema: { params: idParams("requestId"), headers: revisionHeader, body: requiredDecisionBody } },
+    { config: { rateLimit: decisionRateLimit }, schema: { params: idParams("requestId"), headers: revisionHeader, body: requiredDecisionBody } },
     async (request, reply) => {
       const { actor } = await authenticate(request);
       requirePermission(actor, "leave", "write");
@@ -204,7 +216,7 @@ export async function registerMvpRoutes(app: FastifyInstance, dependencies: Depe
 
   app.post<{ Params: { requestId: string }; Headers: { "if-match": string } }>(
     "/api/v1/leave-requests/:requestId/cancel",
-    { schema: { params: idParams("requestId"), headers: revisionHeader } },
+    { config: { rateLimit: writeRateLimit }, schema: { params: idParams("requestId"), headers: revisionHeader } },
     async (request, reply) => {
       const { actor } = await authenticate(request);
       requirePermission(actor, "leave", "write");
@@ -218,6 +230,7 @@ export async function registerMvpRoutes(app: FastifyInstance, dependencies: Depe
   app.get<{ Querystring: { from: string; to: string; correctionStatus?: RequestStatus; cursor?: string; limit?: number } }>(
     "/api/v1/correction-requests",
     {
+      config: { rateLimit: readRateLimit },
       schema: {
         querystring: { type: "object", additionalProperties: false, required: ["from", "to"], properties: { ...dateRange, correctionStatus: { type: "string", enum: requestStatuses }, ...pagination } }
       }
@@ -232,6 +245,7 @@ export async function registerMvpRoutes(app: FastifyInstance, dependencies: Depe
   app.post<{ Body: CorrectionRequestWrite }>(
     "/api/v1/correction-requests",
     {
+      config: { rateLimit: writeRateLimit },
       schema: {
         body: {
           type: "object", additionalProperties: false, required: ["attendanceDayId", "newCheckIn", "newCheckOut", "reason"],
@@ -251,7 +265,7 @@ export async function registerMvpRoutes(app: FastifyInstance, dependencies: Depe
 
   app.post<{ Params: { requestId: string }; Headers: { "if-match": string }; Body: { note?: string } }>(
     "/api/v1/correction-requests/:requestId/approve",
-    { schema: { params: idParams("requestId"), headers: revisionHeader, body: decisionBody } },
+    { config: { rateLimit: decisionRateLimit }, schema: { params: idParams("requestId"), headers: revisionHeader, body: decisionBody } },
     async (request, reply) => {
       const { actor } = await authenticate(request);
       requirePermission(actor, "corrections", "write");
@@ -264,7 +278,7 @@ export async function registerMvpRoutes(app: FastifyInstance, dependencies: Depe
 
   app.post<{ Params: { requestId: string }; Headers: { "if-match": string }; Body: { note: string } }>(
     "/api/v1/correction-requests/:requestId/reject",
-    { schema: { params: idParams("requestId"), headers: revisionHeader, body: requiredDecisionBody } },
+    { config: { rateLimit: decisionRateLimit }, schema: { params: idParams("requestId"), headers: revisionHeader, body: requiredDecisionBody } },
     async (request, reply) => {
       const { actor } = await authenticate(request);
       requirePermission(actor, "corrections", "write");
@@ -277,7 +291,7 @@ export async function registerMvpRoutes(app: FastifyInstance, dependencies: Depe
 
   app.post<{ Params: { requestId: string }; Headers: { "if-match": string } }>(
     "/api/v1/correction-requests/:requestId/cancel",
-    { schema: { params: idParams("requestId"), headers: revisionHeader } },
+    { config: { rateLimit: writeRateLimit }, schema: { params: idParams("requestId"), headers: revisionHeader } },
     async (request, reply) => {
       const { actor } = await authenticate(request);
       requirePermission(actor, "corrections", "write");
@@ -290,7 +304,7 @@ export async function registerMvpRoutes(app: FastifyInstance, dependencies: Depe
 
   app.get<{ Querystring: { cursor?: string; limit?: number } }>(
     "/api/v1/report-exports",
-    { schema: { querystring: { type: "object", additionalProperties: false, properties: pagination } } },
+    { config: { rateLimit: reportReadRateLimit }, schema: { querystring: { type: "object", additionalProperties: false, properties: pagination } } },
     async (request) => {
       const { actor } = await authenticate(request);
       requirePermission(actor, "reports", "read");
@@ -301,6 +315,7 @@ export async function registerMvpRoutes(app: FastifyInstance, dependencies: Depe
   app.post<{ Body: ReportExportWrite }>(
     "/api/v1/report-exports",
     {
+      config: { rateLimit: reportGenerateRateLimit },
       schema: {
         body: {
           type: "object", additionalProperties: false, required: ["reportType", "format", "periodFrom", "periodTo"],
@@ -323,7 +338,7 @@ export async function registerMvpRoutes(app: FastifyInstance, dependencies: Depe
 
   app.get<{ Params: { exportId: string } }>(
     "/api/v1/report-exports/:exportId",
-    { schema: { params: idParams("exportId") } },
+    { config: { rateLimit: reportReadRateLimit }, schema: { params: idParams("exportId") } },
     async (request) => {
       const { actor } = await authenticate(request);
       requirePermission(actor, "reports", "read");
@@ -333,7 +348,7 @@ export async function registerMvpRoutes(app: FastifyInstance, dependencies: Depe
 
   app.get<{ Params: { exportId: string } }>(
     "/api/v1/report-exports/:exportId/download",
-    { schema: { params: idParams("exportId") } },
+    { config: { rateLimit: reportReadRateLimit }, schema: { params: idParams("exportId") } },
     async (request, reply) => {
       const { actor } = await authenticate(request);
       requirePermission(actor, "reports", "read");
@@ -351,6 +366,7 @@ export async function registerMvpRoutes(app: FastifyInstance, dependencies: Depe
   }>(
     "/api/v1/audit-events",
     {
+      config: { rateLimit: administrationRateLimit },
       schema: {
         querystring: { type: "object", additionalProperties: false, required: ["from", "to"], properties: { ...dateRange, module: { type: "string", maxLength: 80 }, entityId: uuid, ...pagination } }
       }
@@ -362,7 +378,7 @@ export async function registerMvpRoutes(app: FastifyInstance, dependencies: Depe
     }
   );
 
-  app.get("/api/v1/terminals", async (request) => {
+  app.get("/api/v1/terminals", { config: { rateLimit: deviceAdministrationRateLimit } }, async (request) => {
     const { actor } = await authenticate(request);
     requirePermission(actor, "terminals", "read");
     return service.listTerminals(actor);
@@ -388,7 +404,7 @@ export async function registerMvpRoutes(app: FastifyInstance, dependencies: Depe
 
   app.post<{ Params: { terminalId: string }; Headers: { "if-match": string } }>(
     "/api/v1/terminals/:terminalId/revoke",
-    { schema: { params: idParams("terminalId"), headers: revisionHeader } },
+    { config: { rateLimit: deviceAdministrationRateLimit }, schema: { params: idParams("terminalId"), headers: revisionHeader } },
     async (request, reply) => {
       const { actor } = await authenticate(request);
       requirePermission(actor, "terminals", "write");
