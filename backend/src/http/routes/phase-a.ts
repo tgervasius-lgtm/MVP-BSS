@@ -382,8 +382,6 @@ export async function registerPhaseARoutes(app: FastifyInstance, dependencies: D
       config: { rateLimit: { max: 30, timeWindow: "1 minute" } },
       schema: { params: idParams("workerId"), headers: revisionHeader }
     },
-    // @fastify/rate-limit is enforced by config above; CodeQL cannot trace the injected Fastify instance.
-    // codeql[js/missing-rate-limiting]
     async (request, reply) => {
       const { actor } = await authenticate(request);
       requirePermission(actor, "workers", "write");
