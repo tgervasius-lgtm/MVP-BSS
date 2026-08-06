@@ -8,7 +8,7 @@ Scale:
 
 | ID | Risk | Impact | Probability | Status | Mitigation | Closure evidence |
 |---|---|---|---|---|---|---|
-| R-001 | `main` and Backend Phase B exist as divergent software baselines. | Critical | High | MITIGATING | Integrate current PR #27 head into a branch created from current `main`; resolve conflicts individually and run all required checks. | Integration PR merged into `main`; PR #27 closed or superseded. |
+| R-001 | `main` and Backend Phase B exist as divergent software baselines. | Critical | Medium | MITIGATING | Review the prepared integration branch and require all PostgreSQL/full-stack/browser CI checks before merge. | Integration PR merged into `main`; PR #27 closed or superseded by an authorized follow-up action. |
 | R-002 | Additional work is stacked on an unmerged base branch. | High | High | MITIGATING | Pause unrelated core development; retarget or split PRs #28 and #31 after baseline consolidation. | No active long-lived PR depends on obsolete PR #27 base. |
 | R-003 | Preview Portal PR is too large and stale for normal review. | High | High | OPEN | Reconstruct or carefully integrate from stable `main`; preserve preview isolation; rerun unit, E2E, accessibility and offline tests. | Reviewable PR from current `main` with green checks and explicit external-access decision. |
 | R-004 | Production backend hosting architecture is not selected and proven. | Critical | High | OPEN / EXTERNAL | Select hosting, private networking, database, secrets/KMS, WAF/rate limiting and deployment model. | Staging and production architecture approved and deployed with runbook. |
@@ -23,6 +23,7 @@ Scale:
 | R-013 | RFID/event queries may contain bounded N+1 or scaling pressure. | Medium | Medium | OPEN | Establish realistic data volumes, query plans and load/soak tests; optimize only with evidence. | Query plan baselines and load test targets met. |
 | R-014 | Solo-owner review model creates key-person dependency. | Medium | High | MITIGATING | Maintain handoff docs, CODEOWNERS, decision/risk registers and reproducible setup; later require independent approval. | External developer completes clean-clone takeover exercise. |
 | R-015 | Public repository exposure increases the consequence of accidental secrets or sensitive test data. | High | Medium | MITIGATING | Maintain full-history Gitleaks, minimal fixtures, no real personal data and rotation procedure. | Continuous green secret scan and documented incident process. |
+| R-016 | Static demo and backend runtime share one frontend shell and may regress each other's authentication startup. | High | Medium | MITIGATING | Keep demo state as the static fallback; activate API bindings only after a real API response; cover both static and full-stack modes. | Green static Playwright/axe and PostgreSQL-backed full-stack CI on the integration PR. |
 
 ## Review cadence
 

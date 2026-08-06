@@ -17,6 +17,7 @@ This log records material product, architecture, governance and delivery decisio
 | DEC-011 | 2026-08-05 | PR #30 should not be treated as a normal small rebase. | PROPOSED | It is an unusually large, long-lived preview branch with infrastructure dependencies. | Reconstruct or carefully integrate from stable `main`, with full regression testing. |
 | DEC-012 | 2026-08-05 | One PR should have one clear, reviewable purpose. | APPROVED / ACTIVE | Reduces hidden regressions, review cost and dependency ambiguity. | Enforce through PR governance and owner review. |
 | DEC-013 | 2026-08-05 | New development branches start from the current `main` unless a short-lived stacked dependency is explicitly documented. | APPROVED / ACTIVE | Prevents long-lived parallel product versions. | Include base dependency and merge order in stacked PR descriptions. |
+| DEC-014 | 2026-08-06 | Backend Phase B is integrated through a new branch from the protected `main` baseline, preserving static demo behavior and activating API bindings only when a real backend is present. | APPROVED / IN REVIEW | Preserves the released frontend baseline and the full backend without treating Cloudflare static hosting as a functional backend deployment. | Integration branch and draft PR; final implementation status depends on required CI and owner approval. |
 
 ## Decision change procedure
 

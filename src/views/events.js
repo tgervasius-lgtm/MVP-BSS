@@ -3,12 +3,12 @@
 
   const actionNames=Object.freeze([
     'applyAttendanceFilters','applyAuditFilters','applyReportFilters','applyRequestSearch','applyWorkerSearch',
-    'cancelInvitation','cancelVacationRequest','changeCalendarPeriod','clearAttendanceFilters','clearAuditFilters',
+    'cancelCorrection','cancelInvitation','cancelVacationRequest','changeCalendarPeriod','clearAttendanceFilters','clearAuditFilters',
     'clearRequestFilters','closeDrawer','closeModal','decideRequest','demoOfflineScan','demoScan','demoUnknownCard',
-    'downloadReport','focusSection','login','logout','navigate','openAccessModal','openAttendanceRecord','openAttendanceReview',
+    'downloadReport','focusSection','login','acceptInvitation','logout','navigate','openAccessModal','openAttendanceRecord','openAttendanceReview',
     'openAttendanceStatus','openCancelRequest','openCorrectionsFromRecord','openDepartmentModal','openDrawer',
     'openHolidayModal','openInviteModal','openJobPositionModal','openPendingRequests','openRequestDecision','openResetDemoDialog',
-    'openShiftModal','openShiftWorkers','openVacationRequestStatus','openWorker','openWorkerModal','openWorkerStatus','refreshWorkerJobOptions','resendInvitation',
+    'openShiftModal','openShiftWorkers','openVacationRequestStatus','openWorker','openWorkerModal','openWorkerStatus','pairTerminal','refreshWorkerJobOptions','resendInvitation','revokeTerminal',
     'resetDemo','restoreTerminal','saveAccessUser','saveDepartment','saveHoliday','saveJobPosition','saveSettings',
     'saveShift','saveWorker','sendInvitation','sendPasswordReset','setAccessStatusFilter','setAttendanceView',
     'setCalendarMode','setMyTimeMonth','setMyTimeReview','setReportType','setRequestStatusFilter','setSettingsTab',
@@ -54,7 +54,7 @@
     const match=String(expression||'').trim().match(/^([A-Za-z][A-Za-z0-9_]*)\((.*)\)$/s);
     if(!match||!allowedActions.has(match[1]))return null;
     try{return {name:match[1],args:splitArguments(match[2]).map(token=>parseArgument(token,element))};}
-    catch(error){return null;}
+    catch{return null;}
   }
 
   function dispatch(expression,element,event){

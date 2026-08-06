@@ -1,5 +1,7 @@
 # BSS tehnički audit v1.0
 
+> Povijesni dokument iz faze statičkog demonstratora. Aktualni audit implementiranog full-stack sustava je `BSS_PRODUCTION_READINESS_AUDIT.md`; brojke i zaključci u nastavku ostaju sačuvani kao trag tadašnjeg stanja.
+
 | Stavka | Vrijednost |
 | --- | --- |
 | Status | Dovršeno – ulazna kontrola za Refactor v1 |

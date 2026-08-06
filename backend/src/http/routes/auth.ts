@@ -78,22 +78,44 @@ export async function registerAuthRoutes(app: FastifyInstance, dependencies: Dep
     }
   );
 
-  app.post("/api/v1/auth/refresh", async (request, reply) => {
-    const refreshToken = request.cookies.bss_refresh;
-    if (!refreshToken) throw new AppError("UNAUTHENTICATED", "Nedostaje refresh sesija.");
-    const tokens = await authService.rotate(refreshToken, requestMetadata(request));
-    reply.setCookie("bss_session", tokens.accessToken, accessCookie);
-    reply.setCookie("bss_refresh", tokens.refreshToken, refreshCookie);
-    return reply.status(204).send();
-  });
+  app.post(
+    "/api/v1/auth/refresh",
+    { config: { rateLimit: { max: 30, timeWindow: "1 minute" } } },
+    async (request, reply) => {
+      const refreshToken = request.cookies.bss_refresh;
+      if (!refreshToken) throw new AppError("UNAUTHENTICATED", "Nedostaje refresh sesija.");
+      const tokens = await authService.rotate(refreshToken, requestMetadata(request));
+      reply.setCookie("bss_session", tokens.accessToken, accessCookie);
+      reply.setCookie("bss_refresh", tokens.refreshToken, refreshCookie);
+      return reply.status(204).send();
+    }
+  );
 
-  app.post("/api/v1/auth/logout", async (request, reply) => {
-    const { actor } = await authenticate(request);
-    await authService.logout(actor, request.id);
-    reply.clearCookie("bss_session", { path: "/" });
-    reply.clearCookie("bss_refresh", { path: "/api/v1/auth" });
-    return reply.status(204).send();
-  });
+  app.post(
+    "/api/v1/auth/logout",
+    { config: { rateLimit: { max: 30, timeWindow: "1 minute" } } },
+    async (request, reply) => {
+      try {
+        const refreshToken = request.cookies.bss_refresh;
+        if (refreshToken) await authService.logoutByRefreshToken(refreshToken, request.id);
+        else if (request.cookies.bss_session) {
+          const { actor } = await authenticate(request);
+          await authService.logout(actor, request.id);
+        }
+        return reply.status(204).send();
+      } catch (error) {
+        // Logout is idempotent for missing/expired credentials. Infrastructure
+        // errors still propagate so an operator can see failed revocation.
+        if (error instanceof AppError && error.code === "UNAUTHENTICATED") {
+          return reply.status(204).send();
+        }
+        throw error;
+      } finally {
+        reply.clearCookie("bss_session", { path: "/" });
+        reply.clearCookie("bss_refresh", { path: "/api/v1/auth" });
+      }
+    }
+  );
 
   app.get("/api/v1/me", async (request) => {
     const { context } = await authenticate(request);

@@ -1,13 +1,13 @@
 # BSS OS Control Board
 
-Last reviewed: 2026-08-05
+Last reviewed: 2026-08-06
 Operating phase: `BASELINE CONSOLIDATION`
 
 ## Executive state
 
 | Workstream | Status | Priority | Exit criterion |
 |---|---|---:|---|
-| Stable software baseline | BLOCKED | P0 | Backend Phase B safely integrated into current `main` with green required checks |
+| Stable software baseline | IN REVIEW | P0 | Integration PR from current `main` has green required checks and owner approval |
 | Repository governance | DONE / AUTOMATED | Maintain | Ruleset and required checks remain active and verified |
 | Product feature registry | IN PROGRESS | P1 | MVP features mapped to code, API, data, security, tests and release evidence |
 | Decision log | IN PROGRESS | P0 | All material current decisions recorded with implementation status |
@@ -27,15 +27,21 @@ Current evidence:
 - Security/dependency repair PR: `#53` — merged into the PR #27 branch.
 - PR #27 remains open and conflicted with the current `main`.
 
+Integration evidence on 2026-08-06:
+
+- branch `integration/issue-55-pr27-into-main-2026-08-06` was created from verified `origin/main` `331c8c1fd66b6683b4afdbcc9bf9f623b6eadce3`;
+- verified Phase B head `388f96d76dbef7facab78aeae97cfc88a58f724e` was merged and seven conflicts were resolved file by file;
+- local frontend and backend gates pass, including OpenAPI, TypeScript, unit/contract tests and builds;
+- production dependency audits report zero vulnerabilities;
+- PostgreSQL-backed and full-stack checks require CI because Docker/PostgreSQL is unavailable locally;
+- local Playwright/axe execution is inconclusive because the Windows runner did not terminate with a final result.
+
 Required next action:
 
-1. Complete local Git/Codex CLI setup on the authorized workstation.
-2. Create an integration branch from the current `main`.
-3. Merge the current PR #27 head into that branch.
-4. Resolve conflicts file by file.
-5. Run all required checks.
-6. Open a new integration PR targeting `main`.
-7. Merge only after green checks and explicit owner approval.
+1. Review the draft integration PR and its file-by-file conflict decisions.
+2. Require green PostgreSQL, migration, RLS, cross-tenant, full-stack, Playwright and axe CI checks.
+3. Resolve any CI-only failures without weakening security or coverage.
+4. Merge only after green required checks and explicit owner approval.
 
 ### P0-2 — Freeze new core divergence
 
