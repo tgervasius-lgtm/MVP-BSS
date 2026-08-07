@@ -98,10 +98,6 @@ export async function buildApp(dependencies: AppDependencies): Promise<FastifyIn
     return authService.resolveAccessToken(token);
   };
 
-  await registerAuthRoutes(app, { config, authService, authenticate });
-  await registerPhaseARoutes(app, { phaseAService, authenticate });
-  await registerMvpRoutes(app, { mvpService: phaseAService, authenticate });
-
   app.get("/healthz", async () => ({ status: "ok" }));
   app.get("/readyz", async (request, reply) => {
     try {
@@ -161,6 +157,10 @@ export async function buildApp(dependencies: AppDependencies): Promise<FastifyIn
       requestId: request.id
     });
   });
+
+  await registerAuthRoutes(app, { config, authService, authenticate });
+  await app.register(registerPhaseARoutes, { phaseAService, authenticate });
+  await registerMvpRoutes(app, { mvpService: phaseAService, authenticate });
 
   app.setNotFoundHandler((request, reply) => {
     if (config.frontendRoot && request.method === "GET" && !request.url.startsWith("/api/") && request.headers.accept?.includes("text/html")) {
