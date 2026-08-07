@@ -376,19 +376,20 @@ export async function registerPhaseARoutes(app: FastifyInstance, dependencies: D
     }
   );
 
-  app.route<{ Params: { workerId: string }; Headers: { "if-match": string } }>({
-    method: "POST",
-    url: "/api/v1/workers/:workerId/deactivate",
-    config: { rateLimit: { max: 30, timeWindow: "1 minute" } },
-    schema: { params: idParams("workerId"), headers: revisionHeader },
-    handler: async (request, reply) => {
+  app.post<{ Params: { workerId: string }; Headers: { "if-match": string } }>(
+    "/api/v1/workers/:workerId/deactivate",
+    {
+      config: { rateLimit: { max: 30, timeWindow: "1 minute" } },
+      schema: { params: idParams("workerId"), headers: revisionHeader }
+    },
+    async (request, reply) => {
       const { actor } = await authenticate(request);
       requirePermission(actor, "workers", "write");
       const result = await service.deactivateWorker(actor, request.params.workerId, requireRevision(request.headers["if-match"]), request.id);
       etag(reply, result.revision);
       return result;
     }
-  });
+  );
 
   app.post<{ Params: { workerId: string }; Headers: { "if-match": string } }>(
     "/api/v1/workers/:workerId/activate",
