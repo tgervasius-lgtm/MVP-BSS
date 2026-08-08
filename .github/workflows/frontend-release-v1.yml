@@ -24,14 +24,14 @@ jobs:
           node-version: 22
           cache: npm
 
-      - name: Install dependencies
-        run: npm ci
+      - name: Install dependencies without lifecycle scripts
+        run: npm ci --ignore-scripts
 
       - name: Verify lint, tests and build
         run: npm run check:frontend
 
       - name: Install Chromium
-        run: npx playwright install --with-deps chromium
+        run: ./node_modules/.bin/playwright install --with-deps chromium
 
       - name: Verify browser E2E and axe
         run: npm run test:e2e -- --reporter=line
