@@ -48,12 +48,6 @@ jobs:
       - name: Install backend dependencies
         run: npm --prefix backend ci
 
-      - name: Generate dependency remediation for inspection
-        run: |
-          npm audit fix --package-lock-only --ignore-scripts
-          node -e "console.log(JSON.stringify(require('./package-lock.json').packages['node_modules/brace-expansion'], null, 2))"
-          git diff -- package-lock.json
-
       - name: All dependency audit
         run: npm audit --audit-level=high && npm --prefix backend audit --audit-level=high
 
