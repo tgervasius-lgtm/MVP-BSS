@@ -380,7 +380,7 @@ function dashboardMetrics(workers){
 }
 function weeklyAttendance(workerIds){
   const ids=new Set(workerIds);
-  const dates=[...new Set(state.records.filter(record=>ids.has(record.workerId)).map(record=>record.date))].sort((a,b)=>a<b?-1:a>b?1:0).slice(-5);
+  const dates=[...new Set(state.records.filter(record=>ids.has(record.workerId)).map(record=>record.date))].sort((a,b)=>a.localeCompare(b)).slice(-5);
   return dates.map(date=>{
     const records=state.records.filter(record=>ids.has(record.workerId)&&record.date===date);
     return {date,label:isoToDate(date).toLocaleDateString('hr-HR',{weekday:'short'}).replace('.',''),checkins:records.filter(record=>record.start).length,checkouts:records.filter(record=>record.end).length};
