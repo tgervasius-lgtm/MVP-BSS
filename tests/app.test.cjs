@@ -112,6 +112,22 @@ function loadAdapter(adapterSource,globals={}){
   return context.BSSCore;
 }
 
+test('weekly attendance vraća zadnjih pet jedinstvenih ISO datuma kronološki',()=>{
+  const app=boot();
+  app.evaluate(`state.records=[
+    {workerId:1,date:'2026-07-03',start:'08:00',end:'16:00'},
+    {workerId:1,date:'2026-07-01',start:'08:00',end:'16:00'},
+    {workerId:1,date:'2026-07-06',start:'08:00',end:'16:00'},
+    {workerId:1,date:'2026-07-02',start:'08:00',end:'16:00'},
+    {workerId:1,date:'2026-07-05',start:'08:00',end:'16:00'},
+    {workerId:1,date:'2026-07-04',start:'08:00',end:'16:00'},
+    {workerId:1,date:'2026-07-06',start:'09:00',end:'17:00'},
+    {workerId:2,date:'2026-07-07',start:'08:00',end:'16:00'}
+  ]`);
+
+  assert.deepEqual(Array.from(app.evaluate('weeklyAttendance([1]).map(day=>day.date)')),['2026-07-02','2026-07-03','2026-07-04','2026-07-05','2026-07-06']);
+});
+
 test('API adapter koristi jednu refresh rotaciju za paralelne 401 odgovore',async()=>{
   let protectedCalls=0,refreshCalls=0;
   const fetch=async url=>{
