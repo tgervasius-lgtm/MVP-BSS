@@ -121,6 +121,8 @@ paths:
       summary: Logout
       x-bss-roles: [admin, manager, worker, accountant]
       responses:
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '204':
           description: Session invalidated when present and both cookies cleared; repeating logout is safe.
         '403':
@@ -132,6 +134,8 @@ paths:
       summary: Get Session Context
       x-bss-roles: [admin, manager, worker, accountant]
       responses:
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '200':
           description: Verified user, organization and effective scope.
           content:
@@ -154,6 +158,8 @@ paths:
             type: string
             format: date
       responses:
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '401':
           $ref: '#/components/responses/Unauthenticated'
         '200':
@@ -169,6 +175,8 @@ paths:
       summary: Get Organization
       x-bss-roles: [admin]
       responses:
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '200':
           description: Current organization settings.
           content:
@@ -191,6 +199,8 @@ paths:
             schema:
               $ref: '#/components/schemas/OrganizationPatch'
       responses:
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '200':
           description: Updated organization.
           content:
@@ -206,6 +216,8 @@ paths:
       summary: List Departments
       x-bss-roles: [admin, manager, worker]
       responses:
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '401':
           $ref: '#/components/responses/Unauthenticated'
         '200':
@@ -228,6 +240,8 @@ paths:
             schema:
               $ref: '#/components/schemas/DepartmentWrite'
       responses:
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '201':
           description: Department created.
           content:
@@ -252,6 +266,8 @@ paths:
             schema:
               $ref: '#/components/schemas/DepartmentPatch'
       responses:
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '200':
           description: Department updated or blocked while historical relations remain retained.
           content:
@@ -269,6 +285,8 @@ paths:
       parameters:
         - $ref: '#/components/parameters/Year'
       responses:
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '401':
           $ref: '#/components/responses/Unauthenticated'
         '200':
@@ -302,6 +320,8 @@ paths:
               items:
                 $ref: '#/components/schemas/HolidayWrite'
       responses:
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '200':
           description: Stored holiday calendar.
           headers:
@@ -327,6 +347,8 @@ paths:
         - $ref: '#/components/parameters/Cursor'
         - $ref: '#/components/parameters/Limit'
       responses:
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '401':
           $ref: '#/components/responses/Unauthenticated'
         '200':
@@ -347,6 +369,8 @@ paths:
             schema:
               $ref: '#/components/schemas/UserInvite'
       responses:
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '202':
           description: Invitation created. A still-unactivated placeholder is safely reused, prior pending invitations are revoked, and the new one-time fragment URL is returned only in this no-store administrator response for secure manual delivery.
           content:
@@ -371,6 +395,8 @@ paths:
             schema:
               $ref: '#/components/schemas/UserPatch'
       responses:
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '200':
           description: Updated user and effective scope.
           content:
@@ -396,6 +422,8 @@ paths:
             type: string
             maxLength: 100
       responses:
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '401':
           $ref: '#/components/responses/Unauthenticated'
         '200':
@@ -416,6 +444,8 @@ paths:
             schema:
               $ref: '#/components/schemas/WorkerWrite'
       responses:
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '201':
           description: Worker created.
           content:
@@ -433,6 +463,8 @@ paths:
       parameters:
         - $ref: '#/components/parameters/WorkerId'
       responses:
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '200':
           description: Worker in effective scope.
           content:
@@ -456,6 +488,8 @@ paths:
             schema:
               $ref: '#/components/schemas/WorkerWrite'
       responses:
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '200':
           description: Worker updated without deleting history.
           content:
@@ -474,6 +508,8 @@ paths:
         - $ref: '#/components/parameters/WorkerId'
         - $ref: '#/components/parameters/IfMatch'
       responses:
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '401':
           $ref: '#/components/responses/Unauthenticated'
         '200':
@@ -489,6 +525,8 @@ paths:
       summary: List Shifts
       x-bss-roles: [admin, manager, worker]
       responses:
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '401':
           $ref: '#/components/responses/Unauthenticated'
         '200':
@@ -511,6 +549,8 @@ paths:
             schema:
               $ref: '#/components/schemas/ShiftWrite'
       responses:
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '201':
           description: Shift created.
           content:
@@ -535,6 +575,8 @@ paths:
             schema:
               $ref: '#/components/schemas/ShiftWrite'
       responses:
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '200':
           description: Shift updated; historical attendance remains linked to its recorded plan.
           content:
@@ -553,6 +595,8 @@ paths:
         - $ref: '#/components/parameters/WorkerId'
         - $ref: '#/components/parameters/IfMatch'
       responses:
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '200':
           description: Worker reactivated while retained history remains unchanged.
           content:
@@ -570,6 +614,8 @@ paths:
       parameters:
         - $ref: '#/components/parameters/CardId'
       responses:
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '401':
           $ref: '#/components/responses/Unauthenticated'
         '200':
@@ -611,6 +657,8 @@ paths:
             schema:
               $ref: '#/components/schemas/RfidCardAssign'
       responses:
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '201':
           description: RFID UID normalized, peppered/HMAC-hashed and assigned; response contains only a masked UID.
           content:
@@ -637,6 +685,8 @@ paths:
         - $ref: '#/components/parameters/Cursor'
         - $ref: '#/components/parameters/Limit'
       responses:
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '401':
           $ref: '#/components/responses/Unauthenticated'
         '200':
@@ -659,6 +709,8 @@ paths:
         - $ref: '#/components/parameters/Cursor'
         - $ref: '#/components/parameters/Limit'
       responses:
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '200':
           description: Attendance rows and authoritative totals for the permitted worker.
           content:
@@ -678,6 +730,8 @@ paths:
         - $ref: '#/components/parameters/FromDate'
         - $ref: '#/components/parameters/ToDate'
       responses:
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '200':
           description: Privacy-safe approved annual leave calendar without notes, illness or other absence reasons.
           content:
@@ -703,6 +757,8 @@ paths:
         - $ref: '#/components/parameters/Cursor'
         - $ref: '#/components/parameters/Limit'
       responses:
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '401':
           $ref: '#/components/responses/Unauthenticated'
         '200':
@@ -723,6 +779,8 @@ paths:
             schema:
               $ref: '#/components/schemas/LeaveRequestWrite'
       responses:
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '201':
           description: Pending leave request with server-calculated working days.
           content:
@@ -744,6 +802,8 @@ paths:
         - $ref: '#/components/parameters/Cursor'
         - $ref: '#/components/parameters/Limit'
       responses:
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '401':
           $ref: '#/components/responses/Unauthenticated'
         '200':
@@ -764,6 +824,8 @@ paths:
       requestBody:
         $ref: '#/components/requestBodies/Decision'
       responses:
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '200':
           description: Approved request and updated revision.
           content:
@@ -784,6 +846,8 @@ paths:
       requestBody:
         $ref: '#/components/requestBodies/RequiredDecision'
       responses:
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '401':
           $ref: '#/components/responses/Unauthenticated'
         '200':
@@ -802,6 +866,8 @@ paths:
         - $ref: '#/components/parameters/RequestId'
         - $ref: '#/components/parameters/IfMatch'
       responses:
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '200':
           description: Own pending request cancelled.
           content:
@@ -826,6 +892,8 @@ paths:
         - $ref: '#/components/parameters/Cursor'
         - $ref: '#/components/parameters/Limit'
       responses:
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '401':
           $ref: '#/components/responses/Unauthenticated'
         '200':
@@ -846,6 +914,8 @@ paths:
             schema:
               $ref: '#/components/schemas/CorrectionRequestWrite'
       responses:
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '201':
           description: Pending correction preserving original values.
           content:
@@ -866,6 +936,8 @@ paths:
       requestBody:
         $ref: '#/components/requestBodies/Decision'
       responses:
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '200':
           description: Atomic correction, updated attendance day and audit reference.
           content:
@@ -886,6 +958,8 @@ paths:
       requestBody:
         $ref: '#/components/requestBodies/RequiredDecision'
       responses:
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '401':
           $ref: '#/components/responses/Unauthenticated'
         '200':
@@ -904,6 +978,8 @@ paths:
         - $ref: '#/components/parameters/RequestId'
         - $ref: '#/components/parameters/IfMatch'
       responses:
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '401':
           $ref: '#/components/responses/Unauthenticated'
         '200':
@@ -922,6 +998,8 @@ paths:
         - $ref: '#/components/parameters/Cursor'
         - $ref: '#/components/parameters/Limit'
       responses:
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '401':
           $ref: '#/components/responses/Unauthenticated'
         '200':
@@ -942,6 +1020,8 @@ paths:
             schema:
               $ref: '#/components/schemas/ReportExportWrite'
       responses:
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '202':
           description: Versioned export job accepted.
           content:
@@ -963,6 +1043,8 @@ paths:
             schema:
               $ref: '#/components/schemas/ReportPreviewWrite'
       responses:
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '200':
           description: Bounded preview generated by the same normalized filters and scoped query family used for export.
           content:
@@ -980,6 +1062,8 @@ paths:
       parameters:
         - $ref: '#/components/parameters/ExportId'
       responses:
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '200':
           description: Export status and short-lived download URL when ready.
           content:
@@ -997,6 +1081,8 @@ paths:
       parameters:
         - $ref: '#/components/parameters/ExportId'
       responses:
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '200':
           description: Ready, unexpired report artifact generated from the authoritative dataset.
           headers:
@@ -1042,6 +1128,8 @@ paths:
         - $ref: '#/components/parameters/Cursor'
         - $ref: '#/components/parameters/Limit'
       responses:
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '401':
           $ref: '#/components/responses/Unauthenticated'
         '200':
@@ -1057,6 +1145,8 @@ paths:
       summary: List Terminals
       x-bss-roles: [admin, manager]
       responses:
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '401':
           $ref: '#/components/responses/Unauthenticated'
         '200':
@@ -1080,6 +1170,8 @@ paths:
             schema:
               $ref: '#/components/schemas/TerminalPairRequest'
       responses:
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '201':
           description: Paired terminal. Device credential is returned once and never logged.
           content:
@@ -1098,6 +1190,8 @@ paths:
         - $ref: '#/components/parameters/TerminalId'
         - $ref: '#/components/parameters/IfMatch'
       responses:
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '401':
           $ref: '#/components/responses/Unauthenticated'
         '200':
@@ -1123,6 +1217,8 @@ paths:
         - $ref: '#/components/parameters/Cursor'
         - $ref: '#/components/parameters/Limit'
       responses:
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '401':
           $ref: '#/components/responses/Unauthenticated'
         '200':
@@ -1149,6 +1245,8 @@ paths:
             schema:
               $ref: '#/components/schemas/TerminalEventBatch'
       responses:
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '200':
           description: Per-event idempotent acceptance result.
           content:
@@ -1177,6 +1275,8 @@ paths:
             schema:
               $ref: '#/components/schemas/TerminalHeartbeat'
       responses:
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '401':
           $ref: '#/components/responses/Unauthenticated'
         '204':
@@ -1396,7 +1496,7 @@ components:
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/Problem'
+            $ref: '#/components/schemas/RateLimitedProblem'
   schemas:
     Role:
       type: string
@@ -1444,6 +1544,18 @@ components:
             type: array
             items:
               type: string
+    RateLimitedProblem:
+      type: object
+      additionalProperties: false
+      required: [code, message, requestId]
+      properties:
+        code:
+          type: string
+          const: RATE_LIMITED
+        message:
+          type: string
+        requestId:
+          type: string
     LoginRequest:
       type: object
       additionalProperties: false

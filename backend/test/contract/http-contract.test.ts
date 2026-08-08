@@ -4,6 +4,7 @@ import { readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
+import ts from "typescript";
 import YAML from "yaml";
 import { loadConfig } from "../../src/config.js";
 import { buildApp } from "../../src/http/app.js";
@@ -609,6 +610,88 @@ test("all Backend MVP Phase B operations exist in OpenAPI and resolve to Fastify
   assert.equal(metadata?.version, "1.1.0");
   assert.equal(metadata?.["x-bss-status"], "MVP_IMPLEMENTED");
   assert.equal(document.paths["/terminal/v1/events/batch"]?.post?.operationId, "ingestTerminalEventBatch");
+});
+
+test("every route-level rate limiter has the shared OpenAPI 429 contract", async (t) => {
+  const methods = new Set(["get", "post", "put", "patch", "delete"]);
+  const propertyNamed = (object: ts.ObjectLiteralExpression, name: string): ts.ObjectLiteralElementLike | undefined =>
+    object.properties.find((property) =>
+      (ts.isPropertyAssignment(property) || ts.isShorthandPropertyAssignment(property)) &&
+      (ts.isIdentifier(property.name) || ts.isStringLiteral(property.name)) &&
+      property.name.text === name
+    );
+  const limitedRoutes = new Set<string>();
+  for (const file of ["auth.ts", "phase-a.ts", "mvp.ts"]) {
+    const path = join(repositoryRoot, "backend/src/http/routes", file);
+    const sourceText = await readFile(path, "utf8");
+    const source = ts.createSourceFile(path, sourceText, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+    const visit = (node: ts.Node): void => {
+      if (ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression) &&
+          node.expression.expression.getText(source) === "app" && methods.has(node.expression.name.text)) {
+        const [route, options] = node.arguments;
+        if (route && ts.isStringLiteral(route) && options && ts.isObjectLiteralExpression(options)) {
+          const routeConfig = propertyNamed(options, "config");
+          if (routeConfig && ts.isPropertyAssignment(routeConfig) && ts.isObjectLiteralExpression(routeConfig.initializer) &&
+              propertyNamed(routeConfig.initializer, "rateLimit")) {
+            const openApiPath = route.text.replace(/^\/api\/v1/, "").replaceAll(/:([^/]+)/g, "{$1}");
+            limitedRoutes.add(`${node.expression.name.text} ${openApiPath}`);
+          }
+        }
+      }
+      ts.forEachChild(node, visit);
+    };
+    visit(source);
+  }
+
+  type OpenApiOperation = { responses?: Record<string, { $ref?: string }> };
+  type OpenApiDocument = {
+    paths: Record<string, Record<string, OpenApiOperation>>;
+    components: {
+      responses: Record<string, { content?: Record<string, { schema?: { $ref?: string } }> }>;
+      schemas: Record<string, {
+        type?: string;
+        additionalProperties?: boolean;
+        required?: string[];
+        properties?: Record<string, { type?: string; const?: string }>;
+      }>;
+    };
+  };
+  const openApiSource = await readFile(join(repositoryRoot, "openapi/bss-mvp-api-v1.yaml"), "utf8");
+  const document = YAML.parse(openApiSource) as OpenApiDocument;
+  const documentedRoutes = new Set<string>();
+  for (const [path, pathItem] of Object.entries(document.paths)) {
+    for (const [method, operation] of Object.entries(pathItem)) {
+      if (!methods.has(method) || !operation.responses?.["429"]) continue;
+      assert.equal(operation.responses["429"].$ref, "#/components/responses/RateLimited", `${method.toUpperCase()} ${path}`);
+      documentedRoutes.add(`${method} ${path}`);
+    }
+  }
+  assert.deepEqual([...documentedRoutes].sort(), [...limitedRoutes].sort());
+
+  const sharedResponse = document.components.responses.RateLimited;
+  assert.ok(sharedResponse);
+  assert.equal(sharedResponse.content?.["application/json"]?.schema?.$ref, "#/components/schemas/RateLimitedProblem");
+  const problem = document.components.schemas.RateLimitedProblem;
+  assert.ok(problem);
+  assert.equal(problem.type, "object");
+  assert.equal(problem.additionalProperties, false);
+  assert.deepEqual(problem.required, ["code", "message", "requestId"]);
+  assert.deepEqual(Object.keys(problem.properties ?? {}).sort(), ["code", "message", "requestId"]);
+  assert.deepEqual(problem.properties?.code, { type: "string", const: "RATE_LIMITED" });
+
+  const app = await buildApp({ config, authService: new FakeAuthService(), phaseAService: new FakePhaseAService(), logger: false });
+  t.after(() => app.close());
+  const login = () => app.inject({
+    method: "POST",
+    url: "/api/v1/auth/login",
+    headers: { origin: config.publicOrigin },
+    payload: { email: "admin@example.test", password: "secure-password" }
+  });
+  for (let attempt = 0; attempt < 5; attempt += 1) assert.equal((await login()).statusCode, 200);
+  const limited = await login();
+  assert.equal(limited.statusCode, 429);
+  assert.deepEqual(Object.keys(limited.json()).sort(), ["code", "message", "requestId"]);
+  assert.equal(limited.json().code, "RATE_LIMITED");
 });
 
 test("OpenAPI v1 and the frozen screen map have no unresolved contract gates", async () => {
