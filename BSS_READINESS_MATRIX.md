@@ -1,100 +1,123 @@
 # BSS Readiness Matrix
 
-## Issue #55 integration evidence (2026-08-06)
+## Authoritative software baseline — 2026-08-08
 
-- Integration branch is based on verified `origin/main` `331c8c1fd66b6683b4afdbcc9bf9f623b6eadce3` and Phase B head `388f96d76dbef7facab78aeae97cfc88a58f724e`.
-- Local frontend lint, 104 tests and deterministic build pass.
-- Local OpenAPI lint, backend TypeScript checks, 32 unit/contract/non-PostgreSQL tests and backend build pass.
-- Root and backend production dependency audits report zero vulnerabilities.
-- PostgreSQL migration, RLS, cross-tenant, authentication/concurrency and full-stack checks were not run locally because Docker/PostgreSQL is unavailable.
-- Playwright Chromium was installed, but the local Windows runner did not terminate with a final result; browser and axe status therefore remains unproven locally.
-- No capability is promoted to `DONE`, `MERGED` or production-ready by this integration evidence alone.
+Phase 0 baseline consolidation is complete.
 
-Ovaj dokument je jedinstveni izvor istine za spremnost BSS-a. Cilj nije tvrditi da je sustav bez greške, nego spriječiti skrivene rupe, neprovjerene pretpostavke i ovisnost o jednom programeru.
+- PR #99 `feat(backend): integrate MVP Phase B into current main` was squash-merged into protected `main`.
+- Authoritative baseline commit: `198b2ce9f1ad73b7b72058a930cf005cbb35a0da`.
+- PR #27 was closed as superseded rather than direct-merged.
+- Issue #55 was closed as completed after final state/SHA verification.
+- Required repository checks were green before merge.
+- PostgreSQL-backed integration and full-stack browser/accessibility validation used for the integration were green.
+- Direct CodeQL and GitHub CodeQL completed with `js/missing-rate-limiting = 0` after genuine runtime limits were added to the authorization-bearing routes identified by the audit.
+- OpenAPI declares the shared `429 RateLimited` response for operations that implement runtime rate limiting.
+- PR #99 did not deploy a production backend, provision staging, prove shared/distributed rate limiting, perform a production restore drill or validate physical hardware.
 
-## Statusi
+This document is the authoritative readiness view for BSS. Its purpose is not to claim that the system is error-free; it separates merged implementation evidence from deployment, operational, privacy, hardware and commercial readiness.
 
-- `DONE` — dovršeno i postoji dokaz u repozitoriju ili CI-u
-- `AUTOMATED` — kontinuirano se provjerava na PR-u, `main` grani ili rasporedu
-- `PARTIAL` — postoji temelj, ali izlazni kriterij još nije potpuno zatvoren
-- `OPEN` — nije završeno; mora imati vlasnika, dokaz i plan zatvaranja
-- `EXTERNAL` — ovisi o hostingu, uređaju, dobavljaču, pravnom ili poslovnom koraku izvan repozitorija
+## Statuses
 
-## Pravilo ažuriranja
+- `DONE` — completed for the stated scope with reproducible evidence
+- `AUTOMATED` — continuously checked on PRs, `main` or a defined schedule
+- `PARTIAL` — a real foundation exists but required evidence/layers remain
+- `OPEN` — not complete; requires owner, evidence and closure plan
+- `EXTERNAL` — depends on hosting, physical hardware, vendor, legal/business action or another non-repository system
 
-Svaka promjena koja utječe na arhitekturu, podatke, sigurnost, deployment, terminal, privatnost ili developer handoff mora ažurirati relevantni redak i dodati poveznicu na dokaz. Status se ne smije postaviti na `DONE` bez reproducibilnog dokaza.
+## Update rule
 
-| Područje | Izlazni kriterij | Trenutni status | Dokaz / sljedeći dokaz |
+Every material change affecting architecture, data, security, deployment, terminal behavior, privacy, hardware or developer handoff must update the relevant row and point to evidence. `MERGED`, `DONE`, `STAGING`, `PRODUCTION` and `RELEASED` are different states. A green PR must never be used as proof of infrastructure, legal or physical readiness.
+
+| Area | Exit criterion | Current status | Evidence / next evidence |
 |---|---|---:|---|
-| MVP opseg | Sve funkcije imaju jasan `in scope`, `out of scope` i acceptance kriterij | PARTIAL | OpenAPI, screen map, readiness dokumenti; konačni feature freeze prije pilota |
-| Arhitektura | Granice frontend/backend/terminal/baza su dokumentirane; nema skrivenih runtime ovisnosti | PARTIAL | `BACKEND_ARCHITECTURE.md`, developer guide; završna provjera nakon integracije |
-| Frontend kvaliteta | Lint, testovi, build, accessibility i ključni E2E tokovi prolaze | AUTOMATED | BSS quality gate |
-| Backend kvaliteta | TypeScript, build, unit/contract/integration testovi i PostgreSQL tokovi prolaze | AUTOMATED | Backend/full-stack quality gateovi |
-| API ugovor — struktura | OpenAPI je sintaktički i strukturno valjan, nema neriješenih referenci, duplih operation ID-jeva ni nedostajućih path parametara | AUTOMATED | `redocly.yaml` + BSS API and dependency governance gate |
-| API-runtime usklađenost | Implementirani endpointi, statusi i response sheme odgovaraju OpenAPI ugovoru | PARTIAL | Postojeći contract testovi; proširiti automatski runtime drift dokaz za sve operacije |
-| Baza i migracije | Clean database migrira od nule; rollback/forward strategija je dokumentirana | PARTIAL | PostgreSQL migration CI; produkcijski rehearsal ostaje otvoren |
-| Tenant izolacija | Cross-tenant pristup je tehnički blokiran i regresijski testiran | AUTOMATED | RLS i cross-tenant CI testovi |
-| Autentikacija i sesije | Login, refresh, logout, invitation i revocation imaju testirane sigurnosne granice | PARTIAL | Backend audit i auth/concurrency testovi; vanjski security review prije produkcije |
-| RBAC | Svaka operacija ima dopuštene uloge i negativne testove | PARTIAL | OpenAPI RBAC deklaracije i contract testovi; potpuna matrica prije pilota |
-| Audit log | Kritične radnje ostavljaju neizmjenjiv, tenant-scoped i razumljiv trag | PARTIAL | Backend implementacija; retention i zaštita pseudonima ostaju otvoreni |
-| Tajne i ključevi | Nema tajni u Git povijesti; rotacija, KMS i incident postupak su definirani | PARTIAL | Gitleaks full-history zaštita je automatizirana; produkcijski KMS, rotacija i incident rehearsal ostaju EXTERNAL |
-| Static security | CodeQL i dependency audit prolaze kontinuirano | AUTOMATED | BSS security gate |
-| Secret scanning | Trenutačni kod i puna dostupna Git povijest blokiraju neodobrene credentiale bez izlaganja vrijednosti u logovima | AUTOMATED | Gitleaks v8.30.1, checksum-verificirani binary, `--all` history scan, redaction i uska fingerprint allowlista |
-| CI/CD workflow ispravnost | Workflow YAML, izrazi i ugrađene shell skripte statički se provjeravaju prije mergea | AUTOMATED | BSS workflow static validation; actionlint v1.7.12 s provjerenim binary checksumom |
-| GitHub Actions supply chain | Sve remote Action ovisnosti koriste nepromjenjivu punu commit SHA referencu | AUTOMATED | Immutable-reference policy + svi postojeći workflowi pinani na potvrđene SHA vrijednosti |
-| Dependency održavanje | Zaključane verzije, automatske nadogradnje i pregled novih ranjivosti/licencija | AUTOMATED | Dependabot, npm audit i GitHub dependency review |
-| SBOM | Frontend i backend CycloneDX inventar se generira, validira i arhivira | AUTOMATED | BSS dependency inventory; potvrđen artefakt za aktualni `main` commit |
-| PR veličina i rizik | Veliki i višepodručni PR-ovi dobivaju automatsko upozorenje | AUTOMATED | PR size/risk guardrail u `main` |
-| PR dokumentacija | Cilj, rizik, testni dokaz i rollback su obvezni | AUTOMATED | BSS PR governance gate |
-| Vlasništvo koda | Kritični dijelovi imaju formalnog vlasnika | DONE | `.github/CODEOWNERS` |
-| Branch zaštita | `main` zahtijeva PR, aktualnu granu, riješene razgovore i šest zelenih GitHub Actions checkova; zabranjeni su deletion, force push i bypass | AUTOMATED | Aktivni repository ruleset `main` za `refs/heads/main`; squash-only, 0 approvals tijekom solo-founder faze, bypass lista prazna |
-| Unit testovi | Ključna poslovna pravila imaju stabilne, brze testove | PARTIAL | Postojeći suite; coverage pragovi se tek trebaju formalizirati |
-| Integration testovi | API, baza, migracije i RLS rade u stvarnom PostgreSQL-u | AUTOMATED | GitHub CI PostgreSQL 16 testovi |
-| E2E testovi | Glavni tokovi svih uloga rade kroz browser i backend | PARTIAL | Postojeći Playwright/axe tokovi; proširiti nakon finalne integracije |
-| Accessibility | WCAG kritični problemi automatski blokiraju regresiju | AUTOMATED | axe u quality gateu |
-| Performance | Definirani SLO-i, load/soak testovi i query planovi za kritične upite | OPEN | Potrebni realni volumeni i produkcijski slična okolina |
-| Rate limiting i abuse | Login, terminal i osjetljivi endpointi imaju shared ograničenja | EXTERNAL | Hosting/WAF/shared store odluka prije produkcije |
-| Backup | Automatski backup, enkripcija, retention i vlasnik procesa | EXTERNAL | Hosting odluka i dokumentirani raspored |
-| Restore/PITR | Restore je stvarno izveden i izmjeren, ne samo dokumentiran | OPEN | Obvezan restore drill prije prvog plaćenog klijenta |
-| Disaster recovery | RTO/RPO, odgovorne osobe i komunikacija incidenta su definirani | OPEN | Incident i DR runbook prije produkcije |
-| Deployment | Reproducibilan image/build, healthcheck, rollback i odvojena okruženja | PARTIAL | Docker/Compose i runbook; finalni hosting ostaje EXTERNAL |
-| Cloud konfiguracija | DNS, TLS, WAF, mreža, tajne i pristupi su evidentirani | EXTERNAL | Infrastructure inventory nakon izbora hostinga |
-| Observability | Strukturirani logovi, metrics, traces, alerti i dashboardi | OPEN | Odabrati provider i definirati minimalne alarme |
-| Error tracking | Produkcijske greške imaju grouping, release i owner podatke | OPEN | Uvesti prije pilota |
-| Uptime i health | Vanjski health check i upozorenje za nedostupnost | OPEN | Uvesti nakon staging/production deploya |
-| Privatnost/GDPR | Svrhe, pravna osnova, retention, DPA, izvoz i brisanje su definirani | OPEN | Pravni pregled i data map prije stvarnih osobnih podataka |
-| Data minimization | Ne prikupljaju se nepotrebni osobni, IP ili device podaci | PARTIAL | Audit postoji; finalna retention odluka otvorena |
-| Evidencija pristupa | Admin i support pristupi produkcijskim podacima su kontrolirani i auditirani | OPEN | Definirati support model i break-glass proceduru |
-| Terminal sigurnost | Device identitet, potpisivanje, nonce/replay, rotacija i revocation su testirani | PARTIAL | Ugovori postoje; fizički terminal i provisioning rehearsal otvoreni |
-| Offline terminal | Queue, idempotency, clock drift i recovery ponašanje su definirani | PARTIAL | API principi postoje; realni hardware test ostaje otvoren |
-| Hardware BOM | Točni SKU-ovi, dimenzije, kompatibilnost i zamjene su potvrđeni | EXTERNAL | Fizička metrologija i zaključani prototip |
-| Kućište i termika | Finalni CAD, tolerancije, ventilacija i montaža potvrđeni prototipom | EXTERNAL | SolidWorks/STEP nakon stvarnih mjera komponenti |
-| RFID pouzdanost | Doseg, orijentacija, metalno kućište i pogrešna očitanja testirani | OPEN | Bench test na stvarnom prototipu |
-| Developer onboarding | Clean clone do lokalnog rada je moguć samo iz dokumentacije | PARTIAL | `DEVELOPER_GUIDE.md`; obvezan neovisni clean-room test |
-| Operativna dokumentacija | Deploy, rollback, backup, restore, incident i troubleshooting postoje | PARTIAL | Dio runbookova postoji; produkcijski detalji nakon hostinga |
-| Frontend handoff artefakt | Immutable frontend tag reproducibilno daje validiran ZIP, manifest, checksum i release asset | AUTOMATED | PR verify + post-merge publish workflow; verify i publish potvrđeni na aktualnom `main` |
-| Handoff paket | Kod, dokumenti, API, DB, testovi, tajne-popis i otvoreni rizici su predani | PARTIAL | Postojeći handoff artefakti; finalizirati cijeli sustav na feature freezeu |
-| Vendor lock-in | Repo, domena, cloud, tajne, billing i administracija ostaju pod BSS kontrolom | OPEN | Napraviti access/ownership register prije vanjskog programera |
-| Licencije | Novouvedene dependency licence su automatski provjerene i neprihvaćene licence blokirane | AUTOMATED | GitHub dependency review s eksplicitnom SPDX allowlistom |
-| Release verzioniranje | Tag, changelog, migracije i artefakti su reproducibilni | PARTIAL | Frontend release proces postoji; objediniti za cijeli sustav |
-| Neovisni audit | Senior reviewer provjerava arhitekturu, auth, RLS, GDPR i operacije | OPEN | Planirati nakon feature freezea, prije prvog plaćenog klijenta |
-| Penetration test | Vanjski test stvarnog staging/production sustava | OPEN | Nakon hostinga i prije većeg komercijalnog rollouta |
+| Authoritative software baseline | One protected `main` contains the reviewed frontend/backend baseline with no unresolved Phase B integration fork | DONE | PR #99 → `198b2ce9f1ad73b7b72058a930cf005cbb35a0da`; PR #27 superseded; issue #55 completed |
+| MVP scope | All functions have clear `in scope`, `out of scope` and acceptance criteria | PARTIAL | Scope freeze, OpenAPI, feature registry and screen map exist; final pilot feature freeze remains before live pilot |
+| Architecture | Frontend/backend/terminal/database boundaries are documented and the merged code has no hidden integration fork | PARTIAL | Backend architecture + merged Phase B are authoritative; final hosting/network/shared-service topology remains infrastructure work |
+| Codex operating instructions | Codex instructions name current BSS OS truth sources and correct runtime/deployment boundaries | PARTIAL | Current `AGENTS.md` is pre-Phase-0 and must be replaced by `AGENTS.md v2` after this truth sync |
+| Frontend quality | Lint, tests, build, accessibility and key E2E flows pass | AUTOMATED | BSS quality gate and Playwright/axe coverage |
+| Backend quality | TypeScript, build, unit/contract/integration tests and PostgreSQL flows pass | AUTOMATED | Backend quality gate plus full-stack quality gate; PR #99 passed integration acceptance |
+| API contract — structure | OpenAPI is syntactically/structurally valid with stable operation IDs, parameters and references | AUTOMATED | Redocly + API/dependency governance gate |
+| API-runtime alignment | Implemented endpoints, statuses and response schemas match OpenAPI including rate-limit semantics | PARTIAL | Contract tests exist and `429 RateLimited` drift guard was added through PR #99; expand automated drift coverage to all operations |
+| Database and migrations | Clean database migrates from zero and application invariants/RLS work in PostgreSQL | PARTIAL | PostgreSQL CI proves migrations/integration on repository changes; real staging upgrade/rollback/recovery rehearsal remains open |
+| Tenant isolation | Cross-tenant access is technically blocked and regression tested | AUTOMATED | `FORCE ROW LEVEL SECURITY`, `NOBYPASSRLS`, tenant-scoped transactions and cross-tenant CI tests merged through PR #99 |
+| Authentication and sessions | Login, refresh, logout, invitation and revocation have tested security/concurrency boundaries | PARTIAL | Strong merged auth/concurrency coverage; staging configuration and independent security review remain before production |
+| RBAC | Every operation has approved allowed roles and negative tests | PARTIAL | Service guards, OpenAPI role declarations and negative coverage exist; final authoritative role-operation matrix still required before pilot |
+| Audit log | Critical operations leave tenant-scoped, understandable and protected evidence | PARTIAL | Audit implementation and append-only database controls exist; production retention/access/export policy remains open |
+| Secrets and keys | No secrets in Git history; secure custody, rotation and recovery are defined and proven | PARTIAL | Gitleaks full-history automated; production secret store/KMS, rotation, recovery and break-glass drills remain EXTERNAL |
+| Static security | CodeQL and dependency security checks continuously pass | AUTOMATED | Security workflow; PR #99 final CodeQL `js/missing-rate-limiting = 0` |
+| Secret scanning | Current code and available Git history block leaked credentials without exposing values | AUTOMATED | Gitleaks full-history scan with verified binary/checksum and redaction |
+| CI/CD workflow correctness | Workflow YAML, expressions and embedded shell are validated | AUTOMATED | Workflow static validation/actionlint gate |
+| GitHub Actions supply chain | Remote actions use immutable full commit SHAs | AUTOMATED | SHA-pinning policy and current workflows |
+| Dependency maintenance | Dependency updates and new vulnerabilities/licences are continuously reviewed | PARTIAL / AUTOMATED | Root npm + GitHub Actions Dependabot and dependency review exist; `/backend` Dependabot entry and final policy for full dev-dependency audit are post-Phase-0 gaps |
+| SBOM | Frontend and backend CycloneDX inventories are generated/validated/archiveable | AUTOMATED | BSS dependency inventory workflow |
+| PR size and risk | Large/multi-domain PRs receive automatic warning/classification | AUTOMATED | PR risk/size guardrails |
+| PR documentation | Goal, risk, validation and rollback evidence are required | AUTOMATED | BSS PR governance gate |
+| Code ownership | Critical repository areas have formal owner patterns | DONE | `.github/CODEOWNERS` |
+| Branch protection | `main` requires PR workflow, current branch, resolved conversations and required checks; force/deletion/bypass controls remain active | AUTOMATED | Active repository ruleset; squash-only operating practice retained |
+| Unit tests | Core business rules have stable fast tests | PARTIAL | Strong current suite; formal coverage thresholds remain optional/open |
+| Integration tests | API/database/migrations/RLS execute against real PostgreSQL in CI | AUTOMATED | PostgreSQL 16 backend and full-stack CI |
+| E2E tests | Main role flows work through browser and backend | PARTIAL | PR #99 proved current integrated flows; expand/rebaseline after Preview reconstruction and later release-candidate changes |
+| Accessibility | Critical WCAG regressions are blocked automatically | AUTOMATED | Playwright + axe quality checks |
+| Performance | SLOs, load/soak tests and query plans exist for critical flows | OPEN | Requires realistic tenant sizes and production-like staging |
+| Rate limiting and abuse protection | Sensitive endpoints have real limits and the intended multi-instance/shared policy is proven | PARTIAL / EXTERNAL | Genuine route limits merged and CodeQL-clean; production WAF/shared-store/proxy and multi-process behavior still require staging evidence |
+| RFID listing capacity | Worker/RFID hydration remains usable at the approved maximum tenant size without arbitrary throttling or request explosion | OPEN | No authoritative maximum workforce size is approved; define capacity or introduce batched tenant-scoped RFID hydration, then load test |
+| Backup | Automated encrypted backup, retention and ownership are implemented | EXTERNAL | Provider selection/configuration and independent encrypted copy remain before live use |
+| Restore/PITR | Restore is actually executed and measured | OPEN | Mandatory real restore/PITR drill before first paid/live production customer |
+| Disaster recovery | RTO/RPO, command roles, continuity and recovery communications are proven | OPEN | DR/continuity OS exists; real provider/account/founder recovery drills remain |
+| Deployment packaging | Reproducible build/image, healthcheck and rollback path exist | PARTIAL | Backend build is reproducible; hardened container work from legacy PR #28 must be rebuilt/retargeted from current `main` and scanned |
+| Staging environment | Production-like backend/database/network/secrets configuration exists separately from Preview | OPEN / EXTERNAL | Infrastructure issue #59; provision only from authoritative post-Phase-0 baseline |
+| Production deployment | Controlled production environment is provisioned and release-gated | OPEN / EXTERNAL | No production backend deployment was performed by PR #99 |
+| Cloud configuration | DNS, TLS, WAF, network, secrets and account ownership are inventoried | EXTERNAL | Complete after staging/provider selection; public Preview configuration remains a separate concern |
+| Observability | Structured logs, metrics/traces, alerts and dashboards are operational | OPEN | Introduce during staging; Sentry/monitoring stack follows runtime environment selection |
+| Error tracking | Runtime errors have grouping, release and owner context | OPEN | Introduce in staging before pilot |
+| Uptime and health | External health checks detect service unavailability | OPEN | Add after staging/public service endpoint exists |
+| Privacy/GDPR | Purposes, roles, data map, retention, DPA, rights and incident handling are approved | OPEN | Governance/templates exist; customer-specific/legal review and live processing gates remain |
+| Data minimization | Unnecessary personal/device data are excluded and retention remains controlled | PARTIAL | Strong minimization baseline exists; final production retention and support-access decisions remain |
+| Production/customer-data access | Admin/support access is least-privilege, reviewed and audited | OPEN | Identity/access/secrets OS exists; actual account inventory, MFA, break-glass and access-review evidence remain private/external |
+| Terminal security | Device identity, signing, nonce/replay, revocation and credential validity are tested | PARTIAL | Software contracts are merged; real provisioning, secret custody and physical device tests remain |
+| Offline terminal | Queue, idempotency, clock drift and recovery are defined and verified on real device | PARTIAL | API/software invariants exist; physical offline/recovery test remains |
+| Hardware BOM | Exact SKUs, dimensions, compatibility and substitution policy are confirmed | EXTERNAL | Physical metrology and frozen prototype BOM required |
+| Enclosure and thermals | Final CAD/tolerances/ventilation/mounting are proven by prototype | EXTERNAL | SolidWorks/STEP/manufacturing package after exact measurements |
+| RFID physical reliability | Read range/orientation/metal interference/false reads are measured | OPEN | Bench and installed-environment tests on real prototype |
+| Developer onboarding | A new developer can clean-clone and work from documentation without founder memory | PARTIAL | Developer guide/backend handoff exist; independent clean-room takeover test remains and legacy PR #28 handoff should be deduplicated |
+| Operational documentation | Deploy/rollback/backup/restore/incident/troubleshooting procedures exist and match real infrastructure | PARTIAL | BSS OS coverage is broad; provider-specific operational evidence waits for staging |
+| Frontend handoff artifact | Immutable frontend package/release asset is reproducibly verified | AUTOMATED | Existing frontend handoff/release workflows |
+| Whole-system handoff | Code, API, DB, tests, architecture, risks, operations and ownership are sufficient for independent continuation | PARTIAL | Strong documentation foundation; finalize after legacy PR retirement, staging and clean-room takeover |
+| Vendor lock-in | Repo/domain/cloud/secrets/billing/admin control remain with BSS | OPEN | Complete private access/ownership register before external developer/provider dependency grows |
+| Licenses | New dependencies are automatically reviewed against approved licence policy | AUTOMATED | GitHub dependency review and SPDX allowlist |
+| Release versioning | Code, migrations, artifacts, changelog and environment release state are traceable | PARTIAL | Frontend process exists; whole-system release process and staging deployment remain |
+| Independent code analysis | An external static-analysis baseline exists in addition to GitHub/Codex checks | OPEN | Next tooling sequence: SonarQube Cloud, then Trivy after `AGENTS.md v2`/legacy-control cleanup as appropriate |
+| Independent senior audit | Qualified reviewer inspects architecture, auth, RLS, privacy and operations | OPEN | Plan after stabilization/feature freeze and before paid production rollout |
+| Penetration test | External testing targets the real staging/production attack surface | OPEN | OWASP ZAP/independent testing only after network-accessible staging exists |
+| Analytics/pilot telemetry | Product usage evidence is collected with privacy-safe masking and approved purpose | OPEN | PostHog or equivalent only near pilot; no real employee/session replay data without explicit privacy controls |
 
-## Nezaobilazni release blocker kriteriji
+## Non-negotiable production/live-pilot blockers
 
-BSS se ne smije označiti kao `production ready` dok nisu zatvoreni najmanje:
+BSS must not be labelled `production ready` merely because Phase 0 is complete. At minimum, the following still require their own evidence before live production claims:
 
-1. branch protection i obvezni CI checkovi — zatvoreno na razini repozitorija;
-2. staging okruženje jednako produkcijskom po ključnim servisima;
-3. stvarni backup + uspješan restore/PITR drill;
-4. monitoring, error tracking i incident alerti;
-5. GDPR data map, retention i ugovorne obveze;
-6. load test kritičnih endpointa i query planovi;
-7. fizički terminal provisioning, offline i recovery test;
-8. neovisni senior security/architecture review;
-9. clean-room developer onboarding test;
-10. dokumentiran ownership svih računa, domena, cloud resursa i tajni.
+1. production-like staging and controlled release process;
+2. real encrypted backup plus successful restore/PITR drill;
+3. monitoring, error tracking, uptime alerting and incident rehearsal;
+4. shared/distributed abuse protection appropriate to the selected deployment topology;
+5. GDPR/customer-specific data map, DPA/DPIA/notice/retention and qualified review where required;
+6. load/soak tests and query-plan evidence at approved workforce/tenant volumes;
+7. physical terminal provisioning, RFID, thermal, offline and recovery validation;
+8. production secrets/KMS/access ownership and rotation/recovery drills;
+9. independent senior security/architecture review and later network-facing security test;
+10. clean-room developer takeover and private ownership/access register for critical accounts;
+11. pilot installation, support, training, acceptance and fallback evidence.
 
-## Način rada bez slijepih točaka
+## Immediate post-Phase-0 sequence
 
-Za svaki novi modul ili servis prvo se dodaju: vlasnik, threat model, testna strategija, podaci koje obrađuje, dependency/SBOM pokrivenost, deployment i rollback, observability te handoff dokumentacija. Funkcionalnost nije završena samo zato što radi u pregledniku.
+1. Synchronize BSS OS truth documents to PR #99 / `198b2ce9...`.
+2. Replace stale root Codex instructions with `AGENTS.md v2`.
+3. Finalize PR #31 gap analysis and extract only the remaining useful controls.
+4. Add SonarQube Cloud, then Trivy, against the authoritative baseline.
+5. Split/retarget retained PR #28 work.
+6. Reconstruct Preview Portal from current `main`, then establish Figma/Storybook as the design workflow.
+7. Build production-like staging and attach observability, secrets, backup/restore and performance evidence.
+8. Complete physical terminal and independent review before real pilot data.
+
+## Working without blind spots
+
+For every new module/service or external platform, record the owner, threat model, data processed, contract/API impact, tests, dependency/SBOM coverage, deployment/rollback, observability, privacy implications and handoff evidence. Functionality is not complete merely because it works locally or because a PR merged.
