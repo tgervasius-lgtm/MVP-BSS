@@ -51,8 +51,11 @@ jobs:
         with:
           node-version: '22.12.0'
 
+      - name: Install pinned Redocly CLI without lifecycle scripts
+        run: npm install --global --ignore-scripts @redocly/cli@2.41.2
+
       - name: Lint BSS OpenAPI contract
-        run: npx --yes @redocly/cli@2.41.1 lint openapi/bss-mvp-api-v1.yaml --config redocly.yaml
+        run: redocly lint openapi/bss-mvp-api-v1.yaml --config redocly.yaml
 
   dependency-review:
     name: New dependency vulnerability and license review
