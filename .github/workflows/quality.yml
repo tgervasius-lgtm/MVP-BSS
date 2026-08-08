@@ -52,7 +52,7 @@ jobs:
         run: npm audit --audit-level=high && npm --prefix backend audit --audit-level=high
 
       - name: Architecture growth guard
-        run: npm run check:architecture
+        run: node scripts/check-architecture-budgets.mjs
 
       - name: Lint
         run: npm run lint
