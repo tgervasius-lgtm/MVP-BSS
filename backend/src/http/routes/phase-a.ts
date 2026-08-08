@@ -555,6 +555,7 @@ export async function registerPhaseARoutes(app: FastifyInstance, dependencies: D
   app.post<{ Body: ReportPreviewWrite }>(
     "/api/v1/report-previews",
     {
+      config: { rateLimit: { max: 10, timeWindow: "1 minute" } },
       schema: {
         body: {
           type: "object",
@@ -586,6 +587,7 @@ export async function registerPhaseARoutes(app: FastifyInstance, dependencies: D
   }>(
     "/api/v1/terminals/:terminalId/sync-events",
     {
+      config: { rateLimit: { max: 120, timeWindow: "1 minute" } },
       schema: {
         params: idParams("terminalId"),
         querystring: {

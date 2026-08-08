@@ -289,6 +289,42 @@ test("administrative create and update operations share the 30 request policy", 
   assert.equal((await createDepartment("192.0.2.40")).statusCode, 201);
 });
 
+test("report previews and terminal history use workload-specific limits", async (t) => {
+  const app = await buildApp({ config, authService: new FakeAuthService(), phaseAService: new FakePhaseAService(), logger: false });
+  t.after(() => app.close());
+  const reportPreview = (remoteAddress?: string) => app.inject({
+    method: "POST",
+    url: "/api/v1/report-previews",
+    ...(remoteAddress ? { remoteAddress } : {}),
+    headers: { origin: config.publicOrigin },
+    cookies: { bss_session: "admin" },
+    payload: { reportType: "monthly_summary", periodFrom: "2026-07-01", periodTo: "2026-07-31" }
+  });
+  const terminalHistory = (remoteAddress?: string) => app.inject({
+    method: "GET",
+    url: `/api/v1/terminals/${IDS.shift}/sync-events?from=2026-07-01&to=2026-07-31`,
+    ...(remoteAddress ? { remoteAddress } : {}),
+    cookies: { bss_session: "admin" }
+  });
+
+  for (let attempt = 0; attempt < 10; attempt += 1) {
+    assert.equal((await reportPreview()).statusCode, 200);
+  }
+  const limitedPreview = await reportPreview();
+  assert.equal(limitedPreview.statusCode, 429);
+  assert.equal(limitedPreview.json().code, "RATE_LIMITED");
+
+  for (let attempt = 0; attempt < 120; attempt += 1) {
+    assert.equal((await terminalHistory()).statusCode, 200);
+  }
+  const limitedHistory = await terminalHistory();
+  assert.equal(limitedHistory.statusCode, 429);
+  assert.equal(limitedHistory.json().code, "RATE_LIMITED");
+
+  assert.equal((await reportPreview("192.0.2.50")).statusCode, 200);
+  assert.equal((await terminalHistory("192.0.2.50")).statusCode, 200);
+});
+
 test("completed Phase A contracts expose scoped drill-downs without raw credentials", async (t) => {
   const app = await buildApp({ config, authService: new FakeAuthService(), phaseAService: new FakePhaseAService(), logger: false });
   t.after(() => app.close());
