@@ -45,8 +45,11 @@ jobs:
       - name: Install frontend dependencies without lifecycle scripts
         run: npm ci --ignore-scripts
 
-      - name: Install backend dependencies
-        run: npm --prefix backend ci
+      - name: Install backend dependencies without lifecycle scripts
+        run: npm --prefix backend ci --ignore-scripts
+
+      - name: Rebuild required backend esbuild binary explicitly
+        run: npm --prefix backend rebuild esbuild --foreground-scripts
 
       - name: All dependency audit
         run: npm audit --audit-level=high && npm --prefix backend audit --audit-level=high

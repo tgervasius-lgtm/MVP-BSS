@@ -29,12 +29,12 @@ jobs:
           node-version: 22
           cache: npm
 
-      - name: Install frontend dependencies
-        run: npm ci
+      - name: Install frontend dependencies without lifecycle scripts
+        run: npm ci --ignore-scripts
 
-      - name: Install backend dependencies
+      - name: Install backend dependencies without lifecycle scripts
         working-directory: backend
-        run: npm ci
+        run: npm ci --ignore-scripts
 
       - name: Generate frontend CycloneDX SBOM
         run: npm sbom --sbom-format=cyclonedx > bss-frontend-sbom.cdx.json
