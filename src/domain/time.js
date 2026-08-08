@@ -28,13 +28,15 @@
     if(!start || !end || end < start) return 0;
     const holidays = holidayDates instanceof Set ? holidayDates : new Set(holidayDates);
     let count = 0;
-    const cursor = isoToDate(start);
+    let cursor = isoToDate(start);
     const finish = isoToDate(end);
     while(cursor <= finish){
       const iso = cursor.toISOString().slice(0,10);
       const day = cursor.getDay();
       if(day !== 0 && day !== 6 && !holidays.has(iso)) count += 1;
-      cursor.setDate(cursor.getDate()+1);
+      const next = new Date(cursor);
+      next.setDate(next.getDate()+1);
+      cursor = next;
     }
     return count;
   }
