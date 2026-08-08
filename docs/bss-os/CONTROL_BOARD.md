@@ -1,77 +1,94 @@
 # BSS OS Control Board
 
-Last reviewed: 2026-08-06
-Operating phase: `BASELINE CONSOLIDATION`
+Last reviewed: 2026-08-08
+Operating phase: `POST-CONSOLIDATION / BASELINE HARDENING`
 
 ## Executive state
 
 | Workstream | Status | Priority | Exit criterion |
 |---|---|---:|---|
-| Stable software baseline | IN REVIEW | P0 | Integration PR from current `main` has green required checks and owner approval |
+| Stable software baseline | DONE | P0 | PR #99 merged into protected `main` with all required checks green and CodeQL `js/missing-rate-limiting = 0` |
 | Repository governance | DONE / AUTOMATED | Maintain | Ruleset and required checks remain active and verified |
-| Product feature registry | IN PROGRESS | P1 | MVP features mapped to code, API, data, security, tests and release evidence |
-| Decision log | IN PROGRESS | P0 | All material current decisions recorded with implementation status |
-| Risk register | IN PROGRESS | P0 | Critical risks have owners, mitigation and measurable closure criteria |
-| Preview Portal | IN REVIEW | P1 | Rebased/reconstructed from stable `main`, externally accessible and clearly isolated from production |
+| Product feature registry | ACTIVE / EVIDENCE MAINTENANCE | P1 | Feature status stays aligned with merged code, API, data, security, tests and release evidence |
+| Decision log | ACTIVE | P0 | Material decisions reflect the current merged baseline and later changes are versioned |
+| Risk register | ACTIVE | P0 | Critical risks have owners, mitigation and measurable closure criteria |
+| Codex operating instructions | OUTDATED / NEXT | P0 | `AGENTS.md v2` points to the current BSS OS sources of truth and correct deployment boundaries |
+| Legacy PR retirement | OPEN | P0/P1 | PRs #28, #30 and #31 are safely split/reconstructed/superseded without losing useful work |
+| Independent code analysis | NEXT | P1 | SonarQube Cloud and then Trivy analyze the authoritative `main` baseline |
+| Preview Portal | OPEN / RECONSTRUCTION | P1 | Reconstructed from stable `main`, externally accessible and clearly isolated from production |
 | Hardware prototype | PARTIAL / EXTERNAL | P1 | Physical component measurements confirmed and production CAD generated |
 | Production infrastructure | OPEN / EXTERNAL | P0 before pilot | Hosting, secrets, monitoring, backup/PITR, incident response and staging proven |
 | Pilot readiness | PARTIAL | P1 | Software, terminal, onboarding, support, legal and operational package proven end to end |
 
+## Completed critical milestone — Phase 0 baseline consolidation
+
+Backend MVP Phase B is now part of the authoritative protected `main` baseline.
+
+Evidence:
+
+- PR #99 `feat(backend): integrate MVP Phase B into current main` was squash-merged on 2026-08-08.
+- Resulting `main` commit: `198b2ce9f1ad73b7b72058a930cf005cbb35a0da`.
+- PR #27 was closed as superseded, not merged directly.
+- Issue #55 was closed as completed after the integration evidence was verified.
+- Required repository checks were green before merge.
+- Direct CodeQL analysis and GitHub CodeQL completed successfully with `js/missing-rate-limiting = 0` after genuine route-level rate limits were added where required.
+- Frontend, backend, PostgreSQL-backed, full-stack browser and accessibility checks used for the integration were green.
+- OpenAPI now declares the implemented shared `429 RateLimited` response for rate-limited operations.
+- No production deployment was performed by PR #99.
+
+Phase 0 therefore has one authoritative merged software baseline in `main`. Production, staging, infrastructure, hardware and pilot readiness remain separate workstreams.
+
 ## Current critical path
 
-### P0-1 — Integrate Backend MVP Phase B
+### P0-1 — Synchronize BSS OS with the merged baseline
 
-Current evidence:
+Required now:
 
-- Original PR: `#27` — Backend MVP Phase B and production-readiness audit.
-- Security/dependency repair PR: `#53` — merged into the PR #27 branch.
-- PR #27 remains open and conflicted with the current `main`.
+1. Update Control Board, Decision Log, Risk Register, Product Feature Registry and Readiness Matrix to remove pre-merge Phase 0 wording.
+2. Keep merged software readiness separate from production deployment readiness.
+3. Record PR #99 and `198b2ce9...` as the baseline evidence.
 
-Integration evidence on 2026-08-06:
+### P0-2 — Refresh Codex operating instructions
 
-- branch `integration/issue-55-pr27-into-main-2026-08-06` was created from verified `origin/main` `331c8c1fd66b6683b4afdbcc9bf9f623b6eadce3`;
-- verified Phase B head `388f96d76dbef7facab78aeae97cfc88a58f724e` was merged and seven conflicts were resolved file by file;
-- local frontend and backend gates pass, including OpenAPI, TypeScript, unit/contract tests and builds;
-- production dependency audits report zero vulnerabilities;
-- PostgreSQL-backed and full-stack checks require CI because Docker/PostgreSQL is unavailable locally;
-- local Playwright/axe execution is inconclusive because the Windows runner did not terminate with a final result.
+After the truth sync:
 
-Required next action:
+1. create `AGENTS.md v2` from current `main`;
+2. make the BSS OS sources of truth explicit;
+3. remove the ambiguous statement that Cloudflare is the deployment platform for the whole system;
+4. state the approved architecture boundary: Cloudflare Pages for frontend/Preview where applicable, Node/Fastify backend on the selected EU runtime/provider, with final runtime implementation still governed by infrastructure evidence;
+5. keep one-PR/one-purpose, security, tenant-isolation, testing and no-false-readiness rules explicit.
 
-1. Review the draft integration PR and its file-by-file conflict decisions.
-2. Require green PostgreSQL, migration, RLS, cross-tenant, full-stack, Playwright and axe CI checks.
-3. Resolve any CI-only failures without weakening security or coverage.
-4. Merge only after green required checks and explicit owner approval.
+### P0-3 — Retire obsolete stacked work safely
 
-### P0-2 — Freeze new core divergence
+Now that issue #55 is complete:
 
-Until P0-1 is complete:
+- PR #31: perform final gap analysis and extract only still-useful controls, especially a recalibrated architecture budget, backend Dependabot coverage and any approved dependency-maintenance improvements;
+- PR #28: split retained hardware/API/QA/container/handoff work into focused branches from current `main`;
+- PR #30: reconstruct Preview Portal from current `main` instead of merging the old 146-commit branch wholesale.
 
-- do not add unrelated core backend features on PR #27;
-- do not stack additional long-lived branches on PR #27;
-- documentation and planning work may continue independently from current `main`;
-- urgent security fixes must remain narrowly scoped and proven by CI.
-
-## Active pull request portfolio
+## Active legacy pull request portfolio
 
 | PR | Purpose | Current treatment |
 |---:|---|---|
-| #27 | Backend MVP Phase B and deep audit | P0 integration target; do not direct-merge while conflicted |
-| #28 | Hardware, QA, API, operations and handoff | Wait for stable baseline; retarget or split by workstream |
-| #30 | Preview Portal release candidate | Reconstruct/rebase after stable baseline; keep isolated from production |
-| #31 | Continuous quality/security controls | Perform gap analysis; most controls already exist in `main` |
+| #28 | Hardware, QA, API, operations and handoff | Split/retarget from current `main`; do not merge wholesale |
+| #30 | Preview Portal release candidate | Reconstruct from current `main`; keep isolated from production |
+| #31 | Continuous quality/security controls | Final gap analysis; extract only missing controls, then supersede |
 
-## Sequence after baseline consolidation
+PR #27 is closed as superseded by merged PR #99. It is no longer an active integration target.
 
-1. Close or supersede PR #27 after successful integration into `main`.
-2. Perform PR #31 gap analysis and extract only missing controls.
-3. Split or retarget PR #28 into reviewable hardware, operations and handoff changes.
-4. Rebuild the Preview Portal branch from stable `main` and rerun complete validation.
-5. Complete the product feature registry.
-6. Define staging and production infrastructure architecture.
-7. Complete physical hardware metrology and production CAD.
-8. Assemble the pilot-readiness package.
+## Sequence from the current baseline
+
+1. Finish this post-Phase-0 truth sync.
+2. Create and merge `AGENTS.md v2`.
+3. Finish PR #31 gap analysis and extract only unique useful controls.
+4. Connect SonarQube Cloud to the authoritative `main` baseline.
+5. Add Trivy for dependency/container/IaC scanning where applicable.
+6. Split/retarget the useful PR #28 deliverables.
+7. Reconstruct Preview Portal from stable `main` and then establish the Figma/Storybook design workflow.
+8. Define and provision production-like staging with observability, secrets and restore evidence.
+9. Complete physical terminal metrology, CAD and prototype validation.
+10. Complete independent review and the full pilot-readiness gate before live customer data.
 
 ## Management rule
 
-The board tracks what BSS should do next. `BSS_READINESS_MATRIX.md` tracks whether each technical and operational capability has sufficient evidence. These documents must not contradict each other.
+The board tracks what BSS should do next. `BSS_READINESS_MATRIX.md` tracks whether each technical and operational capability has sufficient evidence. `PRODUCT_FEATURE_REGISTRY.md` tracks what the product actually implements. These documents must not contradict each other, and none of them may treat a merged software baseline as proof of production deployment.
