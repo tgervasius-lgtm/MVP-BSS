@@ -18,6 +18,24 @@ updates:
       - dependencies
       - automated
 
+  - package-ecosystem: npm
+    directory: /backend
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:15"
+      timezone: Europe/Berlin
+    open-pull-requests-limit: 5
+    versioning-strategy: increase-if-necessary
+    groups:
+      development-dependencies:
+        dependency-type: development
+    commit-message:
+      prefix: "deps-backend"
+    labels:
+      - dependencies
+      - automated
+
   - package-ecosystem: github-actions
     directory: /
     schedule:
