@@ -117,8 +117,12 @@ export async function registerAuthRoutes(app: FastifyInstance, dependencies: Dep
     }
   );
 
-  app.get("/api/v1/me", async (request) => {
-    const { context } = await authenticate(request);
-    return context;
-  });
+  app.get(
+    "/api/v1/me",
+    { config: { rateLimit: { max: 120, timeWindow: "1 minute" } } },
+    async (request) => {
+      const { context } = await authenticate(request);
+      return context;
+    }
+  );
 }

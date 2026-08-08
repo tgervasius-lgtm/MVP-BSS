@@ -173,6 +173,46 @@ test("authorized MVP reads allow normal traffic and reject an excessive burst", 
   assert.equal(independentClient.statusCode, 200);
 });
 
+test("session hydration and Phase A dashboard reads are independently rate limited", async (t) => {
+  const app = await buildApp({ config, authService: new FakeAuthService(), phaseAService: new FakePhaseAService(), logger: false });
+  t.after(() => app.close());
+  const sessionRequest = () => app.inject({
+    method: "GET",
+    url: "/api/v1/me",
+    cookies: { bss_session: "admin" }
+  });
+  const dashboardRequest = () => app.inject({
+    method: "GET",
+    url: "/api/v1/dashboard-summary?date=2026-07-13",
+    cookies: { bss_session: "admin" }
+  });
+
+  for (let attempt = 0; attempt < 120; attempt += 1) {
+    assert.equal((await sessionRequest()).statusCode, 200);
+    assert.equal((await dashboardRequest()).statusCode, 200);
+  }
+  for (const request of [sessionRequest, dashboardRequest]) {
+    const limited = await request();
+    assert.equal(limited.statusCode, 429);
+    assert.equal(limited.json().code, "RATE_LIMITED");
+  }
+
+  const independentSession = await app.inject({
+    method: "GET",
+    url: "/api/v1/me",
+    remoteAddress: "192.0.2.30",
+    cookies: { bss_session: "admin" }
+  });
+  const independentDashboard = await app.inject({
+    method: "GET",
+    url: "/api/v1/dashboard-summary?date=2026-07-13",
+    remoteAddress: "192.0.2.30",
+    cookies: { bss_session: "admin" }
+  });
+  assert.equal(independentSession.statusCode, 200);
+  assert.equal(independentDashboard.statusCode, 200);
+});
+
 test("worker deactivation explicitly limits excessive authorized writes", async (t) => {
   const app = await buildApp({ config, authService: new FakeAuthService(), phaseAService: new FakePhaseAService(), logger: false });
   t.after(() => app.close());
