@@ -7,7 +7,7 @@
     "npm": ">=10.0.0"
   },
   "scripts": {
-    "test": "node --test tests/app.test.cjs",
+    "test": "node --test tests/*.test.cjs",
     "build": "node scripts/build.mjs",
     "serve:dist": "node scripts/serve-dist.mjs",
     "start:fullstack": "npm run build && npm --prefix backend run build && FRONTEND_ROOT=../dist npm --prefix backend run start",
