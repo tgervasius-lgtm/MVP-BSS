@@ -4,11 +4,12 @@ import { fileURLToPath } from "node:url";
 
 const repositoryRoot = resolve(fileURLToPath(new URL("..", import.meta.url)));
 
-// These known large composition/service modules are frozen at the current
+// These known large composition/service/route modules are frozen at the current
 // post-Phase-0 baseline. New behavior should be extracted behind existing
 // contracts instead of increasing these legacy modules further.
 const frozenLegacyBudgets = new Map([
   ["app.js", 2_105],
+  ["backend/src/http/routes/phase-a.ts", 614],
   ["backend/src/services/pg-mvp-service.ts", 1_419],
   ["backend/src/services/pg-phase-a-service.ts", 1_377]
 ]);
