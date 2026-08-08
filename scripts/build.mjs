@@ -55,7 +55,7 @@ for(const file of builtFiles){
 }
 await writeFile(path.join(output,'build-manifest.json'),JSON.stringify({
   schemaVersion:1,
-  application:'BSS Demo 3.0',
+  application:'BSS Smart Systems 3.0',
   files:hashes
 },null,2)+'\n');
 

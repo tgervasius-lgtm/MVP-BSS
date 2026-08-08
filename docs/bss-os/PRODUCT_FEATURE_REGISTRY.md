@@ -1,8 +1,10 @@
 # BSS Product Feature Registry
 
-Last reviewed: 2026-08-05
+Last reviewed: 2026-08-06
 
-Important: this register reflects the current repository topology before Backend MVP Phase B is consolidated into `main`. A feature implemented only in PR #27 is not marked as released or production-ready.
+Important: Backend MVP Phase B is present on the issue #55 integration branch but is not yet merged into `main`, deployed or production-ready. Core capabilities remain `IN REVIEW` until the integration PR passes required CI and is approved.
+
+Integration evidence: local frontend lint, 104 unit tests and build pass; backend OpenAPI lint, TypeScript checks, 32 non-PostgreSQL tests and build pass; both production dependency audits report zero vulnerabilities. PostgreSQL/RLS/full-stack and conclusive Playwright/axe evidence remain required from CI.
 
 ## Status model
 

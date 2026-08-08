@@ -1,172 +1,137 @@
-# BSS Backend Architecture – MVP Faza A
+# BSS Backend Architecture – MVP Faza B
 
 | Odluka | Vrijednost |
 | --- | --- |
 | Stil | modularni monolit |
-| Runtime | Node.js 22 LTS + TypeScript 5.9 |
-| HTTP | Fastify 5, REST `/api/v1` |
-| Ugovor | OpenAPI `1.0.0`, status `FULL_PASS_APPROVED` |
-| Baza | PostgreSQL 16, eksplicitni SQL + `pg` |
-| Tenant model | shared DB/schema + obvezni `organization_id` + FORCE RLS |
-| Autentikacija | opaque rotirajuće sesije u sigurnim kolačićima |
-| Deploy jedinica | jedan API servis; migracije su zaseban deployment korak |
+| Runtime | Node.js 22.9+ / TypeScript / Fastify 5 |
+| API | REST `/api/v1`, OpenAPI `1.1.0` |
+| Baza | PostgreSQL 16, eksplicitni SQL i `pg` |
+| Tenant model | shared schema, `organization_id`, FORCE RLS |
+| Sesije | opaque access/refresh tokeni u sigurnim kolačićima |
+| Deploy | jedan Node servis za frontend + API; migrator je zaseban korak |
 
-## 1. Zašto modularni monolit i Fastify
-
-MVP ima snažno povezane transakcije: attendance, korekcija, audit, lock mjeseca i izvještaj moraju koristiti isti izvor istine. Mikroservisi bi u ovoj fazi dodali distribuirane transakcije i operativni trošak bez poslovne koristi. Modularni monolit daje jasne domenske granice, ali jednu ACID transakciju i jednu shemu migracija.
-
-Fastify je odabran jer je mali, eksplicitno sastavljiv, dobro podržava JSON Schema validaciju, kontrolirano logiranje i testiranje bez mrežnog porta. NestJS bi bio opravdan tek ako veličina tima i broj odvojenih modula narastu dovoljno da decoratorski framework smanji ukupnu složenost.
-
-Izravni `pg`/SQL odabran je umjesto ORM-a kako bi RLS, tenant transakcija, složeni FK-ovi, locking i audit bili vidljivi i provjerljivi. Repository/service su jedina mjesta koja smiju sadržavati SQL.
-
-## 2. Granice sustava
+## Sustav
 
 ```mermaid
 flowchart TD
-    UI["Frozen Frontend v1.0.0"] -->|"HTTPS /api/v1"| HTTP["Fastify HTTP + validation"]
-    HTTP --> AUTH["Session + RBAC + scope"]
-    HTTP --> DOMAIN["Domain services"]
-    AUTH --> PG["PostgreSQL 16 + FORCE RLS"]
-    DOMAIN --> PG
-    DOMAIN -. "later phases" .-> JOBS["Export/terminal workers"]
-    JOBS -. "private" .-> STORE["Object storage"]
+    UI["BSS frontend v1.0.0"] -->|"same-origin HTTPS"| HTTP["Fastify /api/v1"]
+    HTTP --> SEC["Session, RBAC, scope"]
+    SEC --> SVC["MVP services"]
+    SVC --> PG["PostgreSQL 16 + FORCE RLS"]
+    DEV["RFID terminal"] -->|"HMAC batch + heartbeat"| HTTP
 ```
 
-Frontend se ne autorizira sam. HTTP sloj mapira ugovor, security sloj stvara provjereni actor context, a service/repository ponavlja data scope u SQL-u. Objektna pohrana i queue ostaju adapteri kasnijih faza; ne uvode se u Fazu A prije potrebe.
+Modularni monolit zadržava attendance, odluke, audit i izvještaj u jednoj ACID granici. Mikroservisi, queue i objektna pohrana nemaju opravdanje za početni MVP i ostaju zamjenjivi adapteri za kasnije skaliranje.
 
-## 3. Moduli
+## Moduli
 
-| Modul | Faza A | Odgovornost |
-| --- | --- | --- |
-| `config` | da | fail-fast validacija environmenta; produkcija samo HTTPS/secure cookie |
-| `http` | da | OpenAPI rute, request ID, validacija, Problem envelope, no-store |
-| `security` | da | Argon2id, token hash, refresh rotacija, RBAC, Origin zaštita |
-| `db` | da | pool, tenant transakcija, migracije/checksum/advisory lock |
-| `identity` | da | login, invitation accept, `/me`, sesije, korisnici i scope odjela |
-| `organization/workforce` | da | organizacija, odjeli, radnici, smjene, blagdani i RFID lifecycle |
-| `attendance/terminal` | schema + sync read model | raw događaji, idempotencija i sync timeline; procesiranje u B2/B5 |
-| `leave/corrections` | schema + fond godišnjeg | authoritative allowance/balance; zahtjevi i atomske odluke u B3 |
-| `reporting/audit` | preview + audit zapisi mutacija A | bounded preview sada; export worker i audit read u B4 |
+| Modul | Odgovornost |
+| --- | --- |
+| `config` | fail-fast environment i produkcijske sigurnosne zabrane |
+| `http` | JSON Schema, Origin zaštita, error envelope, cache/security headeri |
+| `security` | Argon2id, tokeni, refresh rotacija, RBAC, RFID HMAC, device HMAC/AES-GCM |
+| `db` | pool, zajednički transakcijski lifecycle, tenant kontekst, migracije, bootstrap |
+| `PgAuthService` | login, invitation accept, session resolve/rotate/logout |
+| `PgPhaseAService` | organizacija, workforce, RFID, fond, preview, dashboard |
+| `PgMvpService` | evidencija, odluke, terminal ingest, audit i izvozi |
+| `reports` | CSV, XLSX i PDF iz jedinstvenog preview dataseta |
+| `src/adapters/api*` | role-aware frontend hidratacija i stvarne HTTP mutacije |
 
-## 4. Tenant isolation
+## Tenant i transakcija
 
-Svaki autentificirani zahtjev dobiva nepromjenjivi `ActorContext`:
+Provjereni `ActorContext` sadrži `organizationId`, `userId`, ulogu, odjele, vlastiti `workerId` i session ID. Za poslovnu operaciju:
 
-```text
-organizationId, userId, role, departmentIds, selfWorkerId, sessionId
-```
+1. zajednički `withTransaction` otvara transakciju i jamči rollback/release, uključujući odbacivanje neispravnog pool klijenta;
+2. `SET LOCAL` postavlja tenant, actor i request ID;
+3. RLS ograničava sve tablice;
+4. service dodaje department/self scope;
+5. mutacija, revizija i audit završavaju istim commitom ili rollbackom.
 
-Vrijednosti dolaze isključivo iz hashirane session lookup funkcije. Za svaki repository poziv:
+Security-definer lookup funkcije koriste se samo prije tenant konteksta za login, session, refresh, invitation i terminal credential. Imaju fiksni `search_path`, RLS isključen samo unutar funkcije i eksplicitne runtime grantove.
 
-1. `BEGIN`;
-2. `set_config('bss.organization_id', verifiedOrganizationId, true)`;
-3. postavljanje actor/request metapodataka;
-4. SQL s role/department/self filtrom;
-5. `COMMIT` ili potpuni `ROLLBACK`.
-
-RLS policy dopušta redak samo kada je `row.organization_id = bss_current_organization_id()`. `FORCE RLS` vrijedi i za ownera tablice; security-definer funkcije služe samo za pre-login/session lookup, imaju fiksni `search_path` i runtime dobiva execute samo na izričito dopuštene funkcije.
-
-Kompozitni FK dodatno jamči da povezani resursi pripadaju istom tenantu. UUID je nepredvidiv identifikator, ali nije autorizacija.
-
-## 5. RBAC i data scope
-
-RBAC ima dvije provjere:
-
-- resource/action matrica (`read`/`write`);
-- data scope (`organization`, dodijeljeni `departmentIds`, ili vlastiti `workerId`).
-
-Administrator je organization-wide. Voditelj ima samo dodijeljene odjele. Radnik ima isključivo vlastiti zapis i vlastite tokove. Knjigovodstvo je read/report-only i nema mutacije master ili attendance podataka. Negativni testovi su obvezniji od frontend navigacijskih pravila.
-
-## 6. Sesijski protokol
+## Sesijski protokol
 
 ```mermaid
 sequenceDiagram
     participant B as Browser
     participant A as BSS API
-    participant D as PostgreSQL
+    participant P as PostgreSQL
     B->>A: POST /auth/login
-    A->>D: security-definer lookup + Argon2id verify
-    A->>D: store SHA-256(access/refresh)
-    A-->>B: HttpOnly SameSite cookies
-    B->>A: Request + bss_session + same Origin
-    A->>D: access hash lookup
-    D-->>A: verified actor context
-    A-->>B: scoped no-store response
-    B->>A: POST /auth/refresh
-    A->>D: revoke old + insert rotated session atomically
-    A-->>B: new cookies
+    A->>P: identity lookup + Argon2id
+    A->>P: store token hashes
+    A-->>B: HttpOnly session cookies
+    B->>A: scoped API request
+    A->>P: session lookup + tenant transaction
+    P-->>A: authorized rows
+    A-->>B: no-store response
 ```
 
-Access token traje 15 minuta, refresh 30 dana. Logout opoziva server-side sesiju. Refresh token se koristi jednom; reuse pokreće opoziv aktivnih sesija. IP i user-agent pohranjuju se samo kao hash za sigurnosnu korelaciju.
+Refresh se rotira jednom. Ponovna ili konkurentna uporaba istog tokena najprije trajno opoziva aktivnu sesijsku obitelj, a tek zatim vraća 401. Blokirani korisnik ili tenant ne prolazi lookup. Logout je idempotentan, pokušava opoziv preko refresh identiteta i uvijek čisti oba cookieja.
 
-Invitation accept koristi security-definer lookup samo za hash one-time tokena. Unutar tenant transakcije provjerava expiry/revocation, sprema Argon2id lozinku, aktivira račun, opoziva druge pozivnice i otvara prvu sesiju. Token i lozinka nikada ne ulaze u audit.
+Istekla pozivnica ne zaključava e-mail trajno: dok račun nije aktiviran, novi poziv zaključava i ponovno koristi isti placeholder, opoziva ranije pending tokene i izdaje novi jednokratni token. Aktiviran račun se nikada tiho ne prepisuje.
 
-MVP e-mail je globalno jedinstven jer postojeći login body nema tenant selector. To nije cross-tenant lookup iz frontenda: security-definer funkcija vraća točno jedan identitet, a zatim se sve odvija unutar njegovog tenant konteksta.
+## Terminalski ingest
 
-## 7. Model korekcija i audita
+Terminal dobiva jednokratnu vjerodajnicu pri pairingu; backend čuva hash i AES-256-GCM ciphertext. Svaki batch/heartbeat nosi device ID, timestamp, nonce i HMAC-SHA-256 canonical request potpis.
 
-Raw terminal event je dokaz i nikad se ne mijenja. `attendance_day` je izvedeni poslovni prikaz. `correction_request` čuva snapshot prije promjene, tražene vrijednosti, razlog, stanje i odluku. Odobrenje se provodi kao zaključana ACID transakcija i stvara append-only audit.
+Batch se obrađuje serijski po slijedu. Per-tenant transakcijski advisory lock uklanja cross-terminal lock-order deadlock za batch koji sadrži više radnika:
 
-Audit događaj sadrži tenant, tip/ID/ulogu actora, radnju, entitet, before/after JSON, vrijeme, `requestId` i minimalne metapodatke. Tajne, lozinke, UID kartice i session tokeni nikad se ne auditiraju u čistom obliku.
+- dupli `deviceEventId` vraća `duplicate`;
+- sequence manji ili jednak server cursoru vraća `SEQUENCE_OUT_OF_ORDER`;
+- događaj više od pet minuta u budućnosti vraća `EVENT_IN_FUTURE`;
+- nepoznata/blokirana kartica vraća odbijeni raw događaj;
+- prijava stvara dan sa snapshotom smjene;
+- odjava računa minute, ali odbija negativno ili dulje od 16 sati;
+- raw događaj, sync read model i audit su append-only.
 
-## 8. Migracije i kompatibilnost
+Heartbeat ažurira dostupnost i dijagnostiku, ali ne potvrđuje offline red i ne pomiče event cursor.
 
-Migracije `001`–`006` odvajaju foundation, workforce, identity, operational model, RLS i dovršetak v1 ugovora. Migracija 006 dodaje aggregate reviziju kalendara, replay nonceve, append-only sync timeline, polja za enkripciju uređajne tajne i invitation lookup. Svaka ima development `down`, ali produkcijski rollback je aplikacijski rollback uz kompatibilnu forward migraciju. Pravila:
+## Godišnji i korekcije
 
-- nikad mijenjati checksum primijenjene migracije;
-- prvo dodati nullable/kompatibilnu strukturu, zatim backfill, pa tek u zasebnom izdanju ograničiti;
-- aplikacija N i N-1 moraju raditi tijekom rolling deploya;
-- destruktivna promjena zahtijeva backup/recovery point i odobrenje;
-- migrator i runtime nisu ista DB uloga.
+Pending i approved godišnji rezerviraju fond. Radni dani računaju se bez vikenda i organizacijskih blagdana. Worker row lock serijalizira konkurentne zahtjeve, a fond se ne može smanjiti ispod postojećih rezervacija ni u jednoj godini. Odluka zahtijeva aktualnu reviziju i manager scope.
 
-## 9. API i konkurentnost
+Korekcija sprema before/requested snapshot. Odobrenje zaključava zahtjev i izvedeni `attendance_day`, odbija stale snapshot, ponovno provjerava vremensku zonu/16-satnu granicu i mjesečni lock, mijenja samo izvedeni zapis i dodaje audit. `attendance_events` ostaje nepromijenjen.
 
-- OpenAPI je jedini HTTP ugovor; Faza A implementira 30 od 51 odobrene operacije.
-- JSON je `camelCase`; SQL je `snake_case` i mapira se u service sloju.
-- Body odbija dodatna polja; klijentski `organizationId` nije tiho prihvaćen.
-- Mutacije koriste `If-Match` i neprozirnu `revision`; stale zapis vraća `409`.
-- Error envelope je stabilan: `code`, sigurna `message`, `requestId`, opcionalni `fieldErrors`.
-- Privatni odgovor je `no-store`; service worker ga ne smije cacheirati.
-- Paginacija koristi neprozirni cursor i maksimalno 200 redaka.
-- Dashboard vraća najviše četiri KPI-ja, a svaki sadrži target ekran i normalizirane filtre.
-- Fond godišnjeg i preview izvještaja vraćaju serverske zbrojeve i deterministički `datasetVersion`.
+## Izvještaji
 
-## 10. Dovršeni v1 read/command ugovori
+Preview i izvoz koriste isti query servis i isti `datasetVersion`. CSV je UTF-8 BOM + točka-zarez i neutralizira formule. XLSX ima poslovni naslov, filter, frozen header, stilove, hrvatske znakove i kontrolne zbrojeve. PDF koristi ugrađeni Noto Sans i tablični landscape prikaz.
 
-- RFID UID se normalizira, HMAC-SHA256 hashira s tajnim pepperom i vraća samo kao maska.
-- Fond godišnjeg računa approved/planned/remaining/available radne dane, bez vikenda i tenant blagdana.
-- Report preview podržava pet zaključanih tipova, limit 200, role/department scope i authoritative totals.
-- Terminal sync timeline koristi newest-first `(received_at, id)` keyset pagination i append-only tablicu.
-- Device HMAC-SHA256 v1 potpis koristi canonical method/path/body-hash/timestamp/nonce, ±300 s i jednokratni nonce.
+Artefakt, MIME, filename i SHA-256 spremaju se u `report_exports` na 24 sata. To je jednostavan MVP adapter; servis se kasnije može prebaciti na private object storage bez promjene HTTP ugovora.
 
-## 11. Observability i tajne
+## Frontend integracija
 
-Fastify generira/prihvaća request ID, strukturirano logira i redaktira cookie/authorization/set-cookie. Produkcijski minimum prije pilota:
+Fastify može posluživati `dist/` preko `FRONTEND_ROOT`; relativni put se pretvara u apsolutni. SPA i API tada su na istom originu. API adapter:
 
-- error rate/latency po operation ID-u;
-- broj login rate-limit/refresh-reuse događaja;
-- DB pool saturation i migration status;
-- kasnije: terminal last-seen/queue/clock offset, rejected event i export queue metrike.
+- pokušava `/me`, a zatim prikazuje login ako nema sesije;
+- hidrira samo resurse dopuštene ulozi;
+- mapira UUID-e u prikazne identifikatore bez spremanja poslovnog stanja lokalno;
+- računa organizacijski “danas” i correction wall-clock vrijednosti u tenant IANA vremenskoj zoni, uključujući DST;
+- šalje `If-Match` za konkurentne mutacije;
+- na 401 pokušava jednu refresh rotaciju;
+- dijeli jednu refresh rotaciju između konkurentnih 401 odgovora i prekida mrežni zahtjev nakon 20 sekundi;
+- preuzima izvještaj iz privatne API rute.
 
-DATABASE URL, `RFID_UID_PEPPER`, cookie/device tajne, encryption key i storage ključevi idu u platform secret store. Nema tajni u frontendu, GitHubu, Cloudflare Pages public envu ili logovima.
+Service worker cacheira samo shell/brand assete. Navigacija je network-first/no-store, a `/api/` uvijek ide izravno na mrežu.
 
-## 12. Faza A – isporučeno i granica
+## Granice modularnosti
 
-Isporučeno:
+`PgPhaseAService` i `PgMvpService` namjerno zadržavaju jednu ACID granicu, ali su narasli iznad poželjne veličine modula. Nakon senior pregleda treba ih inkrementalno razdvojiti po workforce, leave, correction, terminal i reporting domenama uz postojeće contract/integration testove. Frontend `app.js` ostaje legacy composition/render modul frozen prikaza. Ni jedno ne opravdava rewrite; aktualni dug i prioriteti navedeni su u `BSS_PRODUCTION_READINESS_AUDIT.md`.
 
-- šest migracijskih koraka i puni relacijski MVP model;
-- FORCE RLS + tenant FK-ovi;
-- login/invitation accept/refresh/logout/`me`, Argon2id i rotirajuće sesije;
-- RBAC matrica i manager department scope;
-- REST za dashboard, organizaciju, odjele, blagdane, korisnike, radnike, smjene i cijeli RFID assignment/block tok;
-- authoritative fond godišnjeg, report preview i terminal sync-event timeline;
-- optimistic concurrency i audit mutacija;
-- unit, HTTP contract i stvarni PostgreSQL integration test;
-- GitHub quality gate s PostgreSQL 16 servisom;
-- backup/restore/rollback runbook.
+## Migracije i deploy
 
-Nije isporučeno u Fazi A: povezivanje frontenda, attendance/terminal processing, leave/correction odluke, export worker, object storage, MFA UX i produkcijski deploy. Njihovi v1 API ugovori su zaključani; implementacija je namjerna granica kasnijih faza, ne otvorena readiness odluka.
+`001`–`008` su checksumirane i advisory-lockane. Deploy redoslijed je: backup/recovery point, forward migracije, najmanji runtime grantovi, bootstrap samo za novu instalaciju, aplikacija, `/readyz` i smoke. Bootstrap unaprijed generira tenant ID i postavlja RLS kontekst pa radi i s `FORCE RLS` vlasnikom bez superuser ovlasti. Runtime i migrator ne smiju biti ista DB uloga u produkciji.
 
-## 13. Sljedeći gate
+Istekli binarni report artefakti, nonceovi i stare sesije čiste se per-tenant platformskim poslom iz `backend/deploy/maintenance.sql`. Audit i raw evidencijski događaji nisu dio tog čišćenja.
 
-Readiness je `FULL PASS`. Nakon pregleda i odobrenja Faze A slijedi read-only attendance vertikala prema već odobrenom OpenAPI v1. Svaka buduća promjena sheme mora povećati verziju ugovora; ne smije se paralelno širiti UX/UI ili poslovni opseg.
+Cloudflare Pages može prikazati samo statički shell. Funkcionalni MVP treba Node/Fastify hosting i PostgreSQL; produkcijska domena se usmjerava na taj same-origin servis ili siguran reverse proxy.
+
+RLS štiti aplikacijske greške i krivi tenant scope, ali nije zamišljen kao obrana od ukradene runtime DB vjerodajnice koja smije slati proizvoljni SQL i `set_config`. Zato su mrežna izolacija, secret rotation i najmanji grantovi obvezni; stroži hostile-credential model zahtijevao bi security-definer DB gateway ili odvojene tenant uloge.
+
+## Namjerne MVP granice
+
+- jedna zadana smjena po radniku, bez višenedjeljnog rostera;
+- organizacija se stvara kontrolnim bootstrapom, bez self-service brisanja;
+- sinkroni export do 10.000 redaka, bez queuea;
+- PostgreSQL bytea storage 24 sata, bez objektnog storagea;
+- ručna dostava invitation URL-a, bez e-mail providera;
+- bez MFA/SSO/payroll/GPS/biometrije/ERP-a.

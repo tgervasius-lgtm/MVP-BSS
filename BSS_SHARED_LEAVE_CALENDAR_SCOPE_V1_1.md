@@ -1,70 +1,34 @@
-# BSS zajednički kalendar godišnjih — frontend demonstracija i prijedlog za MVP Scope v1.1
+# BSS zajednički kalendar godišnjih – MVP Scope v1.1
 
-Status: **frontend demonstracija je implementirana; backend nije implementiran**  
-Opseg: prijedlog za MVP Scope v1.1 koji prije produkcijske primjene zahtijeva zasebno odobrenje  
-Utjecaj na backend ugovor: **nema; odobreni OpenAPI v1 nije promijenjen i nema produkcijsku rutu za ovu demonstraciju**
+Status: **frontend i backend implementirani**
+API: `GET /api/v1/approved-leave-calendar` + `approvedLeaveVisibility` na organizaciji
 
-## Svrha
+## Svrha i privatnost
 
-Zaposlenicima omogućiti zajednički, samo-za-čitanje pregled već odobrenih godišnjih odmora radi lakšeg planiranja rada. Prikaz mora slijediti načelo najmanje potrebne količine podataka.
+Zaposlenik može vidjeti već odobrene godišnje unutar administratorom dopuštenog opsega radi planiranja rada. API vraća isključivo:
+
+- ime zaposlenika;
+- početak i završetak odobrenog godišnjeg.
+
+Ne vraća bolovanje, druge vrste odsutnosti, razlog, napomene, fond, pending/odbijene/poništene zahtjeve ni medicinske ili obiteljske podatke.
 
 ## Vidljivost
 
-Administrator odabire jednu dopuštenu razinu vidljivosti:
+| Postavka | Najveći dopušteni opseg |
+| --- | --- |
+| `team` | vlastiti tim; u MVP modelu mapira se na vlastiti odjel |
+| `department` | vlastiti odjel / voditeljevi dodijeljeni odjeli |
+| `organization` | cijela vlastita organizacija |
 
-| Postavka | Zaposlenik vidi |
-|---|---|
-| Tim | odobrene godišnje članova vlastitog tima |
-| Odjel | odobrene godišnje zaposlenika vlastitog odjela |
-| Organizacija | odobrene godišnje svih zaposlenika organizacije |
+RLS uvijek prvo ograničava organizaciju. Manager scope nikad se ne širi izvan dodijeljenih odjela. Promjena administratorske postavke koristi reviziju i stvara audit događaj.
 
-Postavka određuje najveći dopušteni opseg. Korisnik nikada ne smije dobiti podatke izvan vlastite organizacije. Produkcijski backend mora provjeriti organizaciju, ulogu i postavljeni opseg prije vraćanja podataka; filtriranje samo u pregledniku nije dovoljno.
+## Kriteriji prihvata
 
-## Dopušteni podaci u prikazu
+- samo `approved` + `annual_leave` ulaze u odgovor;
+- worker odgovor ne sadrži razlog ni napomene;
+- sva četiri korisnička tipa mogu otvoriti read-only ekran u dopuštenom opsegu;
+- promjena vidljivosti dostupna je samo administratoru;
+- API, DOM, cache i izvještaji ne otkrivaju isključene privatne podatke;
+- integracijski test potvrđuje tenant izolaciju i minimalni oblik odgovora.
 
-Za svaki odobreni godišnji prikazuju se isključivo:
-
-- ime i prezime zaposlenika
-- početak i završetak odobrenog godišnjeg odmora
-
-Kalendar je samo za čitanje. Ne omogućuje podnošenje, odobravanje, odbijanje ni uređivanje zahtjeva.
-
-## Podaci koji se ne smiju prikazati
-
-- bolovanje ili drugi zdravstveni status
-- razlog odsutnosti
-- vrsta odsutnosti različita od odobrenog godišnjeg odmora
-- napomene zaposlenika ili odobravatelja
-- stanje fonda i broj preostalih dana
-- zahtjevi na čekanju, odbijeni ili poništeni zahtjevi
-- medicinski, obiteljski ili drugi privatni podaci
-
-## Pravila prikaza
-
-- Prikazuju se samo zahtjevi sa statusom **Odobreno** i vrstom **Godišnji odmor**.
-- Dnevni, mjesečni i godišnji prikaz koriste isti autorizirani skup podataka.
-- Pretraga i filtri ne smiju proširiti administratorom zadani opseg.
-- Promjena administratorske postavke ulazi u audit trag s vremenom, administratorom i starom/novom vrijednošću.
-- Izvoz zajedničkog kalendara nije dio ovog prijedloga.
-
-## Što frontend demo radi
-
-- ekran je dostupan administratoru, voditelju, radniku i knjigovođi;
-- administrator u demo-stanju bira `tim`, `odjel` ili `organizacija`;
-- svi korisnici vide samo odobrene godišnje unutar trenutačno dopuštenog opsega;
-- kalendar i tablica prikazuju samo ime zaposlenika te početni i završni datum;
-- klik na zauzeti dan otvara isti privatno minimizirani skup podataka;
-- demo ne šalje zahtjev poslužitelju i ne uvodi novu API rutu.
-
-## Kriteriji prihvata za buduću backend implementaciju
-
-1. Administrator može odabrati `tim`, `odjel` ili `organizacija`.
-2. Radnik vidi samo ime i odobreno razdoblje unutar dopuštenog opsega.
-3. Neodobreni zahtjevi i sve druge vrste odsutnosti nisu prisutni ni u odgovoru poslužitelja ni u sučelju.
-4. Promjena opsega je auditirana.
-5. Testovi potvrđuju izolaciju između organizacija i zabranu pristupa izvan zadanog opsega.
-6. Privatni podaci nisu dostupni kroz DOM, izvoz, cache ni mrežni odgovor.
-
-## Granica odluke
-
-Ovaj ekran ostaje **prijedlog za MVP Scope v1.1** na produkcijskoj razini. PR #21 implementira samo frontend demo nad lokalnim demo-podacima. Prije stvarnog spajanja podataka potrebno je zasebno odobriti poslovni opseg, zaštitu podataka, administratorsku postavku i proširenje backend ugovora. Produkcijski backend mora vratiti već autoriziran i privatno minimiziran skup; frontend filtriranje nije sigurnosna granica.
+Izvoz zajedničkog kalendara nije uveden. Postojeći izvještaj odobrenih odsutnosti ostaje zasebna ovlaštena reporting funkcija.

@@ -4,6 +4,7 @@ import type { EntityStatus, Role } from "../../domain/types.js";
 import { requireDepartmentScope, requirePermission } from "../../security/rbac.js";
 import type { PhaseAService, ReportPreviewWrite, ShiftWrite, TerminalSyncEventView, WorkerWrite } from "../../services/contracts.js";
 import type { Authenticate } from "../app.js";
+import { paginationSchema, revisionHeaderSchema, uuidSchema } from "../schema.js";
 
 type Dependencies = Readonly<{ phaseAService: PhaseAService; authenticate: Authenticate }>;
 
@@ -11,13 +12,9 @@ const idParams = (name: string) => ({
   type: "object",
   additionalProperties: false,
   required: [name],
-  properties: { [name]: { type: "string", pattern: "^[0-9a-fA-F-]{36}$" } }
+  properties: { [name]: uuidSchema }
 });
-const revisionHeader = {
-  type: "object",
-  required: ["if-match"],
-  properties: { "if-match": { type: "string", minLength: 1, maxLength: 64 } }
-} as const;
+const revisionHeader = revisionHeaderSchema;
 const workerBody = {
   type: "object",
   additionalProperties: false,
@@ -25,9 +22,9 @@ const workerBody = {
   properties: {
     code: { type: "string", minLength: 1, maxLength: 40 },
     name: { type: "string", minLength: 2, maxLength: 160 },
-    email: { anyOf: [{ type: "string", format: "email" }, { type: "null" }] },
-    departmentId: { type: "string", pattern: "^[0-9a-fA-F-]{36}$" },
-    shiftId: { type: "string", pattern: "^[0-9a-fA-F-]{36}$" },
+    email: { anyOf: [{ type: "string", format: "email", maxLength: 320 }, { type: "null" }] },
+    departmentId: uuidSchema,
+    shiftId: uuidSchema,
     annualLeaveAllowance: { type: "integer", minimum: 0, maximum: 366 }
   }
 } as const;
@@ -60,6 +57,7 @@ export async function registerPhaseARoutes(app: FastifyInstance, dependencies: D
   app.get<{ Querystring: { date: string } }>(
     "/api/v1/dashboard-summary",
     {
+      config: { rateLimit: { max: 120, timeWindow: "1 minute" } },
       schema: {
         querystring: {
           type: "object",
@@ -75,20 +73,25 @@ export async function registerPhaseARoutes(app: FastifyInstance, dependencies: D
     }
   );
 
-  app.get("/api/v1/organization", async (request, reply) => {
-    const { actor } = await authenticate(request);
-    requirePermission(actor, "organization", "read");
-    const result = await service.getOrganization(actor);
-    etag(reply, result.revision);
-    return result;
-  });
+  app.get(
+    "/api/v1/organization",
+    { config: { rateLimit: { max: 120, timeWindow: "1 minute" } } },
+    async (request, reply) => {
+      const { actor } = await authenticate(request);
+      requirePermission(actor, "organization", "read");
+      const result = await service.getOrganization(actor);
+      etag(reply, result.revision);
+      return result;
+    }
+  );
 
   app.patch<{
-    Body: { name?: string; taxIdentifier?: string; timezone?: string };
+    Body: { name?: string; taxIdentifier?: string; timezone?: string; approvedLeaveVisibility?: "team" | "department" | "organization" };
     Headers: { "if-match": string };
   }>(
     "/api/v1/organization",
     {
+      config: { rateLimit: { max: 30, timeWindow: "1 minute" } },
       schema: {
         headers: revisionHeader,
         body: {
@@ -99,6 +102,7 @@ export async function registerPhaseARoutes(app: FastifyInstance, dependencies: D
             name: { type: "string", minLength: 2, maxLength: 160 },
             taxIdentifier: { type: "string", maxLength: 32 },
             timezone: { type: "string", minLength: 1, maxLength: 64 }
+            ,approvedLeaveVisibility: { type: "string", enum: ["team", "department", "organization"] }
           }
         }
       }
@@ -112,15 +116,20 @@ export async function registerPhaseARoutes(app: FastifyInstance, dependencies: D
     }
   );
 
-  app.get("/api/v1/departments", async (request) => {
-    const { actor } = await authenticate(request);
-    requirePermission(actor, "departments", "read");
-    return service.listDepartments(actor);
-  });
+  app.get(
+    "/api/v1/departments",
+    { config: { rateLimit: { max: 120, timeWindow: "1 minute" } } },
+    async (request) => {
+      const { actor } = await authenticate(request);
+      requirePermission(actor, "departments", "read");
+      return service.listDepartments(actor);
+    }
+  );
 
   app.post<{ Body: { name: string } }>(
     "/api/v1/departments",
     {
+      config: { rateLimit: { max: 30, timeWindow: "1 minute" } },
       schema: {
         body: {
           type: "object",
@@ -146,6 +155,7 @@ export async function registerPhaseARoutes(app: FastifyInstance, dependencies: D
   }>(
     "/api/v1/departments/:departmentId",
     {
+      config: { rateLimit: { max: 30, timeWindow: "1 minute" } },
       schema: {
         params: idParams("departmentId"),
         headers: revisionHeader,
@@ -178,6 +188,7 @@ export async function registerPhaseARoutes(app: FastifyInstance, dependencies: D
   app.get<{ Querystring: { year: number } }>(
     "/api/v1/holidays",
     {
+      config: { rateLimit: { max: 120, timeWindow: "1 minute" } },
       schema: {
         querystring: {
           type: "object",
@@ -203,6 +214,7 @@ export async function registerPhaseARoutes(app: FastifyInstance, dependencies: D
   }>(
     "/api/v1/holidays",
     {
+      config: { rateLimit: { max: 30, timeWindow: "1 minute" } },
       schema: {
         headers: revisionHeader,
         querystring: {
@@ -238,13 +250,13 @@ export async function registerPhaseARoutes(app: FastifyInstance, dependencies: D
   app.get<{ Querystring: { cursor?: string; limit?: number } }>(
     "/api/v1/users",
     {
+      config: { rateLimit: { max: 120, timeWindow: "1 minute" } },
       schema: {
         querystring: {
           type: "object",
           additionalProperties: false,
           properties: {
-            cursor: { type: "string" },
-            limit: { type: "integer", minimum: 1, maximum: 200, default: 50 }
+            ...paginationSchema
           }
         }
       }
@@ -261,6 +273,7 @@ export async function registerPhaseARoutes(app: FastifyInstance, dependencies: D
   }>(
     "/api/v1/users",
     {
+      config: { rateLimit: { max: 30, timeWindow: "1 minute" } },
       schema: {
         body: {
           type: "object",
@@ -269,8 +282,8 @@ export async function registerPhaseARoutes(app: FastifyInstance, dependencies: D
           properties: {
             email: { type: "string", format: "email", maxLength: 320 },
             role: { type: "string", enum: ["admin", "manager", "worker", "accountant"] },
-            workerId: { anyOf: [{ type: "string", pattern: "^[0-9a-fA-F-]{36}$" }, { type: "null" }] },
-            departmentIds: { type: "array", uniqueItems: true, items: { type: "string", pattern: "^[0-9a-fA-F-]{36}$" } }
+            workerId: { anyOf: [uuidSchema, { type: "null" }] },
+            departmentIds: { type: "array", uniqueItems: true, maxItems: 100, items: uuidSchema }
           }
         }
       }
@@ -291,6 +304,7 @@ export async function registerPhaseARoutes(app: FastifyInstance, dependencies: D
   }>(
     "/api/v1/users/:userId",
     {
+      config: { rateLimit: { max: 30, timeWindow: "1 minute" } },
       schema: {
         params: idParams("userId"),
         headers: revisionHeader,
@@ -301,7 +315,7 @@ export async function registerPhaseARoutes(app: FastifyInstance, dependencies: D
           properties: {
             role: { type: "string", enum: ["admin", "manager", "worker", "accountant"] },
             status: { type: "string", enum: ["active", "blocked"] },
-            departmentIds: { type: "array", uniqueItems: true, items: { type: "string", pattern: "^[0-9a-fA-F-]{36}$" } }
+            departmentIds: { type: "array", uniqueItems: true, maxItems: 100, items: uuidSchema }
           }
         }
       }
@@ -320,14 +334,14 @@ export async function registerPhaseARoutes(app: FastifyInstance, dependencies: D
   }>(
     "/api/v1/workers",
     {
+      config: { rateLimit: { max: 120, timeWindow: "1 minute" } },
       schema: {
         querystring: {
           type: "object",
           additionalProperties: false,
           properties: {
-            cursor: { type: "string" },
-            limit: { type: "integer", minimum: 1, maximum: 200, default: 50 },
-            departmentId: { type: "string", pattern: "^[0-9a-fA-F-]{36}$" },
+            ...paginationSchema,
+            departmentId: uuidSchema,
             status: { type: "string", enum: ["active", "blocked"] },
             search: { type: "string", maxLength: 100 }
           }
@@ -344,7 +358,10 @@ export async function registerPhaseARoutes(app: FastifyInstance, dependencies: D
 
   app.post<{ Body: WorkerWrite }>(
     "/api/v1/workers",
-    { schema: { body: workerBody } },
+    {
+      config: { rateLimit: { max: 30, timeWindow: "1 minute" } },
+      schema: { body: workerBody }
+    },
     async (request, reply) => {
       const { actor } = await authenticate(request);
       requirePermission(actor, "workers", "write");
@@ -356,10 +373,15 @@ export async function registerPhaseARoutes(app: FastifyInstance, dependencies: D
 
   app.get<{ Params: { workerId: string } }>(
     "/api/v1/workers/:workerId",
-    { schema: { params: idParams("workerId") } },
+    {
+      config: { rateLimit: { max: 120, timeWindow: "1 minute" } },
+      schema: { params: idParams("workerId") }
+    },
     async (request, reply) => {
       const { actor } = await authenticate(request);
-      requirePermission(actor, "workers", "read");
+      if (!(actor.role === "worker" && actor.selfWorkerId === request.params.workerId)) {
+        requirePermission(actor, "workers", "read");
+      }
       const result = await service.getWorker(actor, request.params.workerId);
       etag(reply, result.revision);
       return result;
@@ -368,7 +390,10 @@ export async function registerPhaseARoutes(app: FastifyInstance, dependencies: D
 
   app.patch<{ Params: { workerId: string }; Headers: { "if-match": string }; Body: WorkerWrite }>(
     "/api/v1/workers/:workerId",
-    { schema: { params: idParams("workerId"), headers: revisionHeader, body: workerBody } },
+    {
+      config: { rateLimit: { max: 30, timeWindow: "1 minute" } },
+      schema: { params: idParams("workerId"), headers: revisionHeader, body: workerBody }
+    },
     async (request, reply) => {
       const { actor } = await authenticate(request);
       requirePermission(actor, "workers", "write");
@@ -380,7 +405,10 @@ export async function registerPhaseARoutes(app: FastifyInstance, dependencies: D
 
   app.post<{ Params: { workerId: string }; Headers: { "if-match": string } }>(
     "/api/v1/workers/:workerId/deactivate",
-    { schema: { params: idParams("workerId"), headers: revisionHeader } },
+    {
+      config: { rateLimit: { max: 30, timeWindow: "1 minute" } },
+      schema: { params: idParams("workerId"), headers: revisionHeader }
+    },
     async (request, reply) => {
       const { actor } = await authenticate(request);
       requirePermission(actor, "workers", "write");
@@ -390,15 +418,37 @@ export async function registerPhaseARoutes(app: FastifyInstance, dependencies: D
     }
   );
 
-  app.get("/api/v1/shifts", async (request) => {
-    const { actor } = await authenticate(request);
-    requirePermission(actor, "shifts", "read");
-    return service.listShifts(actor);
-  });
+  app.post<{ Params: { workerId: string }; Headers: { "if-match": string } }>(
+    "/api/v1/workers/:workerId/activate",
+    {
+      config: { rateLimit: { max: 30, timeWindow: "1 minute" } },
+      schema: { params: idParams("workerId"), headers: revisionHeader }
+    },
+    async (request, reply) => {
+      const { actor } = await authenticate(request);
+      requirePermission(actor, "workers", "write");
+      const result = await service.activateWorker(actor, request.params.workerId, requireRevision(request.headers["if-match"]), request.id);
+      etag(reply, result.revision);
+      return result;
+    }
+  );
+
+  app.get(
+    "/api/v1/shifts",
+    { config: { rateLimit: { max: 120, timeWindow: "1 minute" } } },
+    async (request) => {
+      const { actor } = await authenticate(request);
+      requirePermission(actor, "shifts", "read");
+      return service.listShifts(actor);
+    }
+  );
 
   app.post<{ Body: ShiftWrite }>(
     "/api/v1/shifts",
-    { schema: { body: shiftBody } },
+    {
+      config: { rateLimit: { max: 30, timeWindow: "1 minute" } },
+      schema: { body: shiftBody }
+    },
     async (request, reply) => {
       const { actor } = await authenticate(request);
       requirePermission(actor, "shifts", "write");
@@ -410,7 +460,10 @@ export async function registerPhaseARoutes(app: FastifyInstance, dependencies: D
 
   app.patch<{ Params: { shiftId: string }; Headers: { "if-match": string }; Body: ShiftWrite }>(
     "/api/v1/shifts/:shiftId",
-    { schema: { params: idParams("shiftId"), headers: revisionHeader, body: shiftBody } },
+    {
+      config: { rateLimit: { max: 30, timeWindow: "1 minute" } },
+      schema: { params: idParams("shiftId"), headers: revisionHeader, body: shiftBody }
+    },
     async (request, reply) => {
       const { actor } = await authenticate(request);
       requirePermission(actor, "shifts", "write");
@@ -433,6 +486,7 @@ export async function registerPhaseARoutes(app: FastifyInstance, dependencies: D
   app.post<{ Params: { workerId: string }; Body: { uid: string; validFrom?: string } }>(
     "/api/v1/workers/:workerId/rfid-cards",
     {
+      config: { rateLimit: { max: 30, timeWindow: "1 minute" } },
       schema: {
         params: idParams("workerId"),
         body: {
@@ -457,7 +511,10 @@ export async function registerPhaseARoutes(app: FastifyInstance, dependencies: D
 
   app.post<{ Params: { cardId: string } }>(
     "/api/v1/rfid-cards/:cardId/block",
-    { schema: { params: idParams("cardId") } },
+    {
+      config: { rateLimit: { max: 30, timeWindow: "1 minute" } },
+      schema: { params: idParams("cardId") }
+    },
     async (request, reply) => {
       const { actor } = await authenticate(request);
       requirePermission(actor, "workers", "write");
@@ -472,6 +529,7 @@ export async function registerPhaseARoutes(app: FastifyInstance, dependencies: D
   }>(
     "/api/v1/leave-balances",
     {
+      config: { rateLimit: { max: 120, timeWindow: "1 minute" } },
       schema: {
         querystring: {
           type: "object",
@@ -479,10 +537,9 @@ export async function registerPhaseARoutes(app: FastifyInstance, dependencies: D
           required: ["year"],
           properties: {
             year: { type: "integer", minimum: 2020, maximum: 2100 },
-            departmentId: { type: "string", pattern: "^[0-9a-fA-F-]{36}$" },
-            workerId: { type: "string", pattern: "^[0-9a-fA-F-]{36}$" },
-            cursor: { type: "string" },
-            limit: { type: "integer", minimum: 1, maximum: 200, default: 50 }
+            departmentId: uuidSchema,
+            workerId: uuidSchema,
+            ...paginationSchema
           }
         }
       }
@@ -498,6 +555,7 @@ export async function registerPhaseARoutes(app: FastifyInstance, dependencies: D
   app.post<{ Body: ReportPreviewWrite }>(
     "/api/v1/report-previews",
     {
+      config: { rateLimit: { max: 10, timeWindow: "1 minute" } },
       schema: {
         body: {
           type: "object",
@@ -507,8 +565,8 @@ export async function registerPhaseARoutes(app: FastifyInstance, dependencies: D
             reportType: { type: "string", enum: reportTypes },
             periodFrom: { type: "string", format: "date" },
             periodTo: { type: "string", format: "date" },
-            departmentId: { anyOf: [{ type: "string", pattern: "^[0-9a-fA-F-]{36}$" }, { type: "null" }] },
-            workerId: { anyOf: [{ type: "string", pattern: "^[0-9a-fA-F-]{36}$" }, { type: "null" }] },
+            departmentId: { anyOf: [uuidSchema, { type: "null" }] },
+            workerId: { anyOf: [uuidSchema, { type: "null" }] },
             attendanceStatus: { anyOf: [{ type: "string", enum: attendanceStatuses }, { type: "null" }] },
             limit: { type: "integer", minimum: 1, maximum: 200, default: 100 }
           }
@@ -529,6 +587,7 @@ export async function registerPhaseARoutes(app: FastifyInstance, dependencies: D
   }>(
     "/api/v1/terminals/:terminalId/sync-events",
     {
+      config: { rateLimit: { max: 120, timeWindow: "1 minute" } },
       schema: {
         params: idParams("terminalId"),
         querystring: {
@@ -538,8 +597,7 @@ export async function registerPhaseARoutes(app: FastifyInstance, dependencies: D
           properties: {
             ...dateRangeProperties,
             eventStatus: { type: "string", enum: ["queued", "synced", "duplicate", "rejected"] },
-            cursor: { type: "string" },
-            limit: { type: "integer", minimum: 1, maximum: 200, default: 50 }
+            ...paginationSchema
           }
         }
       }

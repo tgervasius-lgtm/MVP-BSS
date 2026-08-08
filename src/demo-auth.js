@@ -6,6 +6,7 @@
   let configuring=false;
 
   function configureLogin(){
+    if(root.BSS_API_ACTIVE)return;
     if(configuring)return;
     const section=root.document?.querySelector('#login');
     if(!section)return;
@@ -52,6 +53,7 @@
   }
 
   function enterDemo(){
+    if(root.BSS_API_ACTIVE)return false;
     configureLogin();
     if(typeof originalLogin!=='function')return false;
     originalLogin();
@@ -62,6 +64,7 @@
   root.BSSDemoAccess=Object.freeze({credentials,enter:enterDemo,configure:configureLogin});
 
   root.document?.addEventListener('click',event=>{
+    if(root.BSS_API_ACTIVE)return;
     const target=event.target instanceof root.Element?event.target:null;
     const button=target?.closest('#login .primary-login');
     if(!button)return;
@@ -71,6 +74,7 @@
   },true);
 
   root.document?.addEventListener('keydown',event=>{
+    if(root.BSS_API_ACTIVE)return;
     if(event.key!=='Enter')return;
     const target=event.target instanceof root.Element?event.target:null;
     if(!target?.closest('#login'))return;
