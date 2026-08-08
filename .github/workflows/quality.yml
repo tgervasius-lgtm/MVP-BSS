@@ -48,6 +48,9 @@ jobs:
       - name: Install backend dependencies
         run: npm --prefix backend ci
 
+      - name: Dependency remediation dry run
+        run: npm audit fix --dry-run --json || true
+
       - name: All dependency audit
         run: npm audit --audit-level=high && npm --prefix backend audit --audit-level=high
 
