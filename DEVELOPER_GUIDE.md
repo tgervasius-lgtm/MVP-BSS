@@ -49,16 +49,20 @@ Ako Docker nije dopušten, pokrenite vlastiti PostgreSQL 16 i promijenite samo `
 | `backend/contracts/frontend-screen-api-map-v1.json` | ekran → OpenAPI operation matrica i hash ugovora |
 | `backend/test` / `tests` | unit, contract, PostgreSQL, frontend i browser regresije |
 
-Za arhitektonske granice pročitajte `BACKEND_ARCHITECTURE.md`; za poznati dug i produkcijske rizike `BSS_PRODUCTION_READINESS_AUDIT.md`; za operacije, backup i restore `backend/OPERATIONS.md`.
+Za arhitektonske granice pročitajte `BACKEND_ARCHITECTURE.md`; za poznati dug i produkcijske rizike `BSS_PRODUCTION_READINESS_AUDIT.md`; za operacije, backup i restore `backend/OPERATIONS.md`. Repository-wide Codex i change-control pravila definirana su u `AGENTS.md` i BSS OS izvorima istine na koje on upućuje.
 
 ## 3. Provjere prije promjene
 
 ```bash
 npm run check
 npm run test:e2e
-npm audit --omit=dev --audit-level=high
-npm --prefix backend audit --omit=dev --audit-level=high
+npm audit --audit-level=high
+npm --prefix backend audit --audit-level=high
 ```
+
+Lokalni i CI audit pokrivaju i production i development dependency graf. High-severity nalaz nije dopušteno zaobići samo zato što se nalazi u development dependencyju; mora se ažurirati, mitigirati ili dokumentirano procijeniti kroz reviewani sigurnosni postupak.
+
+Dependabot održava zasebne npm update tokove za root projekt i `/backend`, uz zaseban GitHub Actions update tok. Automatizirani update PR i dalje mora proći iste BSS quality/security/governance gateove kao ručna promjena.
 
 PostgreSQL integracijski suite radi nad odvojenom privremenom bazom na portu 5433. Ne usmjeravajte ga na razvojnu, dijeljenu ili produkcijsku bazu.
 
