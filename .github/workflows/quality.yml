@@ -15,46 +15,6 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  lockfile-remediation:
-    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'fix/ci-dependency-audit-integrity'
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    permissions:
-      contents: write
-    steps:
-      - name: Checkout exact PR head
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
-        with:
-          ref: ${{ github.event.pull_request.head.sha }}
-
-      - name: Node 22
-        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
-        with:
-          node-version: 22
-          cache: npm
-
-      - name: Generate and verify exact lockfile remediation
-        shell: bash
-        run: |
-          set -euo pipefail
-          npm audit fix --package-lock-only --ignore-scripts
-          test "$(git diff --name-only)" = "package-lock.json"
-          node -e "const p=require('./package-lock.json').packages['node_modules/brace-expansion']; if (p?.version !== '5.0.9') { console.error(p); process.exit(1); }"
-          npm audit --audit-level=high
-
-      - name: Commit remediation to this PR branch only
-        shell: bash
-        run: |
-          set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add package-lock.json
-          if git diff --cached --quiet; then
-            exit 0
-          fi
-          git commit -m "fix(deps): refresh vulnerable transitive lockfile"
-          git push origin HEAD:fix/ci-dependency-audit-integrity
-
   quality:
     runs-on: ubuntu-latest
     timeout-minutes: 20
