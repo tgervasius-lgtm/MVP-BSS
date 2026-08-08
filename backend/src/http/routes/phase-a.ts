@@ -91,6 +91,7 @@ export async function registerPhaseARoutes(app: FastifyInstance, dependencies: D
   }>(
     "/api/v1/organization",
     {
+      config: { rateLimit: { max: 30, timeWindow: "1 minute" } },
       schema: {
         headers: revisionHeader,
         body: {
@@ -128,6 +129,7 @@ export async function registerPhaseARoutes(app: FastifyInstance, dependencies: D
   app.post<{ Body: { name: string } }>(
     "/api/v1/departments",
     {
+      config: { rateLimit: { max: 30, timeWindow: "1 minute" } },
       schema: {
         body: {
           type: "object",
@@ -153,6 +155,7 @@ export async function registerPhaseARoutes(app: FastifyInstance, dependencies: D
   }>(
     "/api/v1/departments/:departmentId",
     {
+      config: { rateLimit: { max: 30, timeWindow: "1 minute" } },
       schema: {
         params: idParams("departmentId"),
         headers: revisionHeader,
@@ -211,6 +214,7 @@ export async function registerPhaseARoutes(app: FastifyInstance, dependencies: D
   }>(
     "/api/v1/holidays",
     {
+      config: { rateLimit: { max: 30, timeWindow: "1 minute" } },
       schema: {
         headers: revisionHeader,
         querystring: {
@@ -269,6 +273,7 @@ export async function registerPhaseARoutes(app: FastifyInstance, dependencies: D
   }>(
     "/api/v1/users",
     {
+      config: { rateLimit: { max: 30, timeWindow: "1 minute" } },
       schema: {
         body: {
           type: "object",
@@ -299,6 +304,7 @@ export async function registerPhaseARoutes(app: FastifyInstance, dependencies: D
   }>(
     "/api/v1/users/:userId",
     {
+      config: { rateLimit: { max: 30, timeWindow: "1 minute" } },
       schema: {
         params: idParams("userId"),
         headers: revisionHeader,
@@ -352,7 +358,10 @@ export async function registerPhaseARoutes(app: FastifyInstance, dependencies: D
 
   app.post<{ Body: WorkerWrite }>(
     "/api/v1/workers",
-    { schema: { body: workerBody } },
+    {
+      config: { rateLimit: { max: 30, timeWindow: "1 minute" } },
+      schema: { body: workerBody }
+    },
     async (request, reply) => {
       const { actor } = await authenticate(request);
       requirePermission(actor, "workers", "write");
@@ -381,7 +390,10 @@ export async function registerPhaseARoutes(app: FastifyInstance, dependencies: D
 
   app.patch<{ Params: { workerId: string }; Headers: { "if-match": string }; Body: WorkerWrite }>(
     "/api/v1/workers/:workerId",
-    { schema: { params: idParams("workerId"), headers: revisionHeader, body: workerBody } },
+    {
+      config: { rateLimit: { max: 30, timeWindow: "1 minute" } },
+      schema: { params: idParams("workerId"), headers: revisionHeader, body: workerBody }
+    },
     async (request, reply) => {
       const { actor } = await authenticate(request);
       requirePermission(actor, "workers", "write");
@@ -433,7 +445,10 @@ export async function registerPhaseARoutes(app: FastifyInstance, dependencies: D
 
   app.post<{ Body: ShiftWrite }>(
     "/api/v1/shifts",
-    { schema: { body: shiftBody } },
+    {
+      config: { rateLimit: { max: 30, timeWindow: "1 minute" } },
+      schema: { body: shiftBody }
+    },
     async (request, reply) => {
       const { actor } = await authenticate(request);
       requirePermission(actor, "shifts", "write");
@@ -445,7 +460,10 @@ export async function registerPhaseARoutes(app: FastifyInstance, dependencies: D
 
   app.patch<{ Params: { shiftId: string }; Headers: { "if-match": string }; Body: ShiftWrite }>(
     "/api/v1/shifts/:shiftId",
-    { schema: { params: idParams("shiftId"), headers: revisionHeader, body: shiftBody } },
+    {
+      config: { rateLimit: { max: 30, timeWindow: "1 minute" } },
+      schema: { params: idParams("shiftId"), headers: revisionHeader, body: shiftBody }
+    },
     async (request, reply) => {
       const { actor } = await authenticate(request);
       requirePermission(actor, "shifts", "write");
@@ -468,6 +486,7 @@ export async function registerPhaseARoutes(app: FastifyInstance, dependencies: D
   app.post<{ Params: { workerId: string }; Body: { uid: string; validFrom?: string } }>(
     "/api/v1/workers/:workerId/rfid-cards",
     {
+      config: { rateLimit: { max: 30, timeWindow: "1 minute" } },
       schema: {
         params: idParams("workerId"),
         body: {
@@ -492,7 +511,10 @@ export async function registerPhaseARoutes(app: FastifyInstance, dependencies: D
 
   app.post<{ Params: { cardId: string } }>(
     "/api/v1/rfid-cards/:cardId/block",
-    { schema: { params: idParams("cardId") } },
+    {
+      config: { rateLimit: { max: 30, timeWindow: "1 minute" } },
+      schema: { params: idParams("cardId") }
+    },
     async (request, reply) => {
       const { actor } = await authenticate(request);
       requirePermission(actor, "workers", "write");

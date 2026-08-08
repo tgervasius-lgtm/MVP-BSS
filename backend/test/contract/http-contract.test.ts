@@ -258,6 +258,37 @@ test("worker activation explicitly limits excessive authorized writes per client
   assert.equal(independentClient.statusCode, 200);
 });
 
+test("administrative create and update operations share the 30 request policy", async (t) => {
+  const app = await buildApp({ config, authService: new FakeAuthService(), phaseAService: new FakePhaseAService(), logger: false });
+  t.after(() => app.close());
+  const createDepartment = (remoteAddress?: string) => app.inject({
+    method: "POST",
+    url: "/api/v1/departments",
+    ...(remoteAddress ? { remoteAddress } : {}),
+    headers: { origin: config.publicOrigin },
+    cookies: { bss_session: "admin" },
+    payload: { name: "Operativa" }
+  });
+  const updateDepartment = () => app.inject({
+    method: "PATCH",
+    url: `/api/v1/departments/${IDS.department}`,
+    headers: { origin: config.publicOrigin, "if-match": '"1"' },
+    cookies: { bss_session: "admin" },
+    payload: { name: "Operativa" }
+  });
+
+  for (let attempt = 0; attempt < 30; attempt += 1) {
+    assert.equal((await createDepartment()).statusCode, 201);
+    assert.equal((await updateDepartment()).statusCode, 200);
+  }
+  for (const request of [createDepartment, updateDepartment]) {
+    const limited = await request();
+    assert.equal(limited.statusCode, 429);
+    assert.equal(limited.json().code, "RATE_LIMITED");
+  }
+  assert.equal((await createDepartment("192.0.2.40")).statusCode, 201);
+});
+
 test("completed Phase A contracts expose scoped drill-downs without raw credentials", async (t) => {
   const app = await buildApp({ config, authService: new FakeAuthService(), phaseAService: new FakePhaseAService(), logger: false });
   t.after(() => app.close());
