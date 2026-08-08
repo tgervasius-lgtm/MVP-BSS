@@ -14,9 +14,10 @@
     "lint": "eslint .",
     "pretest:e2e": "npm run build",
     "test:e2e": "playwright test",
+    "check:architecture": "node scripts/check-architecture-budgets.mjs",
     "check:frontend": "npm run lint && npm test && npm run build",
     "check:backend": "npm --prefix backend run check",
-    "check": "npm run check:frontend && npm run check:backend",
+    "check": "npm run check:architecture && npm run check:frontend && npm run check:backend",
     "ci": "npm run lint && npm test && npm run test:e2e"
   },
   "devDependencies": {
