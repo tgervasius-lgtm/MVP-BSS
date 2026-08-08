@@ -191,6 +191,33 @@ test("worker deactivation explicitly limits excessive authorized writes", async 
   assert.equal(limited.json().code, "RATE_LIMITED");
 });
 
+test("worker activation explicitly limits excessive authorized writes per client", async (t) => {
+  const app = await buildApp({ config, authService: new FakeAuthService(), phaseAService: new FakePhaseAService(), logger: false });
+  t.after(() => app.close());
+  const request = () => app.inject({
+    method: "POST",
+    url: `/api/v1/workers/${IDS.worker}/activate`,
+    headers: { origin: config.publicOrigin, "if-match": '"1"' },
+    cookies: { bss_session: "admin" }
+  });
+
+  for (let attempt = 0; attempt < 30; attempt += 1) {
+    assert.equal((await request()).statusCode, 200);
+  }
+  const limited = await request();
+  assert.equal(limited.statusCode, 429);
+  assert.equal(limited.json().code, "RATE_LIMITED");
+
+  const independentClient = await app.inject({
+    method: "POST",
+    url: `/api/v1/workers/${IDS.worker}/activate`,
+    remoteAddress: "192.0.2.20",
+    headers: { origin: config.publicOrigin, "if-match": '"1"' },
+    cookies: { bss_session: "admin" }
+  });
+  assert.equal(independentClient.statusCode, 200);
+});
+
 test("completed Phase A contracts expose scoped drill-downs without raw credentials", async (t) => {
   const app = await buildApp({ config, authService: new FakeAuthService(), phaseAService: new FakePhaseAService(), logger: false });
   t.after(() => app.close());
