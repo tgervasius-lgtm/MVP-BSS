@@ -50,7 +50,7 @@ Prije jednokratnog `bootstrap` koraka zamijenite lokalnu administratorsku lozink
 
 ```bash
 npm run check
-npm run test:e2e:frontend
+npm run test:e2e
 npm audit --omit=dev --audit-level=high
 
 npm --prefix backend audit --omit=dev --audit-level=high
@@ -60,7 +60,7 @@ BSS_REQUIRE_POSTGRES_TESTS=true \
 npm --prefix backend run test:integration
 ```
 
-`test:e2e:frontend` provjerava statički frontend demo bez backenda i koristi usko ograničen testni odgovor samo za početni `GET /api/v1/me`; `test:e2e` je njegov kompatibilni alias. `test:e2e:fullstack` pokreće zasebni browser suite nad Fastify backendom i prethodno migriranom/bootstrapiranom PostgreSQL bazom; GitHub full-stack quality gate osigurava potrebnu bazu i varijable okoline. Oba moda zadržavaju Playwright console/request failure i axe provjere.
+`npm run test:e2e` zadano provjerava statički frontend demo bez backenda i koristi usko ograničen testni odgovor samo za početni `GET /api/v1/me`. Postojeći full-stack mode pokreće se s `BSS_E2E_FULLSTACK=true npm run test:e2e`; tada Playwright koristi stvarni Fastify backend i PostgreSQL umjesto frontend-only speca. GitHub BSS quality gate osigurava potrebnu migriranu/bootstrapiranu PostgreSQL bazu i backend varijable okoline. Oba moda zadržavaju Playwright console/request failure i axe provjere.
 
 Integracijski test mora raditi nad stvarnim PostgreSQL-om. Ne postavljati `FULL PASS` na temelju preskočenog DB testa.
 

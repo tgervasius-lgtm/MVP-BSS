@@ -92,8 +92,9 @@ jobs:
         run: ./node_modules/.bin/playwright install --with-deps chromium
 
       - name: Browser E2E and axe
-        run: npm run test:e2e:fullstack -- --reporter=line
+        run: npm run test:e2e -- --reporter=line
         env:
+          BSS_E2E_FULLSTACK: "true"
           BSS_E2E_BASE_URL: http://127.0.0.1:4173
           NODE_ENV: test
           HOST: 127.0.0.1
