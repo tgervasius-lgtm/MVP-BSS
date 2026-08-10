@@ -50,7 +50,7 @@ Prije jednokratnog `bootstrap` koraka zamijenite lokalnu administratorsku lozink
 
 ```bash
 npm run check
-npm run test:e2e
+npm run test:e2e:frontend
 npm audit --omit=dev --audit-level=high
 
 npm --prefix backend audit --omit=dev --audit-level=high
@@ -59,6 +59,8 @@ BSS_TEST_DATABASE_URL='postgres://…' \
 BSS_REQUIRE_POSTGRES_TESTS=true \
 npm --prefix backend run test:integration
 ```
+
+`test:e2e:frontend` provjerava statički frontend demo bez backenda i koristi usko ograničen testni odgovor samo za početni `GET /api/v1/me`; `test:e2e` je njegov kompatibilni alias. `test:e2e:fullstack` pokreće zasebni browser suite nad Fastify backendom i prethodno migriranom/bootstrapiranom PostgreSQL bazom; GitHub full-stack quality gate osigurava potrebnu bazu i varijable okoline. Oba moda zadržavaju Playwright console/request failure i axe provjere.
 
 Integracijski test mora raditi nad stvarnim PostgreSQL-om. Ne postavljati `FULL PASS` na temelju preskočenog DB testa.
 

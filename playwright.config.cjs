@@ -1,5 +1,5 @@
 const {defineConfig,devices}=require('@playwright/test');
-const fullstack=process.env.BSS_E2E_FULLSTACK==='true';
+const fullstack=process.env.BSS_E2E_FULLSTACK==='true'||process.env.npm_lifecycle_event==='test:e2e:fullstack';
 
 module.exports=defineConfig({
   testDir:'./tests/e2e',
