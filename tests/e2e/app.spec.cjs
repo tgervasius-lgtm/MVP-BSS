@@ -1,6 +1,24 @@
 const {test,expect}=require('@playwright/test');
 const {AxeBuilder}=require('@axe-core/playwright');
 
+test.beforeEach(async({page})=>{
+  await page.addInitScript(()=>{
+    const nativeFetch=globalThis.fetch.bind(globalThis);
+    globalThis.fetch=(input,init)=>{
+      const requestUrl=typeof input==='string'||input instanceof URL?String(input):input.url;
+      const url=new URL(requestUrl,globalThis.location.href);
+      const method=(init?.method||(typeof input==='object'&&input?.method)||'GET').toUpperCase();
+      if(method==='GET'&&url.origin===globalThis.location.origin&&url.pathname==='/api/v1/me'){
+        return Promise.resolve(new Response(JSON.stringify({
+          code:'DEMO_MODE',
+          message:'Frontend-only E2E nema backend sesiju.'
+        }),{status:404,headers:{'Content-Type':'application/json'}}));
+      }
+      return nativeFetch(input,init);
+    };
+  });
+});
+
 function trackErrors(page){
   const errors=[];
   page.on('pageerror',error=>errors.push(`page: ${error.message}`));
@@ -77,7 +95,8 @@ test('UX/UI Cleanup v1.1 koristi četiri KPI-ja, tablice i XLSX kao glavni izvoz
   await page.evaluate(()=>window.navigate('reports'));
   const exportButtons=page.locator('.report-export .btns button');
   await expect(exportButtons.nth(0)).toContainText('XLSX');
-  await expect(exportButtons.nth(1)).toContainText('Tehnički CSV');
+  await expect(exportButtons.nth(1)).toContainText('PDF');
+  await expect(exportButtons.nth(2)).toContainText('Tehnički CSV');
 });
 
 test('radnik ima kompaktne kružne sažetke za sate i godišnji bez dupliciranih KPI kartica',async({page})=>{

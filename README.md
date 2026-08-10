@@ -60,6 +60,8 @@ BSS_REQUIRE_POSTGRES_TESTS=true \
 npm --prefix backend run test:integration
 ```
 
+`npm run test:e2e` zadano provjerava statički frontend demo bez backenda i koristi usko ograničen testni odgovor samo za početni `GET /api/v1/me`. Postojeći full-stack mode pokreće se s `BSS_E2E_FULLSTACK=true npm run test:e2e`; tada Playwright koristi stvarni Fastify backend i PostgreSQL umjesto frontend-only speca. GitHub BSS quality gate osigurava potrebnu migriranu/bootstrapiranu PostgreSQL bazu i backend varijable okoline. Oba moda zadržavaju Playwright console/request failure i axe provjere.
+
 Integracijski test mora raditi nad stvarnim PostgreSQL-om. Ne postavljati `FULL PASS` na temelju preskočenog DB testa.
 
 ## Produkcijski minimum
