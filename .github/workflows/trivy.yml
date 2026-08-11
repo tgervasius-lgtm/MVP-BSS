@@ -67,8 +67,8 @@ jobs:
           {
             echo '## Trivy filesystem/config baseline'
             echo
-            echo '- Policy: findings are reviewable and non-blocking during Phase 1 (`exit-code 0`).'
-            echo '- Scanners: `vuln,misconfig`; secret and image scanning are intentionally out of scope.'
+            echo "- Policy: findings are reviewable and non-blocking during Phase 1 (\`exit-code 0\`)."
+            echo "- Scanners: \`vuln,misconfig\`; secret and image scanning are intentionally out of scope."
             echo "- Detected dependency targets: ${dependency_targets}"
             echo "- Detected supported configuration targets: ${configuration_targets}"
             echo "- Vulnerability findings: ${vulnerability_total}"
