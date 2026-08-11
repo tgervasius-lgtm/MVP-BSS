@@ -1,0 +1,94 @@
+name: BSS Trivy filesystem and configuration baseline
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  schedule:
+    - cron: '19 5 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trivy-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  trivy-baseline:
+    name: Trivy filesystem/config baseline
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Install verified Trivy binary
+        env:
+          TRIVY_VERSION: '0.73.0'
+          TRIVY_SHA256: '2edd39da482bb4e9831962487b68f68e3928ec3137794757f54d00383d79547b'
+        run: |
+          set -euo pipefail
+          archive="trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz"
+          url="https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/${archive}"
+          curl --fail --location --proto '=https' --proto-redir '=https' --tlsv1.2 --silent --show-error "$url" --output "$archive"
+          printf '%s  %s\n' "$TRIVY_SHA256" "$archive" | sha256sum --check --strict
+          tar --extract --gzip --file "$archive" trivy
+          sudo install --mode=0755 trivy /usr/local/bin/trivy
+          trivy --version
+
+      - name: Scan repository dependency and supported configuration artifacts
+        run: |
+          set -euo pipefail
+          trivy --quiet fs \
+            --scanners vuln,misconfig \
+            --include-dev-deps \
+            --severity UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL \
+            --format json \
+            --output trivy-results.json \
+            --exit-code 0 \
+            --timeout 15m \
+            .
+          trivy --quiet convert \
+            --format sarif \
+            --output trivy-results.sarif \
+            trivy-results.json
+          jq --exit-status '.SchemaVersion == 2 and (.Results | type == "array")' trivy-results.json > /dev/null
+
+      - name: Publish review summary
+        run: |
+          set -euo pipefail
+          vulnerability_total="$(jq '[.Results[]? | .Vulnerabilities[]?] | length' trivy-results.json)"
+          misconfiguration_total="$(jq '[.Results[]? | .Misconfigurations[]?] | length' trivy-results.json)"
+          dependency_targets="$(jq '[.Results[]? | select(.Class == "lang-pkgs")] | length' trivy-results.json)"
+          configuration_targets="$(jq '[.Results[]? | select(.Class == "config")] | length' trivy-results.json)"
+          {
+            echo '## Trivy filesystem/config baseline'
+            echo
+            echo "- Policy: findings are reviewable and non-blocking during Phase 1 (\`exit-code 0\`)."
+            echo "- Scanners: \`vuln,misconfig\`; secret and image scanning are intentionally out of scope."
+            echo "- Detected dependency targets: ${dependency_targets}"
+            echo "- Detected supported configuration targets: ${configuration_targets}"
+            echo "- Vulnerability findings: ${vulnerability_total}"
+            echo "- Misconfiguration findings: ${misconfiguration_total}"
+            echo
+            echo '| Severity | Vulnerabilities | Misconfigurations |'
+            echo '|---|---:|---:|'
+            for severity in UNKNOWN LOW MEDIUM HIGH CRITICAL; do
+              vulnerabilities="$(jq --arg severity "$severity" '[.Results[]? | .Vulnerabilities[]? | select(.Severity == $severity)] | length' trivy-results.json)"
+              misconfigurations="$(jq --arg severity "$severity" '[.Results[]? | .Misconfigurations[]? | select(.Severity == $severity)] | length' trivy-results.json)"
+              echo "| ${severity} | ${vulnerabilities} | ${misconfigurations} |"
+            done
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload machine-readable Trivy evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: bss-trivy-baseline-${{ github.sha }}
+          path: |
+            trivy-results.json
+            trivy-results.sarif
+          if-no-files-found: error
+          retention-days: 90

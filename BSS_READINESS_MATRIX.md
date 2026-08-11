@@ -18,7 +18,9 @@ Phase 0 baseline consolidation is complete and the protected `main` has continue
 - Current Sonar evidence on authoritative `main` at `5843644d887d181ea4ce94d43c13036bce72377c`: default **Sonar way** Quality Gate PASS, 306 overall open issues versus the initial 315 baseline, 11 issues in the active New Code period, and 0 Security Hotspots. This is static-analysis evidence, not production-readiness evidence.
 - The observed Sonar New Code definition is **Previous version**, with the active period starting at the initial 2026-08-08 analysis. The gate checks new-code reliability, security and maintainability ratings, duplication and reviewed Security Hotspots; coverage is displayed but is not an observed gate condition.
 - Issues #125, #126, #127 and #130 are closed through merged PRs #135, #134, #137 and #138 respectively. The preflight/verification wrappers, local Playwright-mode reconciliation, issue-driven execution profiles and `AGENTS.md v3` are therefore implemented on protected `main`.
-- Current authoritative software state is always protected `main`; the current verified baseline for this documentation-only sync is `5843644d887d181ea4ce94d43c13036bce72377c`.
+- Issue #117 closed after PR #140 merged the Sonar governance synchronization into protected `main` as `daf1434c0bd751b4558e4fc34fac3ca924b55861`.
+- Issue #129 remains `PROPOSED` in draft PR #141. Trivy `v0.73.0` run `31529160083` passed on corrected PR head `244861530ff14e58e7a425e3b30039546d8015f1` and matched the local baseline: two npm dependency targets, zero vulnerability findings, zero supported configuration targets and zero misconfiguration findings. The JSON/SARIF artifact uploaded successfully with 90-day retention, and the PR-level required and auxiliary checks were green with no review threads. Zero supported configuration targets is applicability evidence, not proof that BSS configuration or repository security is safe; Phase 1 findings remain non-blocking and no Phase 2 blocking policy is approved.
+- Current authoritative software state is always protected `main`; the verified baseline used for the issue #129 local scan is `daf1434c0bd751b4558e4fc34fac3ca924b55861`. PR-level evidence is not merged or protected-main evidence; post-merge protected-main workflow evidence remains pending until merge and a current-main recheck.
 - None of these repository changes deploys a production backend, provisions staging, proves shared/distributed rate limiting, performs a production restore drill or validates physical hardware.
 
 This document is the authoritative readiness view for BSS. Its purpose is not to claim that the system is error-free; it separates merged implementation evidence from deployment, operational, privacy, hardware and commercial readiness.
@@ -95,7 +97,7 @@ Every material change affecting architecture, data, security, deployment, termin
 | Vendor lock-in | Repo/domain/cloud/secrets/billing/admin control remain with BSS | OPEN | Complete private access/ownership register before external developer/provider dependency grows |
 | Licenses | New dependencies are automatically reviewed against approved licence policy | AUTOMATED | GitHub dependency review and SPDX allowlist |
 | Release versioning | Code, migrations, artifacts, changelog and environment release state are traceable | PARTIAL | Frontend process exists; whole-system release process and staging deployment remain |
-| Independent code analysis | An external static-analysis baseline exists in addition to GitHub/Codex checks and findings are handled without weakening existing gates | PARTIAL / AUTOMATED | SonarQube Cloud is active on current `main`: default Sonar way gate PASS, Previous version New Code policy, 306 overall open / 11 New Code issues versus initial 315 overall, 0 Security Hotspots, and focused PR decoration verified; #139 owns non-blocking parallel review-first disposition of the 11 PowerShell findings; #117 awaits BSS OS review of this governance sync, then #129 remains next on the accepted critical path |
+| Independent code analysis | External analysis baselines exist in addition to GitHub/Codex checks and findings are handled without weakening existing gates | PARTIAL / AUTOMATED | SonarQube Cloud governance closed through #117/PR #140 and remains active with the recorded Sonar way/Previous version evidence; #139 owns non-blocking review of the 11 PowerShell findings; #129 remains `PROPOSED`, with matching local and passing PR-level Trivy filesystem/configuration evidence recorded in `docs/security/TRIVY_BASELINE.md`; post-merge protected-main workflow evidence remains pending until merge and a current-main recheck |
 | Independent senior audit | Qualified reviewer inspects architecture, auth, RLS, privacy and operations | OPEN | Plan after stabilization/feature freeze and before paid production rollout |
 | Penetration test | External testing targets the real staging/production attack surface | OPEN | OWASP ZAP/independent testing only after network-accessible staging exists |
 | Analytics/pilot telemetry | Product usage evidence is collected with privacy-safe masking and approved purpose | OPEN | PostHog or equivalent only near pilot; no real employee/session replay data without explicit privacy controls |
@@ -122,17 +124,16 @@ The accepted BSS MASTER ROADMAP v4.9 controls execution order. This readiness vi
 
 Mandatory execution critical path:
 
-1. Review and merge the focused #117 Sonar governance synchronization, recheck current-main evidence and close #117.
-2. Complete #129 — add Trivy as the next independent security analysis layer.
-3. Complete AUDIT A.
-4. Complete #131 — freeze the BSS v1 Product Contract before Design Foundation.
+1. Complete #129 — review and add Trivy as the next independent security analysis layer.
+2. Complete AUDIT A.
+3. Complete #131 — freeze the BSS v1 Product Contract before Design Foundation.
 
 Parallel, non-blocking work:
 
-- #139 — review-first disposition of the 11 PowerShell New Code findings without bulk cleanup or behavior changes made solely for scanner cosmetics; #139 is not a blocker for #117 closure or #129.
+- #139 — review-first disposition of the 11 PowerShell New Code findings without bulk cleanup or behavior changes made solely for scanner cosmetics; #139 is not a blocker for #129.
 - Hardware 9A remains parallel and retains its existing physical-evidence boundaries.
 
-Trivy is routed through #129 on the mandatory path. #115, PR #28 retirement, Preview reconstruction, staging, later hardware readiness and later readiness work remain tracked, but this document does not place them ahead of the accepted `#117 → #129 → AUDIT A → #131` critical path.
+Trivy is routed through #129 on the mandatory path. #115, PR #28 retirement, Preview reconstruction, staging, later hardware readiness and later readiness work remain tracked, but this document does not place them ahead of the accepted `#129 → AUDIT A → #131` critical path.
 
 ## Working without blind spots
 
