@@ -1,6 +1,6 @@
 # BSS Readiness Matrix
 
-## Authoritative software baseline — 2026-08-08
+## Authoritative software baseline — 2026-08-11
 
 Phase 0 baseline consolidation is complete and the protected `main` has continued through focused post-consolidation hardening and independent-analysis remediation.
 
@@ -15,8 +15,10 @@ Phase 0 baseline consolidation is complete and the protected `main` has continue
 - Post-Phase-0 focused work synchronized the BSS OS (#101), merged `AGENTS.md v2` (#102), expanded dependency maintenance (#103), restored committed-graph audit integrity and remediated `brace-expansion` to 5.0.9 (#113), and added the current-main architecture growth guard (#114).
 - Historical PR #31 is closed as superseded after all unique useful controls were extracted, superseded, rejected with rationale or moved to repository-setting issue #115.
 - SonarQube Cloud was established through issue #117 as an additional independent analyzer. PRs #118–#120 hardened CI/supply-chain findings, PR #121 removed two focused reliability Blockers, and PR #123 resolved the weekly-attendance ISO sorting finding without behavior drift.
-- Current Sonar evidence on authoritative `main`: Quality Gate PASS, 295 open/current-main issues versus the initial 315 baseline, and 0 Security Hotspots. This is static-analysis evidence, not production-readiness evidence.
-- Current authoritative software state is always protected `main`; after PR #123 the current verified baseline is `31280f68b7de978dd28db531db2f63181ef62913` before this documentation-only sync.
+- Current Sonar evidence on authoritative `main` at `5843644d887d181ea4ce94d43c13036bce72377c`: default **Sonar way** Quality Gate PASS, 306 overall open issues versus the initial 315 baseline, 11 issues in the active New Code period, and 0 Security Hotspots. This is static-analysis evidence, not production-readiness evidence.
+- The observed Sonar New Code definition is **Previous version**, with the active period starting at the initial 2026-08-08 analysis. The gate checks new-code reliability, security and maintainability ratings, duplication and reviewed Security Hotspots; coverage is displayed but is not an observed gate condition.
+- Issues #125, #126, #127 and #130 are closed through merged PRs #135, #134, #137 and #138 respectively. The preflight/verification wrappers, local Playwright-mode reconciliation, issue-driven execution profiles and `AGENTS.md v3` are therefore implemented on protected `main`.
+- Current authoritative software state is always protected `main`; the current verified baseline for this documentation-only sync is `5843644d887d181ea4ce94d43c13036bce72377c`.
 - None of these repository changes deploys a production backend, provisions staging, proves shared/distributed rate limiting, performs a production restore drill or validates physical hardware.
 
 This document is the authoritative readiness view for BSS. Its purpose is not to claim that the system is error-free; it separates merged implementation evidence from deployment, operational, privacy, hardware and commercial readiness.
@@ -38,8 +40,8 @@ Every material change affecting architecture, data, security, deployment, termin
 | Authoritative software baseline | One protected `main` contains the reviewed frontend/backend baseline with no unresolved Phase B integration fork | DONE | PR #99 established the baseline; PR #27 superseded; issue #55 completed; later focused hardening continues from current `main` |
 | MVP scope | All functions have clear `in scope`, `out of scope` and acceptance criteria | PARTIAL | Scope freeze, OpenAPI, feature registry and screen map exist; final pilot feature freeze remains before live pilot |
 | Architecture | Frontend/backend/terminal/database boundaries are documented and the merged code has no hidden integration fork | PARTIAL | Backend architecture + merged Phase B are authoritative; PR #114 prevents silent growth of known legacy modules; final hosting/network/shared-service topology remains infrastructure work |
-| Codex operating instructions | Codex instructions name current BSS OS truth sources and correct runtime/deployment boundaries | DONE / EVOLVING | `AGENTS.md v2` merged through PR #102 and remains authoritative; #124 has locked the automation design, but `AGENTS.md v3` must wait until #126/#127 mechanisms are implemented and proven |
-| Developer automation | Local BSS work starts from a verified baseline, routes checks consistently and chooses Codex effort from explicit task risk without destructive automation | PARTIAL | #124 evidence/design complete; #126 preflight/verification and #127 issue-driven execution-profile routing remain implementation work; #125 separately tracks local Playwright baseline reconciliation |
+| Codex operating instructions | Codex instructions name current BSS OS truth sources and correct runtime/deployment boundaries | DONE / EVOLVING | `AGENTS.md v3` merged through PR #138 after #126/#127 automation was implemented and proven; future operating changes remain evidence-controlled |
+| Developer automation | Local BSS work starts from a verified baseline, routes checks consistently and chooses Codex effort from explicit task risk without destructive automation | DONE / EVOLVING | #124 design is implemented through #126/PR #134 and #127/PR #137; #125/PR #135 reconciled local Playwright modes; wrappers remain thin local orchestration and do not replace GitHub gates |
 | Frontend quality | Lint, tests, build, accessibility and key E2E flows pass | AUTOMATED | BSS quality gate and Playwright/axe coverage |
 | Backend quality | TypeScript, build, unit/contract/integration tests and PostgreSQL flows pass | AUTOMATED | Backend quality gate plus full-stack quality gate; PR #99 passed integration acceptance |
 | API contract — structure | OpenAPI is syntactically/structurally valid with stable operation IDs, parameters and references | AUTOMATED | Redocly + API/dependency governance gate |
@@ -63,7 +65,7 @@ Every material change affecting architecture, data, security, deployment, termin
 | Architecture growth | Known oversized modules do not silently grow and new source modules stay reviewable | AUTOMATED | PR #114 freezes `app.js` 2105, `phase-a.ts` 614, `pg-mvp-service.ts` 1419 and `pg-phase-a-service.ts` 1377; other backend TS max 600 and frontend `src` JS max 400 |
 | Unit tests | Core business rules have stable fast tests | PARTIAL | Strong current suite; formal coverage thresholds remain optional/open |
 | Integration tests | API/database/migrations/RLS execute against real PostgreSQL in CI | AUTOMATED | PostgreSQL 16 backend and full-stack CI |
-| E2E tests | Main role flows work through browser and backend and local verification modes have documented semantics | PARTIAL | Full-stack CI/browser/axe is active; issue #125 tracks two reproducible frontend-only local baseline mismatches (`/api/v1/me` 404 harness behavior and stale export-order assertion) without weakening full-stack evidence |
+| E2E tests | Main role flows work through browser and backend and local verification modes have documented semantics | AUTOMATED | Full-stack CI/browser/axe remains active; #125/PR #135 reconciled the frontend-only harness and stale assertion while preserving console/request-failure and axe checks; frontend-only and full-stack evidence remain distinct |
 | Accessibility | Critical WCAG regressions are blocked automatically | AUTOMATED | Playwright + axe quality checks |
 | Performance | SLOs, load/soak tests and query plans exist for critical flows | OPEN | Requires realistic tenant sizes and production-like staging |
 | Rate limiting and abuse protection | Sensitive endpoints have real limits and the intended multi-instance/shared policy is proven | PARTIAL / EXTERNAL | Genuine route limits merged and CodeQL-clean; production WAF/shared-store/proxy and multi-process behavior still require staging evidence |
@@ -86,14 +88,14 @@ Every material change affecting architecture, data, security, deployment, termin
 | Hardware BOM | Exact SKUs, dimensions, compatibility and substitution policy are confirmed | EXTERNAL | Physical metrology and frozen prototype BOM required |
 | Enclosure and thermals | Final CAD/tolerances/ventilation/mounting are proven by prototype | EXTERNAL | SolidWorks/STEP/manufacturing package after exact measurements |
 | RFID physical reliability | Read range/orientation/metal interference/false reads are measured | OPEN | Bench and installed-environment tests on real prototype |
-| Developer onboarding | A new developer can clean-clone and work from documentation without founder memory | PARTIAL | `AGENTS.md v2`, Developer Guide/backend handoff, CODEOWNERS and BSS OS exist; #126/#127 should reduce founder-dependent local startup/routing, but independent clean-room takeover remains required |
+| Developer onboarding | A new developer can clean-clone and work from documentation without founder memory | PARTIAL | `AGENTS.md v3`, Developer Guide/backend handoff, CODEOWNERS, BSS OS and the #126/#127 local startup/routing tools exist; independent clean-room takeover remains required |
 | Operational documentation | Deploy/rollback/backup/restore/incident/troubleshooting procedures exist and match real infrastructure | PARTIAL | BSS OS coverage is broad; provider-specific operational evidence waits for staging |
 | Frontend handoff artifact | Immutable frontend package/release asset is reproducibly verified | AUTOMATED | Existing frontend handoff/release workflows |
 | Whole-system handoff | Code, API, DB, tests, architecture, risks, operations and ownership are sufficient for independent continuation | PARTIAL | Strong documentation foundation; finalize after PR #28 retirement, staging and clean-room takeover |
 | Vendor lock-in | Repo/domain/cloud/secrets/billing/admin control remain with BSS | OPEN | Complete private access/ownership register before external developer/provider dependency grows |
 | Licenses | New dependencies are automatically reviewed against approved licence policy | AUTOMATED | GitHub dependency review and SPDX allowlist |
 | Release versioning | Code, migrations, artifacts, changelog and environment release state are traceable | PARTIAL | Frontend process exists; whole-system release process and staging deployment remain |
-| Independent code analysis | An external static-analysis baseline exists in addition to GitHub/Codex checks and findings are handled without weakening existing gates | PARTIAL / AUTOMATED | SonarQube Cloud is active: current-main Quality Gate PASS, 295 issues versus initial 315, 0 Security Hotspots, focused PR decoration verified; issue #117 remains open for New Code/Quality Gate governance documentation, then Trivy is next |
+| Independent code analysis | An external static-analysis baseline exists in addition to GitHub/Codex checks and findings are handled without weakening existing gates | PARTIAL / AUTOMATED | SonarQube Cloud is active on current `main`: default Sonar way gate PASS, Previous version New Code policy, 306 overall open / 11 New Code issues versus initial 315 overall, 0 Security Hotspots, and focused PR decoration verified; #139 owns non-blocking parallel review-first disposition of the 11 PowerShell findings; #117 awaits BSS OS review of this governance sync, then #129 remains next on the accepted critical path |
 | Independent senior audit | Qualified reviewer inspects architecture, auth, RLS, privacy and operations | OPEN | Plan after stabilization/feature freeze and before paid production rollout |
 | Penetration test | External testing targets the real staging/production attack surface | OPEN | OWASP ZAP/independent testing only after network-accessible staging exists |
 | Analytics/pilot telemetry | Product usage evidence is collected with privacy-safe masking and approved purpose | OPEN | PostHog or equivalent only near pilot; no real employee/session replay data without explicit privacy controls |
@@ -116,16 +118,21 @@ BSS must not be labelled `production ready` merely because Phase 0, repository h
 
 ## Immediate sequence from the current baseline
 
-1. Implement #126 non-destructive local preflight and verification wrappers after Codex usage resets.
-2. Reconcile #125 local frontend-only Playwright baseline without changing product behavior only to satisfy stale tests.
-3. Implement #127 issue-driven Codex execution-profile routing, then update `AGENTS.md v3` only after the automation mechanisms are proven.
-4. Complete #117 Sonar New Code/Quality Gate governance documentation; continue only focused evidence-based Sonar cleanup rather than bulk remediation.
-5. Add Trivy and define how its findings interact with existing BSS security gates.
-6. Complete/verify repository-level Dependabot alerts/security updates through issue #115 if still external/open.
-7. Split/retarget retained PR #28 work from current `main` and retire the historical draft.
-8. Reconstruct Preview Portal from current `main`, then establish Figma/Storybook as the design workflow.
-9. Build production-like staging and attach observability, secrets, backup/restore and performance evidence.
-10. Complete physical terminal and independent review before real pilot data.
+The accepted BSS MASTER ROADMAP v4.9 controls execution order. This readiness view records evidence and does not redefine or supersede that roadmap.
+
+Mandatory execution critical path:
+
+1. Review and merge the focused #117 Sonar governance synchronization, recheck current-main evidence and close #117.
+2. Complete #129 — add Trivy as the next independent security analysis layer.
+3. Complete AUDIT A.
+4. Complete #131 — freeze the BSS v1 Product Contract before Design Foundation.
+
+Parallel, non-blocking work:
+
+- #139 — review-first disposition of the 11 PowerShell New Code findings without bulk cleanup or behavior changes made solely for scanner cosmetics; #139 is not a blocker for #117 closure or #129.
+- Hardware 9A remains parallel and retains its existing physical-evidence boundaries.
+
+Trivy is routed through #129 on the mandatory path. #115, PR #28 retirement, Preview reconstruction, staging, later hardware readiness and later readiness work remain tracked, but this document does not place them ahead of the accepted `#117 → #129 → AUDIT A → #131` critical path.
 
 ## Working without blind spots
 
