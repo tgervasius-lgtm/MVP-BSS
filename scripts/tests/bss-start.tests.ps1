@@ -21,10 +21,10 @@ function Add-TestResult {
 
     if ($Passed) {
         $script:Passed++
-        Write-Host "[PASS] $Name"
+        Write-Output "[PASS] $Name"
     } else {
         $script:Failed++
-        Write-Host "[FAIL] $Name - $Detail"
+        Write-Output "[FAIL] $Name - $Detail"
     }
 }
 

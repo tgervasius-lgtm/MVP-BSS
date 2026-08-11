@@ -27,8 +27,8 @@ $preflightPath = Join-Path $scriptDirectory "bss-preflight.ps1"
 function Stop-Launch {
     param([Parameter(Mandatory = $true)][string]$Message)
 
-    Write-Host "[STOP] $Message"
-    Write-Host "RESULT: STOP"
+    Write-Output "[STOP] $Message"
+    Write-Output "RESULT: STOP"
     exit 1
 }
 
@@ -38,37 +38,45 @@ function Get-Executable {
     return Get-Command $Name -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
 }
 
-function Get-ExecutionProfile {
-    param([AllowEmptyString()][string]$Body)
+function Test-MarkdownLineVisible {
+    param(
+        [Parameter(Mandatory = $true)][AllowEmptyString()][string]$Line,
+        [Parameter(Mandatory = $true)][hashtable]$FenceState
+    )
 
-    $lines = @($Body -split '\r?\n')
+    $fenceMatch = [regex]::Match($Line, '^[ \t]{0,3}(`{3,}|~{3,})')
+    if (-not $fenceMatch.Success) {
+        return -not $FenceState.InFence
+    }
+
+    $marker = $fenceMatch.Groups[1].Value
+    if (-not $FenceState.InFence) {
+        $FenceState.InFence = $true
+        $FenceState.Character = $marker[0]
+        $FenceState.Length = $marker.Length
+        return $false
+    }
+
+    $isClosingFence = $marker[0] -eq $FenceState.Character -and $marker.Length -ge $FenceState.Length -and
+        $Line.Substring($fenceMatch.Length).Trim().Length -eq 0
+    if ($isClosingFence) {
+        $FenceState.InFence = $false
+        $FenceState.Character = [char]0
+        $FenceState.Length = 0
+    }
+    return $false
+}
+
+function Get-MarkdownHeaderIndexes {
+    param([Parameter(Mandatory = $true)][AllowEmptyString()][string[]]$Lines)
+
     $profileHeaders = New-Object System.Collections.Generic.List[int]
     $secondLevelHeaders = New-Object System.Collections.Generic.List[int]
-    $inFence = $false
-    $fenceCharacter = [char]0
-    $fenceLength = 0
+    $fenceState = @{ InFence = $false; Character = [char]0; Length = 0 }
 
-    for ($index = 0; $index -lt $lines.Count; $index++) {
-        $line = $lines[$index]
-        $fenceMatch = [regex]::Match($line, '^[ \t]{0,3}(`{3,}|~{3,})')
-        if ($fenceMatch.Success) {
-            $marker = $fenceMatch.Groups[1].Value
-            if (-not $inFence) {
-                $inFence = $true
-                $fenceCharacter = $marker[0]
-                $fenceLength = $marker.Length
-                continue
-            }
-            $isClosingFence = $marker[0] -eq $fenceCharacter -and $marker.Length -ge $fenceLength -and
-                $line.Substring($fenceMatch.Length).Trim().Length -eq 0
-            if ($isClosingFence) {
-                $inFence = $false
-                $fenceCharacter = [char]0
-                $fenceLength = 0
-            }
-            continue
-        }
-        if ($inFence) { continue }
+    for ($index = 0; $index -lt $Lines.Count; $index++) {
+        $line = $Lines[$index]
+        if (-not (Test-MarkdownLineVisible -Line $line -FenceState $fenceState)) { continue }
 
         if ($line -match '^##(?:[ \t]+|$)') {
             $secondLevelHeaders.Add($index)
@@ -77,6 +85,20 @@ function Get-ExecutionProfile {
             $profileHeaders.Add($index)
         }
     }
+
+    return [PSCustomObject]@{
+        Profile = $profileHeaders
+        SecondLevel = $secondLevelHeaders
+    }
+}
+
+function Get-ExecutionProfile {
+    param([AllowEmptyString()][string]$Body)
+
+    $lines = @($Body -split '\r?\n')
+    $headerIndexes = Get-MarkdownHeaderIndexes -Lines $lines
+    $profileHeaders = $headerIndexes.Profile
+    $secondLevelHeaders = $headerIndexes.SecondLevel
 
     if ($profileHeaders.Count -eq 0) {
         Stop-Launch "Issue #$Issue is missing the exact '## Execution profile' section."
@@ -97,14 +119,14 @@ function Get-ExecutionProfile {
     for ($index = $headerIndex + 1; $index -lt $nextHeaderIndex; $index++) {
         $sectionLines.Add($lines[$index])
     }
-    $profile = (@($sectionLines) -join [Environment]::NewLine).Trim()
+    $executionProfile = (@($sectionLines) -join [Environment]::NewLine).Trim()
 
-    if (-not $profileEfforts.ContainsKey($profile)) {
-        $displayProfile = if ([string]::IsNullOrWhiteSpace($profile)) { "<empty>" } else { $profile -replace '[\x00-\x1F\x7F]+', ' ' }
+    if (-not $profileEfforts.ContainsKey($executionProfile)) {
+        $displayProfile = if ([string]::IsNullOrWhiteSpace($executionProfile)) { "<empty>" } else { $executionProfile -replace '[\x00-\x1F\x7F]+', ' ' }
         Stop-Launch "Issue #$Issue has invalid Execution profile '$displayProfile'. Allowed: FAST, STANDARD, CRITICAL, AUDIT."
     }
 
-    return $profile
+    return $executionProfile
 }
 
 function Format-CommandArgument {
@@ -148,8 +170,8 @@ if (-not "$($issueData.state)".Equals("OPEN", [System.StringComparison]::Ordinal
     Stop-Launch "Issue #$Issue is not OPEN (state: $($issueData.state))."
 }
 
-$profile = Get-ExecutionProfile -Body "$($issueData.body)"
-$reasoningEffort = $profileEfforts[$profile]
+$selectedProfile = Get-ExecutionProfile -Body "$($issueData.body)"
+$reasoningEffort = $profileEfforts[$selectedProfile]
 $safeTitle = "$($issueData.title)" -replace '[\x00-\x1F\x7F]+', ' '
 
 $codexCommand = Get-Executable -Name "codex.cmd"
@@ -162,7 +184,7 @@ if (-not (Test-Path -LiteralPath $preflightPath -PathType Leaf)) {
 
 Write-Host "Issue:     #$Issue $safeTitle"
 Write-Host "URL:       $($issueData.url)"
-Write-Host "Profile:   $profile"
+Write-Host "Profile:   $selectedProfile"
 Write-Host "Reasoning: $reasoningEffort"
 Write-Host "Approval:  on-request"
 Write-Host "Plan:      Run BSS preflight, then open an interactive issue-scoped Codex session."
