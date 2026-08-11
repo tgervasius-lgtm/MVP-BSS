@@ -64,6 +64,16 @@ npm --prefix backend run test:integration
 
 Integracijski test mora raditi nad stvarnim PostgreSQL-om. Ne postavljati `FULL PASS` na temelju preskočenog DB testa.
 
+## Codex pokretanje iz issuea
+
+Za lokalni Codex rad prvo pregledajte plan bez model poziva:
+
+```powershell
+.\scripts\bss-start.ps1 -Issue 127 -DryRun
+```
+
+Launcher dohvaća OPEN issue iz `tgervasius-lgtm/MVP-BSS`, zahtijeva točno jednu `## Execution profile` sekciju, izvršava `bss-preflight.ps1` i mapira samo `FAST`/`low`, `STANDARD`/`medium`, `CRITICAL`/`high` ili `AUDIT`/`xhigh`. `AUDIT` koristite samo za opravdan system-wide audit ili kompleksan cross-domain rad. Nakon BSS OS pregleda dry-runa, interaktivni run pokreće se bez `-DryRun`; launcher koristi `codex.cmd`, eksplicitni `approval_policy=on-request` ekvivalent i run-only reasoning override. Ne mijenja globalni Codex config ni PowerShell execution policy te ne commita, pusha, mergea ni deploya.
+
 ## Produkcijski minimum
 
 1. Migracije pokreće zaseban migrator; runtime je `NOSUPERUSER NOBYPASSRLS` i nije vlasnik tablica.
