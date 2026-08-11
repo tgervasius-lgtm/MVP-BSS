@@ -49,7 +49,7 @@ Trivy is published by `aquasecurity/trivy` under Apache License 2.0. The BSS rep
 
 The workflow job still fails on installation, checksum, database download, scanner execution, JSON validation, conversion or artifact-upload errors. Only the presence of findings is non-blocking during Phase 1. The job is not added to the repository ruleset's required status checks in this change.
 
-## Initial current-main result
+## Initial local and PR-level result
 
 The verified Trivy `v0.73.0` binary scanned a clean Git archive of `daf1434c0bd751b4558e4fc34fac3ca924b55861`. The scan included development dependencies and used vulnerability DB schema 2 updated at `2026-08-11T13:06:59Z`; the downloaded misconfiguration check-bundle digest was `sha256:1583562f8b90ed2a071b99f0e5ffff6b57e4ceb6ca3e4796577b4e6a339eb74c`.
 
@@ -82,6 +82,8 @@ A broad ignore, global severity suppression, scanner disablement or arbitrary lo
 
 ## Evidence limits, rollout and rollback
 
-The local baseline proves only that the pinned scanner executed against the named commit with the named time-specific databases and returned the recorded counts. It is not a GitHub Actions run, required-check result, security audit, deployment, release, pilot acceptance or production-readiness proof. GitHub workflow evidence remains pending until this focused change is reviewed and allowed to run through the repository PR process.
+The local baseline proves only that the pinned scanner executed against the named commit with the named time-specific databases and returned the recorded counts. PR #141 then established matching PR-level GitHub Actions evidence: Trivy run `31529160083` passed on corrected PR head `244861530ff14e58e7a425e3b30039546d8015f1` with two npm dependency targets, zero vulnerabilities, zero supported configuration targets and zero misconfigurations. The JSON and SARIF artifact uploaded successfully with 90-day retention, and the PR-level required and auxiliary checks were green with no review threads.
+
+That PR evidence does not prove that BSS configuration or the repository is secure, and it is not merged, protected-main, security-audit, deployment, release, pilot-acceptance or production-readiness evidence. Issue #129 remains `PROPOSED`; post-merge protected-main workflow evidence remains pending until merge and a current-main recheck.
 
 Before merge, rollback is closing the unmerged PR. After merge, rollback is a reviewed revert of the Trivy workflow/configuration change. Historical workflow artifacts or security findings must not be deleted merely to make the security record look clean.

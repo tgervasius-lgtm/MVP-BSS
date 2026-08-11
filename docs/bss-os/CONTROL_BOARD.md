@@ -105,16 +105,16 @@ Issue #117 closed after PR #140 merged the working baseline, evidence-backed Pre
 
 ### P1-3 — Trivy filesystem/configuration baseline (`PROPOSED / LOCAL BASELINE`)
 
-Issue #129 has a focused local implementation candidate and a time-specific baseline against protected `main` at `daf1434c0bd751b4558e4fc34fac3ca924b55861`:
+Issue #129 remains `PROPOSED` in draft PR #141, with a focused implementation candidate and a time-specific local baseline against protected `main` at `daf1434c0bd751b4558e4fc34fac3ca924b55861`:
 
 - official Trivy `v0.73.0` release binaries are pinned and checksum-verified;
 - the explicit filesystem scanners are `vuln,misconfig`, with root/backend development dependencies included and secret/image scanning excluded;
-- the local baseline recorded two npm dependency targets, zero vulnerability findings, zero supported configuration targets and zero misconfiguration findings;
-- JSON and SARIF are proposed as 90-day workflow artifacts with only `contents: read`; no code-scanning upload permission is requested;
+- the local baseline recorded two npm dependency targets, zero vulnerability findings, zero supported configuration targets and zero misconfiguration findings; corrected-head PR run `31529160083` passed with Trivy `v0.73.0` and matched those counts;
+- the PR run uploaded JSON and SARIF successfully as 90-day workflow artifacts with only `contents: read`; no code-scanning upload permission is requested;
 - findings remain non-blocking (`exit-code 0`) during Phase 1, while scanner/integrity/execution failures still fail the job;
 - no ignore file, accepted-debt suppression, container change, product-code change or required-ruleset change is included.
 
-This is local scanner evidence, not a GitHub Actions result. Review/merge and first PR/current-main workflow runs remain required before Trivy can be described as merged or automated. Any Phase 2 blocking policy requires separate BSS OS approval and baseline-aware regression handling.
+The local baseline and PR-level GitHub Actions evidence now match, and the PR-level required and auxiliary checks are green with no review threads. Zero supported configuration targets remains applicability evidence, not proof that BSS configuration or repository security is safe. Issue #129 remains `PROPOSED`: it is not merged, closed or proven on protected `main`, and post-merge protected-main workflow evidence remains pending until merge and a current-main recheck. Phase 1 findings remain non-blocking; any Phase 2 blocking policy requires separate BSS OS approval and baseline-aware regression handling.
 
 Detailed provenance, scan contract, counts, classification, evidence limits and rollback are recorded in `docs/security/TRIVY_BASELINE.md`.
 
