@@ -103,7 +103,7 @@ Issue #117 closed after PR #140 merged the working baseline, evidence-backed Pre
 1. keep the 11 current PowerShell findings routed through #139 as a non-blocking parallel follow-up and route future actionable findings into similarly focused issues/PRs;
 2. preserve accepted/non-applicable findings with evidence rather than changing product behavior solely for scanner cosmetics.
 
-### P1-3 — Trivy filesystem/configuration baseline (`MERGED / PHASE 1 AUTOMATED`)
+### P1-3 — Trivy filesystem/configuration baseline (`IMPLEMENTED / EVIDENCE PROVEN  PHASE 1`)
 
 PR #141 was squash-merged into protected `main` as `3888fac174a4ae09ede056549e8443b3e892267e`. Push run `31533060983` passed on that exact commit and established the post-merge Phase 1 evidence:
 
