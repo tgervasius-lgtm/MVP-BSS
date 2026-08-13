@@ -1,9 +1,11 @@
 # Trivy filesystem/configuration baseline
 
-Status: `PROPOSED / LOCAL BASELINE`
+Status: `IMPLEMENTED / EVIDENCE PROVEN  PHASE 1`
 Issue: #129
 Baseline captured: 2026-08-11
 Authoritative source commit scanned: `daf1434c0bd751b4558e4fc34fac3ca924b55861`
+Protected-main implementation commit: `3888fac174a4ae09ede056549e8443b3e892267e`
+Protected-main evidence run: `31533060983`
 
 ## Purpose and boundary
 
@@ -20,7 +22,7 @@ Image scanning is deliberately absent. Authoritative `main` does not contain an 
 
 ## Deterministic scanner provenance
 
-The proposed workflow installs the official Aqua Security Trivy `v0.73.0` Linux 64-bit release archive directly and verifies this published SHA-256 before execution:
+The merged workflow installs the official Aqua Security Trivy `v0.73.0` Linux 64-bit release archive directly and verifies this published SHA-256 before execution:
 
 `2edd39da482bb4e9831962487b68f68e3928ec3137794757f54d00383d79547b`
 
@@ -49,7 +51,7 @@ Trivy is published by `aquasecurity/trivy` under Apache License 2.0. The BSS rep
 
 The workflow job still fails on installation, checksum, database download, scanner execution, JSON validation, conversion or artifact-upload errors. Only the presence of findings is non-blocking during Phase 1. The job is not added to the repository ruleset's required status checks in this change.
 
-## Initial local and PR-level result
+## Initial local, PR-level and protected-main result
 
 The verified Trivy `v0.73.0` binary scanned a clean Git archive of `daf1434c0bd751b4558e4fc34fac3ca924b55861`. The scan included development dependencies and used vulnerability DB schema 2 updated at `2026-08-11T13:06:59Z`; the downloaded misconfiguration check-bundle digest was `sha256:1583562f8b90ed2a071b99f0e5ffff6b57e4ceb6ca3e4796577b4e6a339eb74c`.
 
@@ -84,6 +86,8 @@ A broad ignore, global severity suppression, scanner disablement or arbitrary lo
 
 The local baseline proves only that the pinned scanner executed against the named commit with the named time-specific databases and returned the recorded counts. PR #141 then established matching PR-level GitHub Actions evidence: Trivy run `31529160083` passed on corrected PR head `244861530ff14e58e7a425e3b30039546d8015f1` with two npm dependency targets, zero vulnerabilities, zero supported configuration targets and zero misconfigurations. The JSON and SARIF artifact uploaded successfully with 90-day retention, and the PR-level required and auxiliary checks were green with no review threads.
 
-That PR evidence does not prove that BSS configuration or the repository is secure, and it is not merged, protected-main, security-audit, deployment, release, pilot-acceptance or production-readiness evidence. Issue #129 remains `PROPOSED`; post-merge protected-main workflow evidence remains pending until merge and a current-main recheck.
+PR #141 was squash-merged into protected `main` as `3888fac174a4ae09ede056549e8443b3e892267e`. Push run `31533060983` then passed on that exact protected-main commit with Trivy `v0.73.0`, two dependency targets, zero vulnerability findings, zero supported configuration targets and zero misconfiguration findings. The run used only `contents: read` permission and successfully uploaded the JSON/SARIF artifact with 90-day retention. This is protected-main Phase 1 scanner evidence; finding presence remains non-blocking through `--exit-code 0`, while installation, checksum, database, scanner, JSON/SARIF conversion and artifact failures remain blocking.
 
-Before merge, rollback is closing the unmerged PR. After merge, rollback is a reviewed revert of the Trivy workflow/configuration change. Historical workflow artifacts or security findings must not be deleted merely to make the security record look clean.
+Neither the local, PR nor protected-main result proves that BSS configuration or the repository is secure. It is not security-audit, deployment, release, pilot-acceptance or production-readiness evidence, and no Phase 2 blocking policy is approved. Issue #129 was reopened only for the focused post-merge evidence synchronization in this document, `BSS_READINESS_MATRIX.md` and `docs/bss-os/CONTROL_BOARD.md`.
+
+Rollback is a reviewed revert of the Trivy workflow/configuration change. Historical workflow artifacts or security findings must not be deleted merely to make the security record look clean.
