@@ -16,7 +16,7 @@ Operating phase: `POST-CONSOLIDATION / INDEPENDENT ANALYSIS GOVERNANCE`
 | Development automation foundation | DONE / EVOLVING | Maintain | #126/PR #134 preflight/verification, #125/PR #135 Playwright-mode reconciliation and #127/PR #137 issue-driven profiles are merged and proven; local wrappers complement rather than replace GitHub gates |
 | PR #31 retirement | DONE | P1 | Unique useful controls extracted/rejected with evidence and historical PR #31 closed without merge |
 | Dependabot repository security settings | OPEN / EXTERNAL | P1 | Dependabot alerts/security updates enabled and verified through issue #115 |
-| Independent code analysis | ACTIVE | P1 | SonarQube Cloud governance closed through #117/PR #140; #129 is the active Trivy baseline work item on the accepted critical path, and #139 remains a non-blocking parallel PowerShell follow-up |
+| Independent code analysis | ACTIVE / AUTOMATED | P1 | SonarQube Cloud governance closed through #117/PR #140; Trivy Phase 1 is merged and passing on protected `main` through #129/PR #141, and #139 remains a non-blocking parallel PowerShell follow-up |
 | PR #28 retirement | OPEN | P1 | Hardware/API/QA/container/handoff work split from current `main` without wholesale merge |
 | Preview Portal | OPEN / RECONSTRUCTION | P1 | Reconstructed from stable `main`, externally accessible and clearly isolated from production |
 | Hardware prototype | PARTIAL / EXTERNAL | P1 | Physical component measurements confirmed and production CAD generated |
@@ -103,18 +103,18 @@ Issue #117 closed after PR #140 merged the working baseline, evidence-backed Pre
 1. keep the 11 current PowerShell findings routed through #139 as a non-blocking parallel follow-up and route future actionable findings into similarly focused issues/PRs;
 2. preserve accepted/non-applicable findings with evidence rather than changing product behavior solely for scanner cosmetics.
 
-### P1-3 — Trivy filesystem/configuration baseline (`PROPOSED / LOCAL BASELINE`)
+### P1-3 — Trivy filesystem/configuration baseline (`MERGED / PHASE 1 AUTOMATED`)
 
-Issue #129 remains `PROPOSED` in draft PR #141, with a focused implementation candidate and a time-specific local baseline against protected `main` at `daf1434c0bd751b4558e4fc34fac3ca924b55861`:
+PR #141 was squash-merged into protected `main` as `3888fac174a4ae09ede056549e8443b3e892267e`. Push run `31533060983` passed on that exact commit and established the post-merge Phase 1 evidence:
 
 - official Trivy `v0.73.0` release binaries are pinned and checksum-verified;
 - the explicit filesystem scanners are `vuln,misconfig`, with root/backend development dependencies included and secret/image scanning excluded;
-- the local baseline recorded two npm dependency targets, zero vulnerability findings, zero supported configuration targets and zero misconfiguration findings; corrected-head PR run `31529160083` passed with Trivy `v0.73.0` and matched those counts;
-- the PR run uploaded JSON and SARIF successfully as 90-day workflow artifacts with only `contents: read`; no code-scanning upload permission is requested;
+- the protected-main run recorded two npm dependency targets, zero vulnerability findings, zero supported configuration targets and zero misconfiguration findings, matching the earlier local and PR-level baselines;
+- the protected-main run uploaded JSON and SARIF successfully as a 90-day workflow artifact with only `contents: read`; no code-scanning upload permission is requested;
 - findings remain non-blocking (`exit-code 0`) during Phase 1, while scanner/integrity/execution failures still fail the job;
 - no ignore file, accepted-debt suppression, container change, product-code change or required-ruleset change is included.
 
-The local baseline and PR-level GitHub Actions evidence now match, and the PR-level required and auxiliary checks are green with no review threads. Zero supported configuration targets remains applicability evidence, not proof that BSS configuration or repository security is safe. Issue #129 remains `PROPOSED`: it is not merged, closed or proven on protected `main`, and post-merge protected-main workflow evidence remains pending until merge and a current-main recheck. Phase 1 findings remain non-blocking; any Phase 2 blocking policy requires separate BSS OS approval and baseline-aware regression handling.
+The local, PR-level and protected-main GitHub Actions evidence match. Zero supported configuration targets remains applicability evidence, not proof that BSS configuration or repository security is safe. Issue #129 is open only for this focused post-merge documentation synchronization. Phase 1 findings remain non-blocking; any Phase 2 blocking policy requires separate BSS OS approval and baseline-aware regression handling.
 
 Detailed provenance, scan contract, counts, classification, evidence limits and rollback are recorded in `docs/security/TRIVY_BASELINE.md`.
 
@@ -122,22 +122,21 @@ Detailed provenance, scan contract, counts, classification, evidence limits and 
 
 This board records but does not redefine or supersede the accepted BSS MASTER ROADMAP v4.9 execution order:
 
-1. #129 — add Trivy as the next independent security analysis layer;
-2. AUDIT A;
-3. #131 — freeze the BSS v1 Product Contract before Design Foundation.
+1. AUDIT A;
+2. #131 — freeze the BSS v1 Product Contract before Design Foundation.
 
 ### Parallel, non-blocking lanes
 
-- #139 reviews and dispositions the 11 current PowerShell findings without blocking #129 or the mandatory critical path.
+- #139 reviews and dispositions the 11 current PowerShell findings without blocking the mandatory critical path.
 - Hardware 9A remains parallel and does not replace its required physical metrology, validation or acceptance evidence.
 
 ### Later routed work
 
-- #129 remains the active Trivy work item on the accepted critical path. Trivy must complement, not duplicate or replace, Sonar, CodeQL, Gitleaks, dependency audits or SBOM generation, with explicit severity/failure policy and no silent scanner suppression.
+- Trivy Phase 1 is merged and automated through #129/PR #141. It must continue to complement, not duplicate or replace, Sonar, CodeQL, Gitleaks, dependency audits or SBOM generation, with explicit severity/failure policy and no silent scanner suppression.
 - #115 retains the repository-level Dependabot settings follow-up without being placed ahead of the accepted critical path.
 - PR #28: compare against current `main`, split useful hardware/API/QA/container/handoff work into focused PRs and close the historical draft.
 - PR #30: reconstruct Preview Portal from current `main`; do not merge the old 146-commit branch wholesale.
-- Staging and later readiness work retain their existing evidence gates and are not placed ahead of `#129 → AUDIT A → #131` by this board.
+- Staging and later readiness work retain their existing evidence gates and are not placed ahead of `AUDIT A → #131` by this board.
 
 ## Active legacy pull request portfolio
 
@@ -152,11 +151,10 @@ PR #27 and PR #31 are closed as superseded. Neither is an active integration tar
 
 Mandatory execution critical path under accepted BSS MASTER ROADMAP v4.9:
 
-1. Review and complete #129.
-2. Complete AUDIT A.
-3. Complete #131.
+1. Complete AUDIT A.
+2. Complete #131.
 
-#139 and Hardware 9A remain parallel and non-blocking. Trivy is #129 on the mandatory path; #115, PR #28, Preview, staging, later hardware readiness and later readiness work retain their existing routing without being promoted ahead of the accepted critical path.
+#139 and Hardware 9A remain parallel and non-blocking. Trivy Phase 1 is merged through #129/PR #141; #115, PR #28, Preview, staging, later hardware readiness and later readiness work retain their existing routing without being promoted ahead of the accepted `AUDIT A → #131` critical path.
 
 ## Management rule
 
