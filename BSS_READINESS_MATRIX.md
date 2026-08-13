@@ -120,19 +120,25 @@ BSS must not be labelled `production ready` merely because Phase 0, repository h
 
 ## Immediate sequence from the current baseline
 
-The accepted BSS MASTER ROADMAP v4.9 controls execution order. This readiness view records evidence and does not redefine or supersede that roadmap.
+The accepted BSS MASTER ROADMAP v4.9 in `docs/bss-os/MASTER_ROADMAP.md` controls execution order. This readiness view records evidence and does not redefine or supersede that roadmap.
 
 Mandatory execution critical path:
 
-1. Complete AUDIT A.
-2. Complete #131 — freeze the BSS v1 Product Contract before Design Foundation.
+1. Complete #143 — correct manager terminal-history department scope.
+2. Complete #145 — make historical attendance calculation reproducible.
+3. Complete #144 — preserve delayed/offline `USER_ACKNOWLEDGED` attendance integrity.
+4. Complete #146 — make locked-period/reporting results deterministic.
+5. Run the targeted AUDIT A recheck.
+6. Complete #131 — freeze the BSS v1 Product Contract before Design Foundation.
+
+AUDIT A is `BLOCKED`. Roadmap v4.9 originally routed the accepted path through `AUDIT A -> #131`; the four focused BLACK/GATE blockers above were inserted afterward through the accepted gap-audit/reopen rule when AUDIT A found concrete defects. #131 remains `NOT AUTHORIZED TO FREEZE` until all four blockers are resolved and the targeted recheck passes. The remaining AUDIT A contract decisions remain inputs to #131 and do not create child issues by default.
 
 Parallel, non-blocking work:
 
 - #139 — review-first disposition of the 11 PowerShell New Code findings without bulk cleanup or behavior changes made solely for scanner cosmetics; #139 is not a blocker for the mandatory path.
-- Hardware 9A remains parallel and retains its existing physical-evidence boundaries.
+- Hardware #132 remains parallel and non-blocking and retains its existing physical-evidence boundaries.
 
-Trivy Phase 1 is merged and automated through #129/PR #141. #115, PR #28 retirement, Preview reconstruction, staging, later hardware readiness and later readiness work remain tracked, but this document does not place them ahead of the accepted next critical path `AUDIT A → #131`.
+Trivy Phase 1 is merged and automated through #129/PR #141. #115, PR #28 retirement, Preview reconstruction, staging, later hardware readiness and later readiness work remain tracked, but this document does not place them ahead of the current critical path `#143 -> #145 -> #144 -> #146 -> targeted AUDIT A recheck -> #131`.
 
 ## Working without blind spots
 
