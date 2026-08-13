@@ -12,6 +12,7 @@ Operating phase: `POST-CONSOLIDATION / INDEPENDENT ANALYSIS GOVERNANCE`
 | Product feature registry | ACTIVE / EVIDENCE MAINTENANCE | P1 | Feature status stays aligned with merged code, API, data, security, tests and release evidence |
 | Decision log | ACTIVE | P0 | Material decisions reflect the current merged baseline and later changes are versioned |
 | Risk register | ACTIVE | P0 | Critical risks have owners, mitigation and measurable closure criteria |
+| Master Roadmap governance | ACCEPTED / EVIDENCE PENDING | P0 | v4.9 A-V ownership, H1-H11 routing, AUDIT A-D, PRG and vendor/cost controls remain synchronized with implementation and evidence |
 | Codex operating instructions | DONE / EVOLVING | Maintain | `AGENTS.md v3` is authoritative after #130/PR #138 synchronized the proven automation foundation |
 | Development automation foundation | DONE / EVOLVING | Maintain | #126/PR #134 preflight/verification, #125/PR #135 Playwright-mode reconciliation and #127/PR #137 issue-driven profiles are merged and proven; local wrappers complement rather than replace GitHub gates |
 | PR #31 retirement | DONE | P1 | Unique useful controls extracted/rejected with evidence and historical PR #31 closed without merge |
@@ -118,17 +119,21 @@ The local, PR-level and protected-main GitHub Actions evidence match. Zero suppo
 
 Detailed provenance, scan contract, counts, classification, evidence limits and rollback are recorded in `docs/security/TRIVY_BASELINE.md`.
 
-### Accepted MASTER ROADMAP v4.9 continuation
+### Accepted MASTER ROADMAP v4.9 continuation and AUDIT A reopen
 
-This board records but does not redefine or supersede the accepted BSS MASTER ROADMAP v4.9 execution order:
+Roadmap v4.9 originally routed the accepted execution order through:
 
 1. AUDIT A;
 2. #131 — freeze the BSS v1 Product Contract before Design Foundation.
 
+AUDIT A then found four concrete BLACK/GATE defects. Applying the accepted gap-audit/reopen rule inserted #143, #145, #144 and #146 before a targeted AUDIT A recheck; this preserves rather than rewrites the historical v4.9 route. #131 is `NOT AUTHORIZED TO FREEZE` until all four blockers are resolved and that recheck passes. Remaining AUDIT A contract decisions stay as #131 inputs and create no child issues by default.
+
+The global A-V ownership map, H1-H11 hardening routes, formal AUDIT A-D gates, Production Readiness Evidence Track, decision maturity/reversibility rules and cost/vendor activation discipline are codified in `docs/bss-os/MASTER_ROADMAP.md`. Mutable plan limits and paid triggers are tracked in `docs/bss-os/TOOL_SERVICE_COST_REGISTER.md`. These documents do not convert governance hardening into implementation or readiness evidence.
+
 ### Parallel, non-blocking lanes
 
 - #139 reviews and dispositions the 11 current PowerShell findings without blocking the mandatory critical path.
-- Hardware 9A remains parallel and does not replace its required physical metrology, validation or acceptance evidence.
+- Hardware #132 remains parallel and non-blocking and does not replace its required physical metrology, validation or acceptance evidence.
 
 ### Later routed work
 
@@ -136,7 +141,7 @@ This board records but does not redefine or supersede the accepted BSS MASTER RO
 - #115 retains the repository-level Dependabot settings follow-up without being placed ahead of the accepted critical path.
 - PR #28: compare against current `main`, split useful hardware/API/QA/container/handoff work into focused PRs and close the historical draft.
 - PR #30: reconstruct Preview Portal from current `main`; do not merge the old 146-commit branch wholesale.
-- Staging and later readiness work retain their existing evidence gates and are not placed ahead of `AUDIT A → #131` by this board.
+- Staging and later readiness work retain their existing evidence gates and are not placed ahead of `#143 -> #145 -> #144 -> #146 -> targeted AUDIT A recheck -> #131` by this board.
 
 ## Active legacy pull request portfolio
 
@@ -151,10 +156,14 @@ PR #27 and PR #31 are closed as superseded. Neither is an active integration tar
 
 Mandatory execution critical path under accepted BSS MASTER ROADMAP v4.9:
 
-1. Complete AUDIT A.
-2. Complete #131.
+1. Complete #143.
+2. Complete #145.
+3. Complete #144.
+4. Complete #146.
+5. Run the targeted AUDIT A recheck.
+6. Complete #131.
 
-#139 and Hardware 9A remain parallel and non-blocking. Trivy Phase 1 is merged through #129/PR #141; #115, PR #28, Preview, staging, later hardware readiness and later readiness work retain their existing routing without being promoted ahead of the accepted `AUDIT A → #131` critical path.
+AUDIT A is `BLOCKED`, and #131 remains `NOT AUTHORIZED TO FREEZE` until the four BLACK/GATE blockers are resolved and the targeted recheck passes. #139 and Hardware #132 remain parallel and non-blocking. Trivy Phase 1 is merged through #129/PR #141; #115, PR #28, Preview, staging, later hardware readiness and later readiness work retain their existing routing without being promoted ahead of the current critical path.
 
 ## Management rule
 
