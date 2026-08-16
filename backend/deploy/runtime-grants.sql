@@ -16,7 +16,8 @@ GRANT INSERT ON TABLE
   users, user_department_scopes, user_invitations, auth_sessions,
   terminals, terminal_credentials, attendance_events, attendance_days,
   leave_requests, correction_requests, report_exports, audit_events,
-  holiday_calendars, terminal_request_nonces, terminal_sync_events
+  holiday_calendars, terminal_request_nonces, terminal_sync_events,
+  attendance_calculations
 TO :"runtime_role";
 GRANT UPDATE ON TABLE
   organizations, departments, shifts, workers, holidays, rfid_cards,

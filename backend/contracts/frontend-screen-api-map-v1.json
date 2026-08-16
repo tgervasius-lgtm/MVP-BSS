@@ -1,18 +1,18 @@
 {
-  "contract": "BSS Frontend v1.0.0 to Backend MVP API v1.1",
+  "contract": "BSS Frontend v1.0.0 to Backend MVP API v1.2",
   "readiness": "FULL_PASS",
-  "contractReviewedAt": "2026-07-17",
+  "contractReviewedAt": "2026-08-16",
   "frontendBaseline": "91323c7cdbbbbf7b965c4926c94a11af6d31bf62",
   "repositoryBaseline": "e35b53af848b855c986e467a6efacdea4dde777e",
   "openapi": {
     "file": "openapi/bss-mvp-api-v1.yaml",
-    "sha256": "dc6716fa17f7751182567ed1b192eec244bc9efaf7d2e8d96244782d66ca2c4c",
-    "version": "1.1.0",
+    "sha256": "09fd36e21bdd2c43982e896718e553948fa258c6b23ce9f07faa78adad6e20c9",
+    "version": "1.2.0",
     "status": "MVP_IMPLEMENTED",
-    "paths": 43,
-    "operations": 54,
+    "paths": 44,
+    "operations": 55,
     "phaseAImplementedOperations": 30,
-    "phaseBImplementedOperations": 54
+    "phaseBImplementedOperations": 55
   },
   "statusLegend": {
     "covered": "Approved OpenAPI v1 contains the required operation and authoritative server semantics.",

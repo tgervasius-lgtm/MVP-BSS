@@ -4,7 +4,7 @@
 | --- | --- |
 | Stil | modularni monolit |
 | Runtime | Node.js 22.9+ / TypeScript / Fastify 5 |
-| API | REST `/api/v1`, OpenAPI `1.1.0` |
+| API | REST `/api/v1`, OpenAPI `1.2.0` |
 | Baza | PostgreSQL 16, eksplicitni SQL i `pg` |
 | Tenant model | shared schema, `organization_id`, FORCE RLS |
 | Sesije | opaque access/refresh tokeni u sigurnim kolačićima |
@@ -34,6 +34,7 @@ Modularni monolit zadržava attendance, odluke, audit i izvještaj u jednoj ACID
 | `PgAuthService` | login, invitation accept, session resolve/rotate/logout |
 | `PgPhaseAService` | organizacija, workforce, RFID, fond, preview, dashboard |
 | `PgMvpService` | evidencija, odluke, terminal ingest, audit i izvozi |
+| `PgAttendanceCalculationService` | event-effective konfiguracija, izvedeni attendance dan i eksplicitni ponovni izračun |
 | `reports` | CSV, XLSX i PDF iz jedinstvenog preview dataseta |
 | `src/adapters/api*` | role-aware frontend hidratacija i stvarne HTTP mutacije |
 
@@ -81,11 +82,26 @@ Batch se obrađuje serijski po slijedu. Per-tenant transakcijski advisory lock u
 - događaj više od pet minuta u budućnosti vraća `EVENT_IN_FUTURE`;
 - nepoznata/blokirana kartica vraća odbijeni raw događaj;
 - radnikov odjel u trenutku `occurredAt` sprema se kao nepromjenjivi snapshot na raw i sync događaju; zakašnjeli događaj koristi isti event-time interval, a nedokaziv povijesni odjel ostaje `NULL` i nevidljiv Voditelju;
-- prijava stvara dan sa snapshotom smjene;
+- prijava stvara dan sa snapshotom smjene, vremenske zone, verzije konfiguracije i verzije izračuna;
 - odjava računa minute, ali odbija negativno ili dulje od 16 sati;
-- raw događaj, sync read model i audit su append-only.
+- prihvaćeni raw događaj nepromjenjivo se povezuje s izvedenim danom;
+- raw događaj, sync read model, calculation history i audit su append-only.
 
 Heartbeat ažurira dostupnost i dijagnostiku, ali ne potvrđuje offline red i ne pomiče event cursor.
+
+## Povijesno reproducibilan izračun attendancea
+
+`attendance-v1` odabire organizacijsku IANA vremensku zonu, worker-to-shift assignment i shift definiciju iz intervala `[effective_from, effective_to)` koji sadrži `occurredAt`. Pri prvom prihvaćanju autoritativnog raw događaja jednom razrješava UTC instant u lokalni timestamp i sprema timezone-version ID, korišteni IANA naziv i UTC offset na append-only događaj. Promjena trenutačne zone, smjene, dodjele ili budućih tzdata pravila zato ne mijenja zakašnjeli ni već izvedeni povijesni rezultat. Predmigracijska konfiguracija i lokalna interpretacija se ne pogađaju: takvi zapisi nose `legacy-unversioned / legacy_unavailable`, a operacije koje zahtijevaju povijesnu zonu, interpretaciju ili izvorne događaje fail-closed.
+
+Deterministična pravila v1:
+
+- UTC `occurredAt` uvijek je ulaz; PostgreSQL IANA pretvorba event-effective zone izvršava se točno jednom pri prihvaćanju, a calculation/recalculation i prikaz poslije koriste spremljeni lokalni timestamp i offset bez ponovne tzdata/`Intl` pretvorbe;
+- kod noćne smjene (`end <= start`) događaj od lokalne ponoći zaključno s `end` pripada prethodnom poslovnom datumu;
+- DST gap ne sintetizira wall-clock unos: sprema se stvarna UTC-izvedena lokalna interpretacija; u foldu kombinacija UTC instanta, lokalnog timestampa i offseta jednoznačno razlikuje prihvaćenu pojavu;
+- planirane minute ostaju ugovorne wall-clock minute smjene umanjene za pauzu;
+- isti raw događaji, njihove nepromjenjive event-time interpretacije, konfiguracijski snapshot i `attendance-v1` daju isti ugovorni rezultat bez aktualnih timezone pravila.
+
+Prema DEC-024, `POST /attendance/{attendanceDayId}/recalculations` dopušten je samo Administratoru i samo za nezaključano/nefinalno razdoblje. Zahtijeva `If-Match`, podržanu verziju i razlog te odbija svaki postojeći `attendance_month_locks` zapis, odobrenu korekciju ili nepotpunu legacy/event-interpretation provenijenciju. Svaki prolaz dodaje nepromjenjivi calculation zapis sa source event ID-jevima i njihovim lokalnim timestamp/offset dokazom, before/after stanjem, actorom, razlogom, calculation/configuration verzijom, supersession vezom i pogođenim datumom te standardni audit event. Raw događaji se nikad ne mijenjaju. Issue #145 ne otvara razdoblje niti uvodi lifecycle; zasebno upravljani auditirani reopen prije recalculationa/relocka ostaje isključivo u opsegu issuea #146.
 
 ## Godišnji i korekcije
 
@@ -106,7 +122,7 @@ Fastify može posluživati `dist/` preko `FRONTEND_ROOT`; relativni put se pretv
 - pokušava `/me`, a zatim prikazuje login ako nema sesije;
 - hidrira samo resurse dopuštene ulozi;
 - mapira UUID-e u prikazne identifikatore bez spremanja poslovnog stanja lokalno;
-- računa organizacijski “danas” i correction wall-clock vrijednosti u tenant IANA vremenskoj zoni, uključujući DST;
+- računa organizacijski “danas” u trenutačnoj tenant zoni, ali terminalski attendance prikaz uzima spremljeni ugovorni lokalni timestamp događaja umjesto ponovne browser `Intl` pretvorbe; correction lifecycle ostaje zaseban;
 - šalje `If-Match` za konkurentne mutacije;
 - na 401 pokušava jednu refresh rotaciju;
 - dijeli jednu refresh rotaciju između konkurentnih 401 odgovora i prekida mrežni zahtjev nakon 20 sekundi;
@@ -120,7 +136,11 @@ Service worker cacheira samo shell/brand assete. Navigacija je network-first/no-
 
 ## Migracije i deploy
 
-`001`–`009` su checksumirane i advisory-lockane. Deploy redoslijed je: backup/recovery point, forward migracije, najmanji runtime grantovi, bootstrap samo za novu instalaciju, aplikacija, `/readyz` i smoke. Bootstrap unaprijed generira tenant ID i postavlja RLS kontekst pa radi i s `FORCE RLS` vlasnikom bez superuser ovlasti. Runtime i migrator ne smiju biti ista DB uloga u produkciji.
+`001`–`010` su checksumirane i advisory-lockane. Deploy redoslijed je: backup/recovery point, forward migracije, najmanji runtime grantovi, bootstrap samo za novu instalaciju, aplikacija, `/readyz` i smoke. Bootstrap unaprijed generira tenant ID i postavlja RLS kontekst pa radi i s `FORCE RLS` vlasnikom bez superuser ovlasti. Runtime i migrator ne smiju biti ista DB uloga u produkciji.
+
+Migracija `010` dodaje samo novu povijest i nullable raw-link/provenance stupce, uključujući event-effective timezone-version ID/naziv, resolved local timestamp i UTC offset na `attendance_events`. Down migracija je razvojni rollback prije bilježenja novih događaja. Nakon što `010` zabilježi konfiguracijske intervale ili calculation evidence, produkcijski oporavak je forward-only: sačuvati raw i derived/calculation redove, popraviti novu migraciju/aplikaciju i ponovno verificirati. Vraćanje stare aplikacije bez koordinirane podatkovne i sigurnosne analize ponovno bi otvorilo povijesnu nereproducibilnost; brisanje `010` tablica ili novih event-interpretation stupaca uništilo bi dokazni lanac.
+
+Nove history tablice imaju `organization_id`, same-tenant vanjske ključeve i `FORCE RLS`; runtime može izravno dodavati samo append-only calculation redove, dok security-definer triggeri s fiksnim `search_path` zatvaraju i otvaraju konfiguracijske intervale. Efektivni lookup indeksi vode s `(organization_id, entity_id, effective_from DESC, effective_to)`, prihvaćeni raw izvori s `(organization_id, attendance_day_id, occurred_at, id)`, a calculation timeline s `(organization_id, attendance_day_id, created_at DESC, id DESC)`. To podržava event-time odabir i audit bez općeg konfiguracijskog frameworka; reprezentativni query plan/load dokaz ostaje odvojena buduća performance evidencija.
 
 Istekli binarni report artefakti, nonceovi i stare sesije čiste se per-tenant platformskim poslom iz `backend/deploy/maintenance.sql`. Audit i raw evidencijski događaji nisu dio tog čišćenja.
 

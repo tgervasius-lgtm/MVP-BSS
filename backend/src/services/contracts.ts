@@ -122,6 +122,27 @@ export type TerminalSyncEventView = {
   rejectionCode: string | null;
 };
 export type AttendanceStatus = "active" | "complete" | "late" | "incomplete" | "corrected";
+export type AttendanceCalculationVersion = "attendance-v1";
+export type AttendanceEventTimeInterpretation = {
+  sourceEventId: string;
+  eventType: "check_in" | "check_out";
+  utcInstant: string;
+  timezoneVersionId: string;
+  timezone: string;
+  localTimestamp: string;
+  utcOffsetSeconds: number;
+};
+export type AttendanceProvenance = {
+  status: "complete" | "legacy_unavailable";
+  calculationId: string | null;
+  calculationVersion: AttendanceCalculationVersion | "legacy-unversioned";
+  timezone: string | null;
+  timezoneVersionId: string | null;
+  shiftVersionId: string | null;
+  shiftAssignmentId: string | null;
+  sourceEventIds: string[];
+  eventTimeInterpretations: AttendanceEventTimeInterpretation[];
+};
 export type AttendanceDayView = {
   id: string;
   workerId: string;
@@ -135,6 +156,7 @@ export type AttendanceDayView = {
   balanceMinutes: number;
   status: AttendanceStatus;
   source: "terminal" | "approved_correction";
+  provenance: AttendanceProvenance;
   revision: string;
 };
 export type AttendancePageView = Page<AttendanceDayView> & {
@@ -196,6 +218,20 @@ export type CorrectionRequestWrite = {
 export type CorrectionDecisionView = {
   request: CorrectionRequestView;
   attendanceDay: AttendanceDayView;
+  auditEventId: string;
+};
+export type AttendanceRecalculationWrite = {
+  calculationVersion: AttendanceCalculationVersion;
+  reason: string;
+};
+export type AttendanceRecalculationView = {
+  calculationId: string;
+  supersedesCalculationId: string;
+  calculationVersion: AttendanceCalculationVersion;
+  affectedPeriod: { from: string; to: string };
+  reason: string;
+  before: AttendanceDayView;
+  after: AttendanceDayView;
   auditEventId: string;
 };
 export type ReportFormat = "csv" | "xlsx" | "pdf";
@@ -322,6 +358,7 @@ export interface MvpService extends PhaseAService {
   listApprovedLeaveCalendar(actor: ActorContext, filters: { from: string; to: string }): Promise<ApprovedLeaveCalendarView>;
   listAttendance(actor: ActorContext, filters: { from: string; to: string; departmentId?: string; workerId?: string; attendanceStatus?: AttendanceStatus; cursor?: string; limit: number }): Promise<AttendancePageView>;
   getWorkerAttendance(actor: ActorContext, workerId: string, filters: { from: string; to: string; cursor?: string; limit: number }): Promise<AttendancePageView>;
+  recalculateAttendanceDay(actor: ActorContext, attendanceDayId: string, input: AttendanceRecalculationWrite, revision: string, requestId: string): Promise<AttendanceRecalculationView>;
   listLeaveRequests(actor: ActorContext, filters: { from: string; to: string; departmentId?: string; leaveStatus?: RequestStatus; cursor?: string; limit: number }): Promise<Page<LeaveRequestView>>;
   createLeaveRequest(actor: ActorContext, input: LeaveRequestWrite, requestId: string): Promise<LeaveRequestView>;
   approveLeaveRequest(actor: ActorContext, requestIdValue: string, revision: string, note: string | undefined, requestId: string): Promise<LeaveRequestView>;

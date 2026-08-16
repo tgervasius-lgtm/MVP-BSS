@@ -436,6 +436,28 @@ test("Backend MVP Phase B routes expose every operational flow with role and ori
   });
   assert.equal(ownAttendance.statusCode, 200);
 
+  const recalculationPayload = { calculationVersion: "attendance-v1", reason: "Provjera determinističnog izračuna" };
+  const adminRecalculation = await app.inject({
+    method: "POST",
+    url: `/api/v1/attendance/${IDS.attendance}/recalculations`,
+    headers: { ...unsafe, "if-match": '"1"' },
+    cookies: session("admin"),
+    payload: recalculationPayload
+  });
+  assert.equal(adminRecalculation.statusCode, 200);
+  assert.equal(adminRecalculation.json().calculationVersion, "attendance-v1");
+  assert.equal(adminRecalculation.headers.etag, '"2"');
+  for (const role of ["manager", "worker", "accountant"]) {
+    const deniedRecalculation = await app.inject({
+      method: "POST",
+      url: `/api/v1/attendance/${IDS.attendance}/recalculations`,
+      headers: { ...unsafe, "if-match": '"1"' },
+      cookies: session(role),
+      payload: recalculationPayload
+    });
+    assert.equal(deniedRecalculation.statusCode, 403, `${role} must not recalculate attendance`);
+  }
+
   const malformedWorkerId = await app.inject({
     method: "GET",
     url: "/api/v1/workers/00000000-0000-0000-0000-------------/attendance?from=2026-07-01&to=2026-07-31",
@@ -595,7 +617,7 @@ test("all Backend MVP Phase B operations exist in OpenAPI and resolve to Fastify
     "listDepartments", "createDepartment", "updateDepartment", "listHolidays", "replaceHolidaysForYear", "listUsers", "inviteUser",
     "updateUser", "listWorkers", "createWorker", "getWorker", "updateWorker", "deactivateWorker", "activateWorker",
     "listShifts", "createShift", "updateShift", "listWorkerRfidCards", "assignWorkerRfidCard", "blockRfidCard",
-    "listAttendance", "getWorkerAttendance", "listApprovedLeaveCalendar",
+    "listAttendance", "getWorkerAttendance", "recalculateAttendanceDay", "listApprovedLeaveCalendar",
     "listLeaveRequests", "createLeaveRequest", "listLeaveBalances", "approveLeaveRequest", "rejectLeaveRequest", "cancelOwnLeaveRequest",
     "listCorrectionRequests", "createCorrectionRequest", "approveCorrectionRequest", "rejectCorrectionRequest", "cancelOwnCorrectionRequest",
     "listReportExports", "createReportExport", "createReportPreview", "getReportExport", "downloadReportExport",
@@ -618,7 +640,7 @@ test("all Backend MVP Phase B operations exist in OpenAPI and resolve to Fastify
   }
   assert.deepEqual([...expected].filter((operation) => !actual.has(operation)), []);
   const metadata = (document as { info?: { version?: string; "x-bss-status"?: string } }).info;
-  assert.equal(metadata?.version, "1.1.0");
+  assert.equal(metadata?.version, "1.2.0");
   assert.equal(metadata?.["x-bss-status"], "MVP_IMPLEMENTED");
   assert.equal(document.paths["/terminal/v1/events/batch"]?.post?.operationId, "ingestTerminalEventBatch");
 });
@@ -716,8 +738,8 @@ test("OpenAPI v1 and the frozen screen map have no unresolved contract gates", a
       .map(([, operation]) => operation.operationId)
       .filter((operationId): operationId is string => typeof operationId === "string")
   );
-  assert.equal(Object.keys(paths).length, 43);
-  assert.equal(operationIds.length, 54);
+  assert.equal(Object.keys(paths).length, 44);
+  assert.equal(operationIds.length, 55);
   assert.equal(new Set(operationIds).size, operationIds.length);
 
   const nonSessionOperations = new Set(["login", "refreshSession", "acceptInvitation", "ingestTerminalEventBatch", "terminalHeartbeat"]);
@@ -760,9 +782,9 @@ test("OpenAPI v1 and the frozen screen map have no unresolved contract gates", a
     contractGatesBeforeLaterPhases: string[];
   };
   assert.equal(screenMap.readiness, "FULL_PASS");
-  assert.equal(screenMap.openapi.version, "1.1.0");
-  assert.equal(screenMap.openapi.paths, 43);
-  assert.equal(screenMap.openapi.operations, 54);
+  assert.equal(screenMap.openapi.version, "1.2.0");
+  assert.equal(screenMap.openapi.paths, 44);
+  assert.equal(screenMap.openapi.operations, 55);
   const canonicalOpenApiSource = source.replace(/\r\n/g, "\n");
   assert.equal(screenMap.openapi.sha256, createHash("sha256").update(canonicalOpenApiSource).digest("hex"));
   assert.deepEqual(screenMap.contractGatesBeforeLaterPhases, []);
@@ -823,6 +845,9 @@ test("migrations force tenant RLS and make raw evidence append-only", async () =
   const phaseB = await readFile(join(repositoryRoot, "backend/migrations/007_backend_mvp_phase_b.up.sql"), "utf8");
   const hardening = await readFile(join(repositoryRoot, "backend/migrations/008_production_hardening.up.sql"), "utf8");
   const departmentScope = await readFile(join(repositoryRoot, "backend/migrations/009_event_effective_department_scope.up.sql"), "utf8");
+  const calculationHistory = await readFile(join(repositoryRoot, "backend/migrations/010_attendance_calculation_history.up.sql"), "utf8");
+  const attendanceCalculationService = await readFile(join(repositoryRoot, "backend/src/services/pg-attendance-calculation-service.ts"), "utf8");
+  const frontendState = await readFile(join(repositoryRoot, "src/adapters/api-state.js"), "utf8");
   const grants = await readFile(join(repositoryRoot, "backend/deploy/runtime-grants.sql"), "utf8");
   assert.match(security, /FORCE ROW LEVEL SECURITY/);
   assert.match(security, /attendance_events_immutable/);
@@ -851,7 +876,27 @@ test("migrations force tenant RLS and make raw evidence append-only", async () =
   assert.match(departmentScope, /ADD COLUMN effective_department_id uuid/g);
   assert.match(departmentScope, /transaction_timestamp\(\)/);
   assert.doesNotMatch(departmentScope, /UPDATE\s+(?:attendance_events|terminal_sync_events)\s+SET\s+effective_department_id/is);
+  assert.match(calculationHistory, /CREATE TABLE organization_timezone_versions/);
+  assert.match(calculationHistory, /CREATE TABLE shift_configuration_versions/);
+  assert.match(calculationHistory, /CREATE TABLE worker_shift_assignments/);
+  assert.match(calculationHistory, /CREATE TABLE attendance_calculations/);
+  assert.match(calculationHistory, /ALTER TABLE attendance_calculations FORCE ROW LEVEL SECURITY/);
+  assert.match(calculationHistory, /CREATE TRIGGER attendance_calculations_immutable/);
+  assert.match(calculationHistory, /ADD COLUMN attendance_day_id uuid/);
+  assert.match(calculationHistory, /ADD COLUMN timezone_version_id uuid/);
+  assert.match(calculationHistory, /ADD COLUMN resolved_local_at timestamp without time zone/);
+  assert.match(calculationHistory, /ADD COLUMN resolved_utc_offset_seconds integer/);
+  assert.match(calculationHistory, /attendance_event_timezone_same_tenant/);
+  assert.match(calculationHistory, /attendance_event_interpretation_complete/);
+  assert.match(calculationHistory, /DEFAULT 'legacy-unversioned'/);
+  assert.match(calculationHistory, /Earlier intervals are intentionally not guessed/);
+  assert.doesNotMatch(calculationHistory, /UPDATE\s+attendance_events\s+SET\s+attendance_day_id/is);
+  const recalculationBody = attendanceCalculationService.slice(attendanceCalculationService.indexOf("async recalculateAttendanceDay"));
+  assert.doesNotMatch(recalculationBody, /AT TIME ZONE/);
+  assert.match(recalculationBody, /persistedInterpretation/);
+  assert.match(frontendState, /start:contractualAttendanceTime\(item,'check_in'\)/);
   assert.match(grants, /REVOKE ALL PRIVILEGES ON TABLE bss_schema_migrations/);
+  assert.match(grants, /attendance_calculations/);
   assert.match(grants, /GRANT DELETE ON TABLE holidays, user_department_scopes, terminal_request_nonces/);
   assert.doesNotMatch(grants, /GRANT (?:ALL|DELETE) ON ALL TABLES/);
   assert.doesNotMatch(grants, /GRANT INSERT ON TABLE\s+organizations/);

@@ -1,6 +1,6 @@
 # BSS Backend MVP – Faza B
 
-Fastify/TypeScript API za frozen BSS frontend v1.0.0. OpenAPI `1.1.0` ima 54 implementirane operacije nad PostgreSQL-om 16.
+Fastify/TypeScript API za frozen BSS frontend v1.0.0. OpenAPI `1.2.0` ima 55 implementiranih operacija nad PostgreSQL-om 16.
 
 ## Pokretanje iz korijena repozitorija
 

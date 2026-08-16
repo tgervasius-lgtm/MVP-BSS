@@ -6,7 +6,7 @@ BSS je modularni monolit za evidenciju radnog vremena, RFID terminale, godišnje
 
 - Node.js 22.9+, TypeScript 5, Fastify 5
 - PostgreSQL 16, eksplicitni SQL, transakcije i `FORCE ROW LEVEL SECURITY`
-- REST `/api/v1`, OpenAPI 1.1.0 (43 putanje, 54 operacije)
+- REST `/api/v1`, OpenAPI 1.2.0 (44 putanje, 55 operacija)
 - browser sesije u `HttpOnly`, `SameSite=Strict`, produkcijski `Secure` kolačićima
 - isti origin za frontend i API; service worker nikada ne cacheira `/api/`
 - nema mikroservisa, queuea, object storagea, MFA/SSO-a, payrolla ni ERP integracije u MVP-u
@@ -18,7 +18,7 @@ BSS je modularni monolit za evidenciju radnog vremena, RFID terminale, godišnje
 | `backend/src/http` | rute, JSON Schema, Origin zaštita i stabilni error envelope |
 | `backend/src/services` | auth, workforce, evidencija, odluke, izvještaji i terminalski tok |
 | `backend/src/db` | pool, zajednički transakcijski lifecycle, tenant kontekst, migracije i bootstrap |
-| `backend/migrations` | nepromjenjive checksumirane migracije `001`–`009` |
+| `backend/migrations` | nepromjenjive checksumirane migracije `001`–`010` |
 | `backend/deploy` | najmanji runtime grantovi i per-tenant maintenance SQL |
 | `openapi` | strojni API ugovor |
 | `src/adapters/api*` | API klijent, role-aware hidratacija i stvarne frontend mutacije |

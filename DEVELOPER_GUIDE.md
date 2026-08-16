@@ -1,6 +1,6 @@
 # BSS Developer Guide
 
-Ovaj dokument je provjeren put od čistog klona do lokalnog BSS sustava. Frontend `v1.0.0`, OpenAPI `1.1.0` i migracije `001`–`009` trenutačni su ugovor; promjena poslovnog ponašanja prvo mora promijeniti taj ugovor i pripadajuće testove.
+Ovaj dokument je provjeren put od čistog klona do lokalnog BSS sustava. Frontend `v1.0.0`, OpenAPI `1.2.0` i migracije `001`–`010` trenutačni su ugovor; promjena poslovnog ponašanja prvo mora promijeniti taj ugovor i pripadajuće testove.
 
 ## 1. Čisti lokalni start
 
@@ -79,7 +79,7 @@ npm --prefix backend run test:integration
 ## 4. Dodavanje migracije
 
 1. Ne mijenjajte već primijenjene migracije ni njihov checksum.
-2. Dodajte sljedeći numerirani par, primjerice `009_naziv.up.sql` i `009_naziv.down.sql`.
+2. Dodajte sljedeći numerirani par, primjerice `011_naziv.up.sql` i `011_naziv.down.sql`.
 3. Svaka tenant tablica mora imati `organization_id`, složene tenant strane ključeve gdje je primjenjivo te `ENABLE` i `FORCE ROW LEVEL SECURITY` policy.
 4. Tvrde invariante postavite u PostgreSQL constraint/unique index, a razumljivu validaciju zadržite i u servisu.
 5. Za novu tablicu ili funkciju ažurirajte `backend/deploy/runtime-grants.sql` po načelu najmanjih privilegija.
