@@ -6,7 +6,7 @@
 | Frontend ugovor | Frontend `v1.0.0`, bez UX/UI promjena |
 | OpenAPI | `1.1.0`, status `MVP_IMPLEMENTED` |
 | Pokrivenost | 43 putanje / 54 operacije / 54 implementirane operacije |
-| Migracije | `001`–`008`, PostgreSQL 16 |
+| Migracije | `001`–`009`, PostgreSQL 16 |
 | Faza | Backend MVP – Faza B |
 | Readiness | **FULL PASS — PostgreSQL i full-stack browser CI zeleni** |
 | Otvorene readiness stavke | **0** |

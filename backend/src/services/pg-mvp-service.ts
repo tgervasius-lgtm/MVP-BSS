@@ -965,9 +965,8 @@ export class PgMvpService extends PgPhaseAService implements MvpService {
       );
       let lastSequence = Number(terminalState.rows[0]?.last_sequence ?? 0);
       for (const event of input.events) {
-        let status: "synced" | "duplicate" | "rejected" = "synced";
-        let code: string | null = null;
-        let workerId: string | null = null;
+        let status: "synced" | "duplicate" | "rejected" = "synced", code: string | null = null;
+        let workerId: string | null = null, effectiveDepartmentId: string | null = null;
         if (Date.parse(event.occurredAt) > Date.now() + 5 * 60_000) {
           status = "rejected";
           code = "EVENT_IN_FUTURE";
@@ -975,13 +974,13 @@ export class PgMvpService extends PgPhaseAService implements MvpService {
           status = "rejected";
           code = "INVALID_CARD_HASH";
         }
-        const existing = await client.query<{ id: string }>(
-          "SELECT id FROM attendance_events WHERE terminal_id = $1 AND device_event_id = $2",
+        const existing = await client.query<{ id: string; worker_id: string | null; effective_department_id: string | null }>(
+          "SELECT id, worker_id, effective_department_id FROM attendance_events WHERE terminal_id = $1 AND device_event_id = $2",
           [terminalId, event.deviceEventId]
         );
         if (existing.rows[0]) {
           status = "duplicate";
-          code = null;
+          code = null; workerId = existing.rows[0].worker_id; effectiveDepartmentId = existing.rows[0].effective_department_id;
         } else if (event.sequence <= lastSequence) {
           status = "rejected";
           code = "SEQUENCE_OUT_OF_ORDER";
@@ -989,20 +988,21 @@ export class PgMvpService extends PgPhaseAService implements MvpService {
           lastSequence = event.sequence;
         }
 
-        let card: { id: string; worker_id: string } | undefined;
+        let card: { id: string; worker_id: string; effective_department_id: string | null } | undefined;
         if (status === "synced") {
           const cardResult = await client.query<{ id: string; worker_id: string }>(
             `SELECT c.id, c.worker_id FROM rfid_cards c JOIN workers w ON w.id = c.worker_id
              WHERE c.uid_hash = decode($1, 'hex') AND c.status = 'active' AND w.status = 'active'
-               AND c.valid_from <= $2 AND (c.valid_to IS NULL OR c.valid_to >= $2)`,
-            [event.cardUidHash, event.occurredAt]
-          );
-          card = cardResult.rows[0];
-          if (!card) {
+               AND c.valid_from <= $2 AND (c.valid_to IS NULL OR c.valid_to >= $2) FOR UPDATE OF w`, [event.cardUidHash, event.occurredAt]);
+          const assignedCard = cardResult.rows[0];
+          if (!assignedCard) {
             status = "rejected";
             code = "CARD_NOT_ASSIGNED";
           } else {
-            workerId = card.worker_id;
+            const assignment = await client.query<{ department_id: string }>(`SELECT department_id FROM worker_department_assignments
+              WHERE worker_id = $1 AND effective_from <= $2 AND (effective_to IS NULL OR effective_to > $2)`, [assignedCard.worker_id, event.occurredAt]);
+            card = { ...assignedCard, effective_department_id: assignment.rows[0]?.department_id ?? null };
+            workerId = card.worker_id; effectiveDepartmentId = card.effective_department_id;
           }
         }
 
@@ -1127,13 +1127,13 @@ export class PgMvpService extends PgPhaseAService implements MvpService {
         if (status !== "duplicate") {
           await client.query(
             `INSERT INTO attendance_events (
-               organization_id, terminal_id, worker_id, rfid_card_id, device_event_id, sequence,
+               organization_id, terminal_id, worker_id, effective_department_id, rfid_card_id, device_event_id, sequence,
                occurred_at, event_type, card_uid_hash, device_clock_offset_seconds, processing_status, rejection_code
-             ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, decode($9, 'hex'), $10, $11, $12)`,
+             ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, decode($10, 'hex'), $11, $12, $13)`,
             [
               organizationId,
               terminalId,
-              workerId,
+              workerId, effectiveDepartmentId,
               card?.id ?? null,
               event.deviceEventId,
               event.sequence,
@@ -1148,10 +1148,10 @@ export class PgMvpService extends PgPhaseAService implements MvpService {
         }
         await client.query(
           `INSERT INTO terminal_sync_events (
-             organization_id, terminal_id, device_event_id, sequence, worker_id, occurred_at,
-             event_type, status, rejection_code, request_id
-           ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-          [organizationId, terminalId, event.deviceEventId, event.sequence, workerId, event.occurredAt, event.eventType, status, code, requestId]
+             organization_id, terminal_id, device_event_id, sequence, worker_id, effective_department_id,
+             occurred_at, event_type, status, rejection_code, request_id
+           ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+          [organizationId, terminalId, event.deviceEventId, event.sequence, workerId, effectiveDepartmentId, event.occurredAt, event.eventType, status, code, requestId]
         );
         await client.query(
           `INSERT INTO audit_events (

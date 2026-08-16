@@ -6,7 +6,7 @@
 | Frontend baseline | `91323c7cdbbbbf7b965c4926c94a11af6d31bf62` |
 | API | OpenAPI `1.1.0`, 43 putanje / 54 operacije |
 | Backend | Faza B implementirana na grani `agent/bss-backend-phase-b-v1` |
-| Baza | PostgreSQL 16, migracije `001`–`008` |
+| Baza | PostgreSQL 16, migracije `001`–`009` |
 | Runtime | frontend i API na istom originu |
 | Readiness | **FULL PASS**, 0 otvorenih readiness stavki |
 | Produkcija | nije automatski objavljena niti spojena u `main` |

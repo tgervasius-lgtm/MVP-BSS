@@ -18,7 +18,7 @@ BSS je modularni monolit za evidenciju radnog vremena, RFID terminale, godišnje
 | `backend/src/http` | rute, JSON Schema, Origin zaštita i stabilni error envelope |
 | `backend/src/services` | auth, workforce, evidencija, odluke, izvještaji i terminalski tok |
 | `backend/src/db` | pool, zajednički transakcijski lifecycle, tenant kontekst, migracije i bootstrap |
-| `backend/migrations` | nepromjenjive checksumirane migracije `001`–`008` |
+| `backend/migrations` | nepromjenjive checksumirane migracije `001`–`009` |
 | `backend/deploy` | najmanji runtime grantovi i per-tenant maintenance SQL |
 | `openapi` | strojni API ugovor |
 | `src/adapters/api*` | API klijent, role-aware hidratacija i stvarne frontend mutacije |

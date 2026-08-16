@@ -1294,22 +1294,19 @@ export class PgPhaseAService implements PhaseAService {
       if (!terminal.rows[0]) throw new AppError("NOT_FOUND", "Terminal nije pronađen.");
       const cursor = decodeTimelineCursor(filters.cursor);
       const result = await client.query<TerminalSyncEventRow>(
-        `SELECT id, terminal_id, device_event_id, sequence, worker_id, occurred_at, received_at,
-           event_type, status, rejection_code
-         FROM terminal_sync_events
-         WHERE terminal_id = $1
-           AND received_at >= $2::date AND received_at < ($3::date + interval '1 day')
-           AND ($4::text IS NULL OR status = $4)
-           AND ($5::timestamptz IS NULL OR (received_at, id) < ($5::timestamptz, $6::uuid))
-         ORDER BY received_at DESC, id DESC LIMIT $7`,
-        [terminalId, filters.from, filters.to, filters.eventStatus ?? null, cursor?.at ?? null, cursor?.id ?? null, filters.limit + 1]
+        `SELECT e.id, e.terminal_id, e.device_event_id, e.sequence, e.worker_id, e.occurred_at, e.received_at,
+           e.event_type, e.status, e.rejection_code FROM terminal_sync_events e
+         WHERE e.terminal_id = $1 AND e.received_at >= $2::date AND e.received_at < ($3::date + interval '1 day')
+           AND ($4::text IS NULL OR e.status = $4) AND ($8::text <> 'manager' OR e.effective_department_id = ANY($9::uuid[]))
+           AND ($5::timestamptz IS NULL OR (e.received_at, e.id) < ($5::timestamptz, $6::uuid))
+         ORDER BY e.received_at DESC, e.id DESC LIMIT $7`,
+        [terminalId, filters.from, filters.to, filters.eventStatus ?? null, cursor?.at ?? null, cursor?.id ?? null, filters.limit + 1, actor.role, actor.departmentIds]
       );
       const count = await client.query<{ count: string }>(
-        `SELECT COUNT(*)::text AS count FROM terminal_sync_events
-         WHERE terminal_id = $1
-           AND received_at >= $2::date AND received_at < ($3::date + interval '1 day')
-           AND ($4::text IS NULL OR status = $4)`,
-        [terminalId, filters.from, filters.to, filters.eventStatus ?? null]
+        `SELECT COUNT(*)::text AS count FROM terminal_sync_events e
+         WHERE e.terminal_id = $1 AND e.received_at >= $2::date AND e.received_at < ($3::date + interval '1 day')
+           AND ($4::text IS NULL OR e.status = $4) AND ($5::text <> 'manager' OR e.effective_department_id = ANY($6::uuid[]))`,
+        [terminalId, filters.from, filters.to, filters.eventStatus ?? null, actor.role, actor.departmentIds]
       );
       const hasMore = result.rows.length > filters.limit;
       const rows = result.rows.slice(0, filters.limit);
