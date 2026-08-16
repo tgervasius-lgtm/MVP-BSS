@@ -77,7 +77,7 @@
     "attendanceDay": ["active", "complete", "late", "incomplete", "corrected"],
     "leaveRequest": ["pending", "approved", "rejected", "cancelled"],
     "correctionRequest": ["pending", "approved", "rejected", "cancelled"],
-    "terminalEvent": ["queued", "synced", "duplicate", "rejected"],
+    "terminalEvent": ["queued", "synced", "duplicate", "rejected", "reconciliation_required"],
     "rfidCard": ["active", "blocked"],
     "userWorker": ["active", "blocked"]
   },
@@ -87,6 +87,9 @@
     "utc_and_organization_timezone",
     "maximum_shift_16_hours",
     "append_only_idempotent_terminal_events",
+    "dec_025_durable_commit_then_versioned_per_event_hmac",
+    "acknowledgement_time_lifecycle_authorization",
+    "admin_only_append_only_terminal_reconciliation",
     "corrections_preserve_original",
     "incomplete_days_excluded_from_month_close",
     "leave_excludes_weekends_and_holidays",

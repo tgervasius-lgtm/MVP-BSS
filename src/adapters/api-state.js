@@ -5,7 +5,7 @@
   const requestLabels={pending:'Na čekanju',approved:'Odobreno',rejected:'Odbijeno',cancelled:'Poništeno'};
   const leaveLabels={annual_leave:'Godišnji odmor',paid_leave:'Plaćeni dopust',unpaid_leave:'Neplaćeni dopust',free_day:'Slobodan dan'};
   const attendanceLabels={active:'Aktivno',complete:'Uredno',late:'Kašnjenje',incomplete:'Nepotpun zapis',corrected:'Ispravljeno'};
-  const terminalEventLabels={queued:'Čeka sinkronizaciju',synced:'Sinkronizirano',duplicate:'Duplikat',rejected:'Odbijeno'};
+  const terminalEventLabels={queued:'Čeka sinkronizaciju',synced:'Sinkronizirano',duplicate:'Duplikat',rejected:'Odbijeno',reconciliation_required:'Potrebna provjera'};
 
   function localTime(value,timeZone){
     if(!value)return'';

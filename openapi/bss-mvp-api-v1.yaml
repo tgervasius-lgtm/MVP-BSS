@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: BSS MVP API
-  version: 1.2.0
+  version: 1.3.0
   summary: Implemented Backend MVP contract for the frozen BSS Frontend v1.0.0.
   description: |
     Implemented versioned contract for the functional Backend MVP; deployment remains a separate
@@ -11,6 +11,7 @@ info:
     formats. PDF is approved as a professional business export in v1.1.
   x-bss-status: MVP_IMPLEMENTED
   x-bss-contract-reviewed-at: 2026-07-17
+  x-bss-contract-review-status: ACCEPTED_DEC_025_EVIDENCE_PENDING
   x-bss-frontend-release: frontend-v1.0.0
   x-bss-baseline-commit: 91323c7cdbbbbf7b965c4926c94a11af6d31bf62
   license:
@@ -738,6 +739,45 @@ paths:
           $ref: '#/components/responses/ValidationFailed'
         '429':
           $ref: '#/components/responses/RateLimited'
+  /attendance-events/{attendanceEventId}/reconciliation:
+    post:
+      tags: [Attendance]
+      operationId: resolveTerminalEventReconciliation
+      summary: Resolve a Terminal Event Reconciliation
+      description: Administrator-only append-only resolution. Raw event and acknowledgement evidence are never rewritten. Accepted resolution requires existing verified DEC-025 proof, trusted clock evidence and complete historical configuration; rejected resolution derives no attendance. Every resolution records reason, actor, before/after and provenance.
+      x-bss-roles: [admin]
+      parameters:
+        - name: attendanceEventId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TerminalEventReconciliationWrite'
+      responses:
+        '201':
+          description: Immutable reconciliation resolution.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TerminalEventReconciliation'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '429':
+          $ref: '#/components/responses/RateLimited'
   /workers/{workerId}/attendance:
     get:
       tags: [Attendance]
@@ -1245,6 +1285,51 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Terminal'
+  /terminals/{terminalId}/credentials/rotate:
+    post:
+      tags: [Terminals]
+      operationId: rotateTerminalCredential
+      summary: Rotate Terminal Credential and Acknowledgement Key Version
+      description: Administrator-only normal rotation. The prior credential interval is closed but its encrypted row is retained so receipts acknowledged before the boundary remain verifiable. The new credential is returned once. Receipts using the old key at or after the boundary are rejected.
+      x-bss-roles: [admin]
+      parameters:
+        - $ref: '#/components/parameters/TerminalId'
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [reason]
+              properties:
+                reason:
+                  type: string
+                  enum: [normal_rotation, suspected_compromise]
+                  description: Suspected compromise records a revocation boundary on the retired credential; normal rotation closes only its validity interval.
+      responses:
+        '200':
+          description: Rotated credential and new non-secret acknowledgement key identity/version.
+          headers:
+            ETag:
+              description: New terminal revision.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TerminalPairResult'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
   /terminals/{terminalId}/sync-events:
     get:
       tags: [Terminals]
@@ -1297,7 +1382,7 @@ paths:
         '429':
           $ref: '#/components/responses/RateLimited'
         '200':
-          description: Per-event idempotent acceptance result.
+          description: Per-event idempotent result. A reconciliation_required result proves the immutable receipt was retained but no authoritative attendance was derived because event-time evidence was incomplete or ambiguous.
           content:
             application/json:
               schema:
@@ -1558,7 +1643,7 @@ components:
       enum: [active, complete, late, incomplete, corrected]
     TerminalEventStatus:
       type: string
-      enum: [queued, synced, duplicate, rejected]
+      enum: [queued, synced, duplicate, rejected, reconciliation_required]
     EntityStatus:
       type: string
       enum: [active, blocked]
@@ -2709,7 +2794,7 @@ components:
           maxLength: 160
     TerminalPairResult:
       type: object
-      required: [terminal, deviceCredential]
+      required: [terminal, deviceCredential, acknowledgementKey]
       properties:
         terminal:
           $ref: '#/components/schemas/Terminal'
@@ -2717,11 +2802,34 @@ components:
           type: string
           writeOnly: true
           description: One-time credential; never returned again and never logged.
+        acknowledgementKey:
+          type: object
+          additionalProperties: false
+          required: [id, version, derivation]
+          properties:
+            id:
+              type: string
+              format: uuid
+            version:
+              type: integer
+              minimum: 1
+            derivation:
+              type: string
+              const: BSS-TERMINAL-ACK-KEY-V1
+          description: Non-secret acknowledgement key identity/version. The receipt key is HMAC-SHA-256(deviceCredential, `BSS-TERMINAL-ACK-KEY-V1\\nterminalId\\nkeyId\\nversion`).
     TerminalEvent:
       type: object
       additionalProperties: false
-      required: [deviceEventId, sequence, occurredAt, eventType, cardUidHash]
+      required: [acknowledgementKeyId, acknowledgementKeyVersion, deviceEventId, sequence, occurredAt, eventType, cardUidHash, deviceClockOffsetSeconds, clockStatus, acknowledgedAt, acknowledgementSignature]
       properties:
+        acknowledgementKeyId:
+          type: string
+          format: uuid
+          description: Persisted device-specific acknowledgement key identity returned at pairing/rotation.
+        acknowledgementKeyVersion:
+          type: integer
+          minimum: 1
+          maximum: 2147483647
         deviceEventId:
           type: string
           format: uuid
@@ -2745,6 +2853,59 @@ components:
           type: integer
           minimum: -86400
           maximum: 86400
+          description: Terminal-observed offset from its trusted synchronization source at acknowledgement time. Values outside five minutes fail closed to reconciliation.
+        clockStatus:
+          type: string
+          enum: [trusted, uncertain]
+          description: Terminal clock-health assertion. HMAC authenticates this assertion but does not prove the clock is uncompromised or correct; uncertain evidence requires reconciliation.
+        acknowledgedAt:
+          type: string
+          format: date-time
+          description: Terminal time captured only after the individual event, immutable ID and sequence were durably committed locally. It is the lifecycle authorization boundary and must not precede occurredAt.
+        acknowledgementSignature:
+          type: string
+          pattern: '^[a-f0-9]{64}$'
+          minLength: 64
+          maxLength: 64
+          description: >-
+            Per-event HMAC-SHA-256 using the domain-separated acknowledgement key. Canonical UTF-8 input is newline-joined exactly in this order: `BSS-TERMINAL-ACK-V2`, terminalId, acknowledgementKeyId, base-10 acknowledgementKeyVersion, deviceEventId, base-10 sequence, occurredAt exactly as sent, eventType, lowercase cardUidHash, base-10 deviceClockOffsetSeconds, clockStatus, acknowledgedAt exactly as sent. UUID/date-time/enums cannot contain newlines.
+    TerminalEventReconciliationWrite:
+      type: object
+      additionalProperties: false
+      required: [resolution, reason]
+      properties:
+        resolution:
+          type: string
+          enum: [accepted, rejected]
+        reason:
+          type: string
+          minLength: 3
+          maxLength: 1000
+    TerminalEventReconciliation:
+      type: object
+      additionalProperties: false
+      required: [id, attendanceEventId, resolution, reason, attendanceDayId, resolvedBy, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        attendanceEventId:
+          type: string
+          format: uuid
+        resolution:
+          type: string
+          enum: [accepted, rejected]
+        reason:
+          type: string
+        attendanceDayId:
+          type: [string, 'null']
+          format: uuid
+        resolvedBy:
+          type: string
+          format: uuid
+        createdAt:
+          type: string
+          format: date-time
     TerminalEventBatch:
       type: object
       additionalProperties: false
@@ -2790,7 +2951,7 @@ components:
     TerminalSyncEvent:
       type: object
       additionalProperties: false
-      required: [id, terminalId, deviceEventId, sequence, occurredAt, receivedAt, eventType, status]
+      required: [id, terminalId, deviceEventId, sequence, occurredAt, acknowledgedAt, receivedAt, eventType, status, attendanceEventId, acknowledgementVerified, lifecycleEvidence]
       properties:
         id:
           type: string
@@ -2809,6 +2970,10 @@ components:
         occurredAt:
           type: string
           format: date-time
+        acknowledgedAt:
+          type: [string, 'null']
+          format: date-time
+          description: Immutable local acknowledgement time; null only for legacy pre-contract evidence.
         receivedAt:
           type: string
           format: date-time
@@ -2819,6 +2984,73 @@ components:
           $ref: '#/components/schemas/TerminalEventStatus'
         rejectionCode:
           type: [string, 'null']
+          description: Stable processing reason for a rejected or reconciliation-required event; null for accepted or exact duplicate delivery.
+        attendanceEventId:
+          type: [string, 'null']
+          format: uuid
+          description: Immutable raw receipt referenced by this delivery result. Duplicate deliveries reference the original receipt.
+        acknowledgementVerified:
+          type: boolean
+        lifecycleEvidence:
+          $ref: '#/components/schemas/TerminalLifecycleEvidence'
+    TerminalLifecycleEvidence:
+      type: object
+      additionalProperties: false
+      required: [decision, code, acknowledgement]
+      properties:
+        decision:
+          type: string
+          enum: [accepted, rejected, reconciliation_required, duplicate]
+        code:
+          type: [string, 'null']
+          description: Stable processing reason for a rejected or reconciliation-required result.
+        acknowledgement:
+          type: object
+          additionalProperties: false
+          required: [verified, delaySeconds]
+          properties:
+            verified:
+              type: boolean
+            delaySeconds:
+              type: [integer, 'null']
+            keyId:
+              type: string
+              format: uuid
+            keyVersion:
+              type: integer
+              minimum: 1
+            clockStatus:
+              type: string
+              enum: [trusted, uncertain, unknown]
+        workerStatusVersionId:
+          type: string
+          format: uuid
+        workerStatus:
+          $ref: '#/components/schemas/EntityStatus'
+        rfidCardId:
+          type: string
+          format: uuid
+        rfidValidFrom:
+          type: string
+          format: date-time
+        rfidValidTo:
+          type: [string, 'null']
+          format: date-time
+        departmentAssignmentId:
+          type: string
+          format: uuid
+        shiftAssignmentId:
+          type: string
+          format: uuid
+        shiftConfigurationVersionId:
+          type: string
+          format: uuid
+        timezoneVersionId:
+          type: string
+          format: uuid
+        originalAttendanceEventId:
+          type: string
+          format: uuid
     TerminalSyncEventPage:
       type: object
       additionalProperties: false

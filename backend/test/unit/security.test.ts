@@ -3,6 +3,13 @@ import test from "node:test";
 import { canonicalDeviceRequest, signDeviceRequest, verifyDeviceSignature } from "../../src/security/device-signature.js";
 import { hashPassword, verifyPassword } from "../../src/security/passwords.js";
 import { hashRfidUid, maskRfidUid, normalizeRfidUid } from "../../src/security/rfid.js";
+import {
+  canonicalTerminalAcknowledgement,
+  deriveTerminalAcknowledgementKey,
+  signTerminalAcknowledgement,
+  terminalEventFingerprint,
+  verifyTerminalAcknowledgement
+} from "../../src/security/terminal-acknowledgement.js";
 import { createOpaqueToken, hashToken, tokenHashMatches } from "../../src/security/tokens.js";
 
 test("opaque session tokens are random and stored only as SHA-256 hashes", () => {
@@ -51,4 +58,44 @@ test("terminal HMAC v1 signs the locked canonical request and rejects replay-win
   assert.equal(verifyDeviceSignature("terminal-secret", request, signature, new Date("2026-07-13T12:04:59.000Z")), true);
   assert.equal(verifyDeviceSignature("terminal-secret", request, signature, new Date("2026-07-13T12:05:01.000Z")), false);
   assert.equal(verifyDeviceSignature("other-secret", request, signature, new Date("2026-07-13T12:00:00.000Z")), false);
+});
+
+test("terminal acknowledgement HMAC v2 domain-separates the versioned proof key and binds durable event evidence", () => {
+  const terminalId = "22222222-2222-4222-8222-222222222222";
+  const event = {
+    acknowledgementKeyId: "44444444-4444-4444-8444-444444444444",
+    acknowledgementKeyVersion: 1,
+    deviceEventId: "33333333-3333-4333-8333-333333333333",
+    sequence: 42,
+    occurredAt: "2026-08-16T08:00:00.000Z",
+    eventType: "check_in" as const,
+    cardUidHash: "a".repeat(64),
+    deviceClockOffsetSeconds: 1,
+    clockStatus: "trusted" as const,
+    acknowledgedAt: "2026-08-16T08:00:01.000Z"
+  };
+  assert.equal(
+    canonicalTerminalAcknowledgement(terminalId, event),
+    ["BSS-TERMINAL-ACK-V2", terminalId, event.acknowledgementKeyId, "1", event.deviceEventId,
+      "42", event.occurredAt, event.eventType, event.cardUidHash, "1", "trusted", event.acknowledgedAt].join("\n")
+  );
+  const acknowledgementSignature = signTerminalAcknowledgement("terminal-secret", terminalId, event);
+  const acknowledgedEvent = { ...event, acknowledgementSignature };
+  assert.equal(deriveTerminalAcknowledgementKey("terminal-secret", terminalId, event.acknowledgementKeyId, 1).length, 32);
+  assert.equal(
+    deriveTerminalAcknowledgementKey("terminal-secret", terminalId, event.acknowledgementKeyId, 1).equals(
+      deriveTerminalAcknowledgementKey("terminal-secret", terminalId, event.acknowledgementKeyId, 2)
+    ),
+    false
+  );
+  assert.equal(verifyTerminalAcknowledgement("terminal-secret", terminalId, acknowledgedEvent), true);
+  assert.equal(verifyTerminalAcknowledgement("other-secret", terminalId, acknowledgedEvent), false);
+  assert.equal(verifyTerminalAcknowledgement("terminal-secret", terminalId, { ...acknowledgedEvent, acknowledgementKeyVersion: 2 }), false);
+  assert.equal(verifyTerminalAcknowledgement("terminal-secret", terminalId, { ...acknowledgedEvent, clockStatus: "uncertain" }), false);
+  assert.equal(
+    terminalEventFingerprint(terminalId, acknowledgedEvent).equals(
+      terminalEventFingerprint(terminalId, { ...acknowledgedEvent, sequence: 43 })
+    ),
+    false
+  );
 });

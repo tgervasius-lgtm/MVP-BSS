@@ -29,7 +29,8 @@
     QUEUED: 'Čeka sinkronizaciju',
     SYNCED: 'Sinkronizirano',
     DUPLICATE: 'Duplikat',
-    REJECTED: 'Odbijeno'
+    REJECTED: 'Odbijeno',
+    RECONCILIATION_REQUIRED: 'Potrebna provjera'
   });
 
   const contracts = Object.freeze({roles,requestStatus,attendanceStatus,terminalEventStatus});

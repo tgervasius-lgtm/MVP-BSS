@@ -11,6 +11,8 @@ import type {
   ReportExportWrite,
   RequestStatus,
   TerminalEventBatchWrite,
+  TerminalEventReconciliationWrite,
+  TerminalCredentialRotationWrite,
   TerminalHeartbeatWrite,
   TerminalPairWrite
 } from "../../services/contracts.js";
@@ -95,6 +97,37 @@ export async function registerMvpRoutes(app: FastifyInstance, dependencies: Depe
       const { actor } = await authenticate(request);
       requirePermission(actor, "leave", "read");
       return service.listApprovedLeaveCalendar(actor, request.query);
+    }
+  );
+
+  app.post<{
+    Params: { attendanceEventId: string };
+    Body: TerminalEventReconciliationWrite;
+  }>(
+    "/api/v1/attendance-events/:attendanceEventId/reconciliation",
+    {
+      config: { rateLimit: decisionRateLimit },
+      schema: {
+        params: idParams("attendanceEventId"),
+        body: {
+          type: "object", additionalProperties: false, required: ["resolution", "reason"],
+          properties: {
+            resolution: { type: "string", enum: ["accepted", "rejected"] },
+            reason: { type: "string", minLength: 3, maxLength: 1000 }
+          }
+        }
+      }
+    },
+    async (request, reply) => {
+      const { actor } = await authenticate(request);
+      requirePermission(actor, "attendance", "write");
+      requireRole(actor, ["admin"]);
+      return reply.status(201).send(await service.resolveTerminalEventReconciliation(
+        actor,
+        request.params.attendanceEventId,
+        request.body,
+        request.id
+      ));
     }
   );
 
@@ -451,6 +484,29 @@ export async function registerMvpRoutes(app: FastifyInstance, dependencies: Depe
     }
   );
 
+  app.post<{ Params: { terminalId: string }; Headers: { "if-match": string }; Body: TerminalCredentialRotationWrite }>(
+    "/api/v1/terminals/:terminalId/credentials/rotate",
+    { config: { rateLimit: deviceAdministrationRateLimit }, schema: {
+      params: idParams("terminalId"), headers: revisionHeader,
+      body: { type: "object", additionalProperties: false, required: ["reason"],
+        properties: { reason: { type: "string", enum: ["normal_rotation", "suspected_compromise"] } } }
+    } },
+    async (request, reply) => {
+      const { actor } = await authenticate(request);
+      requirePermission(actor, "terminals", "write");
+      requireRole(actor, ["admin"]);
+      const result = await service.rotateTerminalCredential(
+        actor,
+        request.params.terminalId,
+        request.body,
+        requireRevision(request.headers["if-match"]),
+        request.id
+      );
+      etag(reply, result.terminal.revision);
+      return result;
+    }
+  );
+
   app.post<{ Body: TerminalEventBatchWrite }>(
     "/api/v1/terminal/v1/events/batch",
     {
@@ -464,11 +520,18 @@ export async function registerMvpRoutes(app: FastifyInstance, dependencies: Depe
             events: {
               type: "array", minItems: 1, maxItems: 500,
               items: {
-                type: "object", additionalProperties: false, required: ["deviceEventId", "sequence", "occurredAt", "eventType", "cardUidHash"],
+                type: "object", additionalProperties: false,
+                required: ["acknowledgementKeyId", "acknowledgementKeyVersion", "deviceEventId", "sequence", "occurredAt", "eventType", "cardUidHash", "deviceClockOffsetSeconds", "clockStatus", "acknowledgedAt", "acknowledgementSignature"],
                 properties: {
+                  acknowledgementKeyId: uuid,
+                  acknowledgementKeyVersion: { type: "integer", minimum: 1, maximum: 2147483647 },
                   deviceEventId: uuid, sequence: { type: "integer", minimum: 1, maximum: Number.MAX_SAFE_INTEGER }, occurredAt: { type: "string", format: "date-time" },
-                  eventType: { type: "string", enum: ["check_in", "check_out"] }, cardUidHash: { type: "string", minLength: 64, maxLength: 64 },
-                  deviceClockOffsetSeconds: { type: "integer", minimum: -86400, maximum: 86400 }
+                  eventType: { type: "string", enum: ["check_in", "check_out"] },
+                  cardUidHash: { type: "string", pattern: "^[a-f0-9]{64}$" },
+                  deviceClockOffsetSeconds: { type: "integer", minimum: -86400, maximum: 86400 },
+                  clockStatus: { type: "string", enum: ["trusted", "uncertain"] },
+                  acknowledgedAt: { type: "string", format: "date-time" },
+                  acknowledgementSignature: { type: "string", pattern: "^[a-f0-9]{64}$" }
                 }
               }
             }
