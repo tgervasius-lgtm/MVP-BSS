@@ -1215,7 +1215,7 @@ test("PostgreSQL migrations, RLS isolation, auth and manager scope", { skip: !da
     const visible = await rls.query<{ id: string }>("SELECT id FROM workers ORDER BY id");
     assert.deepEqual(
       visible.rows.map((row) => row.id),
-      [ids.worker1, ids.worker3, createdWorker.id, transferWorker.id].sort()
+      [ids.worker1, ids.worker3, createdWorker.id, transferWorker.id, overnightWorker.id].sort()
     );
     await assert.rejects(
       rls.query(
