@@ -40,10 +40,12 @@ ALTER TABLE attendance_events
 ALTER TABLE terminal_sync_events DROP CONSTRAINT terminal_sync_events_status_check;
 ALTER TABLE terminal_sync_events ADD CONSTRAINT terminal_sync_events_status_check
   CHECK (status IN ('queued', 'synced', 'duplicate', 'rejected'));
+ALTER TABLE terminal_sync_events ALTER COLUMN status TYPE varchar(16);
 
 ALTER TABLE attendance_events DROP CONSTRAINT attendance_events_processing_status_check;
 ALTER TABLE attendance_events ADD CONSTRAINT attendance_events_processing_status_check
   CHECK (processing_status IN ('queued', 'accepted', 'rejected'));
+ALTER TABLE attendance_events ALTER COLUMN processing_status TYPE varchar(16);
 
 DROP TRIGGER workers_track_status ON workers;
 DROP FUNCTION bss_track_worker_status();
