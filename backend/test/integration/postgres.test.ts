@@ -870,7 +870,7 @@ test("PostgreSQL migrations, RLS isolation, auth and manager scope", { skip: !da
   assert.deepEqual(calculationHistory.rows[2]?.configuration_snapshot.eventTimeInterpretations, recalculation.after.provenance.eventTimeInterpretations);
   await assert.rejects(
     owner.query("UPDATE attendance_calculations SET reason = 'mutated' WHERE id = $1", [recalculation.calculationId]),
-    /immutable/i
+    /attendance_calculations is append-only/
   );
   const tenantProbe = await appPool.connect();
   try {
