@@ -210,7 +210,7 @@ export async function resolveTerminalEventReconciliation(
          occurred_at, acknowledged_at, event_type, device_clock_offset_seconds, clock_status,
          acknowledgement_key_id, acknowledgement_key_version, processing_status,
          rejection_code, lifecycle_evidence
-       FROM attendance_events WHERE id = $1 FOR SHARE`,
+       FROM attendance_events WHERE id = $1`,
       [attendanceEventId]
     );
     const raw = rawResult.rows[0];
