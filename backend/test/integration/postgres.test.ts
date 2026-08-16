@@ -174,7 +174,8 @@ test("PostgreSQL migrations, RLS isolation, auth and manager scope", { skip: !da
     (error: unknown) => typeof error === "object" && error !== null && "code" in error && error.code === "CONFLICT"
   );
   const adminWorkers = await service.listWorkers(admin.actor, { limit: 50 });
-  assert.deepEqual(adminWorkers.items.map((item) => item.id), [ids.worker1]);
+  assert.deepEqual(adminWorkers.items.map((item) => item.id).sort(), [ids.worker1, ids.worker3].sort());
+  assert.equal(adminWorkers.page.total, 2);
   await assert.rejects(
     service.inviteUser(admin.actor, { email: `invalid-worker-${suffix}@example.test`, role: "worker" }, "integration-invalid-worker-invite"),
     (error: unknown) => typeof error === "object" && error !== null && "code" in error && error.code === "VALIDATION_FAILED"
@@ -221,6 +222,10 @@ test("PostgreSQL migrations, RLS isolation, auth and manager scope", { skip: !da
     [ids.org1, ids.dep3]
   );
   const managerB = await auth.login("manager-b@example.test", managerPassword, { requestId: "integration-manager-b" });
+  assert.deepEqual(managerB.actor.departmentIds, [ids.dep3]);
+  const managerBWorkers = await service.listWorkers(managerB.actor, { limit: 50 });
+  assert.deepEqual(managerBWorkers.items.map((item) => item.id), [ids.worker3]);
+  assert.equal(managerBWorkers.page.total, 1);
   const unassignedManager = await auth.login("manager-unassigned@example.test", managerPassword, { requestId: "integration-manager-unassigned" });
   const accountant = await auth.login("accountant-a@example.test", managerPassword, { requestId: "integration-accountant" });
   assert.deepEqual(unassignedManager.actor.departmentIds, []);
