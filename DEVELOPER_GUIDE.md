@@ -1,6 +1,6 @@
 # BSS Developer Guide
 
-Ovaj dokument je provjeren put od čistog klona do lokalnog BSS sustava. Frontend `v1.0.0`, OpenAPI `1.1.0` i migracije `001`–`008` trenutačni su ugovor; promjena poslovnog ponašanja prvo mora promijeniti taj ugovor i pripadajuće testove.
+Ovaj dokument je provjeren put od čistog klona do lokalnog BSS sustava. Frontend `v1.0.0`, OpenAPI `1.1.0` i migracije `001`–`009` trenutačni su ugovor; promjena poslovnog ponašanja prvo mora promijeniti taj ugovor i pripadajuće testove.
 
 ## 1. Čisti lokalni start
 

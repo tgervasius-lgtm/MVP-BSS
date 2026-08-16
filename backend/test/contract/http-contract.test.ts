@@ -395,6 +395,17 @@ test("completed Phase A contracts expose scoped drill-downs without raw credenti
   });
   assert.equal(syncEvents.statusCode, 200);
   assert.equal(syncEvents.json().items[0].terminalId, IDS.shift);
+
+  const terminalEndpoints = [
+    "/api/v1/terminals",
+    `/api/v1/terminals/${IDS.shift}/sync-events?from=2026-07-01&to=2026-07-31`
+  ];
+  for (const [role, expectedStatus] of [["admin", 200], ["manager", 200], ["worker", 403], ["accountant", 403]] as const) {
+    for (const url of terminalEndpoints) {
+      const response = await app.inject({ method: "GET", url, cookies: { bss_session: role } });
+      assert.equal(response.statusCode, expectedStatus, `${role} GET ${url}`);
+    }
+  }
 });
 
 test("Backend MVP Phase B routes expose every operational flow with role and origin guards", async (t) => {
@@ -811,6 +822,7 @@ test("migrations force tenant RLS and make raw evidence append-only", async () =
   const completion = await readFile(join(repositoryRoot, "backend/migrations/006_contract_completion.up.sql"), "utf8");
   const phaseB = await readFile(join(repositoryRoot, "backend/migrations/007_backend_mvp_phase_b.up.sql"), "utf8");
   const hardening = await readFile(join(repositoryRoot, "backend/migrations/008_production_hardening.up.sql"), "utf8");
+  const departmentScope = await readFile(join(repositoryRoot, "backend/migrations/009_event_effective_department_scope.up.sql"), "utf8");
   const grants = await readFile(join(repositoryRoot, "backend/deploy/runtime-grants.sql"), "utf8");
   assert.match(security, /FORCE ROW LEVEL SECURITY/);
   assert.match(security, /attendance_events_immutable/);
@@ -831,6 +843,14 @@ test("migrations force tenant RLS and make raw evidence append-only", async () =
   assert.match(hardening, /users_worker_role_consistency/);
   assert.match(hardening, /attendance_days_time_order/);
   assert.match(hardening, /rfid_cards_active_worker_unique/);
+  assert.match(departmentScope, /CREATE TABLE worker_department_assignments/);
+  assert.match(departmentScope, /ALTER TABLE worker_department_assignments FORCE ROW LEVEL SECURITY/);
+  assert.match(departmentScope, /CREATE TRIGGER workers_track_department_assignment/);
+  assert.match(departmentScope, /SECURITY DEFINER\s+SET search_path = public, pg_temp/);
+  assert.match(departmentScope, /REVOKE ALL ON FUNCTION bss_track_worker_department_assignment\(\) FROM PUBLIC/);
+  assert.match(departmentScope, /ADD COLUMN effective_department_id uuid/g);
+  assert.match(departmentScope, /transaction_timestamp\(\)/);
+  assert.doesNotMatch(departmentScope, /UPDATE\s+(?:attendance_events|terminal_sync_events)\s+SET\s+effective_department_id/is);
   assert.match(grants, /REVOKE ALL PRIVILEGES ON TABLE bss_schema_migrations/);
   assert.match(grants, /GRANT DELETE ON TABLE holidays, user_department_scopes, terminal_request_nonces/);
   assert.doesNotMatch(grants, /GRANT (?:ALL|DELETE) ON ALL TABLES/);

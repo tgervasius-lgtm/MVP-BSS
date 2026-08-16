@@ -51,14 +51,15 @@ test("PostgreSQL migrations, RLS isolation, auth and manager scope", { skip: !da
   const workerPassword = "Worker-secure-password-2026!";
   const [adminHash, managerHash] = await Promise.all([hashPassword(adminPassword), hashPassword(managerPassword)]);
   const seeded = await owner.query<{
-    org1: string; org2: string; dep1: string; dep2: string; shift1: string; shift2: string; worker1: string; worker2: string;
-    admin1: string; manager1: string;
+    org1: string; org2: string; dep1: string; dep2: string; dep3: string; shift1: string; shift2: string;
+    worker1: string; worker2: string; worker3: string; admin1: string; manager1: string;
   }>(`
     WITH
       o1 AS (INSERT INTO organizations(name) VALUES ('Tenant A') RETURNING id),
       o2 AS (INSERT INTO organizations(name) VALUES ('Tenant B') RETURNING id),
       d1 AS (INSERT INTO departments(organization_id, name) SELECT id, 'Operativa' FROM o1 RETURNING id, organization_id),
       d2 AS (INSERT INTO departments(organization_id, name) SELECT id, 'Skladište' FROM o2 RETURNING id, organization_id),
+      d3 AS (INSERT INTO departments(organization_id, name) SELECT id, 'Prodaja' FROM o1 RETURNING id, organization_id),
       s1 AS (INSERT INTO shifts(organization_id, name, start_time, end_time, break_minutes, tolerance_minutes)
              SELECT id, 'Jutarnja', '08:00', '16:00', 30, 5 FROM o1 RETURNING id, organization_id),
       s2 AS (INSERT INTO shifts(organization_id, name, start_time, end_time, break_minutes, tolerance_minutes)
@@ -67,16 +68,18 @@ test("PostgreSQL migrations, RLS isolation, auth and manager scope", { skip: !da
              SELECT d1.organization_id, 'A-1', 'Ana A', d1.id, s1.id FROM d1, s1 RETURNING id, organization_id),
       w2 AS (INSERT INTO workers(organization_id, code, name, department_id, shift_id)
              SELECT d2.organization_id, 'B-1', 'Boris B', d2.id, s2.id FROM d2, s2 RETURNING id, organization_id),
+      w3 AS (INSERT INTO workers(organization_id, code, name, department_id, shift_id)
+             SELECT d3.organization_id, 'A-2', 'Branko A', d3.id, s1.id FROM d3, s1 RETURNING id, organization_id),
       u1 AS (INSERT INTO users(organization_id, email, password_hash, role, status)
              SELECT id, 'admin-a@example.test', $1, 'admin', 'active' FROM o1 RETURNING id, organization_id),
       u2 AS (INSERT INTO users(organization_id, email, password_hash, role, status)
              SELECT id, 'manager-a@example.test', $2, 'manager', 'active' FROM o1 RETURNING id, organization_id),
       scope AS (INSERT INTO user_department_scopes(organization_id, user_id, department_id)
                 SELECT u2.organization_id, u2.id, d1.id FROM u2, d1)
-    SELECT o1.id AS org1, o2.id AS org2, d1.id AS dep1, d2.id AS dep2,
-           s1.id AS shift1, s2.id AS shift2, w1.id AS worker1, w2.id AS worker2,
+    SELECT o1.id AS org1, o2.id AS org2, d1.id AS dep1, d2.id AS dep2, d3.id AS dep3,
+           s1.id AS shift1, s2.id AS shift2, w1.id AS worker1, w2.id AS worker2, w3.id AS worker3,
            u1.id AS admin1, u2.id AS manager1
-    FROM o1, o2, d1, d2, s1, s2, w1, w2, u1, u2
+    FROM o1, o2, d1, d2, d3, s1, s2, w1, w2, w3, u1, u2
   `, [adminHash, managerHash]);
   const ids = seeded.rows[0];
   assert.ok(ids);
@@ -205,6 +208,22 @@ test("PostgreSQL migrations, RLS isolation, auth and manager scope", { skip: !da
   assert.deepEqual(manager.actor.departmentIds, [ids.dep1]);
   const managerWorkers = await service.listWorkers(manager.actor, { limit: 50 });
   assert.deepEqual(managerWorkers.items.map((item) => item.id), [ids.worker1]);
+  await owner.query(
+    `INSERT INTO users (organization_id, email, password_hash, role, status)
+     VALUES ($1, 'manager-b@example.test', $2, 'manager', 'active'),
+            ($1, 'manager-unassigned@example.test', $2, 'manager', 'active'),
+            ($1, 'accountant-a@example.test', $2, 'accountant', 'active')`,
+    [ids.org1, managerHash]
+  );
+  await owner.query(
+    `INSERT INTO user_department_scopes (organization_id, user_id, department_id)
+     SELECT $1, id, $2 FROM users WHERE email = 'manager-b@example.test'`,
+    [ids.org1, ids.dep3]
+  );
+  const managerB = await auth.login("manager-b@example.test", managerPassword, { requestId: "integration-manager-b" });
+  const unassignedManager = await auth.login("manager-unassigned@example.test", managerPassword, { requestId: "integration-manager-unassigned" });
+  const accountant = await auth.login("accountant-a@example.test", managerPassword, { requestId: "integration-accountant" });
+  assert.deepEqual(unassignedManager.actor.departmentIds, []);
   const workerSession = await auth.login("worker-a@example.test", workerPassword, { requestId: "integration-worker" });
   assert.equal(workerSession.actor.selfWorkerId, ids.worker1);
   await assert.rejects(
@@ -344,17 +363,41 @@ test("PostgreSQL migrations, RLS isolation, auth and manager scope", { skip: !da
        VALUES ($1, 'Ulaz A', 'Zagreb', 'offline') RETURNING id
      ), sync AS (
        INSERT INTO terminal_sync_events (
-         organization_id, terminal_id, device_event_id, sequence, worker_id,
+         organization_id, terminal_id, device_event_id, sequence, worker_id, effective_department_id,
          occurred_at, received_at, event_type, status, request_id
-       ) SELECT $1, terminal.id, gen_random_uuid(), 1, $2,
+       ) SELECT $1, terminal.id, gen_random_uuid(), 1, $2, $5,
            '2026-07-13T06:00:00Z', '2026-07-13T06:00:01Z',
            'check_in', 'synced', 'integration-sync' FROM terminal
      )
      SELECT terminal.id AS terminal FROM terminal`,
-    [ids.org1, ids.worker1, JSON.stringify({ id: ids.shift1, name: "Jutarnja", startTime: "08:00", endTime: "16:00", breakMinutes: 30 }), ids.admin1]
+    [ids.org1, ids.worker1, JSON.stringify({ id: ids.shift1, name: "Jutarnja", startTime: "08:00", endTime: "16:00", breakMinutes: 30 }), ids.admin1, ids.dep1]
   );
   const terminalId = operational.rows[0]?.terminal;
   assert.ok(terminalId);
+  const seedTerminalHistory = async (organizationId: string, name: string, workerIds: Array<string | null>, departmentIds: Array<string | null>) => {
+    const seededTerminal = await owner.query<{ terminal: string }>(
+      `WITH terminal AS (
+         INSERT INTO terminals (organization_id, name, location, status)
+         VALUES ($1, $2, 'Test', 'offline') RETURNING id
+       )
+       INSERT INTO terminal_sync_events (
+         organization_id, terminal_id, device_event_id, sequence, worker_id, effective_department_id,
+         occurred_at, received_at, event_type, status, request_id
+       )
+       SELECT $1, terminal.id, gen_random_uuid(), event.ordinality, event.worker_id, event.department_id,
+         '2026-07-13T07:00:00Z'::timestamptz + event.ordinality * interval '1 minute',
+         '2026-07-13T07:00:01Z'::timestamptz + event.ordinality * interval '1 minute',
+         'check_in', 'synced', 'integration-scope-' || event.ordinality
+       FROM terminal, unnest($3::uuid[], $4::uuid[]) WITH ORDINALITY AS event(worker_id, department_id, ordinality)
+       RETURNING terminal_id AS terminal`,
+      [organizationId, name, workerIds, departmentIds]
+    );
+    return seededTerminal.rows[0]!.terminal;
+  };
+  const outOfScopeTerminalId = await seedTerminalHistory(ids.org1, "Prodaja terminal", [ids.worker3], [ids.dep3]);
+  const mixedScopeTerminalId = await seedTerminalHistory(ids.org1, "Zajednički terminal", [ids.worker1, ids.worker3, ids.worker1], [ids.dep1, ids.dep3, ids.dep1]);
+  const unscopedTerminalId = await seedTerminalHistory(ids.org1, "Nepoznat opseg", [ids.worker1], [null]);
+  const crossTenantTerminalId = await seedTerminalHistory(ids.org2, "Tenant B terminal", [ids.worker2], [ids.dep2]);
 
   const balances = await service.listLeaveBalances(admin.actor, { year: 2026, limit: 50 });
   assert.equal(balances.items[0]?.approvedDays, 2);
@@ -382,6 +425,95 @@ test("PostgreSQL migrations, RLS isolation, auth and manager scope", { skip: !da
   assert.equal(syncEvents.items.length, 1);
   assert.equal(syncEvents.items[0]?.status, "synced");
 
+  const terminalHistoryFilters = { from: "2026-07-01", to: "2026-07-31", limit: 50 };
+  const adminOutOfScopeHistory = await service.listTerminalSyncEvents(admin.actor, outOfScopeTerminalId, terminalHistoryFilters);
+  assert.deepEqual(adminOutOfScopeHistory.items.map((item) => item.workerId), [ids.worker3]);
+  const adminUnscopedHistory = await service.listTerminalSyncEvents(admin.actor, unscopedTerminalId, terminalHistoryFilters);
+  assert.deepEqual(adminUnscopedHistory.items.map((item) => item.workerId), [ids.worker1]);
+  const managerInScopeHistory = await service.listTerminalSyncEvents(manager.actor, terminalId, terminalHistoryFilters);
+  assert.deepEqual(managerInScopeHistory.items.map((item) => item.workerId), [ids.worker1]);
+  const managerOutOfScopeHistory = await service.listTerminalSyncEvents(manager.actor, outOfScopeTerminalId, terminalHistoryFilters);
+  assert.deepEqual(managerOutOfScopeHistory, { items: [], page: { nextCursor: null, total: 0 } });
+  const managerBHistory = await service.listTerminalSyncEvents(managerB.actor, outOfScopeTerminalId, terminalHistoryFilters);
+  assert.deepEqual(managerBHistory.items.map((item) => item.workerId), [ids.worker3]);
+  const managerMixedHistory = await service.listTerminalSyncEvents(manager.actor, mixedScopeTerminalId, terminalHistoryFilters);
+  assert.deepEqual(managerMixedHistory.items.map((item) => item.workerId), [ids.worker1, ids.worker1]);
+  assert.equal(managerMixedHistory.page.total, 2);
+  const managerMixedFirstPage = await service.listTerminalSyncEvents(manager.actor, mixedScopeTerminalId, { ...terminalHistoryFilters, limit: 1 });
+  assert.equal(managerMixedFirstPage.items.length, 1);
+  assert.equal(managerMixedFirstPage.page.total, 2);
+  assert.ok(managerMixedFirstPage.page.nextCursor);
+  const managerMixedSecondPage = await service.listTerminalSyncEvents(manager.actor, mixedScopeTerminalId, {
+    ...terminalHistoryFilters, limit: 1, cursor: managerMixedFirstPage.page.nextCursor
+  });
+  assert.equal(managerMixedSecondPage.items.length, 1);
+  assert.equal(managerMixedSecondPage.page.total, 2);
+  assert.equal(managerMixedSecondPage.page.nextCursor, null);
+  const managerUnscopedHistory = await service.listTerminalSyncEvents(manager.actor, unscopedTerminalId, terminalHistoryFilters);
+  assert.deepEqual(managerUnscopedHistory, { items: [], page: { nextCursor: null, total: 0 } });
+  const unassignedManagerHistory = await service.listTerminalSyncEvents(unassignedManager.actor, terminalId, terminalHistoryFilters);
+  assert.deepEqual(unassignedManagerHistory, { items: [], page: { nextCursor: null, total: 0 } });
+  for (const deniedActor of [workerSession.actor, accountant.actor]) {
+    await assert.rejects(
+      service.listTerminalSyncEvents(deniedActor, terminalId, terminalHistoryFilters),
+      (error: unknown) => typeof error === "object" && error !== null && "code" in error && error.code === "FORBIDDEN"
+    );
+    await assert.rejects(
+      service.listTerminals(deniedActor),
+      (error: unknown) => typeof error === "object" && error !== null && "code" in error && error.code === "FORBIDDEN"
+    );
+  }
+  for (const tenantActor of [admin.actor, manager.actor, managerB.actor]) {
+    await assert.rejects(
+      service.listTerminalSyncEvents(tenantActor, crossTenantTerminalId, terminalHistoryFilters),
+      (error: unknown) => typeof error === "object" && error !== null && "code" in error && error.code === "NOT_FOUND"
+    );
+  }
+  const managerTerminals = await service.listTerminals(manager.actor);
+  assert.deepEqual(
+    managerTerminals.map((item) => item.id).sort(),
+    [terminalId, outOfScopeTerminalId, mixedScopeTerminalId, unscopedTerminalId].sort()
+  );
+
+  const transferWorker = await service.createWorker(admin.actor, {
+    code: `MOVE-${suffix}`,
+    name: "PremjeĹˇteni Radnik",
+    email: `transfer-${suffix}@example.test`,
+    departmentId: ids.dep1,
+    shiftId: ids.shift1,
+    annualLeaveAllowance: 20
+  }, "integration-transfer-worker-create");
+  const initialAssignment = await owner.query<{ effective_from: string }>(
+    "SELECT effective_from FROM worker_department_assignments WHERE worker_id = $1 AND effective_to IS NULL",
+    [transferWorker.id]
+  );
+  const oldDepartmentOccurredAt = new Date(new Date(initialAssignment.rows[0]!.effective_from).getTime() + 1).toISOString();
+  const transferCardUid = "04:F1:E2:D3";
+  await service.assignWorkerRfidCard(
+    admin.actor,
+    transferWorker.id,
+    { uid: transferCardUid, validFrom: oldDepartmentOccurredAt },
+    "integration-transfer-rfid"
+  );
+  const movedWorker = await service.updateWorker(admin.actor, transferWorker.id, {
+    code: transferWorker.code,
+    name: transferWorker.name,
+    email: transferWorker.email,
+    departmentId: ids.dep3,
+    shiftId: transferWorker.shiftId,
+    annualLeaveAllowance: transferWorker.annualLeaveAllowance
+  }, transferWorker.revision, "integration-transfer-worker-move");
+  assert.equal(movedWorker.departmentId, ids.dep3);
+  const assignmentHistory = await owner.query<{ department_id: string; effective_from: string; effective_to: string | null }>(
+    `SELECT department_id, effective_from, effective_to FROM worker_department_assignments
+     WHERE worker_id = $1 ORDER BY effective_from`,
+    [transferWorker.id]
+  );
+  assert.deepEqual(assignmentHistory.rows.map((row) => row.department_id), [ids.dep1, ids.dep3]);
+  assert.ok(assignmentHistory.rows[0]?.effective_to);
+  assert.equal(assignmentHistory.rows[1]?.effective_to, null);
+  const newDepartmentOccurredAt = new Date(new Date(assignmentHistory.rows[1]!.effective_from).getTime() + 1).toISOString();
+
   const paired = await service.pairTerminal(
     admin.actor,
     { activationCode: terminalActivationCode, name: "RFID ulaz 01", location: "Operativa A" },
@@ -391,11 +523,11 @@ test("PostgreSQL migrations, RLS isolation, auth and manager scope", { skip: !da
   assert.ok(paired.deviceCredential.length >= 32);
 
   const cardUidHash = hashRfidUid("04:A1:B2:C3", rfidPepper).toString("hex");
-  const ingest = async (eventType: "check_in" | "check_out", deviceEventId: string, occurredAt: string, sequence: number, nonce: string) => {
+  const ingest = async (eventType: "check_in" | "check_out", deviceEventId: string, occurredAt: string, sequence: number, nonce: string, eventCardUidHash = cardUidHash) => {
     const body = {
       batchId: randomUUID(),
       sentAt: new Date().toISOString(),
-      events: [{ deviceEventId, sequence, occurredAt, eventType, cardUidHash, deviceClockOffsetSeconds: 0 }]
+      events: [{ deviceEventId, sequence, occurredAt, eventType, cardUidHash: eventCardUidHash, deviceClockOffsetSeconds: 0 }]
     };
     const rawBody = Buffer.from(JSON.stringify(body), "utf8");
     const timestamp = new Date().toISOString();
@@ -495,6 +627,42 @@ test("PostgreSQL migrations, RLS isolation, auth and manager scope", { skip: !da
   const lateCheckIn = await ingest("check_in", randomUUID(), "2026-07-11T15:00:00.000Z", 10, "integration-nonce-late-check-in-0013");
   assert.equal(lateCheckIn.results[0]?.status, "rejected");
   assert.equal(lateCheckIn.results[0]?.code, "CHECK_IN_AFTER_CHECK_OUT");
+
+  const transferCardUidHash = hashRfidUid(transferCardUid, rfidPepper).toString("hex");
+  const oldDepartmentEventId = randomUUID();
+  const oldDepartmentEvent = await ingest(
+    "check_in", oldDepartmentEventId, oldDepartmentOccurredAt, 11,
+    "integration-nonce-transfer-old-0014", transferCardUidHash
+  );
+  assert.equal(oldDepartmentEvent.results[0]?.status, "synced");
+  const newDepartmentEventId = randomUUID();
+  const newDepartmentEvent = await ingest(
+    "check_out", newDepartmentEventId, newDepartmentOccurredAt, 12,
+    "integration-nonce-transfer-new-0015", transferCardUidHash
+  );
+  assert.equal(newDepartmentEvent.results[0]?.status, "synced");
+  const transferSnapshots = await owner.query<{ device_event_id: string; effective_department_id: string | null }>(
+    `SELECT device_event_id, effective_department_id FROM attendance_events
+     WHERE terminal_id = $1 AND device_event_id = ANY($2::uuid[]) ORDER BY occurred_at`,
+    [paired.terminal.id, [oldDepartmentEventId, newDepartmentEventId]]
+  );
+  assert.deepEqual(transferSnapshots.rows, [
+    { device_event_id: oldDepartmentEventId, effective_department_id: ids.dep1 },
+    { device_event_id: newDepartmentEventId, effective_department_id: ids.dep3 }
+  ]);
+  const receivedDate = new Date().toISOString().slice(0, 10);
+  const transferHistoryFilters = { from: receivedDate, to: receivedDate, limit: 50 };
+  const adminTransferHistory = await service.listTerminalSyncEvents(admin.actor, paired.terminal.id, transferHistoryFilters);
+  assert.ok(adminTransferHistory.items.some((item) => item.deviceEventId === oldDepartmentEventId));
+  assert.ok(adminTransferHistory.items.some((item) => item.deviceEventId === newDepartmentEventId));
+  const managerATransferHistory = await service.listTerminalSyncEvents(manager.actor, paired.terminal.id, transferHistoryFilters);
+  assert.deepEqual(managerATransferHistory.items.map((item) => item.deviceEventId), [oldDepartmentEventId]);
+  assert.equal(managerATransferHistory.page.total, 1);
+  const managerBTransferHistory = await service.listTerminalSyncEvents(managerB.actor, paired.terminal.id, transferHistoryFilters);
+  assert.deepEqual(managerBTransferHistory.items.map((item) => item.deviceEventId), [newDepartmentEventId]);
+  assert.equal(managerBTransferHistory.page.total, 1);
+  const unassignedTransferHistory = await service.listTerminalSyncEvents(unassignedManager.actor, paired.terminal.id, transferHistoryFilters);
+  assert.deepEqual(unassignedTransferHistory, { items: [], page: { nextCursor: null, total: 0 } });
 
   const blockedCard = await service.blockRfidCard(admin.actor, card.id, "integration-rfid-block");
   const blockedCardAgain = await service.blockRfidCard(admin.actor, card.id, "integration-rfid-block-idempotent");

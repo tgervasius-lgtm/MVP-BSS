@@ -80,6 +80,7 @@ Batch se obrađuje serijski po slijedu. Per-tenant transakcijski advisory lock u
 - sequence manji ili jednak server cursoru vraća `SEQUENCE_OUT_OF_ORDER`;
 - događaj više od pet minuta u budućnosti vraća `EVENT_IN_FUTURE`;
 - nepoznata/blokirana kartica vraća odbijeni raw događaj;
+- radnikov odjel u trenutku `occurredAt` sprema se kao nepromjenjivi snapshot na raw i sync događaju; zakašnjeli događaj koristi isti event-time interval, a nedokaziv povijesni odjel ostaje `NULL` i nevidljiv Voditelju;
 - prijava stvara dan sa snapshotom smjene;
 - odjava računa minute, ali odbija negativno ili dulje od 16 sati;
 - raw događaj, sync read model i audit su append-only.
@@ -119,7 +120,7 @@ Service worker cacheira samo shell/brand assete. Navigacija je network-first/no-
 
 ## Migracije i deploy
 
-`001`–`008` su checksumirane i advisory-lockane. Deploy redoslijed je: backup/recovery point, forward migracije, najmanji runtime grantovi, bootstrap samo za novu instalaciju, aplikacija, `/readyz` i smoke. Bootstrap unaprijed generira tenant ID i postavlja RLS kontekst pa radi i s `FORCE RLS` vlasnikom bez superuser ovlasti. Runtime i migrator ne smiju biti ista DB uloga u produkciji.
+`001`–`009` su checksumirane i advisory-lockane. Deploy redoslijed je: backup/recovery point, forward migracije, najmanji runtime grantovi, bootstrap samo za novu instalaciju, aplikacija, `/readyz` i smoke. Bootstrap unaprijed generira tenant ID i postavlja RLS kontekst pa radi i s `FORCE RLS` vlasnikom bez superuser ovlasti. Runtime i migrator ne smiju biti ista DB uloga u produkciji.
 
 Istekli binarni report artefakti, nonceovi i stare sesije čiste se per-tenant platformskim poslom iz `backend/deploy/maintenance.sql`. Audit i raw evidencijski događaji nisu dio tog čišćenja.
 
