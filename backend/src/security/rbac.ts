@@ -8,7 +8,7 @@ export const RBAC = Object.freeze({
   workers: { read: ["admin", "manager"], write: ["admin"] },
   shifts: { read: ["admin", "manager", "worker"], write: ["admin"] },
   holidays: { read: ["admin", "manager", "worker", "accountant"], write: ["admin"] },
-  attendance: { read: ["admin", "manager", "worker"], write: [] },
+  attendance: { read: ["admin", "manager", "worker"], write: ["admin"] },
   leave: { read: ["admin", "manager", "worker", "accountant"], write: ["admin", "manager", "worker"] },
   corrections: { read: ["admin", "manager", "worker"], write: ["admin", "manager", "worker"] },
   reports: { read: ["admin", "manager", "accountant"], write: ["admin", "manager", "accountant"] },

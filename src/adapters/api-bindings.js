@@ -153,15 +153,15 @@
     await mutateApi(()=>BSS_API.post(`/leave-requests/${request.apiId}/cancel`,undefined,revisionHeaders(request.revision)),'Zahtjev je poništen.');
   }
 
-  function asIso(date,time){
-    return BSS_API_STATE.zonedDateTimeToIso(date,time,sessionContext?.organization?.timezone||state.company.timezone||'Europe/Zagreb');
+  function asIso(date,time,timeZone){
+    return BSS_API_STATE.zonedDateTimeToIso(date,time,timeZone||sessionContext?.organization?.timezone||state.company.timezone||'Europe/Zagreb');
   }
   async function apiSubmitCorrection(){
     if(currentRole!=='worker')return;
     const date=$('#corrDate')?.value,start=$('#corrStart')?.value,end=$('#corrEnd')?.value,reason=$('#corrReason')?.value.trim();
     const record=state.records.find(item=>item.workerId===currentWorker().id&&item.date===date);
     if(!record?.apiId||!start||!end||!reason){toast('Odaberi postojeći zapis te unesi ispravno vrijeme i razlog.');return;}
-    await mutateApi(()=>BSS_API.post('/correction-requests',{attendanceDayId:record.apiId,newCheckIn:asIso(date,start),newCheckOut:asIso(date,end),reason}),'Zahtjev za korekciju je poslan.');
+    await mutateApi(()=>BSS_API.post('/correction-requests',{attendanceDayId:record.apiId,newCheckIn:asIso(date,start,record.timezone),newCheckOut:asIso(date,end,record.timezone),reason}),'Zahtjev za korekciju je poslan.');
   }
   async function apiUpdateCorrection(id,status){
     const correction=state.corrections.find(item=>item.id===Number(id));if(!correction||!['admin','manager'].includes(currentRole))return;

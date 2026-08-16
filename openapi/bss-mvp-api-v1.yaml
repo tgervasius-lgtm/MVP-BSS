@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: BSS MVP API
-  version: 1.1.0
+  version: 1.2.0
   summary: Implemented Backend MVP contract for the frozen BSS Frontend v1.0.0.
   description: |
     Implemented versioned contract for the functional Backend MVP; deployment remains a separate
@@ -695,6 +695,49 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AttendancePage'
+  /attendance/{attendanceDayId}/recalculations:
+    post:
+      tags: [Attendance]
+      operationId: recalculateAttendanceDay
+      summary: Explicitly Recalculate an Attendance Day
+      description: Admin-only deterministic recalculation from immutable linked raw events and the recorded historical configuration. Corrected or locked-period rows and rows without complete provenance are rejected. The operation preserves append-only before/after, actor, reason, version, supersession and affected-period evidence.
+      x-bss-roles: [admin]
+      parameters:
+        - name: attendanceDayId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AttendanceRecalculationWrite'
+      responses:
+        '200':
+          description: A new immutable calculation supersedes the prior calculation; raw events remain unchanged.
+          headers:
+            ETag:
+              description: Revision of the recalculated attendance day.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AttendanceRecalculation'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '429':
+          $ref: '#/components/responses/RateLimited'
   /workers/{workerId}/attendance:
     get:
       tags: [Attendance]
@@ -1984,7 +2027,7 @@ components:
           format: date-time
     AttendanceDay:
       type: object
-      required: [id, workerId, workDate, shift, status, workedMinutes, plannedMinutes, balanceMinutes, revision]
+      required: [id, workerId, workDate, shift, status, workedMinutes, plannedMinutes, balanceMinutes, source, provenance, revision]
       properties:
         id:
           type: string
@@ -2019,8 +2062,123 @@ components:
         source:
           type: string
           enum: [terminal, approved_correction]
+        provenance:
+          $ref: '#/components/schemas/AttendanceProvenance'
         revision:
           $ref: '#/components/schemas/Revision'
+    AttendanceProvenance:
+      type: object
+      additionalProperties: false
+      required: [status, calculationId, calculationVersion, timezone, timezoneVersionId, shiftVersionId, shiftAssignmentId, sourceEventIds, eventTimeInterpretations]
+      properties:
+        status:
+          type: string
+          enum: [complete, legacy_unavailable]
+        calculationId:
+          type: [string, 'null']
+          format: uuid
+        calculationVersion:
+          type: string
+          enum: [attendance-v1, legacy-unversioned]
+        timezone:
+          type: [string, 'null']
+          description: Recorded IANA timezone used for business-date attribution and contractual display.
+        timezoneVersionId:
+          type: [string, 'null']
+          format: uuid
+        shiftVersionId:
+          type: [string, 'null']
+          format: uuid
+        shiftAssignmentId:
+          type: [string, 'null']
+          format: uuid
+        sourceEventIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+          description: Immutable raw attendance-event identifiers used by the current calculation.
+        eventTimeInterpretations:
+          type: array
+          items:
+            $ref: '#/components/schemas/AttendanceEventTimeInterpretation'
+          description: Immutable one-time UTC-to-local interpretations used by the current calculation; empty for legacy unavailable evidence.
+    AttendanceEventTimeInterpretation:
+      type: object
+      additionalProperties: false
+      required: [sourceEventId, eventType, utcInstant, timezoneVersionId, timezone, localTimestamp, utcOffsetSeconds]
+      properties:
+        sourceEventId:
+          type: string
+          format: uuid
+        eventType:
+          type: string
+          enum: [check_in, check_out]
+        utcInstant:
+          type: string
+          format: date-time
+          description: Authoritative immutable UTC instant from the raw attendance event.
+        timezoneVersionId:
+          type: string
+          format: uuid
+        timezone:
+          type: string
+          description: IANA timezone name used for the event's one-time contractual interpretation.
+        localTimestamp:
+          type: string
+          pattern: '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?$'
+          description: Resolved local timestamp without a zone designator; replay must use this value rather than current timezone rules.
+        utcOffsetSeconds:
+          type: integer
+          minimum: -86400
+          maximum: 86400
+          description: Resolved offset distinguishing the accepted occurrence at DST folds.
+    AttendanceRecalculationWrite:
+      type: object
+      additionalProperties: false
+      required: [calculationVersion, reason]
+      properties:
+        calculationVersion:
+          type: string
+          enum: [attendance-v1]
+        reason:
+          type: string
+          minLength: 3
+          maxLength: 1000
+    AttendanceRecalculation:
+      type: object
+      additionalProperties: false
+      required: [calculationId, supersedesCalculationId, calculationVersion, affectedPeriod, reason, before, after, auditEventId]
+      properties:
+        calculationId:
+          type: string
+          format: uuid
+        supersedesCalculationId:
+          type: string
+          format: uuid
+        calculationVersion:
+          type: string
+          enum: [attendance-v1]
+        affectedPeriod:
+          type: object
+          additionalProperties: false
+          required: [from, to]
+          properties:
+            from:
+              type: string
+              format: date
+            to:
+              type: string
+              format: date
+        reason:
+          type: string
+        before:
+          $ref: '#/components/schemas/AttendanceDay'
+        after:
+          $ref: '#/components/schemas/AttendanceDay'
+        auditEventId:
+          type: string
+          format: uuid
     ShiftSnapshot:
       type: object
       required: [id, name, startTime, endTime, breakMinutes]

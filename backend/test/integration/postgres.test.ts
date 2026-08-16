@@ -38,7 +38,7 @@ test("PostgreSQL migrations, RLS isolation, auth and manager scope", { skip: !da
   await owner.query(`GRANT INSERT ON departments, shifts, workers, holidays, rfid_cards,
     users, user_department_scopes, user_invitations, auth_sessions, terminals, terminal_credentials,
     attendance_events, attendance_days, leave_requests, correction_requests, report_exports, audit_events,
-    holiday_calendars, terminal_request_nonces, terminal_sync_events TO ${role}`);
+    holiday_calendars, terminal_request_nonces, terminal_sync_events, attendance_calculations TO ${role}`);
   await owner.query(`GRANT UPDATE ON organizations, departments, shifts, workers, holidays, rfid_cards,
     users, user_invitations, auth_sessions, terminals, terminal_credentials, attendance_days,
     leave_requests, correction_requests, report_exports, holiday_calendars TO ${role}`);
@@ -83,6 +83,9 @@ test("PostgreSQL migrations, RLS isolation, auth and manager scope", { skip: !da
   `, [adminHash, managerHash]);
   const ids = seeded.rows[0];
   assert.ok(ids);
+  await owner.query("UPDATE organization_timezone_versions SET effective_from = '2020-01-01T00:00:00Z' WHERE organization_id = ANY($1::uuid[])", [[ids.org1, ids.org2]]);
+  await owner.query("UPDATE shift_configuration_versions SET effective_from = '2020-01-01T00:00:00Z' WHERE shift_id = ANY($1::uuid[])", [[ids.shift1, ids.shift2]]);
+  await owner.query("UPDATE worker_shift_assignments SET effective_from = '2020-01-01T00:00:00Z' WHERE worker_id = ANY($1::uuid[])", [[ids.worker1, ids.worker2, ids.worker3]]);
   const workerUser = await owner.query<{ id: string }>(
     `INSERT INTO users (organization_id, email, password_hash, role, status, worker_id)
      VALUES ($1, 'worker-a@example.test', $2, 'worker', 'active', $3) RETURNING id`,
@@ -337,7 +340,7 @@ test("PostgreSQL migrations, RLS isolation, auth and manager scope", { skip: !da
   const card = await service.assignWorkerRfidCard(
     admin.actor,
     ids.worker1,
-    { uid: "04:A1:B2:C3", validFrom: "2026-01-01T00:00:00.000Z" },
+    { uid: "04:A1:B2:C3", validFrom: "2025-01-01T00:00:00.000Z" },
     "integration-rfid"
   );
   assert.equal(card.maskedUid, "****B2C3");
@@ -673,6 +676,252 @@ test("PostgreSQL migrations, RLS isolation, auth and manager scope", { skip: !da
   const unassignedTransferHistory = await service.listTerminalSyncEvents(unassignedManager.actor, paired.terminal.id, transferHistoryFilters);
   assert.deepEqual(unassignedTransferHistory, { items: [], page: { nextCursor: null, total: 0 } });
 
+  const originalShift = (await service.listShifts(admin.actor)).find((item) => item.id === ids.shift1)!;
+  await service.updateShift(admin.actor, ids.shift1, {
+    name: "Jutarnja nova pravila",
+    startTime: "10:00",
+    endTime: "18:00",
+    breakMinutes: 60,
+    toleranceMinutes: 15
+  }, originalShift.revision, "integration-historical-shift-version");
+  const workerBeforeShiftMove = await service.getWorker(admin.actor, ids.worker1);
+  await service.updateWorker(admin.actor, ids.worker1, {
+    code: workerBeforeShiftMove.code,
+    name: workerBeforeShiftMove.name,
+    email: workerBeforeShiftMove.email,
+    departmentId: workerBeforeShiftMove.departmentId,
+    shiftId: updatedShift.id,
+    annualLeaveAllowance: workerBeforeShiftMove.annualLeaveAllowance
+  }, workerBeforeShiftMove.revision, "integration-historical-shift-assignment");
+  const organizationBeforeTimezoneChange = await service.getOrganization(admin.actor);
+  await service.updateOrganization(
+    admin.actor,
+    { timezone: "Europe/London" },
+    organizationBeforeTimezoneChange.revision,
+    "integration-historical-timezone-version"
+  );
+
+  const delayedHistoricalCheckInId = randomUUID();
+  const delayedHistoricalCheckOutId = randomUUID();
+  assert.equal((await ingest("check_in", delayedHistoricalCheckInId, "2026-06-20T22:30:00.000Z", 13, "integration-nonce-historical-in-0016")).results[0]?.status, "synced");
+  assert.equal((await ingest("check_out", delayedHistoricalCheckOutId, "2026-06-21T05:30:00.000Z", 14, "integration-nonce-historical-out-0017")).results[0]?.status, "synced");
+  const delayedHistorical = await service.getWorkerAttendance(workerSession.actor, ids.worker1, { from: "2026-06-21", to: "2026-06-21", limit: 50 });
+  const delayedHistoricalDay = delayedHistorical.items[0]!;
+  assert.equal(delayedHistoricalDay.workDate, "2026-06-21");
+  assert.equal(delayedHistoricalDay.shift.id, ids.shift1);
+  assert.equal(delayedHistoricalDay.shift.startTime, "08:00");
+  assert.equal(delayedHistoricalDay.breakMinutes, 30);
+  assert.equal(delayedHistoricalDay.workedMinutes, 390);
+  assert.equal(delayedHistoricalDay.plannedMinutes, 450);
+  assert.equal(delayedHistoricalDay.provenance.status, "complete");
+  assert.equal(delayedHistoricalDay.provenance.calculationVersion, "attendance-v1");
+  assert.equal(delayedHistoricalDay.provenance.timezone, "Europe/Zagreb");
+  assert.equal(delayedHistoricalDay.provenance.sourceEventIds.length, 2);
+  const historicalVersions = await owner.query<{
+    timezone_version_id: string;
+    shift_version_id: string;
+    shift_assignment_id: string;
+  }>(
+    `SELECT otv.id AS timezone_version_id, scv.id AS shift_version_id, wsa.id AS shift_assignment_id
+     FROM organization_timezone_versions otv
+     JOIN worker_shift_assignments wsa ON wsa.organization_id = otv.organization_id
+     JOIN shift_configuration_versions scv ON scv.shift_id = wsa.shift_id
+     WHERE otv.organization_id = $1 AND wsa.worker_id = $2
+       AND otv.effective_from <= $3 AND otv.effective_to > $3
+       AND wsa.effective_from <= $3 AND wsa.effective_to > $3
+       AND scv.effective_from <= $3 AND scv.effective_to > $3`,
+    [ids.org1, ids.worker1, "2026-06-20T22:30:00.000Z"]
+  );
+  assert.equal(delayedHistoricalDay.provenance.timezoneVersionId, historicalVersions.rows[0]?.timezone_version_id);
+  assert.equal(delayedHistoricalDay.provenance.shiftVersionId, historicalVersions.rows[0]?.shift_version_id);
+  assert.equal(delayedHistoricalDay.provenance.shiftAssignmentId, historicalVersions.rows[0]?.shift_assignment_id);
+  const linkedRawEvents = await owner.query<{
+    device_event_id: string; attendance_day_id: string | null; timezone_version_id: string | null;
+    timezone_name: string | null; resolved_local_at: string | null; resolved_utc_offset_seconds: number | null;
+  }>(
+    `SELECT device_event_id, attendance_day_id, timezone_version_id, timezone_name,
+       to_char(resolved_local_at, 'YYYY-MM-DD"T"HH24:MI:SS.MS') AS resolved_local_at,
+       resolved_utc_offset_seconds FROM attendance_events
+     WHERE device_event_id = ANY($1::uuid[]) ORDER BY occurred_at`,
+    [[delayedHistoricalCheckInId, delayedHistoricalCheckOutId]]
+  );
+  assert.deepEqual(linkedRawEvents.rows, [
+    { device_event_id: delayedHistoricalCheckInId, attendance_day_id: delayedHistoricalDay.id, timezone_version_id: historicalVersions.rows[0]?.timezone_version_id, timezone_name: "Europe/Zagreb", resolved_local_at: "2026-06-21T00:30:00.000", resolved_utc_offset_seconds: 7200 },
+    { device_event_id: delayedHistoricalCheckOutId, attendance_day_id: delayedHistoricalDay.id, timezone_version_id: historicalVersions.rows[0]?.timezone_version_id, timezone_name: "Europe/Zagreb", resolved_local_at: "2026-06-21T07:30:00.000", resolved_utc_offset_seconds: 7200 }
+  ]);
+  assert.deepEqual(delayedHistoricalDay.provenance.eventTimeInterpretations.map((item) => ({
+    eventType: item.eventType, localTimestamp: item.localTimestamp, utcOffsetSeconds: item.utcOffsetSeconds
+  })), [
+    { eventType: "check_in", localTimestamp: "2026-06-21T00:30:00.000", utcOffsetSeconds: 7200 },
+    { eventType: "check_out", localTimestamp: "2026-06-21T07:30:00.000", utcOffsetSeconds: 7200 }
+  ]);
+
+  const dstGapCheckInId = randomUUID();
+  const dstGapCheckOutId = randomUUID();
+  await ingest("check_in", dstGapCheckInId, "2026-03-29T00:30:00.000Z", 15, "integration-nonce-dst-gap-in-0018");
+  await ingest("check_out", dstGapCheckOutId, "2026-03-29T02:30:00.000Z", 16, "integration-nonce-dst-gap-out-0019");
+  const dstGapDay = await service.getWorkerAttendance(workerSession.actor, ids.worker1, { from: "2026-03-29", to: "2026-03-29", limit: 50 });
+  assert.equal(dstGapDay.items[0]?.workedMinutes, 90);
+  assert.equal(dstGapDay.items[0]?.provenance.timezone, "Europe/Zagreb");
+  assert.deepEqual(dstGapDay.items[0]?.provenance.eventTimeInterpretations.map((item) => [item.utcInstant, item.localTimestamp, item.utcOffsetSeconds]), [
+    ["2026-03-29T00:30:00.000Z", "2026-03-29T01:30:00.000", 3600],
+    ["2026-03-29T02:30:00.000Z", "2026-03-29T04:30:00.000", 7200]
+  ]);
+
+  const dstFoldCheckInId = randomUUID();
+  const dstFoldCheckOutId = randomUUID();
+  await ingest("check_in", dstFoldCheckInId, "2025-10-26T00:30:00.000Z", 17, "integration-nonce-dst-fold-in-0020");
+  await ingest("check_out", dstFoldCheckOutId, "2025-10-26T01:30:00.000Z", 18, "integration-nonce-dst-fold-out-0021");
+  const dstFoldDay = await service.getWorkerAttendance(workerSession.actor, ids.worker1, { from: "2025-10-26", to: "2025-10-26", limit: 50 });
+  assert.equal(dstFoldDay.items[0]?.workedMinutes, 30);
+  assert.equal(dstFoldDay.items[0]?.provenance.timezone, "Europe/Zagreb");
+  assert.deepEqual(dstFoldDay.items[0]?.provenance.eventTimeInterpretations.map((item) => [item.utcInstant, item.localTimestamp, item.utcOffsetSeconds]), [
+    ["2025-10-26T00:30:00.000Z", "2025-10-26T02:30:00.000", 7200],
+    ["2025-10-26T01:30:00.000Z", "2025-10-26T02:30:00.000", 3600]
+  ]);
+
+  const overnightShift = await service.createShift(admin.actor, {
+    name: `Noćna povijesna ${suffix}`,
+    startTime: "22:00",
+    endTime: "06:00",
+    breakMinutes: 30,
+    toleranceMinutes: 5
+  }, "integration-overnight-shift");
+  const overnightWorker = await service.createWorker(admin.actor, {
+    code: `NIGHT-${suffix}`,
+    name: "Noćni Radnik",
+    email: `night-${suffix}@example.test`,
+    departmentId: ids.dep1,
+    shiftId: overnightShift.id,
+    annualLeaveAllowance: 20
+  }, "integration-overnight-worker");
+  await owner.query("UPDATE shift_configuration_versions SET effective_from = '2020-01-01T00:00:00Z' WHERE shift_id = $1", [overnightShift.id]);
+  await owner.query("UPDATE worker_shift_assignments SET effective_from = '2020-01-01T00:00:00Z' WHERE worker_id = $1", [overnightWorker.id]);
+  await owner.query("UPDATE worker_department_assignments SET effective_from = '2020-01-01T00:00:00Z' WHERE worker_id = $1", [overnightWorker.id]);
+  const overnightCardUid = "04:99:88:77";
+  await service.assignWorkerRfidCard(admin.actor, overnightWorker.id, { uid: overnightCardUid, validFrom: "2025-01-01T00:00:00.000Z" }, "integration-overnight-card");
+  const overnightHash = hashRfidUid(overnightCardUid, rfidPepper).toString("hex");
+  await ingest("check_in", randomUUID(), "2026-01-10T21:30:00.000Z", 19, "integration-nonce-overnight-in-0022", overnightHash);
+  await ingest("check_out", randomUUID(), "2026-01-11T04:30:00.000Z", 20, "integration-nonce-overnight-out-0023", overnightHash);
+  const overnightDay = await service.getWorkerAttendance(admin.actor, overnightWorker.id, { from: "2026-01-10", to: "2026-01-10", limit: 50 });
+  assert.equal(overnightDay.items[0]?.workDate, "2026-01-10");
+  assert.equal(overnightDay.items[0]?.workedMinutes, 390);
+  assert.equal(overnightDay.items[0]?.plannedMinutes, 450);
+  assert.deepEqual(overnightDay.items[0]?.provenance.eventTimeInterpretations.map((item) => item.localTimestamp), [
+    "2026-01-10T22:30:00.000", "2026-01-11T05:30:00.000"
+  ]);
+
+  const rawBeforeRecalculation = await owner.query(
+    `SELECT id, device_event_id, occurred_at, event_type, processing_status, attendance_day_id,
+       timezone_version_id, timezone_name, resolved_local_at, resolved_utc_offset_seconds
+     FROM attendance_events WHERE attendance_day_id = $1 ORDER BY occurred_at, id`,
+    [delayedHistoricalDay.id]
+  );
+  const recalculation = await service.recalculateAttendanceDay(admin.actor, delayedHistoricalDay.id, {
+    calculationVersion: "attendance-v1",
+    reason: "Deterministična provjera povijesnog izračuna"
+  }, delayedHistoricalDay.revision, "integration-attendance-recalculation");
+  assert.equal(recalculation.supersedesCalculationId, delayedHistoricalDay.provenance.calculationId);
+  assert.notEqual(recalculation.calculationId, recalculation.supersedesCalculationId);
+  assert.deepEqual(recalculation.affectedPeriod, { from: "2026-06-21", to: "2026-06-21" });
+  assert.equal(recalculation.after.workDate, recalculation.before.workDate);
+  assert.deepEqual(recalculation.after.shift, recalculation.before.shift);
+  assert.equal(recalculation.after.checkIn, recalculation.before.checkIn);
+  assert.equal(recalculation.after.checkOut, recalculation.before.checkOut);
+  assert.equal(recalculation.after.workedMinutes, recalculation.before.workedMinutes);
+  assert.equal(recalculation.after.plannedMinutes, recalculation.before.plannedMinutes);
+  assert.equal(recalculation.after.status, recalculation.before.status);
+  assert.equal(recalculation.after.provenance.timezoneVersionId, recalculation.before.provenance.timezoneVersionId);
+  assert.deepEqual(recalculation.after.provenance.sourceEventIds, recalculation.before.provenance.sourceEventIds);
+  assert.deepEqual(recalculation.after.provenance.eventTimeInterpretations, recalculation.before.provenance.eventTimeInterpretations);
+  assert.notEqual(recalculation.after.revision, recalculation.before.revision);
+  const rawAfterRecalculation = await owner.query(
+    `SELECT id, device_event_id, occurred_at, event_type, processing_status, attendance_day_id,
+       timezone_version_id, timezone_name, resolved_local_at, resolved_utc_offset_seconds
+     FROM attendance_events WHERE attendance_day_id = $1 ORDER BY occurred_at, id`,
+    [delayedHistoricalDay.id]
+  );
+  assert.deepEqual(rawAfterRecalculation.rows, rawBeforeRecalculation.rows);
+  const calculationHistory = await owner.query<{
+    id: string;
+    actor_type: string;
+    actor_id: string;
+    supersedes_id: string | null;
+    reason: string;
+    affected_from: string;
+    affected_to: string;
+    source_event_ids: string[];
+    configuration_snapshot: { eventTimeInterpretations?: unknown[] };
+  }>(
+    `SELECT id, actor_type, actor_id, supersedes_id, reason, affected_from::text, affected_to::text,
+       source_event_ids, configuration_snapshot
+     FROM attendance_calculations WHERE attendance_day_id = $1 ORDER BY created_at, id`,
+    [delayedHistoricalDay.id]
+  );
+  assert.equal(calculationHistory.rows.length, 3);
+  assert.equal(calculationHistory.rows[2]?.id, recalculation.calculationId);
+  assert.equal(calculationHistory.rows[2]?.actor_type, "user");
+  assert.equal(calculationHistory.rows[2]?.actor_id, admin.actor.userId);
+  assert.equal(calculationHistory.rows[2]?.supersedes_id, recalculation.supersedesCalculationId);
+  assert.equal(calculationHistory.rows[2]?.reason, recalculation.reason);
+  assert.equal(calculationHistory.rows[2]?.affected_from, "2026-06-21");
+  assert.equal(calculationHistory.rows[2]?.affected_to, "2026-06-21");
+  assert.deepEqual(calculationHistory.rows[2]?.source_event_ids, recalculation.after.provenance.sourceEventIds);
+  assert.deepEqual(calculationHistory.rows[2]?.configuration_snapshot.eventTimeInterpretations, recalculation.after.provenance.eventTimeInterpretations);
+  await assert.rejects(
+    owner.query("UPDATE attendance_calculations SET reason = 'mutated' WHERE id = $1", [recalculation.calculationId]),
+    /immutable/i
+  );
+  const tenantProbe = await appPool.connect();
+  try {
+    await tenantProbe.query("BEGIN");
+    await tenantProbe.query("SELECT set_config('bss.organization_id', $1, true)", [ids.org2]);
+    const hiddenCalculation = await tenantProbe.query("SELECT id FROM attendance_calculations WHERE id = $1", [recalculation.calculationId]);
+    const hiddenTimezoneVersion = await tenantProbe.query("SELECT id FROM organization_timezone_versions WHERE organization_id = $1", [ids.org1]);
+    assert.equal(hiddenCalculation.rowCount, 0);
+    assert.equal(hiddenTimezoneVersion.rowCount, 0);
+  } finally {
+    await tenantProbe.query("ROLLBACK");
+    tenantProbe.release();
+  }
+  const recalculationAudit = await owner.query<{ before_json: unknown; after_json: unknown; metadata: { reason?: string; calculationId?: string } }>(
+    "SELECT before_json, after_json, metadata FROM audit_events WHERE id = $1",
+    [recalculation.auditEventId]
+  );
+  assert.ok(recalculationAudit.rows[0]?.before_json);
+  assert.ok(recalculationAudit.rows[0]?.after_json);
+  assert.equal(recalculationAudit.rows[0]?.metadata.reason, recalculation.reason);
+  assert.equal(recalculationAudit.rows[0]?.metadata.calculationId, recalculation.calculationId);
+  for (const deniedActor of [manager.actor, workerSession.actor, accountant.actor]) {
+    await assert.rejects(
+      service.recalculateAttendanceDay(deniedActor, delayedHistoricalDay.id, {
+        calculationVersion: "attendance-v1",
+        reason: "Nedopuštena provjera"
+      }, recalculation.after.revision, "integration-attendance-recalculation-denied"),
+      (error: unknown) => typeof error === "object" && error !== null && "code" in error && error.code === "FORBIDDEN"
+    );
+  }
+  await assert.rejects(
+    service.recalculateAttendanceDay({ ...admin.actor, organizationId: ids.org2 }, delayedHistoricalDay.id, {
+      calculationVersion: "attendance-v1",
+      reason: "Međutenantska provjera"
+    }, recalculation.after.revision, "integration-attendance-recalculation-cross-tenant"),
+    (error: unknown) => typeof error === "object" && error !== null && "code" in error && error.code === "NOT_FOUND"
+  );
+  await owner.query(
+    `INSERT INTO attendance_month_locks (organization_id, year, month, locked_by)
+     VALUES ($1, 2026, 6, $2)`,
+    [ids.org1, ids.admin1]
+  );
+  await assert.rejects(
+    service.recalculateAttendanceDay(admin.actor, delayedHistoricalDay.id, {
+      calculationVersion: "attendance-v1",
+      reason: "Zaključano razdoblje"
+    }, recalculation.after.revision, "integration-attendance-recalculation-locked"),
+    (error: unknown) => typeof error === "object" && error !== null && "code" in error && error.code === "CONFLICT"
+  );
+  await owner.query("DELETE FROM attendance_month_locks WHERE organization_id = $1 AND year = 2026 AND month = 6", [ids.org1]);
+
   const blockedCard = await service.blockRfidCard(admin.actor, card.id, "integration-rfid-block");
   const blockedCardAgain = await service.blockRfidCard(admin.actor, card.id, "integration-rfid-block-idempotent");
   assert.equal(blockedCard.status, "blocked");
@@ -754,6 +1003,13 @@ test("PostgreSQL migrations, RLS isolation, auth and manager scope", { skip: !da
   assert.equal(correctionDecision.request.status, "approved");
   assert.equal(correctionDecision.attendanceDay.status, "corrected");
   assert.equal(correctionDecision.attendanceDay.source, "approved_correction");
+  await assert.rejects(
+    service.recalculateAttendanceDay(admin.actor, correctionDecision.attendanceDay.id, {
+      calculationVersion: "attendance-v1",
+      reason: "Korekcija se ne smije prepisati"
+    }, correctionDecision.attendanceDay.revision, "integration-recalculation-corrected-block"),
+    (error: unknown) => typeof error === "object" && error !== null && "code" in error && error.code === "CONFLICT"
+  );
 
   const staleCorrection = await service.createCorrectionRequest(workerSession.actor, {
     attendanceDayId: day.items[0]!.id,

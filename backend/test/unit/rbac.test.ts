@@ -18,6 +18,8 @@ function actor(role: Role): ActorContext {
 
 test("RBAC matrix keeps administrator mutations and accounting read-only", () => {
   assert.doesNotThrow(() => requirePermission(actor("admin"), "workers", "write"));
+  assert.doesNotThrow(() => requirePermission(actor("admin"), "attendance", "write"));
+  assert.throws(() => requirePermission(actor("manager"), "attendance", "write"), AppError);
   assert.throws(() => requirePermission(actor("accountant"), "workers", "write"), AppError);
   assert.doesNotThrow(() => requirePermission(actor("accountant"), "reports", "write"));
   assert.throws(() => requirePermission(actor("worker"), "audit", "read"), AppError);

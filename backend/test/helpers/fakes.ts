@@ -5,6 +5,8 @@ import type {
   AuthService,
   AuthTokens,
   AttendancePageView,
+  AttendanceRecalculationView,
+  AttendanceRecalculationWrite,
   AttendanceStatus,
   ApprovedLeaveCalendarView,
   AuditEventView,
@@ -54,7 +56,8 @@ export const IDS = Object.freeze({
   attendance: "00000000-0000-4000-8000-000000000008",
   request: "00000000-0000-4000-8000-000000000009",
   export: "00000000-0000-4000-8000-000000000010",
-  terminal: "00000000-0000-4000-8000-000000000011"
+  terminal: "00000000-0000-4000-8000-000000000011",
+  calculation: "00000000-0000-4000-8000-000000000012"
 });
 
 function session(role: Role): { context: SessionContext; actor: ActorContext } {
@@ -178,9 +181,10 @@ export class FakePhaseAService implements MvpService {
   async createReportPreview(_actor: ActorContext, input: ReportPreviewWrite): Promise<ReportPreviewView> { return { reportType: input.reportType, filters: { ...input, limit: input.limit ?? 100 }, columns: [{ key: "workerCode", label: "Šifra", dataType: "text" }], rows: [{ workerCode: "R-001" }], totals: { rowCount: 1, workedMinutes: 480, plannedMinutes: 480, balanceMinutes: 0 }, datasetVersion: "report-v1", truncated: false }; }
   async listTerminalSyncEvents(_actor: ActorContext, terminalId: string, _filters: { from: string; to: string; eventStatus?: TerminalSyncEventView["status"]; cursor?: string; limit: number }): Promise<Page<TerminalSyncEventView>> { return { items: [{ id: IDS.card, terminalId, deviceEventId: IDS.worker, sequence: 1, workerId: IDS.worker, occurredAt: new Date(0).toISOString(), receivedAt: new Date(0).toISOString(), eventType: "check_in", status: "synced", rejectionCode: null }], page: { nextCursor: null, total: 1 } }; }
   async listAttendance(_actor: ActorContext, _filters: { from: string; to: string; departmentId?: string; workerId?: string; attendanceStatus?: AttendanceStatus; cursor?: string; limit: number }): Promise<AttendancePageView> {
-    return { items: [{ id: IDS.attendance, workerId: IDS.worker, workDate: "2026-07-17", shift: { id: IDS.shift, name: "Jutarnja", startTime: "08:00", endTime: "16:00", breakMinutes: 30 }, checkIn: "2026-07-17T06:00:00.000Z", checkOut: "2026-07-17T14:00:00.000Z", breakMinutes: 30, workedMinutes: 450, plannedMinutes: 450, balanceMinutes: 0, status: "complete", source: "terminal", revision: "1" }], totals: { rowCount: 1, completedCount: 1, activeCount: 0, reviewCount: 0, workedMinutes: 450, plannedMinutes: 450, balanceMinutes: 0 }, page: { nextCursor: null, total: 1 }, datasetVersion: "attendance-v1" };
+    return { items: [{ id: IDS.attendance, workerId: IDS.worker, workDate: "2026-07-17", shift: { id: IDS.shift, name: "Jutarnja", startTime: "08:00", endTime: "16:00", breakMinutes: 30 }, checkIn: "2026-07-17T06:00:00.000Z", checkOut: "2026-07-17T14:00:00.000Z", breakMinutes: 30, workedMinutes: 450, plannedMinutes: 450, balanceMinutes: 0, status: "complete", source: "terminal", provenance: { status: "complete", calculationId: IDS.calculation, calculationVersion: "attendance-v1", timezone: "Europe/Zagreb", timezoneVersionId: IDS.organization, shiftVersionId: IDS.shift, shiftAssignmentId: IDS.worker, sourceEventIds: [IDS.card, IDS.terminal], eventTimeInterpretations: [{ sourceEventId: IDS.card, eventType: "check_in", utcInstant: "2026-07-17T06:00:00.000Z", timezoneVersionId: IDS.organization, timezone: "Europe/Zagreb", localTimestamp: "2026-07-17T08:00:00.000", utcOffsetSeconds: 7200 }, { sourceEventId: IDS.terminal, eventType: "check_out", utcInstant: "2026-07-17T14:00:00.000Z", timezoneVersionId: IDS.organization, timezone: "Europe/Zagreb", localTimestamp: "2026-07-17T16:00:00.000", utcOffsetSeconds: 7200 }] }, revision: "1" }], totals: { rowCount: 1, completedCount: 1, activeCount: 0, reviewCount: 0, workedMinutes: 450, plannedMinutes: 450, balanceMinutes: 0 }, page: { nextCursor: null, total: 1 }, datasetVersion: "attendance-v1" };
   }
   async getWorkerAttendance(actor: ActorContext, workerId: string, filters: { from: string; to: string; cursor?: string; limit: number }): Promise<AttendancePageView> { return this.listAttendance(actor, { ...filters, workerId }); }
+  async recalculateAttendanceDay(actor: ActorContext, _attendanceDayId: string, input: AttendanceRecalculationWrite, _revision: string, _requestId: string): Promise<AttendanceRecalculationView> { const before=(await this.listAttendance(actor,{from:"2026-07-17",to:"2026-07-17",limit:1})).items[0]!; return { calculationId: IDS.terminal, supersedesCalculationId: IDS.calculation, calculationVersion: input.calculationVersion, affectedPeriod: { from: before.workDate, to: before.workDate }, reason: input.reason, before, after: { ...before, provenance: { ...before.provenance, calculationId: IDS.terminal }, revision: "2" }, auditEventId: IDS.card }; }
   async listLeaveRequests(_actor: ActorContext, _filters: { from: string; to: string; departmentId?: string; leaveStatus?: RequestStatus; cursor?: string; limit: number }): Promise<Page<LeaveRequestView>> { return { items: [this.leaveRequest()], page: { nextCursor: null, total: 1 } }; }
   async createLeaveRequest(_actor: ActorContext, input: LeaveRequestWrite, _requestId: string): Promise<LeaveRequestView> { return { ...this.leaveRequest(), ...input }; }
   async approveLeaveRequest(_actor: ActorContext, _id: string, _revision: string, note: string | undefined, _requestId: string): Promise<LeaveRequestView> { return { ...this.leaveRequest(), status: "approved", decisionNote: note ?? null, revision: "2" }; }

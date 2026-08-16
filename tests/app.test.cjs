@@ -208,6 +208,15 @@ test('API state dohvaća sve cursor stranice i ograničava paralelne RFID pozive
   assert.equal(apiState.zonedDateTimeToIso('2026-07-17','08:00','Europe/Zagreb'),'2026-07-17T06:00:00.000Z');
   assert.equal(apiState.zonedDateTimeToIso('2026-01-17','08:00','Europe/Zagreb'),'2026-01-17T07:00:00.000Z');
   assert.throws(()=>apiState.zonedDateTimeToIso('2026-03-29','02:30','Europe/Zagreb'),/ne postoji/);
+  assert.equal(apiState.attendanceTimeZone({provenance:{timezone:'Europe/Zagreb'}}),'Europe/Zagreb');
+  assert.equal(apiState.attendanceTimeZone({provenance:{status:'legacy_unavailable'}}),'UTC');
+  const contractual={checkIn:'2026-10-25T00:30:00.000Z',checkOut:null,provenance:{eventTimeInterpretations:[{
+    sourceEventId:'event-1',eventType:'check_in',utcInstant:'2026-10-25T00:30:00.000Z',timezoneVersionId:'timezone-1',
+    timezone:'Invalid/Future-Rule-Name',localTimestamp:'2026-10-25T02:30:00.000',utcOffsetSeconds:7200
+  }]}};
+  assert.equal(apiState.contractualAttendanceTime(contractual,'check_in'),'02:30');
+  assert.equal(apiState.contractualAttendanceTime({...contractual,provenance:{eventTimeInterpretations:[]}},'check_in'),'Nepoznato');
+  assert.match(apiStateSource,/start:contractualAttendanceTime\(item,'check_in'\),end:contractualAttendanceTime\(item,'check_out'\)/);
   const calls=[];
   const api={get:async(_path,params)=>{
     calls.push(params);
@@ -1882,7 +1891,7 @@ test('završni frontend handoff pokriva sve ekrane, uloge i granice MVP-a',()=>{
   assert.equal(frontendHandoff.screens.find(item=>item.id==='sharedLeave').mode,'frontend_demo_only');
 });
 
-test('pregled, reporting profil i implementirani API v1.1 zaključavaju tablični smjer',()=>{
+test('pregled, reporting profil i implementirani API v1.2 zaključavaju tablični smjer',()=>{
   assert.match(frontendFinalReview,/Preglednost ispred kompleksnosti/);
   assert.match(frontendFinalReview,/najviše četiri klikabilna KPI-ja/i);
   assert.match(frontendFinalReview,/tjedni i dekorativni grafovi uklonjeni/i);
@@ -1901,7 +1910,7 @@ test('pregled, reporting profil i implementirani API v1.1 zaključavaju tabličn
   assert.doesNotMatch(apiContractDraft,/payroll-calculation|gps-tracking|door-access-control/i);
 });
 
-test('Frontend Freeze v1.0 ostaje baza, a Backend MVP ugovor je verzioniran na v1.1',()=>{
+test('Frontend Freeze v1.0 ostaje baza, a Backend MVP ugovor je verzioniran na v1.2',()=>{
   const baseline='91323c7cdbbbbf7b965c4926c94a11af6d31bf62';
   for(const document of [frontendRelease,frontendFinalReview,backendHandoff,reportingProfile,designSystemDoc,screenMap,apiContractDraft]){
     assert.match(document,new RegExp(baseline));
@@ -1916,9 +1925,9 @@ test('Frontend Freeze v1.0 ostaje baza, a Backend MVP ugovor je verzioniran na v
     assert.ok(screenMap.includes(`\`${id}\``),`Screen Map ne sadrži ${id}`);
   }
   const pathsSection=apiContractDraft.match(/^paths:\r?\n([\s\S]*?)^components:/m)?.[1]||'';
-  assert.equal((pathsSection.match(/^ {2}\/[^\n]+:/gm)||[]).length,43);
-  assert.equal((apiContractDraft.match(/^ {6}operationId:/gm)||[]).length,54);
-  assert.match(apiContractDraft,/version: 1\.1\.0/);
+  assert.equal((pathsSection.match(/^ {2}\/[^\n]+:/gm)||[]).length,44);
+  assert.equal((apiContractDraft.match(/^ {6}operationId:/gm)||[]).length,55);
+  assert.match(apiContractDraft,/version: 1\.2\.0/);
   assert.match(apiContractDraft,/x-bss-status: MVP_IMPLEMENTED/);
   assert.match(apiContractDraft,/x-bss-frontend-release: frontend-v1\.0\.0/);
   assert.match(frontendReleaseWorkflow,/branches: \[main\]/);

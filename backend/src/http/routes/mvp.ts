@@ -3,6 +3,7 @@ import { AppError, requireRevision } from "../../domain/errors.js";
 import { requireDepartmentScope, requirePermission, requireRole } from "../../security/rbac.js";
 import type {
   AttendanceStatus,
+  AttendanceRecalculationWrite,
   CorrectionRequestWrite,
   DeviceRequestProof,
   LeaveRequestWrite,
@@ -132,6 +133,42 @@ export async function registerMvpRoutes(app: FastifyInstance, dependencies: Depe
       const { actor } = await authenticate(request);
       requirePermission(actor, "attendance", "read");
       return service.getWorkerAttendance(actor, request.params.workerId, { ...request.query, limit: request.query.limit ?? 50 });
+    }
+  );
+
+  app.post<{
+    Params: { attendanceDayId: string };
+    Headers: { "if-match": string };
+    Body: AttendanceRecalculationWrite;
+  }>(
+    "/api/v1/attendance/:attendanceDayId/recalculations",
+    {
+      config: { rateLimit: decisionRateLimit },
+      schema: {
+        params: idParams("attendanceDayId"),
+        headers: revisionHeader,
+        body: {
+          type: "object", additionalProperties: false, required: ["calculationVersion", "reason"],
+          properties: {
+            calculationVersion: { type: "string", enum: ["attendance-v1"] },
+            reason: { type: "string", minLength: 3, maxLength: 1000 }
+          }
+        }
+      }
+    },
+    async (request, reply) => {
+      const { actor } = await authenticate(request);
+      requirePermission(actor, "attendance", "write");
+      requireRole(actor, ["admin"]);
+      const result = await service.recalculateAttendanceDay(
+        actor,
+        request.params.attendanceDayId,
+        request.body,
+        requireRevision(request.headers["if-match"]),
+        request.id
+      );
+      etag(reply, result.after.revision);
+      return result;
     }
   );
 

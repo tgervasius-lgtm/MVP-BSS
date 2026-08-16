@@ -4,11 +4,11 @@
 | --- | --- |
 | Frontend | frozen `v1.0.0`; UX/UI nije mijenjan |
 | Frontend baseline | `91323c7cdbbbbf7b965c4926c94a11af6d31bf62` |
-| API | OpenAPI `1.1.0`, 43 putanje / 54 operacije |
-| Backend | Faza B implementirana na grani `agent/bss-backend-phase-b-v1` |
-| Baza | PostgreSQL 16, migracije `001`–`009` |
+| API | OpenAPI `1.2.0`, 44 putanje / 55 operacija |
+| Backend | Faza B implementirana na baselineu; lokalni issue #145 kandidat je na `codex-145-attendance-history` |
+| Baza | PostgreSQL 16, migracije `001`–`010` |
 | Runtime | frontend i API na istom originu |
-| Readiness | **FULL PASS**, 0 otvorenih readiness stavki |
+| Readiness | **PENDING** — #145 još nema obvezni PostgreSQL/RLS ni repository-level review dokaz |
 | Produkcija | nije automatski objavljena niti spojena u `main` |
 
 ## Što se predaje

@@ -14,10 +14,18 @@ import { decodeTimelineCursor, encodeTimelineCursor } from "./cursors.js";
 import { normalizeDatabaseError } from "./database-errors.js";
 import { datasetVersion } from "./dataset-version.js";
 import { requireBoundedDateRange } from "./validation.js";
+import {
+  attendanceSelect,
+  attendanceTimezone,
+  attendanceView,
+  type AttendanceRow
+} from "./attendance-calculation.js";
+import { PgAttendanceCalculationService } from "./pg-attendance-calculation-service.js";
 import { PgPhaseAService } from "./pg-phase-a-service.js";
 import type {
-  AttendanceDayView,
   AttendancePageView,
+  AttendanceRecalculationView,
+  AttendanceRecalculationWrite,
   AttendanceStatus,
   ApprovedLeaveCalendarView,
   AuditEventView,
@@ -41,20 +49,6 @@ import type {
 } from "./contracts.js";
 
 const MAX_EXPORT_ROWS = 10_000;
-
-type AttendanceRow = {
-  id: string;
-  worker_id: string;
-  work_date: string | Date;
-  shift_snapshot: AttendanceDayView["shift"] | string;
-  check_in: string | Date | null;
-  check_out: string | Date | null;
-  break_minutes: number;
-  worked_minutes: number;
-  planned_minutes: number;
-  status: AttendanceStatus;
-  revision: string | number;
-};
 
 type LeaveRow = {
   id: string;
@@ -133,8 +127,6 @@ type TerminalRow = {
   revision: string | number;
 };
 
-const attendanceSelect = `SELECT a.id, a.worker_id, a.work_date, a.shift_snapshot, a.check_in, a.check_out,
-  a.break_minutes, a.worked_minutes, a.planned_minutes, a.status, a.revision`;
 const leaveSelect = `SELECT l.id, l.worker_id, w.department_id, l.leave_type, l.start_date, l.end_date,
   l.working_days, l.note, l.status, l.created_at, l.decided_at, l.decided_by, l.decision_note, l.revision`;
 const correctionSelect = `SELECT c.id, c.attendance_day_id, a.worker_id, w.department_id,
@@ -163,25 +155,6 @@ function safeSecretEquals(actual: string, expected: string): boolean {
   const actualHash = createHash("sha256").update(actual, "utf8").digest();
   const expectedHash = createHash("sha256").update(expected, "utf8").digest();
   return timingSafeEqual(actualHash, expectedHash);
-}
-
-function attendanceView(row: AttendanceRow): AttendanceDayView {
-  const shift = jsonObject<AttendanceDayView["shift"]>(row.shift_snapshot);
-  return {
-    id: row.id,
-    workerId: row.worker_id,
-    workDate: dateOnly(row.work_date),
-    shift,
-    checkIn: row.check_in ? iso(row.check_in) : null,
-    checkOut: row.check_out ? iso(row.check_out) : null,
-    breakMinutes: row.break_minutes,
-    workedMinutes: row.worked_minutes,
-    plannedMinutes: row.planned_minutes,
-    balanceMinutes: row.worked_minutes - row.planned_minutes,
-    status: row.status,
-    source: row.status === "corrected" ? "approved_correction" : "terminal",
-    revision: String(row.revision)
-  };
 }
 
 function leaveView(row: LeaveRow): LeaveRequestView {
@@ -300,15 +273,6 @@ async function workingDays(client: TenantTransaction, startDate: string, endDate
   return result.rows[0]?.days ?? 0;
 }
 
-function plannedMinutes(startTime: string, endTime: string, breakMinutes: number): number {
-  const [startHour = 0, startMinute = 0] = startTime.slice(0, 5).split(":").map(Number);
-  const [endHour = 0, endMinute = 0] = endTime.slice(0, 5).split(":").map(Number);
-  const start = startHour * 60 + startMinute;
-  let end = endHour * 60 + endMinute;
-  if (end <= start) end += 24 * 60;
-  return Math.max(0, end - start - breakMinutes);
-}
-
 function correctionTimes(checkInValue: string, checkOutValue: string): { checkIn: Date; checkOut: Date } {
   const checkIn = new Date(checkInValue);
   const checkOut = new Date(checkOutValue);
@@ -320,11 +284,14 @@ function correctionTimes(checkInValue: string, checkOutValue: string): { checkIn
 }
 
 export class PgMvpService extends PgPhaseAService implements MvpService {
+  private readonly attendanceCalculations: PgAttendanceCalculationService;
+
   constructor(
     private readonly mvpPool: pg.Pool,
     private readonly config: Pick<AppConfig, "rfidUidPepper" | "deviceCredentialEncryptionKey" | "terminalActivationCode" | "publicOrigin">
   ) {
     super(mvpPool, config.rfidUidPepper, config.publicOrigin);
+    this.attendanceCalculations = new PgAttendanceCalculationService(mvpPool);
   }
 
   async listAttendance(
@@ -394,6 +361,16 @@ export class PgMvpService extends PgPhaseAService implements MvpService {
       requireWorkerScope(actor, workerId, worker.rows[0].department_id);
       return this.listAttendanceInTransaction(client, actor, { ...filters, workerId });
     });
+  }
+
+  async recalculateAttendanceDay(
+    actor: ActorContext,
+    attendanceDayId: string,
+    input: AttendanceRecalculationWrite,
+    revision: string,
+    requestId: string
+  ): Promise<AttendanceRecalculationView> {
+    return this.attendanceCalculations.recalculateAttendanceDay(actor, attendanceDayId, input, revision, requestId);
   }
 
   async listLeaveRequests(
@@ -596,12 +573,11 @@ export class PgMvpService extends PgPhaseAService implements MvpService {
         if (!row) throw new AppError("NOT_FOUND", "Evidencijski zapis nije pronađen.");
         if (row.worker_id !== actor.selfWorkerId) throw new AppError("FORBIDDEN", "Korekciju možete zatražiti samo za vlastiti zapis.");
         const aligned = await client.query<{ aligned: boolean }>(
-          `SELECT (($1::timestamptz AT TIME ZONE timezone)::date = $2::date) AS aligned
-           FROM organizations WHERE id = $3`,
-          [checkIn.toISOString(), dateOnly(row.work_date), actor.organizationId]
+          "SELECT (($1::timestamptz AT TIME ZONE $3)::date = $2::date) AS aligned",
+          [checkIn.toISOString(), dateOnly(row.work_date), attendanceTimezone(row)]
         );
         if (aligned.rows[0]?.aligned !== true) {
-          throw new AppError("VALIDATION_FAILED", "Nova prijava mora pripadati datumu evidencijskog zapisa u vremenskoj zoni organizacije.");
+          throw new AppError("VALIDATION_FAILED", "Nova prijava mora pripadati datumu evidencije u njezinoj povijesnoj vremenskoj zoni.");
         }
         const locked = await client.query(
           `SELECT 1 FROM attendance_month_locks
@@ -667,21 +643,21 @@ export class PgMvpService extends PgPhaseAService implements MvpService {
       }
       const { checkIn, checkOut } = correctionTimes(values.checkIn, values.checkOut);
       const aligned = await client.query<{ aligned: boolean }>(
-        `SELECT (($1::timestamptz AT TIME ZONE timezone)::date = $2::date) AS aligned
-         FROM organizations WHERE id = $3`,
-        [checkIn.toISOString(), dateOnly(attendanceRow.work_date), actor.organizationId]
+        "SELECT (($1::timestamptz AT TIME ZONE $3)::date = $2::date) AS aligned",
+        [checkIn.toISOString(), dateOnly(attendanceRow.work_date), attendanceTimezone(attendanceRow)]
       );
       if (aligned.rows[0]?.aligned !== true) {
-        throw new AppError("VALIDATION_FAILED", "Nova prijava mora pripadati datumu evidencijskog zapisa u vremenskoj zoni organizacije.");
+        throw new AppError("VALIDATION_FAILED", "Nova prijava mora pripadati datumu evidencije u njezinoj povijesnoj vremenskoj zoni.");
       }
       const duration = Math.max(0, Math.floor((checkOut.getTime() - checkIn.getTime()) / 60_000) - attendanceRow.break_minutes);
-      const updatedDay = await client.query<AttendanceRow>(
+      await client.query(
         `UPDATE attendance_days SET check_in = $2, check_out = $3, worked_minutes = $4,
            status = 'corrected', revision = revision + 1
-         WHERE id = $1
-         RETURNING id, worker_id, work_date, shift_snapshot, check_in, check_out, break_minutes,
-           worked_minutes, planned_minutes, status, revision`,
+         WHERE id = $1`,
         [requestRow.attendance_day_id, checkIn.toISOString(), checkOut.toISOString(), duration]
+      );
+      const updatedDay = await client.query<AttendanceRow>(
+        `${attendanceSelect} FROM attendance_days a WHERE a.id = $1`, [requestRow.attendance_day_id]
       );
       const updatedRequest = await client.query<CorrectionRow>(
         `UPDATE correction_requests SET status = 'approved', decided_by = $2, decided_at = clock_timestamp(),
@@ -953,221 +929,9 @@ export class PgMvpService extends PgPhaseAService implements MvpService {
   }
 
   async ingestTerminalEventBatch(proof: DeviceRequestProof, input: TerminalEventBatchWrite, requestId: string): Promise<TerminalEventBatchView> {
-    return this.withVerifiedDevice(proof, requestId, async (client, organizationId, terminalId) => {
-      const receivedAt = new Date().toISOString();
-      const results: TerminalEventBatchView["results"] = [];
-      // Serialize batches per tenant. Without a stable global lock order, two
-      // terminals processing different workers in reverse order can deadlock.
-      await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1::text, 0))", [organizationId]);
-      const terminalState = await client.query<{ last_sequence: string | number }>(
-        "SELECT last_sequence FROM terminals WHERE id = $1 FOR UPDATE",
-        [terminalId]
-      );
-      let lastSequence = Number(terminalState.rows[0]?.last_sequence ?? 0);
-      for (const event of input.events) {
-        let status: "synced" | "duplicate" | "rejected" = "synced", code: string | null = null;
-        let workerId: string | null = null, effectiveDepartmentId: string | null = null;
-        if (Date.parse(event.occurredAt) > Date.now() + 5 * 60_000) {
-          status = "rejected";
-          code = "EVENT_IN_FUTURE";
-        } else if (!/^[a-f0-9]{64}$/i.test(event.cardUidHash)) {
-          status = "rejected";
-          code = "INVALID_CARD_HASH";
-        }
-        const existing = await client.query<{ id: string; worker_id: string | null; effective_department_id: string | null }>(
-          "SELECT id, worker_id, effective_department_id FROM attendance_events WHERE terminal_id = $1 AND device_event_id = $2",
-          [terminalId, event.deviceEventId]
-        );
-        if (existing.rows[0]) {
-          status = "duplicate";
-          code = null; workerId = existing.rows[0].worker_id; effectiveDepartmentId = existing.rows[0].effective_department_id;
-        } else if (event.sequence <= lastSequence) {
-          status = "rejected";
-          code = "SEQUENCE_OUT_OF_ORDER";
-        } else {
-          lastSequence = event.sequence;
-        }
-
-        let card: { id: string; worker_id: string; effective_department_id: string | null } | undefined;
-        if (status === "synced") {
-          const cardResult = await client.query<{ id: string; worker_id: string }>(
-            `SELECT c.id, c.worker_id FROM rfid_cards c JOIN workers w ON w.id = c.worker_id
-             WHERE c.uid_hash = decode($1, 'hex') AND c.status = 'active' AND w.status = 'active'
-               AND c.valid_from <= $2 AND (c.valid_to IS NULL OR c.valid_to >= $2) FOR UPDATE OF w`, [event.cardUidHash, event.occurredAt]);
-          const assignedCard = cardResult.rows[0];
-          if (!assignedCard) {
-            status = "rejected";
-            code = "CARD_NOT_ASSIGNED";
-          } else {
-            const assignment = await client.query<{ department_id: string }>(`SELECT department_id FROM worker_department_assignments
-              WHERE worker_id = $1 AND effective_from <= $2 AND (effective_to IS NULL OR effective_to > $2)`, [assignedCard.worker_id, event.occurredAt]);
-            card = { ...assignedCard, effective_department_id: assignment.rows[0]?.department_id ?? null };
-            workerId = card.worker_id; effectiveDepartmentId = card.effective_department_id;
-          }
-        }
-
-        if (status === "synced" && card) {
-          const workerResult = await client.query<{
-            worker_id: string; shift_id: string; shift_name: string; start_time: string; end_time: string;
-            break_minutes: number; tolerance_minutes: number; local_date: string; local_time: string;
-          }>(
-            `SELECT w.id AS worker_id, s.id AS shift_id, s.name AS shift_name,
-               s.start_time::text, s.end_time::text, s.break_minutes, s.tolerance_minutes,
-               ($2::timestamptz AT TIME ZONE o.timezone)::date::text AS local_date,
-               ($2::timestamptz AT TIME ZONE o.timezone)::time::text AS local_time
-             FROM workers w JOIN shifts s ON s.id = w.shift_id
-             JOIN organizations o ON o.id = w.organization_id
-             WHERE w.id = $1 AND w.status = 'active' AND s.status = 'active'
-             FOR UPDATE OF w`,
-            [card.worker_id, event.occurredAt]
-          );
-          const worker = workerResult.rows[0];
-          if (!worker) {
-            status = "rejected";
-            code = "WORKER_OR_SHIFT_INACTIVE";
-          } else {
-            const startMinutes = this.timeMinutes(worker.start_time);
-            const endMinutes = this.timeMinutes(worker.end_time);
-            const localMinutes = this.timeMinutes(worker.local_time);
-            let workDate = worker.local_date;
-            let shiftLocalMinutes = localMinutes;
-            if (endMinutes <= startMinutes && localMinutes <= endMinutes) {
-              workDate = this.previousDate(workDate);
-              shiftLocalMinutes += 24 * 60;
-            }
-            const snapshot = {
-              id: worker.shift_id,
-              name: worker.shift_name,
-              startTime: worker.start_time.slice(0, 5),
-              endTime: worker.end_time.slice(0, 5),
-              breakMinutes: worker.break_minutes
-            };
-            const day = await client.query<AttendanceRow>(
-              `${attendanceSelect} FROM attendance_days a WHERE a.worker_id = $1 AND a.work_date = $2::date FOR UPDATE`,
-              [worker.worker_id, workDate]
-            );
-            const current = day.rows[0];
-            if (event.eventType === "check_in") {
-              if (current?.check_in) {
-                status = "rejected";
-                code = "ALREADY_CHECKED_IN";
-              } else {
-                const late = shiftLocalMinutes > startMinutes + worker.tolerance_minutes;
-                if (current?.check_out) {
-                  const elapsed = new Date(current.check_out).getTime() - new Date(event.occurredAt).getTime();
-                  if (elapsed <= 0) {
-                    status = "rejected";
-                    code = "CHECK_IN_AFTER_CHECK_OUT";
-                  } else if (elapsed > 16 * 60 * 60 * 1000) {
-                    status = "rejected";
-                    code = "SHIFT_DURATION_EXCEEDED";
-                  } else {
-                    const worked = Math.max(0, Math.floor(elapsed / 60_000) - current.break_minutes);
-                    await client.query(
-                      `UPDATE attendance_days SET check_in = $2, shift_snapshot = $3::jsonb,
-                         break_minutes = $4, worked_minutes = $5, planned_minutes = $6,
-                         status = $7, revision = revision + 1 WHERE id = $1`,
-                      [current.id, event.occurredAt, JSON.stringify(snapshot), worker.break_minutes, worked,
-                        plannedMinutes(worker.start_time, worker.end_time, worker.break_minutes), late ? "late" : "complete"]
-                    );
-                  }
-                } else if (current) {
-                  await client.query(
-                    `UPDATE attendance_days SET check_in = $2, shift_snapshot = $3::jsonb,
-                       break_minutes = $4, planned_minutes = $5, status = $6, revision = revision + 1
-                     WHERE id = $1`,
-                    [current.id, event.occurredAt, JSON.stringify(snapshot), worker.break_minutes,
-                      plannedMinutes(worker.start_time, worker.end_time, worker.break_minutes), late ? "late" : "active"]
-                  );
-                } else {
-                  await client.query(
-                    `INSERT INTO attendance_days (
-                       organization_id, worker_id, work_date, shift_snapshot, check_in, break_minutes,
-                       worked_minutes, planned_minutes, status
-                     ) VALUES ($1, $2, $3, $4::jsonb, $5, $6, 0, $7, $8)`,
-                    [organizationId, worker.worker_id, workDate, JSON.stringify(snapshot), event.occurredAt, worker.break_minutes,
-                      plannedMinutes(worker.start_time, worker.end_time, worker.break_minutes), late ? "late" : "active"]
-                  );
-                }
-              }
-            } else if (current?.check_out) {
-              status = "rejected";
-              code = "ALREADY_CHECKED_OUT";
-            } else if (current?.check_in) {
-              const elapsed = new Date(event.occurredAt).getTime() - new Date(current.check_in).getTime();
-              if (elapsed <= 0) {
-                status = "rejected";
-                code = "CHECK_OUT_BEFORE_CHECK_IN";
-              } else if (elapsed > 16 * 60 * 60 * 1000) {
-                status = "rejected";
-                code = "SHIFT_DURATION_EXCEEDED";
-              } else {
-                const worked = Math.max(0, Math.floor(elapsed / 60_000) - current.break_minutes);
-                await client.query(
-                  `UPDATE attendance_days SET check_out = $2, worked_minutes = $3,
-                     status = CASE WHEN status = 'late' THEN 'late' ELSE 'complete' END,
-                     revision = revision + 1 WHERE id = $1`,
-                  [current.id, event.occurredAt, worked]
-                );
-              }
-            } else {
-              await client.query(
-                `INSERT INTO attendance_days (
-                   organization_id, worker_id, work_date, shift_snapshot, check_out, break_minutes,
-                   worked_minutes, planned_minutes, status
-                 ) VALUES ($1, $2, $3, $4::jsonb, $5, $6, 0, $7, 'incomplete')
-                 ON CONFLICT (organization_id, worker_id, work_date) DO UPDATE
-                   SET check_out = EXCLUDED.check_out, status = 'incomplete', revision = attendance_days.revision + 1`,
-                [organizationId, worker.worker_id, workDate, JSON.stringify(snapshot), event.occurredAt, worker.break_minutes, plannedMinutes(worker.start_time, worker.end_time, worker.break_minutes)]
-              );
-            }
-          }
-        }
-
-        if (status !== "duplicate") {
-          await client.query(
-            `INSERT INTO attendance_events (
-               organization_id, terminal_id, worker_id, effective_department_id, rfid_card_id, device_event_id, sequence,
-               occurred_at, event_type, card_uid_hash, device_clock_offset_seconds, processing_status, rejection_code
-             ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, decode($10, 'hex'), $11, $12, $13)`,
-            [
-              organizationId,
-              terminalId,
-              workerId, effectiveDepartmentId,
-              card?.id ?? null,
-              event.deviceEventId,
-              event.sequence,
-              event.occurredAt,
-              event.eventType,
-              /^[a-f0-9]{64}$/i.test(event.cardUidHash) ? event.cardUidHash : "0".repeat(64),
-              event.deviceClockOffsetSeconds ?? 0,
-              status === "synced" ? "accepted" : "rejected",
-              code
-            ]
-          );
-        }
-        await client.query(
-          `INSERT INTO terminal_sync_events (
-             organization_id, terminal_id, device_event_id, sequence, worker_id, effective_department_id,
-             occurred_at, event_type, status, rejection_code, request_id
-           ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
-          [organizationId, terminalId, event.deviceEventId, event.sequence, workerId, effectiveDepartmentId, event.occurredAt, event.eventType, status, code, requestId]
-        );
-        await client.query(
-          `INSERT INTO audit_events (
-             organization_id, actor_type, actor_id, action, entity_type, entity_id, request_id, metadata
-           ) VALUES ($1, 'terminal', $2, $3, 'attendance_event', $4, $5, $6::jsonb)`,
-          [organizationId, terminalId, `terminal_event.${status}`, event.deviceEventId, requestId, JSON.stringify({ module: "terminal", eventType: event.eventType, result: status, code })]
-        );
-        results.push({ deviceEventId: event.deviceEventId, status, code });
-      }
-      await client.query(
-        `UPDATE terminals SET status = 'online', last_seen_at = clock_timestamp(), queue_depth = 0,
-           last_sequence = GREATEST(last_sequence, $2), revision = revision + 1 WHERE id = $1`,
-        [terminalId, lastSequence]
-      );
-      return { batchId: input.batchId, receivedAt, results };
-    });
+    return this.withVerifiedDevice(proof, requestId, (client, organizationId, terminalId) =>
+      this.attendanceCalculations.ingestVerifiedTerminalBatch(client, organizationId, terminalId, input, requestId)
+    );
   }
 
   async terminalHeartbeat(proof: DeviceRequestProof, input: TerminalHeartbeatWrite, requestId: string): Promise<void> {
@@ -1406,14 +1170,4 @@ export class PgMvpService extends PgPhaseAService implements MvpService {
     );
   }
 
-  private timeMinutes(value: string): number {
-    const [hours = 0, minutes = 0] = value.slice(0, 5).split(":").map(Number);
-    return hours * 60 + minutes;
-  }
-
-  private previousDate(value: string): string {
-    const date = new Date(`${value}T12:00:00Z`);
-    date.setUTCDate(date.getUTCDate() - 1);
-    return date.toISOString().slice(0, 10);
-  }
 }

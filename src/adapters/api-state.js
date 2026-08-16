@@ -40,6 +40,13 @@
     }
     return new Date(candidate).toISOString();
   }
+  function attendanceTimeZone(item){return item?.provenance?.timezone||'UTC';}
+  function contractualAttendanceTime(item,eventType){
+    const utcInstant=eventType==='check_in'?item?.checkIn:item?.checkOut;
+    if(!utcInstant)return'';
+    const interpretation=(item?.provenance?.eventTimeInterpretations||[]).find(candidate=>candidate.eventType===eventType&&candidate.utcInstant===utcInstant);
+    return interpretation?.localTimestamp?.slice(11,16)||'Nepoznato';
+  }
   function dateRange(year){return{from:`${year}-01-01`,to:`${year}-12-31`};}
   function settledValue(result,fallback){return result?.status==='fulfilled'?result.value:fallback;}
   async function getAllPages(api,path,params={},maximumPages=50){
@@ -132,7 +139,8 @@
 
     const records=(data.attendance?.items||[]).map(item=>{
       const worker=ensureWorker(item.workerId);
-      const record={id:id(item.id),apiId:item.id,workerId:worker.id,date:item.workDate,start:localTime(item.checkIn,timeZone),end:localTime(item.checkOut,timeZone),breakMinutes:item.breakMinutes,status:attendanceLabels[item.status]||item.status,workedMinutes:item.workedMinutes,plannedMinutes:item.plannedMinutes,balanceMinutes:item.balanceMinutes,revision:item.revision};
+      const recordTimeZone=attendanceTimeZone(item);
+      const record={id:id(item.id),apiId:item.id,workerId:worker.id,date:item.workDate,start:contractualAttendanceTime(item,'check_in'),end:contractualAttendanceTime(item,'check_out'),breakMinutes:item.breakMinutes,status:attendanceLabels[item.status]||item.status,workedMinutes:item.workedMinutes,plannedMinutes:item.plannedMinutes,balanceMinutes:item.balanceMinutes,timezone:recordTimeZone,provenance:item.provenance,revision:item.revision};
       if(item.workDate===today&&worker){worker.todayStart=record.start;worker.status=item.checkIn&&!item.checkOut?(item.status==='late'?'Kasni':'Prisutan'):record.status;}
       return record;
     });
@@ -145,7 +153,8 @@
     const recordByApi=new Map(records.map(item=>[item.apiId,item]));
     const corrections=(data.corrections?.items||[]).map(item=>{
       const record=recordByApi.get(item.attendanceDayId),worker=ensureWorker(item.workerId);
-      return {id:id(item.id),apiId:item.id,attendanceDayApiId:item.attendanceDayId,workerId:worker.id,date:record?.date||String(item.newValues?.checkIn||'').slice(0,10),oldStart:localTime(item.oldValues?.checkIn,timeZone),oldEnd:localTime(item.oldValues?.checkOut,timeZone),newStart:localTime(item.newValues?.checkIn,timeZone),newEnd:localTime(item.newValues?.checkOut,timeZone),reason:item.reason,status:requestLabels[item.status]||item.status,decisionNote:item.decisionNote||'',revision:item.revision};
+      const correctionTimeZone=record?.timezone||timeZone;
+      return {id:id(item.id),apiId:item.id,attendanceDayApiId:item.attendanceDayId,workerId:worker.id,date:record?.date||String(item.newValues?.checkIn||'').slice(0,10),oldStart:localTime(item.oldValues?.checkIn,correctionTimeZone),oldEnd:localTime(item.oldValues?.checkOut,correctionTimeZone),newStart:localTime(item.newValues?.checkIn,correctionTimeZone),newEnd:localTime(item.newValues?.checkOut,correctionTimeZone),reason:item.reason,status:requestLabels[item.status]||item.status,decisionNote:item.decisionNote||'',revision:item.revision};
     });
     const balances=new Map((data.leaveBalances?.items||[]).map(item=>[item.workerId,item]));
     workers.forEach(worker=>{const balance=balances.get(worker.apiId);if(balance){worker.vacationAllowance=balance.allowanceDays;worker.leaveBalance=balance;}});
@@ -168,7 +177,7 @@
     return {state,role,session,dashboard:data.dashboard,selfWorkerId:id(session.effectiveScope.selfWorkerId)};
   }
 
-  const apiState=Object.freeze({hydrate,getAllPages,mapWithConcurrency,localDate,localTime,localDateTime,zonedDateTimeToIso,roleLabels,requestLabels,leaveLabels,attendanceLabels});
+  const apiState=Object.freeze({hydrate,getAllPages,mapWithConcurrency,localDate,localTime,localDateTime,zonedDateTimeToIso,attendanceTimeZone,contractualAttendanceTime,roleLabels,requestLabels,leaveLabels,attendanceLabels});
   root.BSSCore=Object.freeze({...root.BSSCore,apiState});
   if(typeof module==='object'&&module.exports)module.exports=apiState;
 })(typeof globalThis==='object'?globalThis:window);

@@ -2,15 +2,15 @@
 
 | Stavka | Stanje |
 | --- | --- |
-| Datum pregleda | 18. 7. 2026. |
+| Datum pregleda | 16. 8. 2026. — lokalni kandidat za issue #145 |
 | Frontend ugovor | Frontend `v1.0.0`, bez UX/UI promjena |
-| OpenAPI | `1.1.0`, status `MVP_IMPLEMENTED` |
-| Pokrivenost | 43 putanje / 54 operacije / 54 implementirane operacije |
-| Migracije | `001`–`009`, PostgreSQL 16 |
+| OpenAPI | `1.2.0`, status `MVP_IMPLEMENTED` |
+| Pokrivenost | 44 putanje / 55 operacija / 55 implementiranih operacija |
+| Migracije | `001`–`010`, PostgreSQL 16 |
 | Faza | Backend MVP – Faza B |
-| Readiness | **FULL PASS — PostgreSQL i full-stack browser CI zeleni** |
-| Otvorene readiness stavke | **0** |
-| Deep code audit | `BSS_PRODUCTION_READINESS_AUDIT.md`; senior-review spremnost 93% nakon zelenog PR CI-ja |
+| Readiness | **PENDING — lokalni Backend/Security PR wrapperi prolaze; obvezni PostgreSQL i repository-level dokazi za #145 još nisu dostupni** |
+| Otvorene readiness stavke | **1 — DEC-024 je prihvaćen, ali #145 i dalje zahtijeva PostgreSQL-backed migracijski/RLS dokaz, repository-level provjere i ciljani AUDIT A recheck** |
+| Deep code audit | `BSS_PRODUCTION_READINESS_AUDIT.md`; prethodna procjena ne zamjenjuje novi #145 dokaz |
 
 ## Izvršni zaključak
 
@@ -38,7 +38,7 @@ Produkcijski runtime mora biti zasebna `NOSUPERUSER NOBYPASSRLS` uloga koja nije
 | Tenant i organizacija | `organizations`, `departments` | tenant nikad ne dolazi iz bodyja/queryja |
 | Identitet | `users`, `user_invitations`, `auth_sessions`, `user_department_scopes` | tokeni su hashirani; invitation token je jednokratan |
 | Radnici i plan | `workers`, `shifts`, `holidays`, `rfid_cards` | povijesni entiteti se blokiraju, ne brišu |
-| Evidencija | `attendance_events`, `attendance_days` | raw događaj je append-only, dan je izvedeni zapis |
+| Evidencija | `attendance_events`, `attendance_days`, `attendance_calculations`, effective-dated config history | raw događaj i calculation history su append-only, dan je izvedeni zapis |
 | Odluke | `leave_requests`, `correction_requests` | revizija i odluka mijenjaju se atomski |
 | Terminal | `terminals`, `terminal_credentials`, `terminal_request_nonces`, `terminal_sync_events` | HMAC, nonce, slijed i idempotencija |
 | Izvještaji | `report_exports` | filtri, verzije, sadržaj, checksum i rok preuzimanja |
@@ -50,7 +50,7 @@ Produkcijski runtime mora biti zasebna `NOSUPERUSER NOBYPASSRLS` uloga koja nije
 | --- | --- | --- | --- | --- |
 | Organizacija, odjeli, korisnici | read/write | odjeli read | odjeli read | — |
 | Radnici i smjene | read/write | dodijeljeni odjeli read | vlastiti profil + smjene read | — |
-| Evidencija | organizacija read | dodijeljeni odjeli read | samo vlastita | — |
+| Evidencija | organizacija read + eksplicitni recalculation | dodijeljeni odjeli read | samo vlastita | — |
 | Godišnji | organizacija + odluke | odluke u dodijeljenim odjelima | vlastiti create/read/cancel | samo odobreni, bez napomena |
 | Korekcije | organizacija + odluke | odluke u dodijeljenim odjelima | vlastiti create/read/cancel | — |
 | Izvještaji | create/read/download | vlastiti scope | — | create/read/download |
@@ -76,7 +76,9 @@ HTTP RBAC i SQL scope provjeravaju se neovisno. Skrivanje kontrole u frontendu n
 
 ## Poslovna pravila
 
-- Prijava/odjava koristi vremensku zonu organizacije i snapshot smjene.
+- Prijava/odjava koristi event-effective verziju vremenske zone, dodjele smjene i shift pravila; pri prvom prihvaćanju sprema timezone-version ID/naziv, resolved local timestamp i UTC offset na append-only raw događaj i u calculation provenance.
+- `attendance-v1` koristi spremljenu event-time interpretaciju za DST gap/fold, lateness i prethodni poslovni datum noćne smjene bez ponovne aktualne tzdata/`Intl` pretvorbe, dok odrađene minute koriste stvarno proteklo UTC vrijeme.
+- Eksplicitni administratorski recalculation zahtijeva reviziju, razlog i otključano razdoblje te dodaje before/after, actor, version, supersession i affected-period dokaz bez promjene raw događaja.
 - Dupli `deviceEventId` je idempotentan; niži ili ponovljeni slijed se odbija.
 - Heartbeat ne pomiče ingest cursor i zato ne može preskočiti offline red.
 - Odjava prije prijave i smjena dulja od 16 sati se odbijaju.
