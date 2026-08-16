@@ -405,9 +405,13 @@ test("PostgreSQL migrations, RLS isolation, auth and manager scope", { skip: !da
   const crossTenantTerminalId = await seedTerminalHistory(ids.org2, "Tenant B terminal", [ids.worker2], [ids.dep2]);
 
   const balances = await service.listLeaveBalances(admin.actor, { year: 2026, limit: 50 });
-  assert.equal(balances.items[0]?.approvedDays, 2);
-  assert.equal(balances.items[0]?.availableDays, 18);
-  assert.equal(balances.page.total, 1);
+  const worker1Balance = balances.items.find((item) => item.workerId === ids.worker1);
+  assert.equal(worker1Balance?.approvedDays, 2);
+  assert.equal(worker1Balance?.availableDays, 18);
+  const worker3Balance = balances.items.find((item) => item.workerId === ids.worker3);
+  assert.equal(worker3Balance?.approvedDays, 0);
+  assert.equal(worker3Balance?.availableDays, 20);
+  assert.equal(balances.page.total, 2);
 
   const report = await service.createReportPreview(admin.actor, {
     reportType: "monthly_summary",
