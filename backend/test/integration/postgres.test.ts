@@ -1151,7 +1151,7 @@ test("PostgreSQL migrations, RLS isolation, auth and manager scope", { skip: !da
     `SELECT e.processing_status, e.acknowledged_at, e.acknowledgement_signature,
        e.lifecycle_evidence->>'decision' AS decision,
        (SELECT COUNT(*)::text FROM audit_events a
-        WHERE a.entity_id = e.device_event_id::text
+        WHERE a.entity_id = e.device_event_id
           AND a.action = 'terminal_event.reconciliation_required') AS audit_count
      FROM attendance_events e WHERE e.device_event_id = $1`,
     [reconciliationEventId]
