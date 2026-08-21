@@ -88,6 +88,7 @@ test("PostgreSQL migrations, RLS isolation, auth and manager scope", { skip: !da
   await owner.query("UPDATE organization_timezone_versions SET effective_from = '2020-01-01T00:00:00Z' WHERE organization_id = ANY($1::uuid[])", [[ids.org1, ids.org2]]);
   await owner.query("UPDATE shift_configuration_versions SET effective_from = '2020-01-01T00:00:00Z' WHERE shift_id = ANY($1::uuid[])", [[ids.shift1, ids.shift2]]);
   await owner.query("UPDATE worker_shift_assignments SET effective_from = '2020-01-01T00:00:00Z' WHERE worker_id = ANY($1::uuid[])", [[ids.worker1, ids.worker2, ids.worker3]]);
+  await owner.query("UPDATE worker_department_assignments SET effective_from = '2020-01-01T00:00:00Z' WHERE worker_id = ANY($1::uuid[])", [[ids.worker1, ids.worker2, ids.worker3]]);
   await owner.query("UPDATE worker_status_versions SET effective_from = '2020-01-01T00:00:00Z' WHERE worker_id = ANY($1::uuid[])", [[ids.worker1, ids.worker2, ids.worker3]]);
   const workerUser = await owner.query<{ id: string }>(
     `INSERT INTO users (organization_id, email, password_hash, role, status, worker_id)
