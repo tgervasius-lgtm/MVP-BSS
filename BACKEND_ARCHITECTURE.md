@@ -79,7 +79,7 @@ Batch se obrađuje serijski po slijedu. Per-tenant transakcijski advisory lock u
 
 - dupli `deviceEventId` vraća `duplicate`;
 - sequence manji ili jednak server cursoru vraća `SEQUENCE_OUT_OF_ORDER`;
-- događaj više od pet minuta u budućnosti vraća `EVENT_IN_FUTURE`;
+- `occurredAt` ostaje vrijeme evidencije, a `acknowledgedAt` je dokaz za lifecycle autorizaciju; potvrda više od pet minuta u budućnosti izlazi iz pouzdane granice sata i vraća `reconciliation_required` / `ACKNOWLEDGEMENT_CLOCK_AMBIGUOUS`;
 - nepoznata/blokirana kartica vraća odbijeni raw događaj;
 - radnikov odjel u trenutku `occurredAt` sprema se kao nepromjenjivi snapshot na raw i sync događaju; zakašnjeli događaj koristi isti event-time interval, a nedokaziv povijesni odjel ostaje `NULL` i nevidljiv Voditelju;
 - prijava stvara dan sa snapshotom smjene, vremenske zone, verzije konfiguracije i verzije izračuna;

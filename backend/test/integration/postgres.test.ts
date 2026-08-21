@@ -696,8 +696,8 @@ test("PostgreSQL migrations, RLS isolation, auth and manager scope", { skip: !da
     6,
     "integration-nonce-future-event-0009"
   );
-  assert.equal(futureEvent.results[0]?.status, "rejected");
-  assert.equal(futureEvent.results[0]?.code, "EVENT_IN_FUTURE");
+  assert.equal(futureEvent.results[0]?.status, "reconciliation_required");
+  assert.equal(futureEvent.results[0]?.code, "ACKNOWLEDGEMENT_CLOCK_AMBIGUOUS");
 
   const delayedCheckOut = await ingest("check_out", randomUUID(), "2026-07-12T14:00:00.000Z", 7, "integration-nonce-delayed-check-out-0010");
   assert.equal(delayedCheckOut.results[0]?.status, "synced");
