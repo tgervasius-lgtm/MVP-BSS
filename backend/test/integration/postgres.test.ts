@@ -919,18 +919,19 @@ test("PostgreSQL migrations, RLS isolation, auth and manager scope", { skip: !da
     annualLeaveAllowance: 20
   }, "integration-lifecycle-worker");
   const lifecycleUid = "04:10:20:30";
-  const lifecycleCard = await service.assignWorkerRfidCard(
+  await service.assignWorkerRfidCard(
     admin.actor, lifecycleWorker.id, { uid: lifecycleUid }, "integration-lifecycle-card"
   );
   const lifecycleHash = hashRfidUid(lifecycleUid, rfidPepper).toString("hex");
   const preDeactivateEventId = randomUUID();
+  const preDeactivateAt = new Date().toISOString();
   const deactivated = await service.deactivateWorker(
     admin.actor, lifecycleWorker.id, lifecycleWorker.revision, "integration-lifecycle-deactivate"
   );
   const preDeactivate = await ingest(
-    "check_in", preDeactivateEventId, lifecycleCard.validFrom, 21,
+    "check_in", preDeactivateEventId, preDeactivateAt, 21,
     "integration-nonce-lifecycle-pre-deactivate-0024", lifecycleHash,
-    { acknowledgedAt: lifecycleCard.validFrom }
+    { acknowledgedAt: preDeactivateAt }
   );
   assert.equal(preDeactivate.results[0]?.status, "synced");
   const blockedStatus = await owner.query<{ effective_from: string }>(
