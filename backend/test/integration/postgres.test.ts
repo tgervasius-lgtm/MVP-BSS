@@ -975,14 +975,17 @@ test("PostgreSQL migrations, RLS isolation, auth and manager scope", { skip: !da
     annualLeaveAllowance: 20
   }, "integration-card-race-worker");
   const oldCardUid = "04:40:50:60";
-  const oldCard = await service.assignWorkerRfidCard(admin.actor, cardRaceWorker.id, { uid: oldCardUid }, "integration-card-race-old");
+  const preRevokeCardAt = new Date().toISOString();
+  const oldCard = await service.assignWorkerRfidCard(
+    admin.actor, cardRaceWorker.id, { uid: oldCardUid, validFrom: preRevokeCardAt }, "integration-card-race-old"
+  );
   const oldCardHash = hashRfidUid(oldCardUid, rfidPepper).toString("hex");
   const preRevokeCardEventId = randomUUID();
   const lifecycleBlockedCard = await service.blockRfidCard(admin.actor, oldCard.id, "integration-card-race-revoke");
   assert.equal((await ingest(
-    "check_in", preRevokeCardEventId, oldCard.validFrom, 24,
+    "check_in", preRevokeCardEventId, preRevokeCardAt, 24,
     "integration-nonce-card-pre-revoke-0027", oldCardHash,
-    { acknowledgedAt: oldCard.validFrom }
+    { acknowledgedAt: preRevokeCardAt }
   )).results[0]?.status, "synced");
   const revokedAt = lifecycleBlockedCard.validTo!;
   const postRevokeCard = await ingest(
@@ -993,13 +996,15 @@ test("PostgreSQL migrations, RLS isolation, auth and manager scope", { skip: !da
   assert.equal(postRevokeCard.results[0]?.status, "rejected");
   assert.equal(postRevokeCard.results[0]?.code, "CARD_INACTIVE_AT_ACKNOWLEDGEMENT");
   const replacementUid = "04:40:50:61";
-  const replacement = await service.assignWorkerRfidCard(admin.actor, cardRaceWorker.id, { uid: replacementUid }, "integration-card-race-replace");
+  const replacementValidFrom = new Date().toISOString();
+  await service.assignWorkerRfidCard(
+    admin.actor, cardRaceWorker.id, { uid: replacementUid, validFrom: replacementValidFrom }, "integration-card-race-replace"
+  );
   const replacementHash = hashRfidUid(replacementUid, rfidPepper).toString("hex");
-  const replacementEventAt = new Date(Date.parse(replacement.validFrom) + 1000).toISOString();
   assert.equal((await ingest(
-    "check_out", randomUUID(), replacementEventAt, 26,
+    "check_out", randomUUID(), replacementValidFrom, 26,
     "integration-nonce-card-replacement-0029", replacementHash,
-    { acknowledgedAt: replacementEventAt }
+    { acknowledgedAt: replacementValidFrom }
   )).results[0]?.status, "synced");
 
   const shiftRaceWorker = await service.createWorker(admin.actor, {
@@ -1011,7 +1016,10 @@ test("PostgreSQL migrations, RLS isolation, auth and manager scope", { skip: !da
     annualLeaveAllowance: 20
   }, "integration-shift-race-worker");
   const shiftRaceUid = "04:70:80:90";
-  const shiftRaceCard = await service.assignWorkerRfidCard(admin.actor, shiftRaceWorker.id, { uid: shiftRaceUid }, "integration-shift-race-card");
+  const oldShiftEventAt = new Date().toISOString();
+  await service.assignWorkerRfidCard(
+    admin.actor, shiftRaceWorker.id, { uid: shiftRaceUid, validFrom: oldShiftEventAt }, "integration-shift-race-card"
+  );
   const shiftRaceHash = hashRfidUid(shiftRaceUid, rfidPepper).toString("hex");
   const shiftedWorker = await service.updateWorker(admin.actor, shiftRaceWorker.id, {
     code: shiftRaceWorker.code,
@@ -1023,9 +1031,9 @@ test("PostgreSQL migrations, RLS isolation, auth and manager scope", { skip: !da
   }, shiftRaceWorker.revision, "integration-shift-race-reassign");
   const oldShiftEventId = randomUUID();
   assert.equal((await ingest(
-    "check_in", oldShiftEventId, shiftRaceCard.validFrom, 27,
+    "check_in", oldShiftEventId, oldShiftEventAt, 27,
     "integration-nonce-shift-old-0030", shiftRaceHash,
-    { acknowledgedAt: shiftRaceCard.validFrom }
+    { acknowledgedAt: oldShiftEventAt }
   )).results[0]?.status, "synced");
   const currentShiftAssignment = await owner.query<{ effective_from: string }>(
     "SELECT effective_from FROM worker_shift_assignments WHERE worker_id = $1 AND effective_to IS NULL",
@@ -1056,12 +1064,15 @@ test("PostgreSQL migrations, RLS isolation, auth and manager scope", { skip: !da
     annualLeaveAllowance: 20
   }, "integration-retry-worker");
   const retryUid = "04:A0:B0:C0";
-  const retryCard = await service.assignWorkerRfidCard(admin.actor, retryWorker.id, { uid: retryUid }, "integration-retry-card");
+  const retryEventAt = new Date().toISOString();
+  await service.assignWorkerRfidCard(
+    admin.actor, retryWorker.id, { uid: retryUid, validFrom: retryEventAt }, "integration-retry-card"
+  );
   const retryHash = hashRfidUid(retryUid, rfidPepper).toString("hex");
   const retryEventId = randomUUID();
   const retries = await Promise.all([
-    ingest("check_in", retryEventId, retryCard.validFrom, 29, "integration-nonce-retry-a-0032", retryHash, { acknowledgedAt: retryCard.validFrom }),
-    ingest("check_in", retryEventId, retryCard.validFrom, 29, "integration-nonce-retry-b-0033", retryHash, { acknowledgedAt: retryCard.validFrom })
+    ingest("check_in", retryEventId, retryEventAt, 29, "integration-nonce-retry-a-0032", retryHash, { acknowledgedAt: retryEventAt }),
+    ingest("check_in", retryEventId, retryEventAt, 29, "integration-nonce-retry-b-0033", retryHash, { acknowledgedAt: retryEventAt })
   ]);
   assert.deepEqual(retries.map((item) => item.results[0]?.status).sort(), ["duplicate", "synced"]);
   const retryRawCount = await owner.query<{ count: string }>(
@@ -1069,7 +1080,7 @@ test("PostgreSQL migrations, RLS isolation, auth and manager scope", { skip: !da
     [paired.terminal.id, retryEventId]
   );
   assert.equal(retryRawCount.rows[0]?.count, "1");
-  const identityMismatchAt = new Date(Date.parse(retryCard.validFrom) + 1000).toISOString();
+  const identityMismatchAt = new Date(Date.parse(retryEventAt) + 1000).toISOString();
   const identityMismatch = await ingest(
     "check_in", retryEventId, identityMismatchAt, 29,
     "integration-nonce-retry-mismatch-0034", retryHash,
@@ -1085,9 +1096,9 @@ test("PostgreSQL migrations, RLS isolation, auth and manager scope", { skip: !da
   assert.equal(identityMismatchEvidence.rows[0]?.acknowledgement_verified, false);
 
   const forgedEvent = await ingest(
-    "check_in", randomUUID(), retryCard.validFrom, 30,
+    "check_in", randomUUID(), retryEventAt, 30,
     "integration-nonce-forged-ack-0035", retryHash,
-    { acknowledgedAt: retryCard.validFrom, signature: "0".repeat(64) }
+    { acknowledgedAt: retryEventAt, signature: "0".repeat(64) }
   );
   assert.equal(forgedEvent.results[0]?.status, "rejected");
   assert.equal(forgedEvent.results[0]?.code, "INVALID_ACKNOWLEDGEMENT");
@@ -1115,16 +1126,17 @@ test("PostgreSQL migrations, RLS isolation, auth and manager scope", { skip: !da
     annualLeaveAllowance: 20
   }, "integration-reconciliation-worker");
   const reconciliationUid = "04:11:22:33";
-  const reconciliationCard = await service.assignWorkerRfidCard(
-    admin.actor, reconciliationWorker.id, { uid: reconciliationUid }, "integration-reconciliation-card"
+  const reconciliationEventAt = new Date().toISOString();
+  await service.assignWorkerRfidCard(
+    admin.actor, reconciliationWorker.id, { uid: reconciliationUid, validFrom: reconciliationEventAt }, "integration-reconciliation-card"
   );
   await owner.query("DELETE FROM worker_status_versions WHERE worker_id = $1", [reconciliationWorker.id]);
   const reconciliationHash = hashRfidUid(reconciliationUid, rfidPepper).toString("hex");
   const reconciliationEventId = randomUUID();
   const reconciliation = await ingest(
-    "check_in", reconciliationEventId, reconciliationCard.validFrom, 32,
+    "check_in", reconciliationEventId, reconciliationEventAt, 32,
     "integration-nonce-reconciliation-0037", reconciliationHash,
-    { acknowledgedAt: reconciliationCard.validFrom }
+    { acknowledgedAt: reconciliationEventAt }
   );
   assert.equal(reconciliation.results[0]?.status, "reconciliation_required");
   assert.equal(reconciliation.results[0]?.code, "WORKER_STATUS_HISTORY_UNAVAILABLE");
@@ -1181,9 +1193,9 @@ test("PostgreSQL migrations, RLS isolation, auth and manager scope", { skip: !da
   assert.ok(reconciliationRecord.rows[0]?.after_json);
   assert.ok(reconciliationRecord.rows[0]?.provenance);
   const acceptedReconciliationRetry = await ingest(
-    "check_in", reconciliationEventId, reconciliationCard.validFrom, 32,
+    "check_in", reconciliationEventId, reconciliationEventAt, 32,
     "integration-nonce-reconciliation-retry-0037b", reconciliationHash,
-    { acknowledgedAt: reconciliationCard.validFrom }
+    { acknowledgedAt: reconciliationEventAt }
   );
   assert.equal(acceptedReconciliationRetry.results[0]?.status, "duplicate");
   assert.equal(acceptedReconciliationRetry.results[0]?.code, null);
