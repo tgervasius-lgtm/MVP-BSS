@@ -940,10 +940,11 @@ test("PostgreSQL migrations, RLS isolation, auth and manager scope", { skip: !da
     [lifecycleWorker.id]
   );
   const blockedAt = new Date(blockedStatus.rows[0]!.effective_from).toISOString();
+  const postBlockedAt = new Date(Date.parse(blockedAt) + 1000).toISOString();
   const blockedEvent = await ingest(
-    "check_out", randomUUID(), blockedAt, 22,
+    "check_out", randomUUID(), postBlockedAt, 22,
     "integration-nonce-lifecycle-blocked-0025", lifecycleHash,
-    { acknowledgedAt: blockedAt }
+    { acknowledgedAt: postBlockedAt }
   );
   assert.equal(blockedEvent.results[0]?.status, "rejected");
   assert.equal(blockedEvent.results[0]?.code, "WORKER_INACTIVE_AT_ACKNOWLEDGEMENT");
