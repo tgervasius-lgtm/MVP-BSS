@@ -1652,11 +1652,16 @@ test("PostgreSQL migrations, RLS isolation, auth and manager scope", { skip: !da
   try {
     await rls.query("BEGIN");
     await rls.query("SELECT set_config('bss.organization_id', $1, true)", [ids.org1]);
-    const visible = await rls.query<{ id: string }>("SELECT id FROM workers ORDER BY id");
+    const visible = await rls.query<{ id: string; organization_id: string }>(
+      "SELECT id, organization_id FROM workers ORDER BY id"
+    );
     assert.deepEqual(
       visible.rows.map((row) => row.id),
-      [ids.worker1, ids.worker3, createdWorker.id, transferWorker.id, overnightWorker.id].sort()
+      [ids.worker1, ids.worker3, createdWorker.id, transferWorker.id, overnightWorker.id,
+        lifecycleWorker.id, cardRaceWorker.id, shiftRaceWorker.id, retryWorker.id, reconciliationWorker.id].sort()
     );
+    assert.ok(visible.rows.every((row) => row.organization_id === ids.org1));
+    assert.ok(!visible.rows.some((row) => row.id === ids.worker2));
     await assert.rejects(
       rls.query(
         "INSERT INTO departments(organization_id, name) VALUES ($1, 'Cross tenant write')",
