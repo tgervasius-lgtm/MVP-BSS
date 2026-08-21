@@ -740,12 +740,41 @@ test("PostgreSQL migrations, RLS isolation, auth and manager scope", { skip: !da
   const adminTransferHistory = await service.listTerminalSyncEvents(admin.actor, paired.terminal.id, transferHistoryFilters);
   assert.ok(adminTransferHistory.items.some((item) => item.deviceEventId === oldDepartmentEventId));
   assert.ok(adminTransferHistory.items.some((item) => item.deviceEventId === newDepartmentEventId));
+  const assertTerminalHistoryScope = async (
+    items: typeof adminTransferHistory.items,
+    expectedDepartmentId: string
+  ) => {
+    const rows = await owner.query<{
+      id: string;
+      terminal_id: string;
+      device_event_id: string;
+      received_at: string | Date;
+      effective_department_id: string | null;
+    }>(
+      `SELECT id, terminal_id, device_event_id, received_at, effective_department_id
+       FROM terminal_sync_events WHERE id = ANY($1::uuid[]) ORDER BY id`,
+      [items.map((item) => item.id)]
+    );
+    assert.deepEqual(rows.rows.map((row) => row.id).sort(), items.map((item) => item.id).sort());
+    for (const row of rows.rows) {
+      const item = items.find((candidate) => candidate.id === row.id);
+      assert.ok(item);
+      assert.equal(row.terminal_id, paired.terminal.id);
+      assert.equal(row.device_event_id, item.deviceEventId);
+      assert.equal(new Date(row.received_at).toISOString().slice(0, 10), receivedDate);
+      assert.equal(row.effective_department_id, expectedDepartmentId);
+    }
+  };
   const managerATransferHistory = await service.listTerminalSyncEvents(manager.actor, paired.terminal.id, transferHistoryFilters);
-  assert.deepEqual(managerATransferHistory.items.map((item) => item.deviceEventId), [oldDepartmentEventId]);
-  assert.equal(managerATransferHistory.page.total, 1);
+  assert.ok(managerATransferHistory.items.some((item) => item.deviceEventId === oldDepartmentEventId));
+  assert.ok(!managerATransferHistory.items.some((item) => item.deviceEventId === newDepartmentEventId));
+  await assertTerminalHistoryScope(managerATransferHistory.items, ids.dep1);
+  assert.equal(managerATransferHistory.page.total, managerATransferHistory.items.length);
   const managerBTransferHistory = await service.listTerminalSyncEvents(managerB.actor, paired.terminal.id, transferHistoryFilters);
-  assert.deepEqual(managerBTransferHistory.items.map((item) => item.deviceEventId), [newDepartmentEventId]);
-  assert.equal(managerBTransferHistory.page.total, 1);
+  assert.ok(managerBTransferHistory.items.some((item) => item.deviceEventId === newDepartmentEventId));
+  assert.ok(!managerBTransferHistory.items.some((item) => item.deviceEventId === oldDepartmentEventId));
+  await assertTerminalHistoryScope(managerBTransferHistory.items, ids.dep3);
+  assert.equal(managerBTransferHistory.page.total, managerBTransferHistory.items.length);
   const unassignedTransferHistory = await service.listTerminalSyncEvents(unassignedManager.actor, paired.terminal.id, transferHistoryFilters);
   assert.deepEqual(unassignedTransferHistory, { items: [], page: { nextCursor: null, total: 0 } });
 
