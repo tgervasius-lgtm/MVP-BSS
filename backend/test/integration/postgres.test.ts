@@ -988,10 +988,11 @@ test("PostgreSQL migrations, RLS isolation, auth and manager scope", { skip: !da
     { acknowledgedAt: preRevokeCardAt }
   )).results[0]?.status, "synced");
   const revokedAt = lifecycleBlockedCard.validTo!;
+  const postRevokedAt = new Date(Date.parse(revokedAt) + 1000).toISOString();
   const postRevokeCard = await ingest(
-    "check_out", randomUUID(), revokedAt, 25,
+    "check_out", randomUUID(), postRevokedAt, 25,
     "integration-nonce-card-post-revoke-0028", oldCardHash,
-    { acknowledgedAt: revokedAt }
+    { acknowledgedAt: postRevokedAt }
   );
   assert.equal(postRevokeCard.results[0]?.status, "rejected");
   assert.equal(postRevokeCard.results[0]?.code, "CARD_INACTIVE_AT_ACKNOWLEDGEMENT");
