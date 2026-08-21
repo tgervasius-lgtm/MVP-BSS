@@ -637,7 +637,7 @@ test("PostgreSQL migrations, RLS isolation, auth and manager scope", { skip: !da
     (error: unknown) => typeof error === "object" && error !== null && "code" in error && error.code === "UNAUTHENTICATED"
   );
   await owner.query(
-    "UPDATE terminal_credentials SET valid_from = '2026-01-01T00:00:00Z' WHERE terminal_id = $1",
+    "UPDATE terminal_credentials SET valid_from = '2025-01-01T00:00:00Z' WHERE terminal_id = $1",
     [paired.terminal.id]
   );
 
