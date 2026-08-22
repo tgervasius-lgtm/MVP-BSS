@@ -596,7 +596,7 @@ export async function registerPhaseARoutes(app: FastifyInstance, dependencies: D
           required: ["from", "to"],
           properties: {
             ...dateRangeProperties,
-            eventStatus: { type: "string", enum: ["queued", "synced", "duplicate", "rejected"] },
+            eventStatus: { type: "string", enum: ["queued", "synced", "duplicate", "rejected", "reconciliation_required"] },
             ...paginationSchema
           }
         }

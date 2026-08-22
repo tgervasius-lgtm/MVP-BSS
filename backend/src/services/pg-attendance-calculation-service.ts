@@ -4,6 +4,7 @@ import { withTenant, type TenantTransaction } from "../db/tenant.js";
 import { AppError } from "../domain/errors.js";
 import type { ActorContext } from "../domain/types.js";
 import { requireRole } from "../security/rbac.js";
+import { terminalEventFingerprint } from "../security/terminal-acknowledgement.js";
 import {
   ATTENDANCE_CALCULATION_VERSION,
   attendanceSelect,
@@ -26,27 +27,15 @@ import type {
   AttendanceRecalculationWrite,
   AttendanceStatus,
   TerminalEventBatchView,
-  TerminalEventBatchWrite
+  TerminalEventBatchWrite,
+  TerminalEventReconciliationView,
+  TerminalEventReconciliationWrite,
+  TerminalLifecycleEvidence
 } from "./contracts.js";
-
-type EffectiveConfigurationRow = {
-  shift_assignment_id: string;
-  shift_assignment_effective_from: string | Date;
-  shift_id: string;
-  shift_version_id: string;
-  shift_version: string | number;
-  shift_name: string;
-  start_time: string;
-  end_time: string;
-  break_minutes: number;
-  tolerance_minutes: number;
-  shift_effective_from: string | Date;
-  timezone_version_id: string;
-  timezone: string;
-  timezone_effective_from: string | Date;
-  resolved_local_at: string;
-  resolved_utc_offset_seconds: number;
-};
+import { resolveTerminalConfiguration, type ResolvedEventTime } from "./terminal-event-configuration.js";
+import { resolveTerminalEventIntegrity } from "./terminal-event-integrity.js";
+import { lockTerminalEventLifecycle } from "./terminal-event-lock.js";
+import { applyAttendanceEvent, resolveTerminalEventReconciliation } from "./terminal-event-reconciliation.js";
 
 type RawEventRow = {
   id: string;
@@ -57,75 +46,6 @@ type RawEventRow = {
   resolved_local_at: string | null;
   resolved_utc_offset_seconds: number | null;
 };
-
-type ResolvedEventTime = Omit<AttendanceEventTimeInterpretation, "sourceEventId" | "eventType" | "utcInstant">;
-
-function completeConfiguration(row: EffectiveConfigurationRow): CompleteConfigurationSnapshot {
-  return {
-    provenanceStatus: "complete",
-    timezone: { versionId: row.timezone_version_id, name: row.timezone, effectiveFrom: iso(row.timezone_effective_from) },
-    shiftAssignment: { id: row.shift_assignment_id, shiftId: row.shift_id, effectiveFrom: iso(row.shift_assignment_effective_from) },
-    shift: {
-      versionId: row.shift_version_id,
-      version: String(row.shift_version),
-      id: row.shift_id,
-      name: row.shift_name,
-      startTime: row.start_time.slice(0, 5),
-      endTime: row.end_time.slice(0, 5),
-      breakMinutes: row.break_minutes,
-      toleranceMinutes: row.tolerance_minutes,
-      effectiveFrom: iso(row.shift_effective_from)
-    },
-    businessDateRule: "overnight-end-inclusive-previous-date-v1"
-  };
-}
-
-async function resolveConfiguration(
-  client: TenantTransaction,
-  workerId: string,
-  occurredAt: string
-): Promise<{ configuration: CompleteConfigurationSnapshot; interpretation: ResolvedEventTime }> {
-  const result = await client.query<EffectiveConfigurationRow>(
-    `SELECT wsa.id AS shift_assignment_id, wsa.effective_from AS shift_assignment_effective_from,
-       wsa.shift_id, scv.id AS shift_version_id, scv.version AS shift_version,
-       scv.name AS shift_name, scv.start_time::text, scv.end_time::text,
-       scv.break_minutes, scv.tolerance_minutes, scv.effective_from AS shift_effective_from,
-       otv.id AS timezone_version_id, otv.timezone, otv.effective_from AS timezone_effective_from,
-       to_char(interpreted.local_at, 'YYYY-MM-DD"T"HH24:MI:SS.MS') AS resolved_local_at,
-       extract(epoch FROM (
-         interpreted.local_at - ($2::timestamptz AT TIME ZONE 'UTC')
-       ))::integer AS resolved_utc_offset_seconds
-     FROM worker_shift_assignments wsa
-     JOIN shift_configuration_versions scv
-       ON scv.shift_id = wsa.shift_id
-      AND scv.effective_from <= $2
-      AND (scv.effective_to IS NULL OR scv.effective_to > $2)
-     JOIN organization_timezone_versions otv
-        ON otv.organization_id = wsa.organization_id
-       AND otv.effective_from <= $2
-       AND (otv.effective_to IS NULL OR otv.effective_to > $2)
-     CROSS JOIN LATERAL (
-       SELECT $2::timestamptz AT TIME ZONE otv.timezone AS local_at
-     ) interpreted
-     WHERE wsa.worker_id = $1
-       AND wsa.effective_from <= $2
-       AND (wsa.effective_to IS NULL OR wsa.effective_to > $2)
-       AND scv.status = 'active'`,
-    [workerId, occurredAt]
-  );
-  const row = result.rows[0];
-  if (!row) throw new AppError("CONFLICT", "Povijesna konfiguracija za vrijeme događaja nije dostupna.");
-  const configuration = completeConfiguration(row);
-  return {
-    configuration,
-    interpretation: {
-      timezoneVersionId: row.timezone_version_id,
-      timezone: row.timezone,
-      localTimestamp: row.resolved_local_at,
-      utcOffsetSeconds: row.resolved_utc_offset_seconds
-    }
-  };
-}
 
 function persistedInterpretation(event: RawEventRow): AttendanceEventTimeInterpretation {
   if (!event.timezone_version_id || !event.timezone_name || !event.resolved_local_at || event.resolved_utc_offset_seconds === null) {
@@ -182,7 +102,10 @@ async function insertCalculation(
 }
 
 export class PgAttendanceCalculationService {
-  constructor(private readonly pool: pg.Pool) {}
+  constructor(
+    private readonly pool: pg.Pool,
+    private readonly deviceCredentialEncryptionKey: string
+  ) {}
 
   async ingestVerifiedTerminalBatch(
     client: TenantTransaction,
@@ -193,35 +116,76 @@ export class PgAttendanceCalculationService {
   ): Promise<TerminalEventBatchView> {
     const receivedAt = new Date().toISOString();
     const results: TerminalEventBatchView["results"] = [];
-    await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1::text, 0))", [organizationId]);
+    await lockTerminalEventLifecycle(client, organizationId);
     const terminalState = await client.query<{ last_sequence: string | number }>(
       "SELECT last_sequence FROM terminals WHERE id = $1 FOR UPDATE", [terminalId]
     );
     let lastSequence = Number(terminalState.rows[0]?.last_sequence ?? 0);
     for (const event of input.events) {
-      let status: "synced" | "duplicate" | "rejected" = "synced";
+      let status: "synced" | "duplicate" | "rejected" | "reconciliation_required" = "synced";
       let code: string | null = null;
       let workerId: string | null = null;
       let effectiveDepartmentId: string | null = null;
       let attendanceDayId: string | null = null;
       let beforeDay: AttendanceRow | null = null;
       let eventInterpretation: ResolvedEventTime | null = null;
-      if (Date.parse(event.occurredAt) > Date.now() + 5 * 60_000) {
-        status = "rejected";
-        code = "EVENT_IN_FUTURE";
-      } else if (!/^[a-f0-9]{64}$/i.test(event.cardUidHash)) {
-        status = "rejected";
-        code = "INVALID_CARD_HASH";
-      }
-      const existing = await client.query<{ worker_id: string | null; effective_department_id: string | null }>(
-        "SELECT worker_id, effective_department_id FROM attendance_events WHERE terminal_id = $1 AND device_event_id = $2",
+      let card: { id: string; worker_id: string } | null = null;
+      let lifecycleEvidence: TerminalLifecycleEvidence = {
+        decision: "rejected",
+        code: null,
+        acknowledgement: { verified: false, delaySeconds: null }
+      };
+      const fingerprint = terminalEventFingerprint(terminalId, event);
+      const existing = await client.query<{
+        id: string;
+        worker_id: string | null;
+        effective_department_id: string | null;
+        event_fingerprint: Buffer | null;
+        processing_status: "accepted" | "rejected" | "reconciliation_required";
+        rejection_code: string | null;
+        lifecycle_evidence: TerminalLifecycleEvidence | string;
+        reconciliation_resolution: "accepted" | "rejected" | null;
+      }>(
+        `SELECT e.id, e.worker_id, e.effective_department_id, e.event_fingerprint, e.processing_status,
+           e.rejection_code, e.lifecycle_evidence, r.resolution AS reconciliation_resolution
+         FROM attendance_events e
+         LEFT JOIN terminal_event_reconciliations r ON r.attendance_event_id = e.id
+         WHERE e.terminal_id = $1 AND e.device_event_id = $2`,
         [terminalId, event.deviceEventId]
       );
-      if (existing.rows[0]) {
-        status = "duplicate";
-        code = null;
-        workerId = existing.rows[0].worker_id;
-        effectiveDepartmentId = existing.rows[0].effective_department_id;
+      const existingEvent = existing.rows[0];
+      let rawEventId = existingEvent?.id ?? null;
+      if (existingEvent) {
+        const matches = existingEvent.event_fingerprint !== null && existingEvent.event_fingerprint.equals(fingerprint);
+        status = !matches
+          ? "rejected"
+          : existingEvent.reconciliation_resolution === "accepted"
+            ? "duplicate"
+            : existingEvent.reconciliation_resolution === "rejected"
+              ? "rejected"
+          : existingEvent.processing_status === "accepted"
+            ? "duplicate"
+            : existingEvent.processing_status;
+        code = !matches
+          ? "EVENT_IDENTITY_MISMATCH"
+          : existingEvent.reconciliation_resolution === "accepted" || existingEvent.processing_status === "accepted"
+            ? null
+            : existingEvent.reconciliation_resolution === "rejected"
+              ? "RECONCILIATION_REJECTED"
+              : existingEvent.rejection_code;
+        workerId = existingEvent.worker_id;
+        effectiveDepartmentId = existingEvent.effective_department_id;
+        const originalEvidence = jsonObject<TerminalLifecycleEvidence>(existingEvent.lifecycle_evidence);
+        lifecycleEvidence = {
+          ...originalEvidence,
+          decision: status,
+          code,
+          acknowledgement: {
+            ...originalEvidence.acknowledgement,
+            verified: matches && originalEvidence.acknowledgement.verified
+          },
+          originalAttendanceEventId: existingEvent.id
+        };
       } else if (event.sequence <= lastSequence) {
         status = "rejected";
         code = "SEQUENCE_OUT_OF_ORDER";
@@ -229,161 +193,80 @@ export class PgAttendanceCalculationService {
         lastSequence = event.sequence;
       }
 
-      let card: { id: string; worker_id: string; effective_department_id: string | null } | undefined;
+      if (status === "synced" && !/^[a-f0-9]{64}$/.test(event.cardUidHash)) {
+        status = "rejected";
+        code = "INVALID_CARD_HASH";
+      }
       if (status === "synced") {
-        const cardResult = await client.query<{ id: string; worker_id: string }>(
-          `SELECT c.id, c.worker_id FROM rfid_cards c JOIN workers w ON w.id = c.worker_id
-           WHERE c.uid_hash = decode($1, 'hex') AND c.status = 'active' AND w.status = 'active'
-             AND c.valid_from <= $2 AND (c.valid_to IS NULL OR c.valid_to >= $2) FOR UPDATE OF w`,
-          [event.cardUidHash, event.occurredAt]
+        const integrity = await resolveTerminalEventIntegrity(
+          client,
+          terminalId,
+          this.deviceCredentialEncryptionKey,
+          event,
+          input.sentAt
         );
-        const assignedCard = cardResult.rows[0];
-        if (!assignedCard) {
-          status = "rejected";
-          code = "CARD_NOT_ASSIGNED";
-        } else {
-          const assignment = await client.query<{ department_id: string }>(
-            `SELECT department_id FROM worker_department_assignments
-             WHERE worker_id = $1 AND effective_from <= $2 AND (effective_to IS NULL OR effective_to > $2)`,
-            [assignedCard.worker_id, event.occurredAt]
-          );
-          card = { ...assignedCard, effective_department_id: assignment.rows[0]?.department_id ?? null };
-          workerId = card.worker_id;
-          effectiveDepartmentId = card.effective_department_id;
+        lifecycleEvidence = integrity.evidence;
+        workerId = integrity.workerId;
+        effectiveDepartmentId = integrity.effectiveDepartmentId;
+        card = integrity.card;
+        if (integrity.outcome !== "accepted") {
+          status = integrity.outcome;
+          code = integrity.code;
         }
       }
 
       if (status === "synced" && card) {
-        try {
-          const resolved = await resolveConfiguration(client, card.worker_id, event.occurredAt);
+        const resolved = await resolveTerminalConfiguration(client, card.worker_id, event.occurredAt, event.acknowledgedAt);
+        lifecycleEvidence = { ...lifecycleEvidence, ...resolved.evidence };
+        if (resolved.outcome !== "accepted") {
+          status = resolved.outcome;
+          code = resolved.code;
+        } else {
           const { configuration, interpretation } = resolved;
           eventInterpretation = interpretation;
-          const { workDate, localMinutes } = eventBusinessContext(
-            interpretation,
-            configuration.shift.startTime,
-            configuration.shift.endTime
+          const applied = await applyAttendanceEvent(
+            client,
+            organizationId,
+            card.worker_id,
+            event,
+            configuration,
+            interpretation
           );
-          const snapshot = shiftSnapshot(configuration);
-          const day = await client.query<AttendanceRow>(
-            `${attendanceSelect} FROM attendance_days a WHERE a.worker_id = $1 AND a.work_date = $2::date FOR UPDATE OF a`,
-            [card.worker_id, workDate]
-          );
-          const current = day.rows[0];
-          beforeDay = current ?? null;
-          if (event.eventType === "check_in") {
-            if (current?.check_in) {
-              status = "rejected";
-              code = "ALREADY_CHECKED_IN";
-            } else {
-              const late = localMinutes > timeMinutes(configuration.shift.startTime) + configuration.shift.toleranceMinutes;
-              if (current?.check_out) {
-                const elapsed = new Date(current.check_out).getTime() - new Date(event.occurredAt).getTime();
-                if (elapsed <= 0) {
-                  status = "rejected";
-                  code = "CHECK_IN_AFTER_CHECK_OUT";
-                } else if (elapsed > 16 * 60 * 60 * 1000) {
-                  status = "rejected";
-                  code = "SHIFT_DURATION_EXCEEDED";
-                } else {
-                  const worked = Math.max(0, Math.floor(elapsed / 60_000) - configuration.shift.breakMinutes);
-                  await client.query(
-                    `UPDATE attendance_days SET check_in = $2, shift_snapshot = $3::jsonb,
-                       break_minutes = $4, worked_minutes = $5, planned_minutes = $6,
-                       status = $7, calculation_version = $8, configuration_snapshot = $9::jsonb,
-                       revision = revision + 1 WHERE id = $1`,
-                    [current.id, event.occurredAt, JSON.stringify(snapshot), configuration.shift.breakMinutes, worked,
-                      plannedMinutes(configuration.shift.startTime, configuration.shift.endTime, configuration.shift.breakMinutes),
-                      late ? "late" : "complete", ATTENDANCE_CALCULATION_VERSION, JSON.stringify(configuration)]
-                  );
-                  attendanceDayId = current.id;
-                }
-              } else if (current) {
-                await client.query(
-                  `UPDATE attendance_days SET check_in = $2, shift_snapshot = $3::jsonb,
-                     break_minutes = $4, planned_minutes = $5, status = $6,
-                     calculation_version = $7, configuration_snapshot = $8::jsonb,
-                     revision = revision + 1 WHERE id = $1`,
-                  [current.id, event.occurredAt, JSON.stringify(snapshot), configuration.shift.breakMinutes,
-                    plannedMinutes(configuration.shift.startTime, configuration.shift.endTime, configuration.shift.breakMinutes),
-                    late ? "late" : "active", ATTENDANCE_CALCULATION_VERSION, JSON.stringify(configuration)]
-                );
-                attendanceDayId = current.id;
-              } else {
-                const inserted = await client.query<{ id: string }>(
-                  `INSERT INTO attendance_days (
-                     organization_id, worker_id, work_date, shift_snapshot, check_in, break_minutes,
-                     worked_minutes, planned_minutes, status, calculation_version, configuration_snapshot
-                   ) VALUES ($1, $2, $3, $4::jsonb, $5, $6, 0, $7, $8, $9, $10::jsonb) RETURNING id`,
-                  [organizationId, card.worker_id, workDate, JSON.stringify(snapshot), event.occurredAt,
-                    configuration.shift.breakMinutes,
-                    plannedMinutes(configuration.shift.startTime, configuration.shift.endTime, configuration.shift.breakMinutes),
-                    late ? "late" : "active", ATTENDANCE_CALCULATION_VERSION, JSON.stringify(configuration)]
-                );
-                attendanceDayId = inserted.rows[0]!.id;
-              }
-            }
-          } else if (current?.check_out) {
-            status = "rejected";
-            code = "ALREADY_CHECKED_OUT";
-          } else if (current?.check_in) {
-            const elapsed = new Date(event.occurredAt).getTime() - new Date(current.check_in).getTime();
-            if (elapsed <= 0) {
-              status = "rejected";
-              code = "CHECK_OUT_BEFORE_CHECK_IN";
-            } else if (elapsed > 16 * 60 * 60 * 1000) {
-              status = "rejected";
-              code = "SHIFT_DURATION_EXCEEDED";
-            } else {
-              const worked = Math.max(0, Math.floor(elapsed / 60_000) - current.break_minutes);
-              await client.query(
-                `UPDATE attendance_days SET check_out = $2, worked_minutes = $3,
-                   status = CASE WHEN status = 'late' THEN 'late' ELSE 'complete' END,
-                   revision = revision + 1 WHERE id = $1`,
-                [current.id, event.occurredAt, worked]
-              );
-              attendanceDayId = current.id;
-            }
-          } else {
-            const inserted = await client.query<{ id: string }>(
-              `INSERT INTO attendance_days (
-                 organization_id, worker_id, work_date, shift_snapshot, check_out, break_minutes,
-                 worked_minutes, planned_minutes, status, calculation_version, configuration_snapshot
-               ) VALUES ($1, $2, $3, $4::jsonb, $5, $6, 0, $7, 'incomplete', $8, $9::jsonb)
-               ON CONFLICT (organization_id, worker_id, work_date) DO UPDATE
-                 SET check_out = EXCLUDED.check_out, status = 'incomplete', revision = attendance_days.revision + 1
-               RETURNING id`,
-              [organizationId, card.worker_id, workDate, JSON.stringify(snapshot), event.occurredAt,
-                configuration.shift.breakMinutes,
-                plannedMinutes(configuration.shift.startTime, configuration.shift.endTime, configuration.shift.breakMinutes),
-                ATTENDANCE_CALCULATION_VERSION, JSON.stringify(configuration)]
-            );
-            attendanceDayId = inserted.rows[0]!.id;
-          }
-        } catch (error) {
-          if (error instanceof AppError && error.code === "CONFLICT") {
-            status = "rejected";
-            code = "HISTORICAL_CONFIGURATION_UNAVAILABLE";
-          } else {
-            throw error;
-          }
+          status = applied.status;
+          code = applied.code;
+          attendanceDayId = applied.attendanceDayId;
+          beforeDay = applied.beforeDay;
         }
       }
 
-      let rawEventId: string | null = null;
-      if (status !== "duplicate") {
+      lifecycleEvidence = {
+        ...lifecycleEvidence,
+        decision: status === "synced" ? "accepted" : status,
+        code
+      };
+      if (!existingEvent) {
         const rawEvent = await client.query<{ id: string }>(
            `INSERT INTO attendance_events (
               organization_id, terminal_id, worker_id, effective_department_id, attendance_day_id,
-              rfid_card_id, device_event_id, sequence, occurred_at, event_type, card_uid_hash,
-              device_clock_offset_seconds, processing_status, rejection_code, timezone_version_id,
+              rfid_card_id, device_event_id, sequence, occurred_at, acknowledged_at, event_type,
+              card_uid_hash, device_clock_offset_seconds, clock_status, acknowledgement_key_id,
+              acknowledgement_key_version, acknowledgement_proof_status,
+              acknowledgement_signature, event_fingerprint,
+              processing_status, rejection_code, lifecycle_evidence, timezone_version_id,
               timezone_name, resolved_local_at, resolved_utc_offset_seconds
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, decode($11, 'hex'), $12, $13, $14,
-              $15, $16, $17::timestamp, $18)
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11,
+              decode($12, 'hex'), $13, $14, $15, $16, $17, decode($18, 'hex'), $19,
+              $20, $21, $22::jsonb, $23, $24, $25::timestamp, $26)
             RETURNING id`,
            [organizationId, terminalId, workerId, effectiveDepartmentId, attendanceDayId, card?.id ?? null,
-             event.deviceEventId, event.sequence, event.occurredAt, event.eventType,
-             /^[a-f0-9]{64}$/i.test(event.cardUidHash) ? event.cardUidHash : "0".repeat(64),
-             event.deviceClockOffsetSeconds ?? 0, status === "synced" ? "accepted" : "rejected", code,
+             event.deviceEventId, event.sequence, event.occurredAt, event.acknowledgedAt, event.eventType,
+             /^[a-f0-9]{64}$/.test(event.cardUidHash) ? event.cardUidHash : "0".repeat(64),
+             event.deviceClockOffsetSeconds, event.clockStatus, event.acknowledgementKeyId,
+             event.acknowledgementKeyVersion,
+             lifecycleEvidence.acknowledgement.verified ? "verified" : "invalid",
+             event.acknowledgementSignature, fingerprint,
+             status === "synced" ? "accepted" : status === "reconciliation_required" ? status : "rejected",
+             code, JSON.stringify(lifecycleEvidence),
              status === "synced" ? eventInterpretation?.timezoneVersionId ?? null : null,
              status === "synced" ? eventInterpretation?.timezone ?? null : null,
              status === "synced" ? eventInterpretation?.localTimestamp ?? null : null,
@@ -400,8 +283,15 @@ export class PgAttendanceCalculationService {
         const configuration = jsonObject<ConfigurationSnapshot>(afterRow.configuration_snapshot);
         if (configuration.provenanceStatus !== "complete") throw new Error("Accepted attendance day lacks complete configuration provenance");
         const sources = await client.query<{ id: string }>(
-          `SELECT id FROM attendance_events WHERE attendance_day_id = $1 AND processing_status = 'accepted'
-           ORDER BY occurred_at, id`, [attendanceDayId]
+          `SELECT source.id FROM (
+             SELECT e.id, e.occurred_at FROM attendance_events e
+             WHERE e.attendance_day_id = $1 AND e.processing_status = 'accepted'
+             UNION ALL
+             SELECT r.attendance_event_id, e.occurred_at
+             FROM terminal_event_reconciliations r
+             JOIN attendance_events e ON e.id = r.attendance_event_id
+             WHERE r.attendance_day_id = $1 AND r.resolution = 'accepted'
+           ) source ORDER BY source.occurred_at, source.id`, [attendanceDayId]
         );
         const sourceEventIds = sources.rows.map((row) => row.id);
         const calculationId = randomUUID();
@@ -426,17 +316,24 @@ export class PgAttendanceCalculationService {
       await client.query(
         `INSERT INTO terminal_sync_events (
            organization_id, terminal_id, device_event_id, sequence, worker_id, effective_department_id,
-           occurred_at, event_type, status, rejection_code, request_id
-         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+           attendance_event_id, occurred_at, acknowledged_at, event_type, status, rejection_code,
+           acknowledgement_key_id, acknowledgement_key_version, clock_status,
+           acknowledgement_verified, lifecycle_evidence, request_id
+         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12,
+           $13, $14, $15, $16, $17::jsonb, $18)`,
         [organizationId, terminalId, event.deviceEventId, event.sequence, workerId, effectiveDepartmentId,
-          event.occurredAt, event.eventType, status, code, requestId]
+          rawEventId, event.occurredAt, event.acknowledgedAt, event.eventType, status, code,
+          event.acknowledgementKeyId, event.acknowledgementKeyVersion, event.clockStatus,
+          lifecycleEvidence.acknowledgement.verified, JSON.stringify(lifecycleEvidence), requestId]
       );
       await client.query(
         `INSERT INTO audit_events (
            organization_id, actor_type, actor_id, action, entity_type, entity_id, request_id, metadata
-         ) VALUES ($1, 'terminal', $2, $3, 'attendance_event', $4, $5, $6::jsonb)`,
+        ) VALUES ($1, 'terminal', $2, $3, 'attendance_event', $4, $5, $6::jsonb)`,
         [organizationId, terminalId, `terminal_event.${status}`, event.deviceEventId, requestId,
-          JSON.stringify({ module: "terminal", eventType: event.eventType, result: status, code, attendanceDayId })]
+          JSON.stringify({ module: "terminal", eventType: event.eventType, result: status, code,
+            attendanceDayId, attendanceEventId: rawEventId, acknowledgedAt: event.acknowledgedAt,
+            lifecycleEvidence })]
       );
       results.push({ deviceEventId: event.deviceEventId, status, code });
     }
@@ -446,6 +343,15 @@ export class PgAttendanceCalculationService {
       [terminalId, lastSequence]
     );
     return { batchId: input.batchId, receivedAt, results };
+  }
+
+  async resolveTerminalEventReconciliation(
+    actor: ActorContext,
+    attendanceEventId: string,
+    input: TerminalEventReconciliationWrite,
+    requestId: string
+  ): Promise<TerminalEventReconciliationView> {
+    return resolveTerminalEventReconciliation(this.pool, actor, attendanceEventId, input, requestId);
   }
 
   async recalculateAttendanceDay(
@@ -487,10 +393,22 @@ export class PgAttendanceCalculationService {
       );
       if (locked.rows[0]) throw new AppError("CONFLICT", "Zaključano razdoblje mora se prvo ovlašteno otvoriti.");
       const events = await client.query<RawEventRow>(
-        `SELECT id, occurred_at, event_type, timezone_version_id, timezone_name,
-           to_char(resolved_local_at, 'YYYY-MM-DD"T"HH24:MI:SS.MS') AS resolved_local_at,
-           resolved_utc_offset_seconds FROM attendance_events
-         WHERE attendance_day_id = $1 AND processing_status = 'accepted' ORDER BY occurred_at, id`,
+        `SELECT source.id, source.occurred_at, source.event_type, source.timezone_version_id,
+           source.timezone_name,
+           to_char(source.resolved_local_at, 'YYYY-MM-DD"T"HH24:MI:SS.MS') AS resolved_local_at,
+           source.resolved_utc_offset_seconds
+         FROM (
+           SELECT e.id, e.occurred_at, e.event_type, e.timezone_version_id,
+             e.timezone_name, e.resolved_local_at, e.resolved_utc_offset_seconds
+           FROM attendance_events e
+           WHERE e.attendance_day_id = $1 AND e.processing_status = 'accepted'
+           UNION ALL
+           SELECT e.id, e.occurred_at, e.event_type, r.timezone_version_id,
+             r.timezone_name, r.resolved_local_at, r.resolved_utc_offset_seconds
+           FROM terminal_event_reconciliations r
+           JOIN attendance_events e ON e.id = r.attendance_event_id
+           WHERE r.attendance_day_id = $1 AND r.resolution = 'accepted'
+         ) source ORDER BY source.occurred_at, source.id`,
         [attendanceDayId]
       );
       const checkInEvent = events.rows.find((event) => event.event_type === "check_in");

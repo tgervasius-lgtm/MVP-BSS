@@ -116,10 +116,35 @@ export type TerminalSyncEventView = {
   sequence: number;
   workerId: string | null;
   occurredAt: string;
+  acknowledgedAt: string | null;
   receivedAt: string;
   eventType: "check_in" | "check_out";
-  status: "queued" | "synced" | "duplicate" | "rejected";
+  status: "queued" | "synced" | "duplicate" | "rejected" | "reconciliation_required";
   rejectionCode: string | null;
+  attendanceEventId: string | null;
+  acknowledgementVerified: boolean;
+  lifecycleEvidence: TerminalLifecycleEvidence;
+};
+export type TerminalLifecycleEvidence = {
+  decision: "accepted" | "rejected" | "reconciliation_required" | "duplicate";
+  code: string | null;
+  acknowledgement: {
+    verified: boolean;
+    delaySeconds: number | null;
+    keyId?: string;
+    keyVersion?: number;
+    clockStatus?: "trusted" | "uncertain" | "unknown";
+  };
+  workerStatusVersionId?: string;
+  workerStatus?: EntityStatus;
+  rfidCardId?: string;
+  rfidValidFrom?: string;
+  rfidValidTo?: string | null;
+  departmentAssignmentId?: string;
+  shiftAssignmentId?: string;
+  shiftConfigurationVersionId?: string;
+  timezoneVersionId?: string;
+  originalAttendanceEventId?: string;
 };
 export type AttendanceStatus = "active" | "complete" | "late" | "incomplete" | "corrected";
 export type AttendanceCalculationVersion = "attendance-v1";
@@ -277,20 +302,44 @@ export type TerminalView = {
   revision: string;
 };
 export type TerminalPairWrite = { activationCode: string; name: string; location: string };
-export type TerminalPairView = { terminal: TerminalView; deviceCredential: string };
+export type TerminalPairView = {
+  terminal: TerminalView;
+  deviceCredential: string;
+  acknowledgementKey: { id: string; version: number; derivation: "BSS-TERMINAL-ACK-KEY-V1" };
+};
+export type TerminalCredentialRotationView = TerminalPairView;
+export type TerminalCredentialRotationWrite = { reason: "normal_rotation" | "suspected_compromise" };
 export type TerminalEventWrite = {
+  acknowledgementKeyId: string;
+  acknowledgementKeyVersion: number;
   deviceEventId: string;
   sequence: number;
   occurredAt: string;
   eventType: "check_in" | "check_out";
   cardUidHash: string;
-  deviceClockOffsetSeconds?: number;
+  deviceClockOffsetSeconds: number;
+  clockStatus: "trusted" | "uncertain";
+  acknowledgedAt: string;
+  acknowledgementSignature: string;
 };
 export type TerminalEventBatchWrite = { batchId: string; sentAt: string; events: TerminalEventWrite[] };
 export type TerminalEventBatchView = {
   batchId: string;
   receivedAt: string;
   results: Array<{ deviceEventId: string; status: TerminalSyncEventView["status"]; code: string | null }>;
+};
+export type TerminalEventReconciliationWrite = {
+  resolution: "accepted" | "rejected";
+  reason: string;
+};
+export type TerminalEventReconciliationView = {
+  id: string;
+  attendanceEventId: string;
+  resolution: "accepted" | "rejected";
+  reason: string;
+  attendanceDayId: string | null;
+  resolvedBy: string;
+  createdAt: string;
 };
 export type TerminalHeartbeatWrite = {
   sentAt: string;
@@ -377,6 +426,8 @@ export interface MvpService extends PhaseAService {
   listTerminals(actor: ActorContext): Promise<TerminalView[]>;
   pairTerminal(actor: ActorContext, input: TerminalPairWrite, requestId: string): Promise<TerminalPairView>;
   revokeTerminal(actor: ActorContext, terminalId: string, revision: string, requestId: string): Promise<TerminalView>;
+  rotateTerminalCredential(actor: ActorContext, terminalId: string, input: TerminalCredentialRotationWrite, revision: string, requestId: string): Promise<TerminalCredentialRotationView>;
   ingestTerminalEventBatch(proof: DeviceRequestProof, input: TerminalEventBatchWrite, requestId: string): Promise<TerminalEventBatchView>;
+  resolveTerminalEventReconciliation(actor: ActorContext, attendanceEventId: string, input: TerminalEventReconciliationWrite, requestId: string): Promise<TerminalEventReconciliationView>;
   terminalHeartbeat(proof: DeviceRequestProof, input: TerminalHeartbeatWrite, requestId: string): Promise<void>;
 }

@@ -586,10 +586,43 @@ test("Backend MVP Phase B routes expose every operational flow with role and ori
     payload: {
       batchId: IDS.export,
       sentAt: "2026-07-17T08:00:00.000Z",
-      events: [{ deviceEventId: IDS.request, sequence: 1, occurredAt: "2026-07-17T08:00:00.000Z", eventType: "check_in", cardUidHash: "b".repeat(64) }]
+      events: [{
+        acknowledgementKeyId: IDS.card,
+        acknowledgementKeyVersion: 1,
+        deviceEventId: IDS.request,
+        sequence: 1,
+        occurredAt: "2026-07-17T08:00:00.000Z",
+        acknowledgedAt: "2026-07-17T08:00:01.000Z",
+        acknowledgementSignature: "a".repeat(64),
+        eventType: "check_in",
+        cardUidHash: "b".repeat(64),
+        deviceClockOffsetSeconds: 0,
+        clockStatus: "trusted"
+      }]
     }
   });
   assert.equal(batch.statusCode, 200);
+  const batchWithoutAcknowledgement = await app.inject({
+    method: "POST",
+    url: "/api/v1/terminal/v1/events/batch",
+    headers: { ...deviceHeaders, "x-bss-nonce": "missingacknowledgement1" },
+    payload: {
+      batchId: IDS.export,
+      sentAt: "2026-07-17T08:00:00.000Z",
+      events: [{
+        acknowledgementKeyId: IDS.card,
+        acknowledgementKeyVersion: 1,
+        deviceEventId: IDS.request,
+        sequence: 1,
+        occurredAt: "2026-07-17T08:00:00.000Z",
+        eventType: "check_in",
+        cardUidHash: "b".repeat(64),
+        deviceClockOffsetSeconds: 0,
+        clockStatus: "trusted"
+      }]
+    }
+  });
+  assert.equal(batchWithoutAcknowledgement.statusCode, 422);
   const heartbeat = await app.inject({
     method: "POST",
     url: "/api/v1/terminal/v1/heartbeat",
@@ -640,7 +673,7 @@ test("all Backend MVP Phase B operations exist in OpenAPI and resolve to Fastify
   }
   assert.deepEqual([...expected].filter((operation) => !actual.has(operation)), []);
   const metadata = (document as { info?: { version?: string; "x-bss-status"?: string } }).info;
-  assert.equal(metadata?.version, "1.2.0");
+  assert.equal(metadata?.version, "1.3.0");
   assert.equal(metadata?.["x-bss-status"], "MVP_IMPLEMENTED");
   assert.equal(document.paths["/terminal/v1/events/batch"]?.post?.operationId, "ingestTerminalEventBatch");
 });
@@ -738,8 +771,8 @@ test("OpenAPI v1 and the frozen screen map have no unresolved contract gates", a
       .map(([, operation]) => operation.operationId)
       .filter((operationId): operationId is string => typeof operationId === "string")
   );
-  assert.equal(Object.keys(paths).length, 44);
-  assert.equal(operationIds.length, 55);
+  assert.equal(Object.keys(paths).length, 46);
+  assert.equal(operationIds.length, 57);
   assert.equal(new Set(operationIds).size, operationIds.length);
 
   const nonSessionOperations = new Set(["login", "refreshSession", "acceptInvitation", "ingestTerminalEventBatch", "terminalHeartbeat"]);
@@ -782,9 +815,9 @@ test("OpenAPI v1 and the frozen screen map have no unresolved contract gates", a
     contractGatesBeforeLaterPhases: string[];
   };
   assert.equal(screenMap.readiness, "FULL_PASS");
-  assert.equal(screenMap.openapi.version, "1.2.0");
-  assert.equal(screenMap.openapi.paths, 44);
-  assert.equal(screenMap.openapi.operations, 55);
+  assert.equal(screenMap.openapi.version, "1.3.0");
+  assert.equal(screenMap.openapi.paths, 46);
+  assert.equal(screenMap.openapi.operations, 57);
   const canonicalOpenApiSource = source.replace(/\r\n/g, "\n");
   assert.equal(screenMap.openapi.sha256, createHash("sha256").update(canonicalOpenApiSource).digest("hex"));
   assert.deepEqual(screenMap.contractGatesBeforeLaterPhases, []);
@@ -846,6 +879,8 @@ test("migrations force tenant RLS and make raw evidence append-only", async () =
   const hardening = await readFile(join(repositoryRoot, "backend/migrations/008_production_hardening.up.sql"), "utf8");
   const departmentScope = await readFile(join(repositoryRoot, "backend/migrations/009_event_effective_department_scope.up.sql"), "utf8");
   const calculationHistory = await readFile(join(repositoryRoot, "backend/migrations/010_attendance_calculation_history.up.sql"), "utf8");
+  const lifecycleIntegrity = await readFile(join(repositoryRoot, "backend/migrations/011_terminal_event_lifecycle_integrity.up.sql"), "utf8");
+  const lifecycleRecovery = await readFile(join(repositoryRoot, "backend/migrations/011_terminal_event_lifecycle_integrity.down.sql"), "utf8");
   const attendanceCalculationService = await readFile(join(repositoryRoot, "backend/src/services/pg-attendance-calculation-service.ts"), "utf8");
   const frontendState = await readFile(join(repositoryRoot, "src/adapters/api-state.js"), "utf8");
   const grants = await readFile(join(repositoryRoot, "backend/deploy/runtime-grants.sql"), "utf8");
@@ -891,12 +926,29 @@ test("migrations force tenant RLS and make raw evidence append-only", async () =
   assert.match(calculationHistory, /DEFAULT 'legacy-unversioned'/);
   assert.match(calculationHistory, /Earlier intervals are intentionally not guessed/);
   assert.doesNotMatch(calculationHistory, /UPDATE\s+attendance_events\s+SET\s+attendance_day_id/is);
+  assert.match(lifecycleIntegrity, /CREATE TABLE worker_status_versions/);
+  assert.match(lifecycleIntegrity, /ALTER TABLE worker_status_versions FORCE ROW LEVEL SECURITY/);
+  assert.match(lifecycleIntegrity, /CREATE TRIGGER workers_track_status/);
+  assert.match(lifecycleIntegrity, /ADD COLUMN acknowledged_at timestamptz/);
+  assert.match(lifecycleIntegrity, /ADD COLUMN acknowledgement_key_version integer/);
+  assert.match(lifecycleIntegrity, /ADD COLUMN acknowledgement_proof_status varchar\(16\)/);
+  assert.match(lifecycleIntegrity, /ADD COLUMN acknowledgement_signature bytea/);
+  assert.match(lifecycleIntegrity, /ADD COLUMN event_fingerprint bytea/);
+  assert.match(lifecycleIntegrity, /CREATE TABLE terminal_event_reconciliations/);
+  assert.match(lifecycleIntegrity, /ALTER TABLE terminal_event_reconciliations FORCE ROW LEVEL SECURITY/);
+  assert.match(lifecycleIntegrity, /CREATE TRIGGER terminal_event_reconciliations_immutable/);
+  assert.match(lifecycleIntegrity, /ORDER BY c\.valid_from DESC, c\.acknowledgement_key_version DESC/);
+  assert.match(lifecycleIntegrity, /LEGACY_EVIDENCE_UNAVAILABLE/);
+  assert.match(lifecycleIntegrity, /reconciliation_required/);
+  assert.match(lifecycleRecovery, /Refusing to remove terminal acknowledgement evidence/);
+  assert.doesNotMatch(lifecycleRecovery, /DELETE FROM attendance_events/);
   const recalculationBody = attendanceCalculationService.slice(attendanceCalculationService.indexOf("async recalculateAttendanceDay"));
   assert.doesNotMatch(recalculationBody, /AT TIME ZONE/);
   assert.match(recalculationBody, /persistedInterpretation/);
   assert.match(frontendState, /start:contractualAttendanceTime\(item,'check_in'\)/);
   assert.match(grants, /REVOKE ALL PRIVILEGES ON TABLE bss_schema_migrations/);
   assert.match(grants, /attendance_calculations/);
+  assert.match(grants, /terminal_event_reconciliations/);
   assert.match(grants, /GRANT DELETE ON TABLE holidays, user_department_scopes, terminal_request_nonces/);
   assert.doesNotMatch(grants, /GRANT (?:ALL|DELETE) ON ALL TABLES/);
   assert.doesNotMatch(grants, /GRANT INSERT ON TABLE\s+organizations/);

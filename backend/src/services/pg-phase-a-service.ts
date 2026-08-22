@@ -8,6 +8,8 @@ import { createOpaqueToken, hashToken } from "../security/tokens.js";
 import { decodeTimelineCursor, decodeUuidCursor, encodeTimelineCursor, encodeUuidCursor } from "./cursors.js";
 import { normalizeDatabaseError } from "./database-errors.js";
 import { datasetVersion } from "./dataset-version.js";
+import { terminalSyncEventView, type TerminalSyncEventRow } from "./terminal-sync-event.js";
+import { lockTerminalEventLifecycle } from "./terminal-event-lock.js";
 import { requireBoundedDateRange, requireValidShiftWindow } from "./validation.js";
 import type {
   DashboardSummaryView,
@@ -85,18 +87,6 @@ type LeaveBalanceRow = {
   planned_days: string | number;
   revision: string | number;
 };
-type TerminalSyncEventRow = {
-  id: string;
-  terminal_id: string;
-  device_event_id: string;
-  sequence: string | number;
-  worker_id: string | null;
-  occurred_at: Date | string;
-  received_at: Date | string;
-  event_type: TerminalSyncEventView["eventType"];
-  status: TerminalSyncEventView["status"];
-  rejection_code: string | null;
-};
 type ReportRow = Record<string, string | number | Date | null>;
 
 function organizationView(row: OrganizationRow): OrganizationView {
@@ -172,22 +162,6 @@ function rfidView(row: RfidRow): RfidCardView {
     validFrom: iso(row.valid_from),
     validTo: row.valid_to ? iso(row.valid_to) : null,
     revision: String(row.revision)
-  };
-}
-
-function terminalSyncEventView(row: TerminalSyncEventRow): TerminalSyncEventView {
-  const iso = (value: Date | string): string => (value instanceof Date ? value.toISOString() : new Date(value).toISOString());
-  return {
-    id: row.id,
-    terminalId: row.terminal_id,
-    deviceEventId: row.device_event_id,
-    sequence: Number(row.sequence),
-    workerId: row.worker_id,
-    occurredAt: iso(row.occurred_at),
-    receivedAt: iso(row.received_at),
-    eventType: row.event_type,
-    status: row.status,
-    rejectionCode: row.rejection_code
   };
 }
 
@@ -397,6 +371,7 @@ export class PgPhaseAService implements PhaseAService {
     requireRole(actor, ["admin"]);
     try {
       return await withTenant(this.pool, actor, requestId, async (client) => {
+        await lockTerminalEventLifecycle(client, actor.organizationId);
         const normalizedTimezone = patch.timezone?.trim();
         const normalizedTaxIdentifier = patch.taxIdentifier?.trim() || null;
         if (normalizedTimezone !== undefined) {
@@ -923,6 +898,7 @@ export class PgPhaseAService implements PhaseAService {
     requireValidShiftWindow(input.startTime, input.endTime, input.breakMinutes);
     try {
       return await withTenant(this.pool, actor, requestId, async (client) => {
+        await lockTerminalEventLifecycle(client, actor.organizationId);
         const before = await this.getShiftRow(client, shiftId);
         const updated = await client.query<{ id: string }>(
           `UPDATE shifts SET name = $2, start_time = $3, end_time = $4,
@@ -975,16 +951,19 @@ export class PgPhaseAService implements PhaseAService {
       const uidHash = hashRfidUid(input.uid, this.rfidUidPepper);
       const maskedUid = maskRfidUid(input.uid);
       return await withTenant(this.pool, actor, requestId, async (client) => {
+        await lockTerminalEventLifecycle(client, actor.organizationId);
         const worker = await client.query("SELECT id FROM workers WHERE id = $1 AND status = 'active' FOR UPDATE", [workerId]);
         if (!worker.rows[0]) throw new AppError("NOT_FOUND", "Radnik nije pronađen.");
         await client.query(
-          `UPDATE rfid_cards SET status = 'blocked', valid_to = COALESCE(valid_to, clock_timestamp()), revision = revision + 1
+          `UPDATE rfid_cards SET status = 'blocked',
+             valid_to = COALESCE(valid_to, COALESCE($2::timestamptz, transaction_timestamp())),
+             revision = revision + 1
            WHERE worker_id = $1 AND status = 'active'`,
-          [workerId]
+          [workerId, input.validFrom ?? null]
         );
         const result = await client.query<RfidRow>(
           `INSERT INTO rfid_cards (organization_id, worker_id, uid_hash, masked_uid, valid_from)
-           VALUES ($1, $2, $3, $4, COALESCE($5::timestamptz, clock_timestamp()))
+           VALUES ($1, $2, $3, $4, COALESCE($5::timestamptz, transaction_timestamp()))
            RETURNING id, masked_uid, worker_id, status, valid_from, valid_to, revision`,
           [actor.organizationId, workerId, uidHash, maskedUid, input.validFrom ?? null]
         );
@@ -1007,6 +986,7 @@ export class PgPhaseAService implements PhaseAService {
   async blockRfidCard(actor: ActorContext, cardId: string, requestId: string): Promise<RfidCardView> {
     requireRole(actor, ["admin"]);
     return withTenant(this.pool, actor, requestId, async (client) => {
+      await lockTerminalEventLifecycle(client, actor.organizationId);
       const before = await client.query<RfidRow>(
         "SELECT id, masked_uid, worker_id, status, valid_from, valid_to, revision FROM rfid_cards WHERE id = $1 FOR UPDATE",
         [cardId]
@@ -1015,7 +995,7 @@ export class PgPhaseAService implements PhaseAService {
       if (!current) throw new AppError("NOT_FOUND", "RFID kartica nije pronađena.");
       if (current.status === "blocked") return rfidView(current);
       const result = await client.query<RfidRow>(
-        `UPDATE rfid_cards SET status = 'blocked', valid_to = COALESCE(valid_to, clock_timestamp()), revision = revision + 1
+        `UPDATE rfid_cards SET status = 'blocked', valid_to = COALESCE(valid_to, transaction_timestamp()), revision = revision + 1
          WHERE id = $1 RETURNING id, masked_uid, worker_id, status, valid_from, valid_to, revision`,
         [cardId]
       );
@@ -1294,8 +1274,10 @@ export class PgPhaseAService implements PhaseAService {
       if (!terminal.rows[0]) throw new AppError("NOT_FOUND", "Terminal nije pronađen.");
       const cursor = decodeTimelineCursor(filters.cursor);
       const result = await client.query<TerminalSyncEventRow>(
-        `SELECT e.id, e.terminal_id, e.device_event_id, e.sequence, e.worker_id, e.occurred_at, e.received_at,
-           e.event_type, e.status, e.rejection_code FROM terminal_sync_events e
+        `SELECT e.id, e.terminal_id, e.device_event_id, e.sequence, e.worker_id, e.occurred_at,
+           e.acknowledged_at, e.received_at, e.event_type, e.status, e.rejection_code,
+           e.attendance_event_id, e.acknowledgement_verified, e.lifecycle_evidence
+         FROM terminal_sync_events e
          WHERE e.terminal_id = $1 AND e.received_at >= $2::date AND e.received_at < ($3::date + interval '1 day')
            AND ($4::text IS NULL OR e.status = $4) AND ($8::text <> 'manager' OR e.effective_department_id = ANY($9::uuid[]))
            AND ($5::timestamptz IS NULL OR (e.received_at, e.id) < ($5::timestamptz, $6::uuid))
@@ -1329,6 +1311,7 @@ export class PgPhaseAService implements PhaseAService {
   ): Promise<WorkerView> {
     try {
       return await withTenant(this.pool, actor, requestId, async (client) => {
+        await lockTerminalEventLifecycle(client, actor.organizationId);
         const before = await client.query<WorkerRow>(
           `SELECT id, code, name, email, department_id, shift_id, status, annual_leave_allowance, revision
            FROM workers WHERE id = $1`,

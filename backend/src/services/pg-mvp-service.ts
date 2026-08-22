@@ -22,6 +22,7 @@ import {
 } from "./attendance-calculation.js";
 import { PgAttendanceCalculationService } from "./pg-attendance-calculation-service.js";
 import { PgPhaseAService } from "./pg-phase-a-service.js";
+import { lockTerminalEventLifecycle } from "./terminal-event-lock.js";
 import type {
   AttendancePageView,
   AttendanceRecalculationView,
@@ -42,6 +43,10 @@ import type {
   RequestStatus,
   TerminalEventBatchView,
   TerminalEventBatchWrite,
+  TerminalEventReconciliationView,
+  TerminalEventReconciliationWrite,
+  TerminalCredentialRotationView,
+  TerminalCredentialRotationWrite,
   TerminalHeartbeatWrite,
   TerminalPairView,
   TerminalPairWrite,
@@ -291,7 +296,7 @@ export class PgMvpService extends PgPhaseAService implements MvpService {
     private readonly config: Pick<AppConfig, "rfidUidPepper" | "deviceCredentialEncryptionKey" | "terminalActivationCode" | "publicOrigin">
   ) {
     super(mvpPool, config.rfidUidPepper, config.publicOrigin);
-    this.attendanceCalculations = new PgAttendanceCalculationService(mvpPool);
+    this.attendanceCalculations = new PgAttendanceCalculationService(mvpPool, config.deviceCredentialEncryptionKey);
   }
 
   async listAttendance(
@@ -898,21 +903,31 @@ export class PgMvpService extends PgPhaseAService implements MvpService {
         [actor.organizationId, input.name.trim(), input.location.trim()]
       );
       const row = terminal.rows[0]!;
-      await client.query(
+      const acknowledgementKey = await client.query<{ id: string; acknowledgement_key_version: number }>(
         `INSERT INTO terminal_credentials (
            organization_id, terminal_id, credential_hash, credential_ciphertext, credential_iv,
            credential_auth_tag, key_version
-         ) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+         ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+         RETURNING id, acknowledgement_key_version`,
         [actor.organizationId, row.id, hashToken(credential), encrypted.ciphertext, encrypted.iv, encrypted.authTag, encrypted.keyVersion]
       );
       await insertAudit(client, actor, requestId, "terminal.pair", "terminal", row.id, null, terminalView(row), "terminals");
-      return { terminal: terminalView(row), deviceCredential: credential };
+      return {
+        terminal: terminalView(row),
+        deviceCredential: credential,
+        acknowledgementKey: {
+          id: acknowledgementKey.rows[0]!.id,
+          version: acknowledgementKey.rows[0]!.acknowledgement_key_version,
+          derivation: "BSS-TERMINAL-ACK-KEY-V1"
+        }
+      };
     });
   }
 
   async revokeTerminal(actor: ActorContext, terminalId: string, revision: string, requestId: string): Promise<TerminalView> {
     requireRole(actor, ["admin"]);
     return withTenant(this.mvpPool, actor, requestId, async (client) => {
+      await lockTerminalEventLifecycle(client, actor.organizationId);
       const before = await client.query<TerminalRow>(`${terminalSelect} FROM terminals WHERE id = $1 FOR UPDATE`, [terminalId]);
       const row = before.rows[0];
       if (!row) throw new AppError("NOT_FOUND", "Terminal nije pronađen.");
@@ -922,7 +937,7 @@ export class PgMvpService extends PgPhaseAService implements MvpService {
          RETURNING id, name, location, status, last_seen_at, queue_depth, clock_offset_seconds, revision`,
         [terminalId]
       );
-      await client.query("UPDATE terminal_credentials SET revoked_at = clock_timestamp(), valid_to = clock_timestamp() WHERE terminal_id = $1 AND revoked_at IS NULL", [terminalId]);
+      await client.query("UPDATE terminal_credentials SET revoked_at = transaction_timestamp(), valid_to = transaction_timestamp() WHERE terminal_id = $1 AND revoked_at IS NULL", [terminalId]);
       await insertAudit(client, actor, requestId, "terminal.revoke", "terminal", terminalId, row, updated.rows[0], "terminals");
       return terminalView(updated.rows[0]!);
     });
@@ -932,6 +947,70 @@ export class PgMvpService extends PgPhaseAService implements MvpService {
     return this.withVerifiedDevice(proof, requestId, (client, organizationId, terminalId) =>
       this.attendanceCalculations.ingestVerifiedTerminalBatch(client, organizationId, terminalId, input, requestId)
     );
+  }
+
+  async rotateTerminalCredential(
+    actor: ActorContext,
+    terminalId: string,
+    input: TerminalCredentialRotationWrite,
+    revision: string,
+    requestId: string
+  ): Promise<TerminalCredentialRotationView> {
+    requireRole(actor, ["admin"]);
+    const credential = createOpaqueToken();
+    const encrypted = encryptDeviceCredential(this.config.deviceCredentialEncryptionKey, credential);
+    return withTenant(this.mvpPool, actor, requestId, async (client) => {
+      await lockTerminalEventLifecycle(client, actor.organizationId);
+      const before = await client.query<TerminalRow>(`${terminalSelect} FROM terminals WHERE id = $1 FOR UPDATE`, [terminalId]);
+      const row = before.rows[0];
+      if (!row) throw new AppError("NOT_FOUND", "Terminal nije pronađen.");
+      if (row.status === "revoked") throw new AppError("CONFLICT", "Opozvani terminal ne može dobiti novu vjerodajnicu.");
+      if (String(row.revision) !== revision) throw new AppError("STALE_REVISION", "Terminal je u međuvremenu promijenjen.");
+      const versionResult = await client.query<{ next_version: number }>(
+        `SELECT COALESCE(MAX(acknowledgement_key_version), 0)::integer + 1 AS next_version
+         FROM terminal_credentials WHERE terminal_id = $1`,
+        [terminalId]
+      );
+      const nextVersion = versionResult.rows[0]!.next_version;
+      await client.query(
+        `UPDATE terminal_credentials SET valid_to = transaction_timestamp(),
+           revoked_at = CASE WHEN $2 = 'suspected_compromise' THEN transaction_timestamp() ELSE revoked_at END
+         WHERE terminal_id = $1 AND valid_to IS NULL AND revoked_at IS NULL`,
+        [terminalId, input.reason]
+      );
+      const newKey = await client.query<{ id: string }>(
+        `INSERT INTO terminal_credentials (
+           organization_id, terminal_id, credential_hash, credential_ciphertext, credential_iv,
+           credential_auth_tag, key_version, acknowledgement_key_version, valid_from
+         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, transaction_timestamp()) RETURNING id`,
+        [actor.organizationId, terminalId, hashToken(credential), encrypted.ciphertext, encrypted.iv,
+          encrypted.authTag, encrypted.keyVersion, nextVersion]
+      );
+      const updated = await client.query<TerminalRow>(
+        `UPDATE terminals SET revision = revision + 1 WHERE id = $1
+         RETURNING id, name, location, status, last_seen_at, queue_depth, clock_offset_seconds, revision`,
+        [terminalId]
+      );
+      const terminal = terminalView(updated.rows[0]!);
+      await insertAudit(client, actor, requestId, "terminal.credential.rotate", "terminal", terminalId,
+        { ...terminalView(row), acknowledgementKeyVersion: nextVersion - 1 },
+        { ...terminal, acknowledgementKeyId: newKey.rows[0]!.id, acknowledgementKeyVersion: nextVersion,
+          rotationReason: input.reason }, "terminals");
+      return {
+        terminal,
+        deviceCredential: credential,
+        acknowledgementKey: { id: newKey.rows[0]!.id, version: nextVersion, derivation: "BSS-TERMINAL-ACK-KEY-V1" }
+      };
+    });
+  }
+
+  async resolveTerminalEventReconciliation(
+    actor: ActorContext,
+    attendanceEventId: string,
+    input: TerminalEventReconciliationWrite,
+    requestId: string
+  ): Promise<TerminalEventReconciliationView> {
+    return this.attendanceCalculations.resolveTerminalEventReconciliation(actor, attendanceEventId, input, requestId);
   }
 
   async terminalHeartbeat(proof: DeviceRequestProof, input: TerminalHeartbeatWrite, requestId: string): Promise<void> {
@@ -1143,6 +1222,18 @@ export class PgMvpService extends PgPhaseAService implements MvpService {
         await client.query("SELECT set_config('bss.actor_role', 'terminal', true)");
         await client.query("SELECT set_config('bss.request_id', $1, true)", [requestId]);
         await client.query("SET LOCAL statement_timeout = '10s'");
+        await lockTerminalEventLifecycle(client, credential.organization_id);
+        const currentCredential = await client.query(
+          `SELECT 1 FROM terminal_credentials
+           WHERE terminal_id = $1 AND credential_hash = $2
+             AND valid_from <= transaction_timestamp()
+             AND (valid_to IS NULL OR valid_to > transaction_timestamp())
+             AND (revoked_at IS NULL OR revoked_at > transaction_timestamp())`,
+          [credential.terminal_id, secretHash]
+        );
+        if (!currentCredential.rows[0]) {
+          throw new AppError("UNAUTHENTICATED", "Terminalska vjerodajnica više nije aktivna.");
+        }
         const currentTerminal = await client.query<{ status: TerminalView["status"]; organization_status: EntityStatus }>(
           `SELECT t.status, o.status AS organization_status
            FROM terminals t JOIN organizations o ON o.id = t.organization_id

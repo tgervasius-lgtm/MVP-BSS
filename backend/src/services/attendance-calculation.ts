@@ -54,19 +54,27 @@ export const attendanceSelect = `SELECT a.id, a.worker_id, a.work_date, a.shift_
   COALESCE((SELECT c.source_event_ids FROM attendance_calculations c
     WHERE c.id = a.current_calculation_id), ARRAY[]::uuid[]) AS source_event_ids,
   COALESCE((SELECT jsonb_agg(jsonb_build_object(
-    'sourceEventId', e.id,
-    'eventType', e.event_type,
-    'utcEpochMilliseconds', (extract(epoch FROM e.occurred_at) * 1000)::bigint,
-    'timezoneVersionId', e.timezone_version_id,
-    'timezone', e.timezone_name,
-    'localTimestamp', to_char(e.resolved_local_at, 'YYYY-MM-DD"T"HH24:MI:SS.MS'),
-    'utcOffsetSeconds', e.resolved_utc_offset_seconds
-  ) ORDER BY e.occurred_at, e.id)
-    FROM attendance_events e
-    WHERE e.attendance_day_id = a.id
-      AND e.processing_status = 'accepted'
-      AND e.timezone_version_id IS NOT NULL
-      AND e.resolved_local_at IS NOT NULL), '[]'::jsonb) AS event_interpretations`;
+    'sourceEventId', evidence.id,
+    'eventType', evidence.event_type,
+    'utcEpochMilliseconds', (extract(epoch FROM evidence.occurred_at) * 1000)::bigint,
+    'timezoneVersionId', evidence.timezone_version_id,
+    'timezone', evidence.timezone_name,
+    'localTimestamp', to_char(evidence.resolved_local_at, 'YYYY-MM-DD"T"HH24:MI:SS.MS'),
+    'utcOffsetSeconds', evidence.resolved_utc_offset_seconds
+  ) ORDER BY evidence.occurred_at, evidence.id)
+    FROM (
+      SELECT e.id, e.event_type, e.occurred_at, e.timezone_version_id,
+        e.timezone_name, e.resolved_local_at, e.resolved_utc_offset_seconds
+      FROM attendance_events e
+      WHERE e.attendance_day_id = a.id AND e.processing_status = 'accepted'
+        AND e.timezone_version_id IS NOT NULL AND e.resolved_local_at IS NOT NULL
+      UNION ALL
+      SELECT e.id, e.event_type, e.occurred_at, r.timezone_version_id,
+        r.timezone_name, r.resolved_local_at, r.resolved_utc_offset_seconds
+      FROM terminal_event_reconciliations r
+      JOIN attendance_events e ON e.id = r.attendance_event_id
+      WHERE r.attendance_day_id = a.id AND r.resolution = 'accepted'
+    ) evidence), '[]'::jsonb) AS event_interpretations`;
 
 export function iso(value: string | Date): string {
   return value instanceof Date ? value.toISOString() : new Date(value).toISOString();

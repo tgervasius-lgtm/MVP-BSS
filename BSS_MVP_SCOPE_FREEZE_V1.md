@@ -111,7 +111,7 @@ Statusni kod je dio ugovora i ne prevodi se. Hrvatska oznaka pripada prikazu.
 | Evidencija dana | `active`, `complete`, `late`, `incomplete`, `corrected` |
 | Zahtjev za godišnji | `pending`, `approved`, `rejected`, `cancelled` |
 | Zahtjev za korekciju | `pending`, `approved`, `rejected`, `cancelled` |
-| Terminalski događaj | `queued`, `synced`, `duplicate`, `rejected` |
+| Terminalski događaj | `queued`, `synced`, `duplicate`, `rejected`, `reconciliation_required` |
 | RFID kartica | `active`, `blocked` |
 | Korisnik/radnik | `active`, `blocked` |
 
@@ -131,13 +131,14 @@ Statusni kod je dio ugovora i ne prevodi se. Hrvatska oznaka pripada prikazu.
 12. Spremljeni izvoz ima filtre, autora, vrijeme, verziju i checksum te se može ponovno proizvesti.
 13. MVP ne računa plaću, poreze ni doprinose.
 14. Service Worker ne sprema autentificirane API ni privatne korisničke odgovore.
+15. Prema DEC-025, `USER_ACKNOWLEDGED` terminalski događaj prvo je pojedinačno trajno zapisan lokalno, a zatim dobiva kanonski per-event HMAC račun s ID-em/verzijom device-specific acknowledgement ključa. `occurredAt` ostaje vrijeme prisutnosti, a vrijeme potvrde je lifecycle granica za worker/RFID/konfiguraciju. Nejasan sat ili povijest i legacy događaj bez dokaza ostaju vidljivo `reconciliation_required`; samo Administrator ih smije eksplicitno razriješiti uz nepromjenjiv raw dokaz, razlog, actor, before/after i provenance. Isti ID s drugim fingerprintom uvijek je konflikt, nikad drugi poslovni događaj.
 
 ## 8. Kriteriji prihvata pilota
 
 - Nema izgubljenog zapisa nakon najmanje 24 sata simuliranog offline rada.
 - Ponovno slanje istog terminalskog paketa ne stvara duplikate.
 - Radnik API-jem ne može dohvatiti tuđe podatke; voditelj ne može dohvatiti nedodijeljeni odjel.
-- Blokirana kartica ne može stvoriti prihvaćeni dolazak.
+- Kartica koja nije bila valjana u trenutku nastanka i lokalne potvrde ne može stvoriti prihvaćeni dolazak; kasniji opoziv ne briše dokazano raniju potvrdu.
 - Odobrena korekcija transakcijski ažurira dnevni zapis i stvara audit događaj sa starom i novom vrijednošću.
 - Broj radnih dana godišnjeg odgovara kalendaru organizacije za odabranu godinu.
 - CSV i XLSX imaju isti broj redaka i isti zbroj minuta za iste filtre.

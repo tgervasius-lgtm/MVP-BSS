@@ -10,6 +10,7 @@ import { buildApp } from "../../src/http/app.js";
 import { hashPassword } from "../../src/security/passwords.js";
 import { signDeviceRequest } from "../../src/security/device-signature.js";
 import { hashRfidUid } from "../../src/security/rfid.js";
+import { signTerminalAcknowledgement } from "../../src/security/terminal-acknowledgement.js";
 import { createOpaqueToken, hashToken } from "../../src/security/tokens.js";
 import { PgAuthService } from "../../src/services/pg-auth-service.js";
 import { PgMvpService } from "../../src/services/pg-mvp-service.js";
@@ -38,7 +39,8 @@ test("PostgreSQL migrations, RLS isolation, auth and manager scope", { skip: !da
   await owner.query(`GRANT INSERT ON departments, shifts, workers, holidays, rfid_cards,
     users, user_department_scopes, user_invitations, auth_sessions, terminals, terminal_credentials,
     attendance_events, attendance_days, leave_requests, correction_requests, report_exports, audit_events,
-    holiday_calendars, terminal_request_nonces, terminal_sync_events, attendance_calculations TO ${role}`);
+    holiday_calendars, terminal_request_nonces, terminal_sync_events, attendance_calculations,
+    terminal_event_reconciliations TO ${role}`);
   await owner.query(`GRANT UPDATE ON organizations, departments, shifts, workers, holidays, rfid_cards,
     users, user_invitations, auth_sessions, terminals, terminal_credentials, attendance_days,
     leave_requests, correction_requests, report_exports, holiday_calendars TO ${role}`);
@@ -86,6 +88,8 @@ test("PostgreSQL migrations, RLS isolation, auth and manager scope", { skip: !da
   await owner.query("UPDATE organization_timezone_versions SET effective_from = '2020-01-01T00:00:00Z' WHERE organization_id = ANY($1::uuid[])", [[ids.org1, ids.org2]]);
   await owner.query("UPDATE shift_configuration_versions SET effective_from = '2020-01-01T00:00:00Z' WHERE shift_id = ANY($1::uuid[])", [[ids.shift1, ids.shift2]]);
   await owner.query("UPDATE worker_shift_assignments SET effective_from = '2020-01-01T00:00:00Z' WHERE worker_id = ANY($1::uuid[])", [[ids.worker1, ids.worker2, ids.worker3]]);
+  await owner.query("UPDATE worker_department_assignments SET effective_from = '2020-01-01T00:00:00Z' WHERE worker_id = ANY($1::uuid[])", [[ids.worker1, ids.worker2, ids.worker3]]);
+  await owner.query("UPDATE worker_status_versions SET effective_from = '2020-01-01T00:00:00Z' WHERE worker_id = ANY($1::uuid[])", [[ids.worker1, ids.worker2, ids.worker3]]);
   const workerUser = await owner.query<{ id: string }>(
     `INSERT INTO users (organization_id, email, password_hash, role, status, worker_id)
      VALUES ($1, 'worker-a@example.test', $2, 'worker', 'active', $3) RETURNING id`,
@@ -533,13 +537,82 @@ test("PostgreSQL migrations, RLS isolation, auth and manager scope", { skip: !da
   );
   assert.equal(paired.terminal.status, "offline");
   assert.ok(paired.deviceCredential.length >= 32);
+  let activeDeviceCredential = paired.deviceCredential;
+  let activeAcknowledgementKey = paired.acknowledgementKey;
+  const legacyEvent = await owner.query<{ id: string }>(
+    `INSERT INTO attendance_events (
+       organization_id, terminal_id, device_event_id, sequence, occurred_at, event_type,
+       card_uid_hash, processing_status, rejection_code
+     ) VALUES ($1, $2, $3, 999, '2025-12-31T08:00:00Z', 'check_in', decode($4, 'hex'),
+       'reconciliation_required', 'LEGACY_EVIDENCE_UNAVAILABLE') RETURNING id`,
+    [ids.org1, paired.terminal.id, randomUUID(), "0".repeat(64)]
+  );
+  const legacyProof = await owner.query<{
+    acknowledgement_proof_status: string;
+    acknowledged_at: string | null;
+    acknowledgement_key_id: string | null;
+    decision: string;
+  }>(
+    `SELECT acknowledgement_proof_status, acknowledged_at, acknowledgement_key_id,
+       lifecycle_evidence->>'decision' AS decision
+     FROM attendance_events WHERE id = $1`,
+    [legacyEvent.rows[0]!.id]
+  );
+  assert.deepEqual(legacyProof.rows[0], {
+    acknowledgement_proof_status: "unknown",
+    acknowledged_at: null,
+    acknowledgement_key_id: null,
+    decision: "reconciliation_required"
+  });
+  await assert.rejects(
+    service.resolveTerminalEventReconciliation(
+      admin.actor,
+      legacyEvent.rows[0]!.id,
+      { resolution: "accepted", reason: "Legacy proof must not be fabricated" },
+      "integration-legacy-reconciliation"
+    ),
+    (error: unknown) => typeof error === "object" && error !== null && "code" in error && error.code === "CONFLICT"
+  );
 
   const cardUidHash = hashRfidUid("04:A1:B2:C3", rfidPepper).toString("hex");
-  const ingest = async (eventType: "check_in" | "check_out", deviceEventId: string, occurredAt: string, sequence: number, nonce: string, eventCardUidHash = cardUidHash) => {
+  const ingest = async (
+    eventType: "check_in" | "check_out",
+    deviceEventId: string,
+    occurredAt: string,
+    sequence: number,
+    nonce: string,
+    eventCardUidHash = cardUidHash,
+    acknowledgement?: {
+      acknowledgedAt?: string;
+      signature?: string;
+      keyId?: string;
+      keyVersion?: number;
+      clockStatus?: "trusted" | "uncertain";
+      receiptCredential?: string;
+    }
+  ) => {
+    const acknowledgedAt = acknowledgement?.acknowledgedAt
+      ?? new Date(Date.parse(occurredAt) + 1000).toISOString();
+    const unsignedEvent = {
+      acknowledgementKeyId: acknowledgement?.keyId ?? activeAcknowledgementKey.id,
+      acknowledgementKeyVersion: acknowledgement?.keyVersion ?? activeAcknowledgementKey.version,
+      deviceEventId,
+      sequence,
+      occurredAt,
+      eventType,
+      cardUidHash: eventCardUidHash,
+      deviceClockOffsetSeconds: 0,
+      clockStatus: acknowledgement?.clockStatus ?? "trusted" as const,
+      acknowledgedAt
+    };
     const body = {
       batchId: randomUUID(),
-      sentAt: new Date().toISOString(),
-      events: [{ deviceEventId, sequence, occurredAt, eventType, cardUidHash: eventCardUidHash, deviceClockOffsetSeconds: 0 }]
+      sentAt: new Date(Math.max(Date.now(), Date.parse(acknowledgedAt))).toISOString(),
+      events: [{
+        ...unsignedEvent,
+        acknowledgementSignature: acknowledgement?.signature
+          ?? signTerminalAcknowledgement(acknowledgement?.receiptCredential ?? activeDeviceCredential, paired.terminal.id, unsignedEvent)
+      }]
     };
     const rawBody = Buffer.from(JSON.stringify(body), "utf8");
     const timestamp = new Date().toISOString();
@@ -548,7 +621,7 @@ test("PostgreSQL migrations, RLS isolation, auth and manager scope", { skip: !da
       terminalId: paired.terminal.id,
       timestamp,
       nonce,
-      signature: signDeviceRequest(paired.deviceCredential, { method: "POST", path, body: rawBody, timestamp, nonce }),
+      signature: signDeviceRequest(activeDeviceCredential, { method: "POST", path, body: rawBody, timestamp, nonce }),
       method: "POST",
       path,
       rawBody
@@ -564,7 +637,7 @@ test("PostgreSQL migrations, RLS isolation, auth and manager scope", { skip: !da
     (error: unknown) => typeof error === "object" && error !== null && "code" in error && error.code === "UNAUTHENTICATED"
   );
   await owner.query(
-    "UPDATE terminal_credentials SET valid_from = clock_timestamp() - interval '1 hour' WHERE terminal_id = $1",
+    "UPDATE terminal_credentials SET valid_from = '2025-01-01T00:00:00Z' WHERE terminal_id = $1",
     [paired.terminal.id]
   );
 
@@ -623,8 +696,8 @@ test("PostgreSQL migrations, RLS isolation, auth and manager scope", { skip: !da
     6,
     "integration-nonce-future-event-0009"
   );
-  assert.equal(futureEvent.results[0]?.status, "rejected");
-  assert.equal(futureEvent.results[0]?.code, "EVENT_IN_FUTURE");
+  assert.equal(futureEvent.results[0]?.status, "reconciliation_required");
+  assert.equal(futureEvent.results[0]?.code, "ACKNOWLEDGEMENT_CLOCK_AMBIGUOUS");
 
   const delayedCheckOut = await ingest("check_out", randomUUID(), "2026-07-12T14:00:00.000Z", 7, "integration-nonce-delayed-check-out-0010");
   assert.equal(delayedCheckOut.results[0]?.status, "synced");
@@ -667,12 +740,41 @@ test("PostgreSQL migrations, RLS isolation, auth and manager scope", { skip: !da
   const adminTransferHistory = await service.listTerminalSyncEvents(admin.actor, paired.terminal.id, transferHistoryFilters);
   assert.ok(adminTransferHistory.items.some((item) => item.deviceEventId === oldDepartmentEventId));
   assert.ok(adminTransferHistory.items.some((item) => item.deviceEventId === newDepartmentEventId));
+  const assertTerminalHistoryScope = async (
+    items: typeof adminTransferHistory.items,
+    expectedDepartmentId: string
+  ) => {
+    const rows = await owner.query<{
+      id: string;
+      terminal_id: string;
+      device_event_id: string;
+      received_at: string | Date;
+      effective_department_id: string | null;
+    }>(
+      `SELECT id, terminal_id, device_event_id, received_at, effective_department_id
+       FROM terminal_sync_events WHERE id = ANY($1::uuid[]) ORDER BY id`,
+      [items.map((item) => item.id)]
+    );
+    assert.deepEqual(rows.rows.map((row) => row.id).sort(), items.map((item) => item.id).sort());
+    for (const row of rows.rows) {
+      const item = items.find((candidate) => candidate.id === row.id);
+      assert.ok(item);
+      assert.equal(row.terminal_id, paired.terminal.id);
+      assert.equal(row.device_event_id, item.deviceEventId);
+      assert.equal(new Date(row.received_at).toISOString().slice(0, 10), receivedDate);
+      assert.equal(row.effective_department_id, expectedDepartmentId);
+    }
+  };
   const managerATransferHistory = await service.listTerminalSyncEvents(manager.actor, paired.terminal.id, transferHistoryFilters);
-  assert.deepEqual(managerATransferHistory.items.map((item) => item.deviceEventId), [oldDepartmentEventId]);
-  assert.equal(managerATransferHistory.page.total, 1);
+  assert.ok(managerATransferHistory.items.some((item) => item.deviceEventId === oldDepartmentEventId));
+  assert.ok(!managerATransferHistory.items.some((item) => item.deviceEventId === newDepartmentEventId));
+  await assertTerminalHistoryScope(managerATransferHistory.items, ids.dep1);
+  assert.equal(managerATransferHistory.page.total, managerATransferHistory.items.length);
   const managerBTransferHistory = await service.listTerminalSyncEvents(managerB.actor, paired.terminal.id, transferHistoryFilters);
-  assert.deepEqual(managerBTransferHistory.items.map((item) => item.deviceEventId), [newDepartmentEventId]);
-  assert.equal(managerBTransferHistory.page.total, 1);
+  assert.ok(managerBTransferHistory.items.some((item) => item.deviceEventId === newDepartmentEventId));
+  assert.ok(!managerBTransferHistory.items.some((item) => item.deviceEventId === oldDepartmentEventId));
+  await assertTerminalHistoryScope(managerBTransferHistory.items, ids.dep3);
+  assert.equal(managerBTransferHistory.page.total, managerBTransferHistory.items.length);
   const unassignedTransferHistory = await service.listTerminalSyncEvents(unassignedManager.actor, paired.terminal.id, transferHistoryFilters);
   assert.deepEqual(unassignedTransferHistory, { items: [], page: { nextCursor: null, total: 0 } });
 
@@ -798,6 +900,7 @@ test("PostgreSQL migrations, RLS isolation, auth and manager scope", { skip: !da
   await owner.query("UPDATE shift_configuration_versions SET effective_from = '2020-01-01T00:00:00Z' WHERE shift_id = $1", [overnightShift.id]);
   await owner.query("UPDATE worker_shift_assignments SET effective_from = '2020-01-01T00:00:00Z' WHERE worker_id = $1", [overnightWorker.id]);
   await owner.query("UPDATE worker_department_assignments SET effective_from = '2020-01-01T00:00:00Z' WHERE worker_id = $1", [overnightWorker.id]);
+  await owner.query("UPDATE worker_status_versions SET effective_from = '2020-01-01T00:00:00Z' WHERE worker_id = $1", [overnightWorker.id]);
   const overnightCardUid = "04:99:88:77";
   await service.assignWorkerRfidCard(admin.actor, overnightWorker.id, { uid: overnightCardUid, validFrom: "2025-01-01T00:00:00.000Z" }, "integration-overnight-card");
   const overnightHash = hashRfidUid(overnightCardUid, rfidPepper).toString("hex");
@@ -806,6 +909,343 @@ test("PostgreSQL migrations, RLS isolation, auth and manager scope", { skip: !da
   const overnightDay = await service.getWorkerAttendance(admin.actor, overnightWorker.id, { from: "2026-01-10", to: "2026-01-10", limit: 50 });
   assert.equal(overnightDay.items[0]?.workDate, "2026-01-10");
   assert.equal(overnightDay.items[0]?.workedMinutes, 390);
+
+  const lifecycleWorker = await service.createWorker(admin.actor, {
+    code: `LIFE-${suffix}`,
+    name: "Lifecycle Radnik",
+    email: `lifecycle-${suffix}@example.test`,
+    departmentId: ids.dep1,
+    shiftId: updatedShift.id,
+    annualLeaveAllowance: 20
+  }, "integration-lifecycle-worker");
+  const lifecycleUid = "04:10:20:30";
+  await service.assignWorkerRfidCard(
+    admin.actor, lifecycleWorker.id, { uid: lifecycleUid }, "integration-lifecycle-card"
+  );
+  const lifecycleHash = hashRfidUid(lifecycleUid, rfidPepper).toString("hex");
+  const preDeactivateEventId = randomUUID();
+  const preDeactivateAt = new Date().toISOString();
+  const deactivated = await service.deactivateWorker(
+    admin.actor, lifecycleWorker.id, lifecycleWorker.revision, "integration-lifecycle-deactivate"
+  );
+  const preDeactivate = await ingest(
+    "check_in", preDeactivateEventId, preDeactivateAt, 21,
+    "integration-nonce-lifecycle-pre-deactivate-0024", lifecycleHash,
+    { acknowledgedAt: preDeactivateAt }
+  );
+  assert.equal(preDeactivate.results[0]?.status, "synced");
+  const blockedStatus = await owner.query<{ effective_from: string }>(
+    `SELECT effective_from FROM worker_status_versions
+     WHERE worker_id = $1 AND status = 'blocked' AND effective_to IS NULL`,
+    [lifecycleWorker.id]
+  );
+  const blockedAt = new Date(blockedStatus.rows[0]!.effective_from).toISOString();
+  const postBlockedAt = new Date(Date.parse(blockedAt) + 1000).toISOString();
+  const blockedEvent = await ingest(
+    "check_out", randomUUID(), postBlockedAt, 22,
+    "integration-nonce-lifecycle-blocked-0025", lifecycleHash,
+    { acknowledgedAt: postBlockedAt }
+  );
+  assert.equal(blockedEvent.results[0]?.status, "rejected");
+  assert.equal(blockedEvent.results[0]?.code, "WORKER_INACTIVE_AT_ACKNOWLEDGEMENT");
+  const reactivated = await service.activateWorker(
+    admin.actor, lifecycleWorker.id, deactivated.revision, "integration-lifecycle-reactivate"
+  );
+  const activeStatus = await owner.query<{ effective_from: string }>(
+    `SELECT effective_from FROM worker_status_versions
+     WHERE worker_id = $1 AND status = 'active' AND effective_to IS NULL`,
+    [lifecycleWorker.id]
+  );
+  const reactivatedAt = new Date(activeStatus.rows[0]!.effective_from).toISOString();
+  const postReactivationAt = new Date(Date.parse(reactivatedAt) + 1000).toISOString();
+  const reactivatedEvent = await ingest(
+    "check_out", randomUUID(), postReactivationAt, 23,
+    "integration-nonce-lifecycle-reactivated-0026", lifecycleHash,
+    { acknowledgedAt: postReactivationAt }
+  );
+  assert.equal(reactivatedEvent.results[0]?.status, "synced");
+  assert.equal(reactivated.status, "active");
+
+  const cardRaceWorker = await service.createWorker(admin.actor, {
+    code: `CARD-${suffix}`,
+    name: "Kartica Race Radnik",
+    email: `card-race-${suffix}@example.test`,
+    departmentId: ids.dep1,
+    shiftId: updatedShift.id,
+    annualLeaveAllowance: 20
+  }, "integration-card-race-worker");
+  const oldCardUid = "04:40:50:60";
+  const preRevokeCardAt = new Date().toISOString();
+  const oldCard = await service.assignWorkerRfidCard(
+    admin.actor, cardRaceWorker.id, { uid: oldCardUid, validFrom: preRevokeCardAt }, "integration-card-race-old"
+  );
+  const oldCardHash = hashRfidUid(oldCardUid, rfidPepper).toString("hex");
+  const preRevokeCardEventId = randomUUID();
+  const lifecycleBlockedCard = await service.blockRfidCard(admin.actor, oldCard.id, "integration-card-race-revoke");
+  assert.equal((await ingest(
+    "check_in", preRevokeCardEventId, preRevokeCardAt, 24,
+    "integration-nonce-card-pre-revoke-0027", oldCardHash,
+    { acknowledgedAt: preRevokeCardAt }
+  )).results[0]?.status, "synced");
+  const revokedAt = lifecycleBlockedCard.validTo!;
+  const postRevokedAt = new Date(Date.parse(revokedAt) + 1000).toISOString();
+  const postRevokeCard = await ingest(
+    "check_out", randomUUID(), postRevokedAt, 25,
+    "integration-nonce-card-post-revoke-0028", oldCardHash,
+    { acknowledgedAt: postRevokedAt }
+  );
+  assert.equal(postRevokeCard.results[0]?.status, "rejected");
+  assert.equal(postRevokeCard.results[0]?.code, "CARD_INACTIVE_AT_ACKNOWLEDGEMENT");
+  const replacementUid = "04:40:50:61";
+  const replacementValidFrom = new Date().toISOString();
+  await service.assignWorkerRfidCard(
+    admin.actor, cardRaceWorker.id, { uid: replacementUid, validFrom: replacementValidFrom }, "integration-card-race-replace"
+  );
+  const replacementHash = hashRfidUid(replacementUid, rfidPepper).toString("hex");
+  assert.equal((await ingest(
+    "check_out", randomUUID(), replacementValidFrom, 26,
+    "integration-nonce-card-replacement-0029", replacementHash,
+    { acknowledgedAt: replacementValidFrom }
+  )).results[0]?.status, "synced");
+
+  const shiftRaceWorker = await service.createWorker(admin.actor, {
+    code: `SHIFT-${suffix}`,
+    name: "Smjena Race Radnik",
+    email: `shift-race-${suffix}@example.test`,
+    departmentId: ids.dep1,
+    shiftId: ids.shift1,
+    annualLeaveAllowance: 20
+  }, "integration-shift-race-worker");
+  const shiftRaceUid = "04:70:80:90";
+  const oldShiftEventAt = new Date().toISOString();
+  await service.assignWorkerRfidCard(
+    admin.actor, shiftRaceWorker.id, { uid: shiftRaceUid, validFrom: oldShiftEventAt }, "integration-shift-race-card"
+  );
+  const shiftRaceHash = hashRfidUid(shiftRaceUid, rfidPepper).toString("hex");
+  const shiftedWorker = await service.updateWorker(admin.actor, shiftRaceWorker.id, {
+    code: shiftRaceWorker.code,
+    name: shiftRaceWorker.name,
+    email: shiftRaceWorker.email,
+    departmentId: shiftRaceWorker.departmentId,
+    shiftId: updatedShift.id,
+    annualLeaveAllowance: shiftRaceWorker.annualLeaveAllowance
+  }, shiftRaceWorker.revision, "integration-shift-race-reassign");
+  const oldShiftEventId = randomUUID();
+  assert.equal((await ingest(
+    "check_in", oldShiftEventId, oldShiftEventAt, 27,
+    "integration-nonce-shift-old-0030", shiftRaceHash,
+    { acknowledgedAt: oldShiftEventAt }
+  )).results[0]?.status, "synced");
+  const currentShiftAssignment = await owner.query<{ effective_from: string }>(
+    "SELECT effective_from FROM worker_shift_assignments WHERE worker_id = $1 AND effective_to IS NULL",
+    [shiftRaceWorker.id]
+  );
+  const newShiftAt = new Date(currentShiftAssignment.rows[0]!.effective_from).toISOString();
+  const newShiftEventAt = new Date(Date.parse(newShiftAt) + 1000).toISOString();
+  const newShiftEventId = randomUUID();
+  assert.equal((await ingest(
+    "check_out", newShiftEventId, newShiftEventAt, 28,
+    "integration-nonce-shift-new-0031", shiftRaceHash,
+    { acknowledgedAt: newShiftEventAt }
+  )).results[0]?.status, "synced");
+  assert.equal(shiftedWorker.shiftId, updatedShift.id);
+  const shiftEvidence = await owner.query<{ device_event_id: string; shift_assignment_id: string }>(
+    `SELECT device_event_id, lifecycle_evidence->>'shiftAssignmentId' AS shift_assignment_id
+     FROM attendance_events WHERE device_event_id = ANY($1::uuid[]) ORDER BY occurred_at`,
+    [[oldShiftEventId, newShiftEventId]]
+  );
+  assert.equal(new Set(shiftEvidence.rows.map((row) => row.shift_assignment_id)).size, 2);
+
+  const retryWorker = await service.createWorker(admin.actor, {
+    code: `RETRY-${suffix}`,
+    name: "Retry Radnik",
+    email: `retry-${suffix}@example.test`,
+    departmentId: ids.dep1,
+    shiftId: updatedShift.id,
+    annualLeaveAllowance: 20
+  }, "integration-retry-worker");
+  const retryUid = "04:A0:B0:C0";
+  const retryEventAt = new Date().toISOString();
+  await service.assignWorkerRfidCard(
+    admin.actor, retryWorker.id, { uid: retryUid, validFrom: retryEventAt }, "integration-retry-card"
+  );
+  const retryHash = hashRfidUid(retryUid, rfidPepper).toString("hex");
+  const retryEventId = randomUUID();
+  const retries = await Promise.all([
+    ingest("check_in", retryEventId, retryEventAt, 29, "integration-nonce-retry-a-0032", retryHash, { acknowledgedAt: retryEventAt }),
+    ingest("check_in", retryEventId, retryEventAt, 29, "integration-nonce-retry-b-0033", retryHash, { acknowledgedAt: retryEventAt })
+  ]);
+  assert.deepEqual(retries.map((item) => item.results[0]?.status).sort(), ["duplicate", "synced"]);
+  const retryRawCount = await owner.query<{ count: string }>(
+    "SELECT COUNT(*)::text AS count FROM attendance_events WHERE terminal_id = $1 AND device_event_id = $2",
+    [paired.terminal.id, retryEventId]
+  );
+  assert.equal(retryRawCount.rows[0]?.count, "1");
+  const identityMismatchAt = new Date(Date.parse(retryEventAt) + 1000).toISOString();
+  const identityMismatch = await ingest(
+    "check_in", retryEventId, identityMismatchAt, 29,
+    "integration-nonce-retry-mismatch-0034", retryHash,
+    { acknowledgedAt: identityMismatchAt }
+  );
+  assert.equal(identityMismatch.results[0]?.status, "rejected");
+  assert.equal(identityMismatch.results[0]?.code, "EVENT_IDENTITY_MISMATCH");
+  const identityMismatchEvidence = await owner.query<{ acknowledgement_verified: boolean }>(
+    `SELECT acknowledgement_verified FROM terminal_sync_events
+     WHERE terminal_id = $1 AND device_event_id = $2 AND rejection_code = 'EVENT_IDENTITY_MISMATCH'`,
+    [paired.terminal.id, retryEventId]
+  );
+  assert.equal(identityMismatchEvidence.rows[0]?.acknowledgement_verified, false);
+
+  const forgedEvent = await ingest(
+    "check_in", randomUUID(), retryEventAt, 30,
+    "integration-nonce-forged-ack-0035", retryHash,
+    { acknowledgedAt: retryEventAt, signature: "0".repeat(64) }
+  );
+  assert.equal(forgedEvent.results[0]?.status, "rejected");
+  assert.equal(forgedEvent.results[0]?.code, "INVALID_ACKNOWLEDGEMENT");
+
+  const crossTenantUid = "04:D0:E0:F0";
+  const crossTenantHash = hashRfidUid(crossTenantUid, rfidPepper).toString("hex");
+  await owner.query(
+    `INSERT INTO rfid_cards (organization_id, worker_id, uid_hash, masked_uid, valid_from)
+     VALUES ($1, $2, decode($3, 'hex'), '****E0F0', clock_timestamp() - interval '1 minute')`,
+    [ids.org2, ids.worker2, crossTenantHash]
+  );
+  const crossTenantEvent = await ingest(
+    "check_in", randomUUID(), new Date().toISOString(), 31,
+    "integration-nonce-cross-tenant-0036", crossTenantHash
+  );
+  assert.equal(crossTenantEvent.results[0]?.status, "rejected");
+  assert.equal(crossTenantEvent.results[0]?.code, "CARD_NOT_ASSIGNED");
+
+  const reconciliationWorker = await service.createWorker(admin.actor, {
+    code: `RECON-${suffix}`,
+    name: "Reconciliation Radnik",
+    email: `reconciliation-${suffix}@example.test`,
+    departmentId: ids.dep1,
+    shiftId: updatedShift.id,
+    annualLeaveAllowance: 20
+  }, "integration-reconciliation-worker");
+  const reconciliationUid = "04:11:22:33";
+  const reconciliationEventAt = new Date().toISOString();
+  await service.assignWorkerRfidCard(
+    admin.actor, reconciliationWorker.id, { uid: reconciliationUid, validFrom: reconciliationEventAt }, "integration-reconciliation-card"
+  );
+  await owner.query("DELETE FROM worker_status_versions WHERE worker_id = $1", [reconciliationWorker.id]);
+  const reconciliationHash = hashRfidUid(reconciliationUid, rfidPepper).toString("hex");
+  const reconciliationEventId = randomUUID();
+  const reconciliation = await ingest(
+    "check_in", reconciliationEventId, reconciliationEventAt, 32,
+    "integration-nonce-reconciliation-0037", reconciliationHash,
+    { acknowledgedAt: reconciliationEventAt }
+  );
+  assert.equal(reconciliation.results[0]?.status, "reconciliation_required");
+  assert.equal(reconciliation.results[0]?.code, "WORKER_STATUS_HISTORY_UNAVAILABLE");
+  const reconciliationEvidence = await owner.query<{
+    processing_status: string;
+    acknowledged_at: string | null;
+    acknowledgement_signature: Buffer | null;
+    decision: string;
+    audit_count: string;
+  }>(
+    `SELECT e.processing_status, e.acknowledged_at, e.acknowledgement_signature,
+       e.lifecycle_evidence->>'decision' AS decision,
+       (SELECT COUNT(*)::text FROM audit_events a
+        WHERE a.entity_id = e.device_event_id
+          AND a.action = 'terminal_event.reconciliation_required') AS audit_count
+     FROM attendance_events e WHERE e.device_event_id = $1`,
+    [reconciliationEventId]
+  );
+  assert.equal(reconciliationEvidence.rows[0]?.processing_status, "reconciliation_required");
+  assert.ok(reconciliationEvidence.rows[0]?.acknowledged_at);
+  assert.equal(reconciliationEvidence.rows[0]?.acknowledgement_signature?.length, 32);
+  assert.equal(reconciliationEvidence.rows[0]?.decision, "reconciliation_required");
+  assert.equal(reconciliationEvidence.rows[0]?.audit_count, "1");
+  await assert.rejects(
+    service.resolveTerminalEventReconciliation(
+      manager.actor,
+      (await owner.query<{ id: string }>("SELECT id FROM attendance_events WHERE device_event_id = $1", [reconciliationEventId])).rows[0]!.id,
+      { resolution: "accepted", reason: "Nedopušten pokušaj voditelja" },
+      "integration-manager-reconciliation"
+    ),
+    (error: unknown) => typeof error === "object" && error !== null && "code" in error && error.code === "FORBIDDEN"
+  );
+  const reconciliationRawId = (await owner.query<{ id: string }>(
+    "SELECT id FROM attendance_events WHERE device_event_id = $1", [reconciliationEventId]
+  )).rows[0]!.id;
+  const acceptedReconciliation = await service.resolveTerminalEventReconciliation(
+    admin.actor,
+    reconciliationRawId,
+    { resolution: "accepted", reason: "Administrator verified the missing worker-status boundary evidence" },
+    "integration-admin-reconciliation"
+  );
+  assert.equal(acceptedReconciliation.resolution, "accepted");
+  assert.ok(acceptedReconciliation.attendanceDayId);
+  const reconciledRaw = await owner.query<{ processing_status: string; attendance_day_id: string | null }>(
+    "SELECT processing_status, attendance_day_id FROM attendance_events WHERE id = $1", [reconciliationRawId]
+  );
+  assert.deepEqual(reconciledRaw.rows[0], { processing_status: "reconciliation_required", attendance_day_id: null });
+  const reconciliationRecord = await owner.query<{ resolution: string; reason: string; before_json: unknown; after_json: unknown; provenance: unknown }>(
+    "SELECT resolution, reason, before_json, after_json, provenance FROM terminal_event_reconciliations WHERE attendance_event_id = $1",
+    [reconciliationRawId]
+  );
+  assert.equal(reconciliationRecord.rows[0]?.resolution, "accepted");
+  assert.ok(reconciliationRecord.rows[0]?.before_json);
+  assert.ok(reconciliationRecord.rows[0]?.after_json);
+  assert.ok(reconciliationRecord.rows[0]?.provenance);
+  const acceptedReconciliationRetry = await ingest(
+    "check_in", reconciliationEventId, reconciliationEventAt, 32,
+    "integration-nonce-reconciliation-retry-0037b", reconciliationHash,
+    { acknowledgedAt: reconciliationEventAt }
+  );
+  assert.equal(acceptedReconciliationRetry.results[0]?.status, "duplicate");
+  assert.equal(acceptedReconciliationRetry.results[0]?.code, null);
+  assert.equal((await owner.query<{ count: string }>(
+    "SELECT COUNT(*)::text AS count FROM terminal_event_reconciliations WHERE attendance_event_id = $1",
+    [reconciliationRawId]
+  )).rows[0]?.count, "1");
+
+  const uncertainClockEvent = await ingest(
+    "check_in", randomUUID(), new Date(Date.now() - 2000).toISOString(), 33,
+    "integration-nonce-clock-uncertain-0038", reconciliationHash,
+    { acknowledgedAt: new Date(Date.now() - 1000).toISOString(), clockStatus: "uncertain" }
+  );
+  assert.equal(uncertainClockEvent.results[0]?.status, "reconciliation_required");
+  assert.equal(uncertainClockEvent.results[0]?.code, "DEVICE_CLOCK_HEALTH_UNCERTAIN");
+
+  const historicalCredential = activeDeviceCredential;
+  const historicalKey = activeAcknowledgementKey;
+  const historicalOccurredAt = new Date(Date.now() - 4000).toISOString();
+  const historicalAcknowledgedAt = new Date(Date.now() - 3000).toISOString();
+  const terminalBeforeRotation = (await service.listTerminals(admin.actor)).find((item) => item.id === paired.terminal.id)!;
+  const rotated = await service.rotateTerminalCredential(
+    admin.actor, paired.terminal.id, { reason: "normal_rotation" }, terminalBeforeRotation.revision,
+    "integration-terminal-credential-rotation"
+  );
+  activeDeviceCredential = rotated.deviceCredential;
+  activeAcknowledgementKey = rotated.acknowledgementKey;
+  assert.equal(rotated.acknowledgementKey.version, historicalKey.version + 1);
+  const historicalReceiptAfterRotation = await ingest(
+    "check_in", randomUUID(), historicalOccurredAt, 34,
+    "integration-nonce-historical-key-0039", "c".repeat(64),
+    { acknowledgedAt: historicalAcknowledgedAt, keyId: historicalKey.id, keyVersion: historicalKey.version,
+      receiptCredential: historicalCredential }
+  );
+  assert.equal(historicalReceiptAfterRotation.results[0]?.code, "CARD_NOT_ASSIGNED");
+  const postRotationOldKey = await ingest(
+    "check_in", randomUUID(), new Date().toISOString(), 35,
+    "integration-nonce-retired-key-0040", "c".repeat(64),
+    { acknowledgedAt: new Date(Date.now() + 1).toISOString(), keyId: historicalKey.id,
+      keyVersion: historicalKey.version, receiptCredential: historicalCredential }
+  );
+  assert.equal(postRotationOldKey.results[0]?.status, "rejected");
+  assert.equal(postRotationOldKey.results[0]?.code, "ACKNOWLEDGEMENT_KEY_INACTIVE");
+  const terminalBeforeRevocation = (await service.listTerminals(admin.actor)).find((item) => item.id === paired.terminal.id)!;
+  await service.revokeTerminal(admin.actor, paired.terminal.id, terminalBeforeRevocation.revision, "integration-terminal-revoke");
+  await assert.rejects(
+    ingest("check_in", randomUUID(), new Date().toISOString(), 36, "integration-nonce-revoked-terminal-0041", "c".repeat(64)),
+    (error: unknown) => typeof error === "object" && error !== null && "code" in error && error.code === "UNAUTHENTICATED"
+  );
   assert.equal(overnightDay.items[0]?.plannedMinutes, 450);
   assert.deepEqual(overnightDay.items[0]?.provenance.eventTimeInterpretations.map((item) => item.localTimestamp), [
     "2026-01-10T22:30:00.000", "2026-01-11T05:30:00.000"
@@ -1212,11 +1652,16 @@ test("PostgreSQL migrations, RLS isolation, auth and manager scope", { skip: !da
   try {
     await rls.query("BEGIN");
     await rls.query("SELECT set_config('bss.organization_id', $1, true)", [ids.org1]);
-    const visible = await rls.query<{ id: string }>("SELECT id FROM workers ORDER BY id");
+    const visible = await rls.query<{ id: string; organization_id: string }>(
+      "SELECT id, organization_id FROM workers ORDER BY id"
+    );
     assert.deepEqual(
       visible.rows.map((row) => row.id),
-      [ids.worker1, ids.worker3, createdWorker.id, transferWorker.id, overnightWorker.id].sort()
+      [ids.worker1, ids.worker3, createdWorker.id, transferWorker.id, overnightWorker.id,
+        lifecycleWorker.id, cardRaceWorker.id, shiftRaceWorker.id, retryWorker.id, reconciliationWorker.id].sort()
     );
+    assert.ok(visible.rows.every((row) => row.organization_id === ids.org1));
+    assert.ok(!visible.rows.some((row) => row.id === ids.worker2));
     await assert.rejects(
       rls.query(
         "INSERT INTO departments(organization_id, name) VALUES ($1, 'Cross tenant write')",

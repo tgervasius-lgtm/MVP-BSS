@@ -1446,7 +1446,7 @@ test('statusni kodovi scope manifesta su stabilni i bez duplikata',()=>{
   }
   assert.deepEqual(scopeFreeze.statuses.leaveRequest,['pending','approved','rejected','cancelled']);
   assert.deepEqual(scopeFreeze.statuses.correctionRequest,scopeFreeze.statuses.leaveRequest);
-  assert.deepEqual(scopeFreeze.statuses.terminalEvent,['queued','synced','duplicate','rejected']);
+  assert.deepEqual(scopeFreeze.statuses.terminalEvent,['queued','synced','duplicate','rejected','reconciliation_required']);
 });
 
 test('tehnički audit bilježi izmjerenu osnovu, prioritete i izlaz iz Refactora v1',()=>{
@@ -1627,6 +1627,7 @@ test('domenski ugovor zaključava četiri uloge i hrvatske oznake statusa',()=>{
   assert.deepEqual({...roles},{ADMIN:'admin',MANAGER:'manager',WORKER:'worker',ACCOUNTANT:'accountant'});
   assert.deepEqual([...evaluate('BSS_CORE.contracts.requestStatus.labels')],['Na čekanju','Odobreno','Odbijeno','Poništeno']);
   assert.deepEqual([...evaluate('REQUEST_STATUSES')],[...evaluate('BSS_CORE.contracts.requestStatus.labels')]);
+  assert.equal(evaluate('BSS_CORE.contracts.terminalEventStatus.RECONCILIATION_REQUIRED'),'Potrebna provjera');
 });
 
 test('izdvojena vremenska domena čuva noćne smjene, pauzu i aktivni demo zapis',()=>{
@@ -1891,7 +1892,7 @@ test('završni frontend handoff pokriva sve ekrane, uloge i granice MVP-a',()=>{
   assert.equal(frontendHandoff.screens.find(item=>item.id==='sharedLeave').mode,'frontend_demo_only');
 });
 
-test('pregled, reporting profil i implementirani API v1.2 zaključavaju tablični smjer',()=>{
+test('pregled, reporting profil i implementirani API v1.3 zaključavaju tablični smjer',()=>{
   assert.match(frontendFinalReview,/Preglednost ispred kompleksnosti/);
   assert.match(frontendFinalReview,/najviše četiri klikabilna KPI-ja/i);
   assert.match(frontendFinalReview,/tjedni i dekorativni grafovi uklonjeni/i);
@@ -1910,7 +1911,7 @@ test('pregled, reporting profil i implementirani API v1.2 zaključavaju tabličn
   assert.doesNotMatch(apiContractDraft,/payroll-calculation|gps-tracking|door-access-control/i);
 });
 
-test('Frontend Freeze v1.0 ostaje baza, a Backend MVP ugovor je verzioniran na v1.2',()=>{
+test('Frontend Freeze v1.0 ostaje baza, a Backend MVP ugovor je verzioniran na v1.3',()=>{
   const baseline='91323c7cdbbbbf7b965c4926c94a11af6d31bf62';
   for(const document of [frontendRelease,frontendFinalReview,backendHandoff,reportingProfile,designSystemDoc,screenMap,apiContractDraft]){
     assert.match(document,new RegExp(baseline));
@@ -1925,9 +1926,9 @@ test('Frontend Freeze v1.0 ostaje baza, a Backend MVP ugovor je verzioniran na v
     assert.ok(screenMap.includes(`\`${id}\``),`Screen Map ne sadrži ${id}`);
   }
   const pathsSection=apiContractDraft.match(/^paths:\r?\n([\s\S]*?)^components:/m)?.[1]||'';
-  assert.equal((pathsSection.match(/^ {2}\/[^\n]+:/gm)||[]).length,44);
-  assert.equal((apiContractDraft.match(/^ {6}operationId:/gm)||[]).length,55);
-  assert.match(apiContractDraft,/version: 1\.2\.0/);
+  assert.equal((pathsSection.match(/^ {2}\/[^\n]+:/gm)||[]).length,46);
+  assert.equal((apiContractDraft.match(/^ {6}operationId:/gm)||[]).length,57);
+  assert.match(apiContractDraft,/version: 1\.3\.0/);
   assert.match(apiContractDraft,/x-bss-status: MVP_IMPLEMENTED/);
   assert.match(apiContractDraft,/x-bss-frontend-release: frontend-v1\.0\.0/);
   assert.match(frontendReleaseWorkflow,/branches: \[main\]/);
