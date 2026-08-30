@@ -211,7 +211,7 @@ test("#146 PostgreSQL period lifecycle, RLS and correction/finalization/export c
       organization_id, worker_id, work_date, shift_snapshot, check_in,
       break_minutes, worked_minutes, planned_minutes, status, calculation_version, configuration_snapshot
     ) VALUES ($1, $2, '2030-09-10', $3::jsonb, '2030-09-10T06:00:00Z',
-      30, 0, 450, 'incomplete', 'attendance-v1', $4::jsonb)
+      30, 0, 450, 'incomplete', 'legacy-unversioned', $4::jsonb)
     RETURNING id`, [ids.org1, ids.worker2,
       JSON.stringify({ id: ids.shift1, name: "Day shift", startTime: "08:00", endTime: "16:00", breakMinutes: 30 }),
       completeConfiguration(ids.worker2)]
@@ -269,6 +269,7 @@ test("#146 PostgreSQL period lifecycle, RLS and correction/finalization/export c
   assert.equal(finalizedV1.provenanceStatus, "complete");
   assert.ok(finalizedV1.datasetVersion);
   assert.match(finalizedV1.datasetChecksumSha256 ?? "", /^[a-f0-9]{64}$/);
+  assert.deepEqual(finalizedV1.calculationVersions, ["attendance-v1", "legacy-unversioned"]);
   const repeatedFinalizeV1 = await service.finalizeAttendancePeriod(admin, 2030, 9,
     { reason: "All September records resolved" }, review.revision,
     key("finalize-v1"), key("request-finalize-v1-retry"));

@@ -171,6 +171,7 @@ export async function captureAttendancePeriodSnapshot(
     approvedAbsences: approvedAbsences.rows,
     corrections: corrections.rows
   };
-  const calculationVersions = [...new Set(snapshot.attendance.map((row) => row.calculationVersion))].sort();
+  const calculationVersions = [...new Set(snapshot.attendance.map((row) => row.calculationVersion))]
+    .sort((left, right) => left.localeCompare(right, "en"));
   return { snapshot, checksumSha256: snapshotChecksum(snapshot), calculationVersions };
 }
