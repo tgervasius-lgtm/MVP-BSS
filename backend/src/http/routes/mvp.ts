@@ -393,7 +393,8 @@ export async function registerMvpRoutes(app: FastifyInstance, dependencies: Depe
             reportType: { type: "string", enum: reportTypes }, format: { type: "string", enum: ["csv", "xlsx", "pdf"] },
             periodFrom: { type: "string", format: "date" }, periodTo: { type: "string", format: "date" },
             departmentId: { anyOf: [uuid, { type: "null" }] }, workerId: { anyOf: [uuid, { type: "null" }] },
-            attendanceStatus: { anyOf: [{ type: "string", enum: attendanceStatuses }, { type: "null" }] }
+            attendanceStatus: { anyOf: [{ type: "string", enum: attendanceStatuses }, { type: "null" }] },
+            periodVersionId: { anyOf: [uuid, { type: "null" }] }
           }
         }
       }
@@ -413,6 +414,16 @@ export async function registerMvpRoutes(app: FastifyInstance, dependencies: Depe
       const { actor } = await authenticate(request);
       requirePermission(actor, "reports", "read");
       return service.getReportExport(actor, request.params.exportId);
+    }
+  );
+
+  app.get<{ Params: { exportId: string } }>(
+    "/api/v1/report-exports/:exportId/verification",
+    { config: { rateLimit: reportReadRateLimit }, schema: { params: idParams("exportId") } },
+    async (request) => {
+      const { actor } = await authenticate(request);
+      requirePermission(actor, "reports", "read");
+      return service.verifyReportExport(actor, request.params.exportId);
     }
   );
 

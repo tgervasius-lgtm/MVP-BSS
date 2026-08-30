@@ -6,6 +6,12 @@ import PDFDocument from "pdfkit";
 import type { ReportArtifact, ReportExportWrite, ReportPreviewView } from "../services/contracts.js";
 
 type GeneratedArtifact = ReportArtifact & { rowCount: number; officialMinutes: number };
+export type ReportGenerationProvenance = {
+  datasetChecksumSha256: string | null;
+  calculationVersions: string[];
+  templateVersion: string;
+  periodVersionId: string | null;
+};
 
 const reportLabels: Record<ReportPreviewView["reportType"], string> = {
   monthly_summary: "Mjesečni sažetak",
@@ -49,8 +55,20 @@ function checksum(content: Buffer): string {
   return createHash("sha256").update(content).digest("hex");
 }
 
-function csvArtifact(preview: ReportPreviewView, input: ReportExportWrite): GeneratedArtifact {
+function provenanceLines(preview: ReportPreviewView, provenance?: ReportGenerationProvenance): string[] {
+  return [
+    `dataset_version;${preview.datasetVersion}`,
+    `dataset_checksum_sha256;${provenance?.datasetChecksumSha256 ?? "unlocked"}`,
+    `calculation_versions;${provenance?.calculationVersions.join(",") || "unlocked"}`,
+    `template_version;${provenance?.templateVersion ?? "bss-report-v1.2"}`,
+    `period_version_id;${provenance?.periodVersionId ?? "unlocked"}`,
+    "classification;NOT_PAYROLL"
+  ];
+}
+
+function csvArtifact(preview: ReportPreviewView, input: ReportExportWrite, provenance?: ReportGenerationProvenance): GeneratedArtifact {
   const rows = [
+    ...provenanceLines(preview, provenance).map((line) => `# ${line}`),
     preview.columns.map((column) => csvEscape(column.label)).join(";"),
     ...preview.rows.map((row) => preview.columns.map((column) => csvEscape(spreadsheetText(row[column.key] ?? null))).join(";"))
   ];
@@ -65,7 +83,7 @@ function csvArtifact(preview: ReportPreviewView, input: ReportExportWrite): Gene
   };
 }
 
-async function xlsxArtifact(preview: ReportPreviewView, input: ReportExportWrite): Promise<GeneratedArtifact> {
+async function xlsxArtifact(preview: ReportPreviewView, input: ReportExportWrite, provenance?: ReportGenerationProvenance): Promise<GeneratedArtifact> {
   const workbook = new ExcelJS.Workbook();
   workbook.creator = "Bognar Smart Systems";
   workbook.company = "Bognar Smart Systems";
@@ -139,6 +157,14 @@ async function xlsxArtifact(preview: ReportPreviewView, input: ReportExportWrite
   });
   sheet.headerFooter.oddFooter = "BSS · Povjerljivo · Stranica &P / &N";
 
+  const metadata = workbook.addWorksheet("Metapodaci");
+  metadata.columns = [{ width: 30 }, { width: 72 }];
+  provenanceLines(preview, provenance).forEach((line) => {
+    const separator = line.indexOf(";");
+    metadata.addRow([line.slice(0, separator), line.slice(separator + 1)]);
+  });
+  metadata.getColumn(1).font = { bold: true };
+
   const content = Buffer.from(await workbook.xlsx.writeBuffer());
   return {
     content,
@@ -150,7 +176,7 @@ async function xlsxArtifact(preview: ReportPreviewView, input: ReportExportWrite
   };
 }
 
-async function pdfArtifact(preview: ReportPreviewView, input: ReportExportWrite): Promise<GeneratedArtifact> {
+async function pdfArtifact(preview: ReportPreviewView, input: ReportExportWrite, provenance?: ReportGenerationProvenance): Promise<GeneratedArtifact> {
   const [regular, semibold] = await loadPdfFonts();
   const document = new PDFDocument({ size: "A4", layout: "landscape", margin: 30, info: { Title: reportLabels[preview.reportType], Author: "Bognar Smart Systems" } });
   document.registerFont("BSS Regular", regular);
@@ -172,6 +198,8 @@ async function pdfArtifact(preview: ReportPreviewView, input: ReportExportWrite)
     document.font("BSS Semibold").fontSize(16).fillColor("#0f3d36").text(`BSS · ${reportLabels[preview.reportType]}`);
     document.font("BSS Regular").fontSize(8).fillColor("#52605d")
       .text(`Razdoblje ${input.periodFrom} – ${input.periodTo} · Dataset ${preview.datasetVersion.slice(0, 12)}`);
+    document.font("BSS Regular").fontSize(7).fillColor("#52605d")
+      .text(`Predložak ${provenance?.templateVersion ?? "bss-report-v1.2"} · Izračun ${provenance?.calculationVersions.join(", ") || "unlocked"} · NOT_PAYROLL`);
     let x = document.page.margins.left;
     const y = document.y + 10;
     preview.columns.forEach((column, index) => {
@@ -218,8 +246,12 @@ async function pdfArtifact(preview: ReportPreviewView, input: ReportExportWrite)
   };
 }
 
-export async function generateReportArtifact(preview: ReportPreviewView, input: ReportExportWrite): Promise<GeneratedArtifact> {
-  if (input.format === "csv") return csvArtifact(preview, input);
-  if (input.format === "xlsx") return xlsxArtifact(preview, input);
-  return pdfArtifact(preview, input);
+export async function generateReportArtifact(
+  preview: ReportPreviewView,
+  input: ReportExportWrite,
+  provenance?: ReportGenerationProvenance
+): Promise<GeneratedArtifact> {
+  if (input.format === "csv") return csvArtifact(preview, input, provenance);
+  if (input.format === "xlsx") return xlsxArtifact(preview, input, provenance);
+  return pdfArtifact(preview, input, provenance);
 }

@@ -7,3 +7,4 @@
 3fda6c07cd3c1d478d247643a0515efcf732f7e0:BACKEND_READINESS_REPORT.md:generic-api-key:95
 198b2ce9f1ad73b7b72058a930cf005cbb35a0da:backend/test/unit/config.test.ts:generic-api-key:12
 198b2ce9f1ad73b7b72058a930cf005cbb35a0da:backend/test/unit/config.test.ts:generic-api-key:48
+e4de92869107204e242a1fd97f13c3b4fc52bc79:backend/test/contract/http-contract.test.ts:generic-api-key:571

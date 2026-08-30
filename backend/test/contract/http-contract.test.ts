@@ -525,13 +525,65 @@ test("Backend MVP Phase B routes expose every operational flow with role and ori
   assert.equal(approveCorrection.statusCode, 200);
   assert.equal(approveCorrection.json().attendanceDay.source, "terminal");
 
+  for (const role of ["admin", "manager", "accountant"] as const) {
+    const period = await app.inject({
+      method: "GET",
+      url: "/api/v1/attendance-periods/2026/7",
+      cookies: session(role)
+    });
+    assert.equal(period.statusCode, 200, `${role} may read attendance-period state`);
+    assert.equal(period.json().status, "open");
+    assert.equal(period.headers.etag, '"0"');
+  }
+  const workerPeriod = await app.inject({ method: "GET", url: "/api/v1/attendance-periods/2026/7", cookies: session("worker") });
+  assert.equal(workerPeriod.statusCode, 403);
+  const missingIdempotencyKey = await app.inject({
+    method: "POST",
+    url: "/api/v1/attendance-periods/2026/7/review",
+    headers: { ...unsafe, "if-match": '"0"' },
+    cookies: session("admin"),
+    payload: { reason: "Mjesečna kontrola evidencije" }
+  });
+  assert.equal(missingIdempotencyKey.statusCode, 422);
+  const reviewPeriod = await app.inject({
+    method: "POST",
+    url: "/api/v1/attendance-periods/2026/7/review",
+    headers: { ...unsafe, "if-match": '"0"', "idempotency-key": "period-2026-07-review" },
+    cookies: session("admin"),
+    payload: { reason: "Mjesečna kontrola evidencije" }
+  });
+  assert.equal(reviewPeriod.statusCode, 200);
+  assert.equal(reviewPeriod.json().status, "review");
+  assert.equal(reviewPeriod.headers.etag, '"1"');
+  for (const role of ["manager", "accountant", "worker"] as const) {
+    const denied = await app.inject({
+      method: "POST",
+      url: "/api/v1/attendance-periods/2026/7/finalize",
+      headers: { ...unsafe, "if-match": '"1"', "idempotency-key": `period-2026-07-${role}` },
+      cookies: session(role),
+      payload: { reason: "Finalizacija zaključanog mjeseca" }
+    });
+    assert.equal(denied.statusCode, 403, `${role} must not finalize attendance periods`);
+  }
+  const finalizedPeriod = await app.inject({
+    method: "POST",
+    url: "/api/v1/attendance-periods/2026/7/finalize",
+    headers: { ...unsafe, "if-match": '"1"', "idempotency-key": "test-key-00000000" },
+    cookies: session("admin"),
+    payload: { reason: "Finalizacija zaključanog mjeseca" }
+  });
+  assert.equal(finalizedPeriod.statusCode, 200);
+  assert.equal(finalizedPeriod.json().status, "finalized");
+  assert.equal(finalizedPeriod.json().provenanceStatus, "complete");
+  assert.equal(finalizedPeriod.json().datasetChecksumSha256, "b".repeat(64));
+
   for (const format of ["csv", "xlsx", "pdf"] as const) {
     const created = await app.inject({
       method: "POST",
       url: "/api/v1/report-exports",
       headers: unsafe,
       cookies: session("accountant"),
-      payload: { reportType: "monthly_summary", format, periodFrom: "2026-07-01", periodTo: "2026-07-31" }
+      payload: { reportType: "monthly_summary", format, periodFrom: "2026-07-01", periodTo: "2026-07-31", periodVersionId: IDS.request }
     });
     assert.equal(created.statusCode, 202);
   }
@@ -543,6 +595,14 @@ test("Backend MVP Phase B routes expose every operational flow with role and ori
   assert.equal(downloaded.statusCode, 200);
   assert.equal(downloaded.headers["content-type"], "application/pdf");
   assert.equal(downloaded.headers["x-content-sha256"], "a".repeat(64));
+  const verification = await app.inject({
+    method: "GET",
+    url: `/api/v1/report-exports/${IDS.export}/verification`,
+    cookies: session("accountant")
+  });
+  assert.equal(verification.statusCode, 200);
+  assert.equal(verification.json().verified, true);
+  assert.equal(verification.json().periodVersionId, IDS.request);
 
   const audit = await app.inject({
     method: "GET",
@@ -653,7 +713,8 @@ test("all Backend MVP Phase B operations exist in OpenAPI and resolve to Fastify
     "listAttendance", "getWorkerAttendance", "recalculateAttendanceDay", "listApprovedLeaveCalendar",
     "listLeaveRequests", "createLeaveRequest", "listLeaveBalances", "approveLeaveRequest", "rejectLeaveRequest", "cancelOwnLeaveRequest",
     "listCorrectionRequests", "createCorrectionRequest", "approveCorrectionRequest", "rejectCorrectionRequest", "cancelOwnCorrectionRequest",
-    "listReportExports", "createReportExport", "createReportPreview", "getReportExport", "downloadReportExport",
+    "getAttendancePeriod", "startAttendancePeriodReview", "finalizeAttendancePeriod", "closeAttendancePeriod", "reopenAttendancePeriod",
+    "listReportExports", "createReportExport", "createReportPreview", "getReportExport", "downloadReportExport", "verifyReportExport",
     "listAuditEvents", "listTerminals", "pairTerminal", "revokeTerminal", "listTerminalSyncEvents",
     "ingestTerminalEventBatch", "terminalHeartbeat"
   ]);
@@ -673,7 +734,7 @@ test("all Backend MVP Phase B operations exist in OpenAPI and resolve to Fastify
   }
   assert.deepEqual([...expected].filter((operation) => !actual.has(operation)), []);
   const metadata = (document as { info?: { version?: string; "x-bss-status"?: string } }).info;
-  assert.equal(metadata?.version, "1.3.0");
+  assert.equal(metadata?.version, "1.4.0");
   assert.equal(metadata?.["x-bss-status"], "MVP_IMPLEMENTED");
   assert.equal(document.paths["/terminal/v1/events/batch"]?.post?.operationId, "ingestTerminalEventBatch");
 });
@@ -687,7 +748,7 @@ test("every route-level rate limiter has the shared OpenAPI 429 contract", async
       property.name.text === name
     );
   const limitedRoutes = new Set<string>();
-  for (const file of ["auth.ts", "phase-a.ts", "mvp.ts"]) {
+  for (const file of ["auth.ts", "phase-a.ts", "mvp.ts", "attendance-periods.ts"]) {
     const path = join(repositoryRoot, "backend/src/http/routes", file);
     const sourceText = await readFile(path, "utf8");
     const source = ts.createSourceFile(path, sourceText, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
@@ -771,8 +832,8 @@ test("OpenAPI v1 and the frozen screen map have no unresolved contract gates", a
       .map(([, operation]) => operation.operationId)
       .filter((operationId): operationId is string => typeof operationId === "string")
   );
-  assert.equal(Object.keys(paths).length, 46);
-  assert.equal(operationIds.length, 57);
+  assert.equal(Object.keys(paths).length, 52);
+  assert.equal(operationIds.length, 63);
   assert.equal(new Set(operationIds).size, operationIds.length);
 
   const nonSessionOperations = new Set(["login", "refreshSession", "acceptInvitation", "ingestTerminalEventBatch", "terminalHeartbeat"]);
@@ -815,9 +876,9 @@ test("OpenAPI v1 and the frozen screen map have no unresolved contract gates", a
     contractGatesBeforeLaterPhases: string[];
   };
   assert.equal(screenMap.readiness, "FULL_PASS");
-  assert.equal(screenMap.openapi.version, "1.3.0");
-  assert.equal(screenMap.openapi.paths, 46);
-  assert.equal(screenMap.openapi.operations, 57);
+  assert.equal(screenMap.openapi.version, "1.4.0");
+  assert.equal(screenMap.openapi.paths, 52);
+  assert.equal(screenMap.openapi.operations, 63);
   const canonicalOpenApiSource = source.replace(/\r\n/g, "\n");
   assert.equal(screenMap.openapi.sha256, createHash("sha256").update(canonicalOpenApiSource).digest("hex"));
   assert.deepEqual(screenMap.contractGatesBeforeLaterPhases, []);
@@ -881,6 +942,8 @@ test("migrations force tenant RLS and make raw evidence append-only", async () =
   const calculationHistory = await readFile(join(repositoryRoot, "backend/migrations/010_attendance_calculation_history.up.sql"), "utf8");
   const lifecycleIntegrity = await readFile(join(repositoryRoot, "backend/migrations/011_terminal_event_lifecycle_integrity.up.sql"), "utf8");
   const lifecycleRecovery = await readFile(join(repositoryRoot, "backend/migrations/011_terminal_event_lifecycle_integrity.down.sql"), "utf8");
+  const deterministicPeriods = await readFile(join(repositoryRoot, "backend/migrations/012_deterministic_attendance_periods.up.sql"), "utf8");
+  const deterministicRecovery = await readFile(join(repositoryRoot, "backend/migrations/012_deterministic_attendance_periods.down.sql"), "utf8");
   const attendanceCalculationService = await readFile(join(repositoryRoot, "backend/src/services/pg-attendance-calculation-service.ts"), "utf8");
   const frontendState = await readFile(join(repositoryRoot, "src/adapters/api-state.js"), "utf8");
   const grants = await readFile(join(repositoryRoot, "backend/deploy/runtime-grants.sql"), "utf8");
@@ -942,6 +1005,19 @@ test("migrations force tenant RLS and make raw evidence append-only", async () =
   assert.match(lifecycleIntegrity, /reconciliation_required/);
   assert.match(lifecycleRecovery, /Refusing to remove terminal acknowledgement evidence/);
   assert.doesNotMatch(lifecycleRecovery, /DELETE FROM attendance_events/);
+  assert.match(deterministicPeriods, /CREATE TABLE attendance_period_versions/);
+  assert.match(deterministicPeriods, /CREATE TABLE attendance_period_transitions/);
+  assert.match(deterministicPeriods, /ALTER TABLE attendance_period_versions FORCE ROW LEVEL SECURITY/);
+  assert.match(deterministicPeriods, /CREATE TRIGGER attendance_period_versions_immutable/);
+  assert.match(deterministicPeriods, /CREATE TRIGGER report_exports_protect_locked/);
+  assert.match(deterministicPeriods, /Locked report exports are immutable/);
+  assert.match(deterministicPeriods, /UNIQUE \(organization_id, idempotency_key\)/);
+  assert.match(deterministicPeriods, /result_json jsonb NOT NULL/);
+  assert.match(deterministicPeriods, /report_export_period_version_same_tenant/);
+  assert.match(deterministicRecovery, /Refusing to remove deterministic attendance-period provenance/);
+  assert.match(deterministicRecovery, /ALTER COLUMN dataset_version SET DEFAULT gen_random_uuid\(\)/);
+  assert.doesNotMatch(deterministicRecovery, /dataset_version (?:SET DEFAULT|=) gen_random_uuid\(\)::text/);
+  assert.doesNotMatch(deterministicRecovery, /DELETE FROM attendance_month_locks/);
   const recalculationBody = attendanceCalculationService.slice(attendanceCalculationService.indexOf("async recalculateAttendanceDay"));
   assert.doesNotMatch(recalculationBody, /AT TIME ZONE/);
   assert.match(recalculationBody, /persistedInterpretation/);
@@ -949,6 +1025,9 @@ test("migrations force tenant RLS and make raw evidence append-only", async () =
   assert.match(grants, /REVOKE ALL PRIVILEGES ON TABLE bss_schema_migrations/);
   assert.match(grants, /attendance_calculations/);
   assert.match(grants, /terminal_event_reconciliations/);
+  assert.match(grants, /attendance_period_versions/);
+  assert.match(grants, /attendance_period_transitions/);
+  assert.doesNotMatch(grants, /UPDATE ON TABLE[\s\S]*report_exports/);
   assert.match(grants, /GRANT DELETE ON TABLE holidays, user_department_scopes, terminal_request_nonces/);
   assert.doesNotMatch(grants, /GRANT (?:ALL|DELETE) ON ALL TABLES/);
   assert.doesNotMatch(grants, /GRANT INSERT ON TABLE\s+organizations/);

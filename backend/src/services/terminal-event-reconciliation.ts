@@ -26,9 +26,15 @@ import type {
 } from "./contracts.js";
 import { resolveTerminalConfiguration, type ResolvedEventTime } from "./terminal-event-configuration.js";
 import { lockTerminalEventLifecycle } from "./terminal-event-lock.js";
+import {
+  attendancePeriodParts,
+  attendancePeriodState,
+  isAttendancePeriodLocked,
+  lockAttendancePeriod
+} from "./attendance-period-lock.js";
 
 type AppliedAttendanceEvent = {
-  status: "synced" | "rejected";
+  status: "synced" | "rejected" | "reconciliation_required";
   code: string | null;
   attendanceDayId: string | null;
   beforeDay: AttendanceRow | null;
@@ -110,6 +116,11 @@ export async function applyAttendanceEvent(
     configuration.shift.startTime,
     configuration.shift.endTime
   );
+  const { year, month } = attendancePeriodParts(workDate);
+  await lockAttendancePeriod(client, organizationId, year, month);
+  if (isAttendancePeriodLocked(await attendancePeriodState(client, year, month))) {
+    return { status: "reconciliation_required", code: "PERIOD_FINALIZED", attendanceDayId: null, beforeDay: null };
+  }
   const snapshot = shiftSnapshot(configuration);
   const day = await client.query<AttendanceRow>(
     `${attendanceSelect} FROM attendance_days a WHERE a.worker_id = $1 AND a.work_date = $2::date FOR UPDATE OF a`,

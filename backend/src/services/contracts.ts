@@ -109,6 +109,33 @@ export type ReportPreviewView = {
   datasetVersion: string;
   truncated: boolean;
 };
+export type AttendancePeriodStatus = "open" | "review" | "finalized" | "closed";
+export type AttendancePeriodUnresolvedCounts = {
+  active: number;
+  incomplete: number;
+  pendingCorrections: number;
+  reconciliationRequired: number;
+  total: number;
+};
+export type AttendancePeriodView = {
+  id: string | null;
+  year: number;
+  month: number;
+  status: AttendancePeriodStatus;
+  revision: string;
+  datasetVersion: string | null;
+  datasetChecksumSha256: string | null;
+  calculationVersions: string[];
+  templateVersion: string | null;
+  provenanceStatus: "none" | "complete" | "legacy_unavailable";
+  unresolved: AttendancePeriodUnresolvedCounts;
+  reviewStartedAt: string | null;
+  finalizedAt: string | null;
+  closedAt: string | null;
+  reopenedAt: string | null;
+  lastReason: string | null;
+};
+export type AttendancePeriodTransitionWrite = { reason: string };
 export type TerminalSyncEventView = {
   id: string;
   terminalId: string;
@@ -260,7 +287,10 @@ export type AttendanceRecalculationView = {
   auditEventId: string;
 };
 export type ReportFormat = "csv" | "xlsx" | "pdf";
-export type ReportExportWrite = Omit<ReportPreviewWrite, "limit"> & { format: ReportFormat };
+export type ReportExportWrite = Omit<ReportPreviewWrite, "limit"> & {
+  format: ReportFormat;
+  periodVersionId?: string | null;
+};
 export type ReportExportView = {
   id: string;
   reportType: ReportType;
@@ -271,6 +301,9 @@ export type ReportExportView = {
   officialMinutes: number | null;
   checksumSha256: string | null;
   datasetVersion: string;
+  datasetChecksumSha256: string | null;
+  periodVersionId: string | null;
+  calculationVersions: string[];
   templateVersion: string;
   createdAt: string;
   readyAt: string | null;
@@ -278,6 +311,18 @@ export type ReportExportView = {
   downloadExpiresAt: string | null;
 };
 export type ReportArtifact = { content: Buffer; mimeType: string; fileName: string; checksumSha256: string };
+export type ReportExportVerificationView = {
+  exportId: string;
+  verified: boolean;
+  artifactChecksumMatches: boolean;
+  datasetChecksumMatches: boolean;
+  periodVersionId: string | null;
+  datasetVersion: string;
+  datasetChecksumSha256: string | null;
+  calculationVersions: string[];
+  templateVersion: string;
+  verifiedAt: string;
+};
 export type AuditEventView = {
   id: string;
   actorType: "user" | "terminal" | "system";
@@ -404,6 +449,11 @@ export interface PhaseAService {
 }
 
 export interface MvpService extends PhaseAService {
+  getAttendancePeriod(actor: ActorContext, year: number, month: number): Promise<AttendancePeriodView>;
+  startAttendancePeriodReview(actor: ActorContext, year: number, month: number, input: AttendancePeriodTransitionWrite, revision: string, idempotencyKey: string, requestId: string): Promise<AttendancePeriodView>;
+  finalizeAttendancePeriod(actor: ActorContext, year: number, month: number, input: AttendancePeriodTransitionWrite, revision: string, idempotencyKey: string, requestId: string): Promise<AttendancePeriodView>;
+  closeAttendancePeriod(actor: ActorContext, year: number, month: number, input: AttendancePeriodTransitionWrite, revision: string, idempotencyKey: string, requestId: string): Promise<AttendancePeriodView>;
+  reopenAttendancePeriod(actor: ActorContext, year: number, month: number, input: AttendancePeriodTransitionWrite, revision: string, idempotencyKey: string, requestId: string): Promise<AttendancePeriodView>;
   listApprovedLeaveCalendar(actor: ActorContext, filters: { from: string; to: string }): Promise<ApprovedLeaveCalendarView>;
   listAttendance(actor: ActorContext, filters: { from: string; to: string; departmentId?: string; workerId?: string; attendanceStatus?: AttendanceStatus; cursor?: string; limit: number }): Promise<AttendancePageView>;
   getWorkerAttendance(actor: ActorContext, workerId: string, filters: { from: string; to: string; cursor?: string; limit: number }): Promise<AttendancePageView>;
@@ -422,6 +472,7 @@ export interface MvpService extends PhaseAService {
   createReportExport(actor: ActorContext, input: ReportExportWrite, requestId: string): Promise<ReportExportView>;
   getReportExport(actor: ActorContext, exportId: string): Promise<ReportExportView>;
   downloadReportExport(actor: ActorContext, exportId: string): Promise<ReportArtifact>;
+  verifyReportExport(actor: ActorContext, exportId: string): Promise<ReportExportVerificationView>;
   listAuditEvents(actor: ActorContext, filters: { from: string; to: string; module?: string; entityId?: string; cursor?: string; limit: number }): Promise<Page<AuditEventView>>;
   listTerminals(actor: ActorContext): Promise<TerminalView[]>;
   pairTerminal(actor: ActorContext, input: TerminalPairWrite, requestId: string): Promise<TerminalPairView>;
