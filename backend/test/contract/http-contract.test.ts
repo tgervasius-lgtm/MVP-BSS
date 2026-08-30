@@ -568,7 +568,7 @@ test("Backend MVP Phase B routes expose every operational flow with role and ori
   const finalizedPeriod = await app.inject({
     method: "POST",
     url: "/api/v1/attendance-periods/2026/7/finalize",
-    headers: { ...unsafe, "if-match": '"1"', "idempotency-key": "period-2026-07-finalize" },
+    headers: { ...unsafe, "if-match": '"1"', "idempotency-key": "test-key-00000000" },
     cookies: session("admin"),
     payload: { reason: "Finalizacija zaključanog mjeseca" }
   });
