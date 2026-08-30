@@ -35,6 +35,12 @@ import type {
 import { resolveTerminalConfiguration, type ResolvedEventTime } from "./terminal-event-configuration.js";
 import { resolveTerminalEventIntegrity } from "./terminal-event-integrity.js";
 import { lockTerminalEventLifecycle } from "./terminal-event-lock.js";
+import {
+  attendancePeriodParts,
+  attendancePeriodState,
+  isAttendancePeriodLocked,
+  lockAttendancePeriod
+} from "./attendance-period-lock.js";
 import { applyAttendanceEvent, resolveTerminalEventReconciliation } from "./terminal-event-reconciliation.js";
 
 type RawEventRow = {
@@ -369,6 +375,17 @@ export class PgAttendanceCalculationService {
       throw new AppError("VALIDATION_FAILED", "Razlog ponovnog izračuna mora imati najmanje tri znaka.");
     }
     return withTenant(this.pool, actor, requestId, async (client) => {
+      const periodResult = await client.query<{ work_date: string | Date }>(
+        "SELECT work_date FROM attendance_days WHERE id = $1", [attendanceDayId]
+      );
+      const periodDay = periodResult.rows[0];
+      if (!periodDay) throw new AppError("NOT_FOUND", "Evidencija rada nije pronađena.");
+      const lockedWorkDate = dateOnly(periodDay.work_date);
+      const period = attendancePeriodParts(lockedWorkDate);
+      await lockAttendancePeriod(client, actor.organizationId, period.year, period.month);
+      if (isAttendancePeriodLocked(await attendancePeriodState(client, period.year, period.month))) {
+        throw new AppError("CONFLICT", "Zaključano razdoblje mora se prvo ovlašteno otvoriti.");
+      }
       const dayResult = await client.query<AttendanceRow>(
         `${attendanceSelect} FROM attendance_days a WHERE a.id = $1 FOR UPDATE OF a`, [attendanceDayId]
       );
@@ -387,11 +404,6 @@ export class PgAttendanceCalculationService {
         throw new AppError("CONFLICT", "Evidencija nema potpunu povijesnu konfiguraciju.");
       }
       const workDate = dateOnly(day.work_date);
-      const [year, month] = workDate.split("-").map(Number);
-      const locked = await client.query(
-        "SELECT 1 FROM attendance_month_locks WHERE year = $1 AND month = $2", [year, month]
-      );
-      if (locked.rows[0]) throw new AppError("CONFLICT", "Zaključano razdoblje mora se prvo ovlašteno otvoriti.");
       const events = await client.query<RawEventRow>(
         `SELECT source.id, source.occurred_at, source.event_type, source.timezone_version_id,
            source.timezone_name,

@@ -5,6 +5,8 @@ import type {
   AuthService,
   AuthTokens,
   AttendancePageView,
+  AttendancePeriodTransitionWrite,
+  AttendancePeriodView,
   AttendanceRecalculationView,
   AttendanceRecalculationWrite,
   AttendanceStatus,
@@ -24,6 +26,7 @@ import type {
   OrganizationView,
   ReportArtifact,
   ReportExportView,
+  ReportExportVerificationView,
   ReportExportWrite,
   ReportPreviewView,
   ReportPreviewWrite,
@@ -159,6 +162,11 @@ export class FakePhaseAService implements MvpService {
     };
   }
   async getOrganization(_actor: ActorContext): Promise<OrganizationView> { return organization; }
+  async getAttendancePeriod(_actor: ActorContext, year: number, month: number): Promise<AttendancePeriodView> { return this.attendancePeriod(year, month); }
+  async startAttendancePeriodReview(_actor: ActorContext, year: number, month: number, input: AttendancePeriodTransitionWrite, _revision: string, _idempotencyKey: string, _requestId: string): Promise<AttendancePeriodView> { return { ...this.attendancePeriod(year, month), id: IDS.calculation, status: "review", revision: "1", reviewStartedAt: new Date(0).toISOString(), lastReason: input.reason }; }
+  async finalizeAttendancePeriod(_actor: ActorContext, year: number, month: number, input: AttendancePeriodTransitionWrite, _revision: string, _idempotencyKey: string, _requestId: string): Promise<AttendancePeriodView> { return { ...this.attendancePeriod(year, month), id: IDS.calculation, status: "finalized", revision: "2", datasetVersion: IDS.request, datasetChecksumSha256: "b".repeat(64), calculationVersions: ["attendance-v1"], templateVersion: "bss-report-v1.2", provenanceStatus: "complete", finalizedAt: new Date(0).toISOString(), lastReason: input.reason }; }
+  async closeAttendancePeriod(actor: ActorContext, year: number, month: number, input: AttendancePeriodTransitionWrite, revision: string, idempotencyKey: string, requestId: string): Promise<AttendancePeriodView> { return { ...(await this.finalizeAttendancePeriod(actor, year, month, input, revision, idempotencyKey, requestId)), status: "closed", revision: "3", closedAt: new Date(0).toISOString() }; }
+  async reopenAttendancePeriod(_actor: ActorContext, year: number, month: number, input: AttendancePeriodTransitionWrite, _revision: string, _idempotencyKey: string, _requestId: string): Promise<AttendancePeriodView> { return { ...this.attendancePeriod(year, month), id: IDS.calculation, revision: "3", reopenedAt: new Date(0).toISOString(), lastReason: input.reason }; }
   async updateOrganization(_actor: ActorContext, patch: Partial<Pick<OrganizationView, "name" | "taxIdentifier" | "timezone">>, _revision: string, _requestId: string): Promise<OrganizationView> { return { ...organization, ...patch, revision: "2" }; }
   async listDepartments(_actor: ActorContext): Promise<DepartmentView[]> { return [{ id: IDS.department, name: "Operativa", status: "active", revision: "1" }]; }
   async createDepartment(_actor: ActorContext, name: string, _requestId: string): Promise<DepartmentView> { return { id: IDS.department, name, status: "active", revision: "1" }; }
@@ -203,6 +211,7 @@ export class FakePhaseAService implements MvpService {
   async createReportExport(_actor: ActorContext, input: ReportExportWrite, _requestId: string): Promise<ReportExportView> { return { ...this.reportExport(), reportType: input.reportType, format: input.format, filters: input }; }
   async getReportExport(_actor: ActorContext, _id: string): Promise<ReportExportView> { return this.reportExport(); }
   async downloadReportExport(_actor: ActorContext, _id: string): Promise<ReportArtifact> { const content = Buffer.from("BSS"); return { content, mimeType: "application/pdf", fileName: "BSS.pdf", checksumSha256: "a".repeat(64) }; }
+  async verifyReportExport(_actor: ActorContext, exportId: string): Promise<ReportExportVerificationView> { return { exportId, verified: true, artifactChecksumMatches: true, datasetChecksumMatches: true, periodVersionId: IDS.request, datasetVersion: IDS.request, datasetChecksumSha256: "b".repeat(64), calculationVersions: ["attendance-v1"], templateVersion: "bss-report-v1.2", verifiedAt: new Date(0).toISOString() }; }
   async listAuditEvents(_actor: ActorContext, _filters: { from: string; to: string; module?: string; entityId?: string; cursor?: string; limit: number }): Promise<Page<AuditEventView>> { return { items: [{ id: IDS.card, actorType: "user", actorId: IDS.user, action: "worker.update", module: "workers", entityType: "worker", entityId: IDS.worker, before: null, after: { status: "active" }, createdAt: new Date(0).toISOString(), requestId: "request-1" }], page: { nextCursor: null, total: 1 } }; }
   async listTerminals(_actor: ActorContext): Promise<TerminalView[]> { return [this.terminal()]; }
   async pairTerminal(_actor: ActorContext, input: TerminalPairWrite, _requestId: string): Promise<TerminalPairView> { return { terminal: { ...this.terminal(), name: input.name, location: input.location }, deviceCredential: "device-secret", acknowledgementKey: { id: IDS.card, version: 1, derivation: "BSS-TERMINAL-ACK-KEY-V1" } }; }
@@ -213,7 +222,8 @@ export class FakePhaseAService implements MvpService {
   async terminalHeartbeat(_proof: DeviceRequestProof, _input: TerminalHeartbeatWrite, _requestId: string): Promise<void> {}
 
   private leaveRequest(): LeaveRequestView { return { id: IDS.request, workerId: IDS.worker, typeCode: "annual_leave", startDate: "2026-08-03", endDate: "2026-08-07", workingDays: 5, note: "Odmor", status: "pending", submittedAt: new Date(0).toISOString(), decidedAt: null, decidedBy: null, decisionNote: null, revision: "1" }; }
+  private attendancePeriod(year: number, month: number): AttendancePeriodView { return { id: null, year, month, status: "open", revision: "0", datasetVersion: null, datasetChecksumSha256: null, calculationVersions: [], templateVersion: null, provenanceStatus: "none", unresolved: { active: 0, incomplete: 0, pendingCorrections: 0, reconciliationRequired: 0, total: 0 }, reviewStartedAt: null, finalizedAt: null, closedAt: null, reopenedAt: null, lastReason: null }; }
   private correctionRequest(): CorrectionRequestView { return { id: IDS.request, attendanceDayId: IDS.attendance, workerId: IDS.worker, oldValues: { checkIn: "2026-07-17T06:00:00.000Z", checkOut: null }, newValues: { checkIn: "2026-07-17T06:00:00.000Z", checkOut: "2026-07-17T14:00:00.000Z" }, reason: "Zaboravljena odjava", status: "pending", submittedAt: new Date(0).toISOString(), decidedAt: null, decidedBy: null, decisionNote: null, revision: "1" }; }
-  private reportExport(): ReportExportView { return { id: IDS.export, reportType: "monthly_summary", format: "xlsx", status: "ready", filters: { reportType: "monthly_summary", format: "xlsx", periodFrom: "2026-07-01", periodTo: "2026-07-31" }, rowCount: 1, officialMinutes: 450, checksumSha256: "a".repeat(64), datasetVersion: "dataset-v1", templateVersion: "bss-report-v1.1", createdAt: new Date(0).toISOString(), readyAt: new Date(0).toISOString(), downloadUrl: `/api/v1/report-exports/${IDS.export}/download`, downloadExpiresAt: new Date(Date.now() + 3600000).toISOString() }; }
+  private reportExport(): ReportExportView { return { id: IDS.export, reportType: "monthly_summary", format: "xlsx", status: "ready", filters: { reportType: "monthly_summary", format: "xlsx", periodFrom: "2026-07-01", periodTo: "2026-07-31", periodVersionId: IDS.request }, rowCount: 1, officialMinutes: 450, checksumSha256: "a".repeat(64), datasetVersion: IDS.request, datasetChecksumSha256: "b".repeat(64), periodVersionId: IDS.request, calculationVersions: ["attendance-v1"], templateVersion: "bss-report-v1.2", createdAt: new Date(0).toISOString(), readyAt: new Date(0).toISOString(), downloadUrl: `/api/v1/report-exports/${IDS.export}/download`, downloadExpiresAt: new Date(Date.now() + 3600000).toISOString() }; }
   private terminal(): TerminalView { return { id: IDS.terminal, name: "Terminal 01", location: "Ulaz", status: "online", lastSeenAt: new Date().toISOString(), queueDepth: 0, clockOffsetSeconds: 0, revision: "1" }; }
 }

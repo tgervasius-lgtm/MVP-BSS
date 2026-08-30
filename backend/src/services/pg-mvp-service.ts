@@ -9,7 +9,6 @@ import { decryptDeviceCredential, encryptDeviceCredential } from "../security/de
 import { verifyDeviceSignature } from "../security/device-signature.js";
 import { requireRole, requireWorkerScope } from "../security/rbac.js";
 import { createOpaqueToken, hashToken } from "../security/tokens.js";
-import { generateReportArtifact } from "../reports/generate.js";
 import { decodeTimelineCursor, encodeTimelineCursor } from "./cursors.js";
 import { normalizeDatabaseError } from "./database-errors.js";
 import { datasetVersion } from "./dataset-version.js";
@@ -21,10 +20,20 @@ import {
   type AttendanceRow
 } from "./attendance-calculation.js";
 import { PgAttendanceCalculationService } from "./pg-attendance-calculation-service.js";
+import { PgAttendancePeriodService } from "./pg-attendance-period-service.js";
 import { PgPhaseAService } from "./pg-phase-a-service.js";
+import { PgReportService } from "./pg-report-service.js";
+import {
+  attendancePeriodParts,
+  attendancePeriodState,
+  isAttendancePeriodLocked,
+  lockAttendancePeriod
+} from "./attendance-period-lock.js";
 import { lockTerminalEventLifecycle } from "./terminal-event-lock.js";
 import type {
   AttendancePageView,
+  AttendancePeriodTransitionWrite,
+  AttendancePeriodView,
   AttendanceRecalculationView,
   AttendanceRecalculationWrite,
   AttendanceStatus,
@@ -38,8 +47,11 @@ import type {
   LeaveRequestWrite,
   MvpService,
   ReportArtifact,
+  ReportExportVerificationView,
   ReportExportView,
   ReportExportWrite,
+  ReportPreviewView,
+  ReportPreviewWrite,
   RequestStatus,
   TerminalEventBatchView,
   TerminalEventBatchWrite,
@@ -52,8 +64,6 @@ import type {
   TerminalPairWrite,
   TerminalView
 } from "./contracts.js";
-
-const MAX_EXPORT_ROWS = 10_000;
 
 type LeaveRow = {
   id: string;
@@ -88,25 +98,6 @@ type CorrectionRow = {
   revision: string | number;
 };
 
-type ReportExportRow = {
-  id: string;
-  report_type: ReportExportView["reportType"];
-  format: ReportExportView["format"];
-  status: ReportExportView["status"];
-  filters: ReportExportWrite | string;
-  row_count: number | null;
-  total_minutes: string | number | null;
-  checksum_sha256: string | null;
-  dataset_version: string;
-  template_version: string;
-  created_at: string | Date;
-  completed_at: string | Date | null;
-  expires_at: string | Date | null;
-  content?: Buffer | null;
-  mime_type?: string | null;
-  file_name?: string | null;
-};
-
 type AuditRow = {
   id: string;
   actor_type: AuditEventView["actorType"];
@@ -137,10 +128,6 @@ const leaveSelect = `SELECT l.id, l.worker_id, w.department_id, l.leave_type, l.
 const correctionSelect = `SELECT c.id, c.attendance_day_id, a.worker_id, w.department_id,
   c.before_values, c.requested_values, c.reason, c.status, c.created_at, c.decided_at,
   c.decided_by, c.decision_note, c.revision`;
-const reportSelect = `SELECT id, report_type, format,
-  CASE WHEN status = 'ready' AND expires_at <= clock_timestamp() THEN 'expired' ELSE status END AS status,
-  filters, row_count, total_minutes,
-  checksum_sha256, dataset_version, template_version, created_at, completed_at, expires_at`;
 const terminalSelect = `SELECT id, name, location, status, last_seen_at, queue_depth, clock_offset_seconds, revision`;
 
 function iso(value: string | Date): string {
@@ -196,27 +183,6 @@ function correctionView(row: CorrectionRow): CorrectionRequestView {
     decidedBy: row.decided_by,
     decisionNote: row.decision_note,
     revision: String(row.revision)
-  };
-}
-
-function reportExportView(row: ReportExportRow): ReportExportView {
-  const expired = row.expires_at !== null && new Date(row.expires_at).getTime() <= Date.now();
-  const status = expired && row.status === "ready" ? "expired" : row.status;
-  return {
-    id: row.id,
-    reportType: row.report_type,
-    format: row.format,
-    status,
-    filters: jsonObject<ReportExportWrite>(row.filters),
-    rowCount: row.row_count,
-    officialMinutes: row.total_minutes === null ? null : Number(row.total_minutes),
-    checksumSha256: row.checksum_sha256,
-    datasetVersion: row.dataset_version,
-    templateVersion: row.template_version,
-    createdAt: iso(row.created_at),
-    readyAt: row.completed_at ? iso(row.completed_at) : null,
-    downloadUrl: status === "ready" ? `/api/v1/report-exports/${row.id}/download` : null,
-    downloadExpiresAt: row.expires_at ? iso(row.expires_at) : null
   };
 }
 
@@ -290,6 +256,8 @@ function correctionTimes(checkInValue: string, checkOutValue: string): { checkIn
 
 export class PgMvpService extends PgPhaseAService implements MvpService {
   private readonly attendanceCalculations: PgAttendanceCalculationService;
+  private readonly attendancePeriods: PgAttendancePeriodService;
+  private readonly reports: PgReportService;
 
   constructor(
     private readonly mvpPool: pg.Pool,
@@ -297,6 +265,36 @@ export class PgMvpService extends PgPhaseAService implements MvpService {
   ) {
     super(mvpPool, config.rfidUidPepper, config.publicOrigin);
     this.attendanceCalculations = new PgAttendanceCalculationService(mvpPool, config.deviceCredentialEncryptionKey);
+    this.attendancePeriods = new PgAttendancePeriodService(mvpPool);
+    this.reports = new PgReportService(mvpPool);
+  }
+
+  async getAttendancePeriod(actor: ActorContext, year: number, month: number): Promise<AttendancePeriodView> {
+    return this.attendancePeriods.get(actor, year, month);
+  }
+
+  async startAttendancePeriodReview(actor: ActorContext, year: number, month: number,
+    input: AttendancePeriodTransitionWrite, revision: string, idempotencyKey: string, requestId: string): Promise<AttendancePeriodView> {
+    return this.attendancePeriods.startReview(actor, year, month, input, revision, idempotencyKey, requestId);
+  }
+
+  async finalizeAttendancePeriod(actor: ActorContext, year: number, month: number,
+    input: AttendancePeriodTransitionWrite, revision: string, idempotencyKey: string, requestId: string): Promise<AttendancePeriodView> {
+    return this.attendancePeriods.finalize(actor, year, month, input, revision, idempotencyKey, requestId);
+  }
+
+  async closeAttendancePeriod(actor: ActorContext, year: number, month: number,
+    input: AttendancePeriodTransitionWrite, revision: string, idempotencyKey: string, requestId: string): Promise<AttendancePeriodView> {
+    return this.attendancePeriods.close(actor, year, month, input, revision, idempotencyKey, requestId);
+  }
+
+  async reopenAttendancePeriod(actor: ActorContext, year: number, month: number,
+    input: AttendancePeriodTransitionWrite, revision: string, idempotencyKey: string, requestId: string): Promise<AttendancePeriodView> {
+    return this.attendancePeriods.reopen(actor, year, month, input, revision, idempotencyKey, requestId);
+  }
+
+  override async createReportPreview(actor: ActorContext, input: ReportPreviewWrite): Promise<ReportPreviewView> {
+    return this.reports.createPreview(actor, input);
   }
 
   async listAttendance(
@@ -568,6 +566,18 @@ export class PgMvpService extends PgPhaseAService implements MvpService {
     const { checkIn, checkOut } = correctionTimes(input.newCheckIn, input.newCheckOut);
     try {
       return await withTenant(this.mvpPool, actor, requestId, async (client) => {
+        const periodResult = await client.query<{ work_date: string | Date; worker_id: string; department_id: string }>(
+          `SELECT a.work_date, a.worker_id, w.department_id FROM attendance_days a
+           JOIN workers w ON w.id = a.worker_id WHERE a.id = $1`, [input.attendanceDayId]
+        );
+        const periodDay = periodResult.rows[0];
+        if (!periodDay) throw new AppError("NOT_FOUND", "Evidencijski zapis nije pronađen.");
+        requireWorkerScope(actor, periodDay.worker_id, periodDay.department_id);
+        const period = attendancePeriodParts(dateOnly(periodDay.work_date));
+        await lockAttendancePeriod(client, actor.organizationId, period.year, period.month);
+        if (isAttendancePeriodLocked(await attendancePeriodState(client, period.year, period.month))) {
+          throw new AppError("CONFLICT", "Mjesec je zaključan za izmjene.");
+        }
         const day = await client.query<AttendanceRow & { department_id: string }>(
           `${attendanceSelect}, w.department_id
            FROM attendance_days a JOIN workers w ON w.id = a.worker_id
@@ -584,12 +594,6 @@ export class PgMvpService extends PgPhaseAService implements MvpService {
         if (aligned.rows[0]?.aligned !== true) {
           throw new AppError("VALIDATION_FAILED", "Nova prijava mora pripadati datumu evidencije u njezinoj povijesnoj vremenskoj zoni.");
         }
-        const locked = await client.query(
-          `SELECT 1 FROM attendance_month_locks
-           WHERE year = EXTRACT(YEAR FROM $1::date) AND month = EXTRACT(MONTH FROM $1::date)`,
-          [dateOnly(row.work_date)]
-        );
-        if (locked.rows[0]) throw new AppError("CONFLICT", "Mjesec je zaključan za izmjene.");
         const beforeValues = { checkIn: row.check_in ? iso(row.check_in) : null, checkOut: row.check_out ? iso(row.check_out) : null };
         const requestedValues = { checkIn: checkIn.toISOString(), checkOut: checkOut.toISOString() };
         const created = await client.query<CorrectionRow>(
@@ -618,6 +622,19 @@ export class PgMvpService extends PgPhaseAService implements MvpService {
   ): Promise<CorrectionDecisionView> {
     requireRole(actor, ["admin", "manager"]);
     return withTenant(this.mvpPool, actor, requestId, async (client) => {
+      const periodResult = await client.query<{ work_date: string | Date; worker_id: string; department_id: string }>(
+        `SELECT a.work_date, a.worker_id, w.department_id FROM correction_requests c
+         JOIN attendance_days a ON a.id = c.attendance_day_id
+         JOIN workers w ON w.id = a.worker_id WHERE c.id = $1`, [requestIdValue]
+      );
+      const periodDay = periodResult.rows[0];
+      if (!periodDay) throw new AppError("NOT_FOUND", "Zahtjev za korekciju nije pronađen.");
+      requireWorkerScope(actor, periodDay.worker_id, periodDay.department_id);
+      const period = attendancePeriodParts(dateOnly(periodDay.work_date));
+      await lockAttendancePeriod(client, actor.organizationId, period.year, period.month);
+      if (isAttendancePeriodLocked(await attendancePeriodState(client, period.year, period.month))) {
+        throw new AppError("CONFLICT", "Mjesec je zaključan za izmjene.");
+      }
       const requestResult = await client.query<CorrectionRow>(
         `${correctionSelect}
          FROM correction_requests c
@@ -632,12 +649,6 @@ export class PgMvpService extends PgPhaseAService implements MvpService {
       if (String(requestRow.revision) !== revision || requestRow.status !== "pending") throw new AppError("STALE_REVISION", "Zahtjev više nije na čekanju.");
       const beforeDay = await client.query<AttendanceRow>(`${attendanceSelect} FROM attendance_days a WHERE a.id = $1`, [requestRow.attendance_day_id]);
       const attendanceRow = beforeDay.rows[0]!;
-      const locked = await client.query(
-        `SELECT 1 FROM attendance_month_locks
-         WHERE year = EXTRACT(YEAR FROM $1::date) AND month = EXTRACT(MONTH FROM $1::date)`,
-        [dateOnly(attendanceRow.work_date)]
-      );
-      if (locked.rows[0]) throw new AppError("CONFLICT", "Mjesec je zaključan za izmjene.");
       const values = jsonObject<{ checkIn?: string | null; checkOut?: string | null }>(requestRow.requested_values);
       if (!values.checkIn || !values.checkOut) throw new AppError("VALIDATION_FAILED", "Zahtjev nema potpuna vremena korekcije.");
       const beforeValues = jsonObject<{ checkIn?: string | null; checkOut?: string | null }>(requestRow.before_values);
@@ -714,109 +725,23 @@ export class PgMvpService extends PgPhaseAService implements MvpService {
   }
 
   async listReportExports(actor: ActorContext, cursor: string | undefined, limit: number): Promise<Page<ReportExportView>> {
-    requireRole(actor, ["admin", "manager", "accountant"]);
-    return withTenant(this.mvpPool, actor, "list-report-exports", async (client) => {
-      const after = decodeTimelineCursor(cursor);
-      const result = await client.query<ReportExportRow>(
-        `${reportSelect} FROM report_exports
-         WHERE ($1::text <> 'manager' OR created_by = $2)
-           AND ($3::timestamptz IS NULL OR (created_at, id) < ($3::timestamptz, $4::uuid))
-         ORDER BY created_at DESC, id DESC LIMIT $5`,
-        [actor.role, actor.userId, after?.at ?? null, after?.id ?? null, limit + 1]
-      );
-      const count = await client.query<{ count: string }>(
-        `SELECT COUNT(*)::text AS count FROM report_exports WHERE ($1::text <> 'manager' OR created_by = $2)`,
-        [actor.role, actor.userId]
-      );
-      const hasMore = result.rows.length > limit;
-      const rows = result.rows.slice(0, limit);
-      return {
-        items: rows.map(reportExportView),
-        page: { nextCursor: hasMore && rows.at(-1) ? encodeTimelineCursor(rows.at(-1)!.created_at, rows.at(-1)!.id) : null, total: Number(count.rows[0]?.count ?? 0) }
-      };
-    });
+    return this.reports.listExports(actor, cursor, limit);
   }
 
   async createReportExport(actor: ActorContext, input: ReportExportWrite, requestId: string): Promise<ReportExportView> {
-    requireRole(actor, ["admin", "manager", "accountant"]);
-    const previewInput = {
-      reportType: input.reportType,
-      periodFrom: input.periodFrom,
-      periodTo: input.periodTo,
-      ...(input.departmentId !== undefined ? { departmentId: input.departmentId } : {}),
-      ...(input.workerId !== undefined ? { workerId: input.workerId } : {}),
-      ...(input.attendanceStatus !== undefined ? { attendanceStatus: input.attendanceStatus } : {}),
-      limit: MAX_EXPORT_ROWS
-    };
-    const preview = await this.createReportPreview(actor, previewInput);
-    if (preview.truncated) {
-      throw new AppError("VALIDATION_FAILED", `Izvještaj prelazi sigurnosni limit od ${MAX_EXPORT_ROWS} redaka. Suzite razdoblje ili filtre.`);
-    }
-    const artifact = await generateReportArtifact(preview, input);
-    return withTenant(this.mvpPool, actor, requestId, async (client) => {
-      const result = await client.query<ReportExportRow>(
-        `INSERT INTO report_exports (
-           organization_id, created_by, report_type, filters, format, status, dataset_version,
-           template_version, row_count, total_minutes, storage_key, checksum_sha256, expires_at,
-           completed_at, content, mime_type, file_name
-         ) VALUES ($1, $2, $3, $4::jsonb, $5, 'ready', $6, 'bss-report-v1.1', $7, $8,
-           'postgres:report_exports', $9, clock_timestamp() + interval '24 hours', clock_timestamp(), $10, $11, $12)
-         RETURNING id, report_type, format, status, filters, row_count, total_minutes,
-           checksum_sha256, dataset_version, template_version, created_at, completed_at, expires_at`,
-        [
-          actor.organizationId,
-          actor.userId,
-          input.reportType,
-          JSON.stringify(input),
-          input.format,
-          preview.datasetVersion,
-          artifact.rowCount,
-          artifact.officialMinutes,
-          artifact.checksumSha256,
-          artifact.content,
-          artifact.mimeType,
-          artifact.fileName
-        ]
-      );
-      const row = result.rows[0]!;
-      await insertAudit(client, actor, requestId, "report_export.create", "report_export", row.id, null, {
-        reportType: row.report_type,
-        format: row.format,
-        rowCount: row.row_count,
-        checksumSha256: row.checksum_sha256
-      }, "reports");
-      return reportExportView(row);
-    });
+    return this.reports.createExport(actor, input, requestId);
   }
 
   async getReportExport(actor: ActorContext, exportId: string): Promise<ReportExportView> {
-    requireRole(actor, ["admin", "manager", "accountant"]);
-    return withTenant(this.mvpPool, actor, "get-report-export", async (client) => {
-      const result = await client.query<ReportExportRow>(
-        `${reportSelect} FROM report_exports WHERE id = $1 AND ($2::text <> 'manager' OR created_by = $3)`,
-        [exportId, actor.role, actor.userId]
-      );
-      const row = result.rows[0];
-      if (!row) throw new AppError("NOT_FOUND", "Izvještaj nije pronađen.");
-      return reportExportView(row);
-    });
+    return this.reports.getExport(actor, exportId);
   }
 
   async downloadReportExport(actor: ActorContext, exportId: string): Promise<ReportArtifact> {
-    requireRole(actor, ["admin", "manager", "accountant"]);
-    return withTenant(this.mvpPool, actor, "download-report-export", async (client) => {
-      const result = await client.query<ReportExportRow>(
-        `${reportSelect}, content, mime_type, file_name FROM report_exports
-         WHERE id = $1 AND ($2::text <> 'manager' OR created_by = $3)`,
-        [exportId, actor.role, actor.userId]
-      );
-      const row = result.rows[0];
-      if (!row) throw new AppError("NOT_FOUND", "Izvještaj nije pronađen.");
-      if (row.status !== "ready" || !row.content || !row.mime_type || !row.file_name || (row.expires_at && new Date(row.expires_at) <= new Date())) {
-        throw new AppError("NOT_FOUND", "Izvještaj više nije dostupan za preuzimanje.");
-      }
-      return { content: row.content, mimeType: row.mime_type, fileName: row.file_name, checksumSha256: row.checksum_sha256 ?? "" };
-    });
+    return this.reports.downloadExport(actor, exportId);
+  }
+
+  async verifyReportExport(actor: ActorContext, exportId: string): Promise<ReportExportVerificationView> {
+    return this.reports.verifyExport(actor, exportId);
   }
 
   async listAuditEvents(

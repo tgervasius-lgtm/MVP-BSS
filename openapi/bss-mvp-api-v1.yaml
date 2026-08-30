@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: BSS MVP API
-  version: 1.3.0
+  version: 1.4.0
   summary: Implemented Backend MVP contract for the frozen BSS Frontend v1.0.0.
   description: |
     Implemented versioned contract for the functional Backend MVP; deployment remains a separate
@@ -10,8 +10,8 @@ info:
     scope is never authorization evidence. CSV and XLSX are the currently approved export
     formats. PDF is approved as a professional business export in v1.1.
   x-bss-status: MVP_IMPLEMENTED
-  x-bss-contract-reviewed-at: 2026-07-17
-  x-bss-contract-review-status: ACCEPTED_DEC_025_EVIDENCE_PENDING
+  x-bss-contract-reviewed-at: 2026-08-23
+  x-bss-contract-review-status: PROPOSED_ISSUE_146_BSS_OS_REVIEW_REQUIRED
   x-bss-frontend-release: frontend-v1.0.0
   x-bss-baseline-commit: 91323c7cdbbbbf7b965c4926c94a11af6d31bf62
   license:
@@ -1071,6 +1071,157 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/CorrectionRequest'
+  /attendance-periods/{year}/{month}:
+    get:
+      tags: [Reports]
+      operationId: getAttendancePeriod
+      summary: Get Attendance Period Lifecycle State
+      description: Returns the tenant-scoped month lifecycle, current unresolved blockers and preserved finalized provenance. Manager blocker counts are limited to event-effective or effective-assignment departments currently in scope; unknown historical scope is manager-invisible. An unmaterialized month is represented as OPEN with revision 0.
+      x-bss-roles: [admin, manager, accountant]
+      parameters:
+        - $ref: '#/components/parameters/PeriodYear'
+        - $ref: '#/components/parameters/PeriodMonth'
+      responses:
+        '200':
+          description: Current lifecycle state and reproducibility provenance.
+          headers:
+            ETag:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AttendancePeriod'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+  /attendance-periods/{year}/{month}/review:
+    post:
+      tags: [Reports]
+      operationId: startAttendancePeriodReview
+      summary: Start Attendance Period Review
+      description: Administrator-only transition from OPEN to REVIEW. Revision 0 creates the first lifecycle record.
+      x-bss-roles: [admin]
+      parameters:
+        - $ref: '#/components/parameters/PeriodYear'
+        - $ref: '#/components/parameters/PeriodMonth'
+        - $ref: '#/components/parameters/PeriodIfMatch'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        $ref: '#/components/requestBodies/AttendancePeriodTransition'
+      responses:
+        '200':
+          description: Period is in review.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AttendancePeriod'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+  /attendance-periods/{year}/{month}/finalize:
+    post:
+      tags: [Reports]
+      operationId: finalizeAttendancePeriod
+      summary: Finalize and Lock Attendance Period
+      description: Administrator-only REVIEW to FINALIZED transition. Active/incomplete attendance, pending corrections and received unresolved terminal evidence block finalization. A successful transition stores an immutable scoped dataset, calculation/template provenance and checksum.
+      x-bss-roles: [admin]
+      parameters:
+        - $ref: '#/components/parameters/PeriodYear'
+        - $ref: '#/components/parameters/PeriodMonth'
+        - $ref: '#/components/parameters/PeriodIfMatch'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        $ref: '#/components/requestBodies/AttendancePeriodTransition'
+      responses:
+        '200':
+          description: Period finalized with immutable dataset provenance.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AttendancePeriod'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+  /attendance-periods/{year}/{month}/close:
+    post:
+      tags: [Reports]
+      operationId: closeAttendancePeriod
+      summary: Close Finalized Attendance Period
+      description: Administrator-only FINALIZED to CLOSED transition. The preserved dataset version is not changed.
+      x-bss-roles: [admin]
+      parameters:
+        - $ref: '#/components/parameters/PeriodYear'
+        - $ref: '#/components/parameters/PeriodMonth'
+        - $ref: '#/components/parameters/PeriodIfMatch'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        $ref: '#/components/requestBodies/AttendancePeriodTransition'
+      responses:
+        '200':
+          description: Period closed without changing its finalized dataset.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AttendancePeriod'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+  /attendance-periods/{year}/{month}/reopen:
+    post:
+      tags: [Reports]
+      operationId: reopenAttendancePeriod
+      summary: Reopen Locked Attendance Period
+      description: Administrator-only audited FINALIZED/CLOSED to OPEN transition. Earlier period versions and issued artifacts remain immutable; review and relock create a new version.
+      x-bss-roles: [admin]
+      parameters:
+        - $ref: '#/components/parameters/PeriodYear'
+        - $ref: '#/components/parameters/PeriodMonth'
+        - $ref: '#/components/parameters/PeriodIfMatch'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        $ref: '#/components/requestBodies/AttendancePeriodTransition'
+      responses:
+        '200':
+          description: Period reopened while prior provenance remains retained.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AttendancePeriod'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '429':
+          $ref: '#/components/responses/RateLimited'
   /report-exports:
     get:
       tags: [Reports]
@@ -1085,6 +1236,8 @@ paths:
           $ref: '#/components/responses/RateLimited'
         '401':
           $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '200':
           description: Export history inside effective role scope.
           content:
@@ -1105,6 +1258,14 @@ paths:
       responses:
         '429':
           $ref: '#/components/responses/RateLimited'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '202':
           description: Versioned export job accepted.
           content:
@@ -1128,6 +1289,10 @@ paths:
       responses:
         '429':
           $ref: '#/components/responses/RateLimited'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '200':
           description: Bounded preview generated by the same normalized filters and scoped query family used for export.
           content:
@@ -1147,6 +1312,10 @@ paths:
       responses:
         '429':
           $ref: '#/components/responses/RateLimited'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '200':
           description: Export status and short-lived download URL when ready.
           content:
@@ -1166,6 +1335,10 @@ paths:
       responses:
         '429':
           $ref: '#/components/responses/RateLimited'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '200':
           description: Ready, unexpired report artifact generated from the authoritative dataset.
           headers:
@@ -1191,6 +1364,30 @@ paths:
                 format: binary
         '404':
           $ref: '#/components/responses/NotFound'
+  /report-exports/{exportId}/verification:
+    get:
+      tags: [Reports]
+      operationId: verifyReportExport
+      summary: Verify Stored Report Export Provenance
+      description: Verifies the stored artifact checksum and, for a locked export, its immutable dataset, calculation and template provenance under the caller's current role/data scope.
+      x-bss-roles: [admin, manager, accountant]
+      parameters:
+        - $ref: '#/components/parameters/ExportId'
+      responses:
+        '200':
+          description: Independent stored artifact and dataset verification result.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportExportVerification'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/RateLimited'
   /audit-events:
     get:
       tags: [Audit]
@@ -1479,6 +1676,40 @@ components:
         type: integer
         minimum: 2020
         maximum: 2100
+    PeriodYear:
+      name: year
+      in: path
+      required: true
+      schema:
+        type: integer
+        minimum: 2020
+        maximum: 2100
+    PeriodMonth:
+      name: month
+      in: path
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 12
+    PeriodIfMatch:
+      name: If-Match
+      in: header
+      required: true
+      description: Current period lifecycle revision. Revision 0 is valid only for the first OPEN to REVIEW transition.
+      schema:
+        type: string
+        pattern: '^(?:W/)?(?:"[0-9]{1,19}"|[0-9]{1,19})$'
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: Client-generated retry key scoped to the organization. A retry returns the original transition result even if the period later advances; reusing the key for another period or transition is rejected.
+      schema:
+        type: string
+        minLength: 8
+        maxLength: 128
+        pattern: '^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$'
     DepartmentId:
       name: departmentId
       in: query
@@ -1578,6 +1809,12 @@ components:
         minLength: 22
         maxLength: 128
   requestBodies:
+    AttendancePeriodTransition:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/AttendancePeriodTransitionWrite'
     Decision:
       required: false
       content:
@@ -2548,6 +2785,90 @@ components:
         auditEventId:
           type: string
           format: uuid
+    AttendancePeriodStatus:
+      type: string
+      enum: [open, review, finalized, closed]
+    AttendancePeriodTransitionWrite:
+      type: object
+      additionalProperties: false
+      required: [reason]
+      properties:
+        reason:
+          type: string
+          minLength: 3
+          maxLength: 1000
+    AttendancePeriodUnresolvedCounts:
+      type: object
+      additionalProperties: false
+      required: [active, incomplete, pendingCorrections, reconciliationRequired, total]
+      properties:
+        active:
+          type: integer
+          minimum: 0
+        incomplete:
+          type: integer
+          minimum: 0
+        pendingCorrections:
+          type: integer
+          minimum: 0
+        reconciliationRequired:
+          type: integer
+          minimum: 0
+        total:
+          type: integer
+          minimum: 0
+    AttendancePeriod:
+      type: object
+      additionalProperties: false
+      required: [id, year, month, status, revision, datasetVersion, datasetChecksumSha256, calculationVersions, templateVersion, provenanceStatus, unresolved, reviewStartedAt, finalizedAt, closedAt, reopenedAt, lastReason]
+      properties:
+        id:
+          type: [string, 'null']
+          format: uuid
+        year:
+          type: integer
+          minimum: 2020
+          maximum: 2100
+        month:
+          type: integer
+          minimum: 1
+          maximum: 12
+        status:
+          $ref: '#/components/schemas/AttendancePeriodStatus'
+        revision:
+          type: string
+          pattern: '^[0-9]{1,19}$'
+        datasetVersion:
+          type: [string, 'null']
+          format: uuid
+        datasetChecksumSha256:
+          type: [string, 'null']
+          pattern: '^[a-f0-9]{64}$'
+        calculationVersions:
+          type: array
+          items:
+            type: string
+        templateVersion:
+          type: [string, 'null']
+        provenanceStatus:
+          type: string
+          enum: [none, complete, legacy_unavailable]
+        unresolved:
+          $ref: '#/components/schemas/AttendancePeriodUnresolvedCounts'
+        reviewStartedAt:
+          type: [string, 'null']
+          format: date-time
+        finalizedAt:
+          type: [string, 'null']
+          format: date-time
+        closedAt:
+          type: [string, 'null']
+          format: date-time
+        reopenedAt:
+          type: [string, 'null']
+          format: date-time
+        lastReason:
+          type: [string, 'null']
     ReportType:
       type: string
       enum: [monthly_summary, attendance_journal, exceptions, approved_absences, correction_log]
@@ -2580,6 +2901,10 @@ components:
           oneOf:
             - $ref: '#/components/schemas/AttendanceStatus'
             - type: 'null'
+        periodVersionId:
+          type: [string, 'null']
+          format: uuid
+          description: Immutable finalized attendance-period dataset to use for a reproducible locked export. Its saved full-month period must match periodFrom/periodTo.
     ReportPreviewWrite:
       type: object
       additionalProperties: false
@@ -2661,7 +2986,7 @@ components:
           type: boolean
     ReportExport:
       type: object
-      required: [id, reportType, format, status, filters, createdAt, datasetVersion, templateVersion]
+      required: [id, reportType, format, status, filters, createdAt, datasetVersion, datasetChecksumSha256, periodVersionId, calculationVersions, templateVersion]
       properties:
         id:
           type: string
@@ -2684,6 +3009,16 @@ components:
           pattern: '^[a-f0-9]{64}$'
         datasetVersion:
           type: string
+        datasetChecksumSha256:
+          type: [string, 'null']
+          pattern: '^[a-f0-9]{64}$'
+        periodVersionId:
+          type: [string, 'null']
+          format: uuid
+        calculationVersions:
+          type: array
+          items:
+            type: string
         templateVersion:
           type: string
         createdAt:
@@ -2708,6 +3043,37 @@ components:
             $ref: '#/components/schemas/ReportExport'
         page:
           $ref: '#/components/schemas/PageMeta'
+    ReportExportVerification:
+      type: object
+      additionalProperties: false
+      required: [exportId, verified, artifactChecksumMatches, datasetChecksumMatches, periodVersionId, datasetVersion, datasetChecksumSha256, calculationVersions, templateVersion, verifiedAt]
+      properties:
+        exportId:
+          type: string
+          format: uuid
+        verified:
+          type: boolean
+        artifactChecksumMatches:
+          type: boolean
+        datasetChecksumMatches:
+          type: boolean
+        periodVersionId:
+          type: [string, 'null']
+          format: uuid
+        datasetVersion:
+          type: string
+        datasetChecksumSha256:
+          type: [string, 'null']
+          pattern: '^[a-f0-9]{64}$'
+        calculationVersions:
+          type: array
+          items:
+            type: string
+        templateVersion:
+          type: string
+        verifiedAt:
+          type: string
+          format: date-time
     AuditEvent:
       type: object
       required: [id, actorType, action, entityType, entityId, createdAt, requestId]

@@ -40,10 +40,11 @@ test("PostgreSQL migrations, RLS isolation, auth and manager scope", { skip: !da
     users, user_department_scopes, user_invitations, auth_sessions, terminals, terminal_credentials,
     attendance_events, attendance_days, leave_requests, correction_requests, report_exports, audit_events,
     holiday_calendars, terminal_request_nonces, terminal_sync_events, attendance_calculations,
-    terminal_event_reconciliations TO ${role}`);
+    terminal_event_reconciliations, attendance_month_locks, attendance_period_versions,
+    attendance_period_transitions TO ${role}`);
   await owner.query(`GRANT UPDATE ON organizations, departments, shifts, workers, holidays, rfid_cards,
     users, user_invitations, auth_sessions, terminals, terminal_credentials, attendance_days,
-    leave_requests, correction_requests, report_exports, holiday_calendars TO ${role}`);
+    leave_requests, correction_requests, holiday_calendars, attendance_month_locks TO ${role}`);
   await owner.query(`GRANT DELETE ON holidays, user_department_scopes, terminal_request_nonces TO ${role}`);
   await owner.query(`REVOKE ALL PRIVILEGES ON bss_schema_migrations FROM ${role}`);
   await owner.query(`GRANT EXECUTE ON FUNCTION bss_auth_lookup(text), bss_session_lookup(bytea), bss_refresh_lookup(bytea), bss_invitation_lookup(bytea), bss_terminal_credential_lookup(uuid) TO ${role}`);
@@ -1349,8 +1350,8 @@ test("PostgreSQL migrations, RLS isolation, auth and manager scope", { skip: !da
     (error: unknown) => typeof error === "object" && error !== null && "code" in error && error.code === "NOT_FOUND"
   );
   await owner.query(
-    `INSERT INTO attendance_month_locks (organization_id, year, month, locked_by)
-     VALUES ($1, 2026, 6, $2)`,
+    `INSERT INTO attendance_month_locks (organization_id, year, month, locked_by, provenance_status)
+     VALUES ($1, 2026, 6, $2, 'legacy_unavailable')`,
     [ids.org1, ids.admin1]
   );
   await assert.rejects(

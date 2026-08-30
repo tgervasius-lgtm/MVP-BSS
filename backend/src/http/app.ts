@@ -10,6 +10,7 @@ import type { AuthService, MvpService } from "../services/contracts.js";
 import { registerAuthRoutes } from "./routes/auth.js";
 import { registerPhaseARoutes } from "./routes/phase-a.js";
 import { registerMvpRoutes } from "./routes/mvp.js";
+import { registerAttendancePeriodRoutes } from "./routes/attendance-periods.js";
 
 export type AppDependencies = Readonly<{
   config: AppConfig;
@@ -161,6 +162,7 @@ export async function buildApp(dependencies: AppDependencies): Promise<FastifyIn
   await registerAuthRoutes(app, { config, authService, authenticate });
   await app.register(registerPhaseARoutes, { phaseAService, authenticate });
   await registerMvpRoutes(app, { mvpService: phaseAService, authenticate });
+  await registerAttendancePeriodRoutes(app, { mvpService: phaseAService, authenticate });
 
   app.setNotFoundHandler((request, reply) => {
     if (config.frontendRoot && request.method === "GET" && !request.url.startsWith("/api/") && request.headers.accept?.includes("text/html")) {
