@@ -15,7 +15,7 @@ BSS OS is the governance layer for product, software, hardware, operations, fina
 | Implemented code | GitHub repository and merged commits |
 | Pull request status | GitHub pull requests and required checks |
 | Technical readiness | `BSS_READINESS_MATRIX.md` |
-| Product scope | `BSS_MVP_SCOPE_FREEZE_V1.md` and approved scope changes |
+| Product scope | Frozen `BSS_V1_PRODUCT_CONTRACT.md` v1.0; `BSS_MVP_SCOPE_FREEZE_V1.md` is retained as superseded history |
 | API contract | `openapi/bss-mvp-api-v1.yaml` |
 | Database state | versioned migrations and integration tests |
 | Decisions | `docs/bss-os/DECISION_LOG.md` |

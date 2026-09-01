@@ -1,5 +1,9 @@
 # BSS MVP Scope Freeze v1.0
 
+> Historical approved scope baseline, superseded by the explicitly owner-approved,
+> frozen `BSS_V1_PRODUCT_CONTRACT.md` v1.0 on 01.09.2026. This document is retained as
+> superseded history, not a parallel product contract.
+
 | Stavka | Odluka |
 | --- | --- |
 | Status | **FROZEN** |

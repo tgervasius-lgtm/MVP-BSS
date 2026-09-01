@@ -6,7 +6,7 @@ Scale:
 - Probability: Low / Medium / High
 - Status: OPEN / MITIGATING / ACCEPTED / CLOSED / EXTERNAL
 
-Last reviewed: 2026-08-08
+Last reviewed: 2026-09-01
 
 | ID | Risk | Impact | Probability | Status | Mitigation | Closure evidence |
 |---|---|---:|---:|---|---|---|
@@ -30,7 +30,7 @@ Last reviewed: 2026-08-08
 | R-018 | Current application rate limiting is proven per runtime instance, but the production shared/distributed abuse-control model is not yet selected. | High | Medium | OPEN / EXTERNAL | Preserve genuine route limits; choose shared store/WAF/proxy policy after deployment topology is selected; test multi-process behavior before live use. | Staging proves expected limits across intended replicas/proxies and incident/observability evidence exists. |
 | R-019 | RFID listing capacity policy is undefined; the current UI can request one RFID list per worker and large tenant hydration may create unsafe request volume if a naive per-minute limit is imposed. | Medium | Medium | OPEN | Define authoritative supported workforce size or replace per-worker hydration with a tenant-scoped/batched endpoint; validate with load tests before applying a limiter to this read path. | Approved capacity policy plus passing representative load/query tests and, if needed, a batched API contract. |
 | R-020 | GitHub Dependabot vulnerability alerts/security updates are disabled even though version-update Dependabot and full CI dependency audits exist. | Medium | Medium | OPEN / EXTERNAL | Enable repository-level Dependabot alerts/security updates where supported; keep strict root/backend committed-graph audits active. | Issue #115 completed with repository/API evidence that the settings are enabled. |
-| R-021 | Delayed USER_ACKNOWLEDGED attendance can be lost or omitted when mutable worker, RFID, key or shift state changes before synchronization. | Critical | Medium | MITIGATING / DEC-025 ACCEPTED / EVIDENCE PENDING | Implement the accepted per-event domain-separated HMAC receipt, versioned historical key verification, acknowledgement-time lifecycle/configuration evidence, immutable fingerprints, Administrator-only append-only reconciliation and forward-only evidence recovery under issue #144. | Merged PostgreSQL-backed deactivate/reactivate, revoke/replace, key rotation/revocation, reassignment, clock ambiguity, reconciliation, retry/restart, out-of-order, forged and cross-tenant evidence; targeted AUDIT A recheck passes. |
+| R-021 | Delayed USER_ACKNOWLEDGED attendance can be lost or omitted when mutable worker, RFID, key or shift state changes before synchronization. | Critical | Medium | CLOSED FOR SOFTWARE / PHYSICAL EVIDENCE EXTERNAL | Preserve DEC-025 per-event HMAC, historical key/lifecycle verification, immutable fingerprints, Administrator-only reconciliation and forward-only evidence recovery. Do not weaken the contract while physical #132 evidence remains pending. | #144 merged; fresh PostgreSQL lifecycle, rotation/revocation, retry/recovery, reconciliation, forgery and cross-tenant evidence passed; targeted AUDIT A recheck passed on `b904eca`. Real-device durable-commit/feedback/offline proof remains a separate terminal/hardware gate. |
 
 ## Review cadence
 

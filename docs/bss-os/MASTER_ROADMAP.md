@@ -110,7 +110,7 @@ The H1-H11 numbering records the completed governance-hardening order; it is not
 
 | Horizon | Ordered focus | Hardening consumed |
 |---|---|---|
-| Current | `#143 -> #145 -> #144 -> #146 -> targeted AUDIT A recheck -> #131` | AUDIT A is `BLOCKED`. The four BLACK/GATE defects must be resolved in this order and the targeted recheck must pass before #131 is authorized to Freeze. Remaining AUDIT A contract decisions stay as #131 inputs and create no child issues by default. |
+| Current | `#131 focused PR -> Design Foundation activation` | #143/#145/#144/#146 are closed, the targeted AUDIT A recheck passed on `b904eca`, and BSS v1 Product Contract v1.0 is explicitly owner-approved and frozen. Repository integration remains separate; Design Foundation follows its own activation controls. |
 | Before Production-like Staging can be DONE | Focused 6A/6B activation and `AUDIT B` | H1 release/compatibility plus H3-H6 and H10 infrastructure, security, recovery, observability, capacity and vendor evidence. |
 | Before real-customer Pilot | `AUDIT C`, then customer-specific GO/NO-GO | H2-H7 and H9 evidence plus Hardware 9C, source/IP decision, privacy/legal and operational readiness. |
 | After Pilot, before Commercial Rollout | Post-Pilot hardening -> `PRG GO` -> `AUDIT D PASS` | H8/H10/H11, resolved Pilot findings, Hardware 9D where applicable, production DR/security/capacity, support and commercial evidence. |
@@ -126,7 +126,7 @@ Parallel work remains permitted only where the Control Board says it is non-bloc
 | `AUDIT C` Pilot Readiness | Before any real-customer Pilot and per-customer go-live | Product, security/privacy, performance, restore, observability, onboarding/import, H9 operations, source/IP decision, terminal 9C, release process and Pilot measurement. | Any BLACK/GATE failure blocks Pilot. Global PASS does not replace customer-specific GO/NO-GO. |
 | `AUDIT D` Commercial Readiness | After Pilot and PRG GO, before Commercial Rollout | Pilot findings, production security/infra/DR, 9D/compliance, legal/privacy, pricing/billing/contracts, support/RMA/install/docs, COGS, vendor cost and capacity. | Commercial Rollout and first paying-customer authorization remain blocked until critical items PASS. |
 
-Current AUDIT A verdict: `BLOCKED`. Under the accepted gap-audit/reopen rule, its four concrete BLACK/GATE findings are owned by #143 manager terminal-history department scope, #145 historical attendance calculation reproducibility, #144 delayed/offline `USER_ACKNOWLEDGED` attendance integrity and #146 deterministic locked-period/reporting correctness. #131 remains `NOT AUTHORIZED TO FREEZE` until all four blockers are resolved and the targeted AUDIT A recheck passes. Hardware #132 remains parallel and non-blocking to this software sequence.
+Current AUDIT A verdict: targeted recheck `PASS` on protected `main` at `b904eca`. The four BLACK/GATE findings owned by #143, #145, #144 and #146 are closed with fresh PostgreSQL evidence. BSS v1 Product Contract v1.0 is `ACCEPTED / FROZEN` by explicit owner approval on 01.09.2026.; repository integration remains separate. Hardware #132 remains parallel and physical 9C/Pilot evidence remains not proven.
 
 Applicable regulatory uncertainty is `NOT_PROVEN`. If qualified review establishes a pre-Pilot conformity requirement for the finished terminal, #132/H7/AUDIT C is reopened. The Legal/Regulatory Live Register must track review owner, jurisdiction, trigger, status, evidence, expiry and recheck date; it does not convert planning notes into legal advice.
 

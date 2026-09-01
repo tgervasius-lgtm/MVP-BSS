@@ -1,8 +1,10 @@
 # BSS Readiness Matrix
 
-## Authoritative software baseline — 2026-08-11
+## Authoritative software baseline — 2026-09-01
 
 Phase 0 baseline consolidation is complete and the protected `main` has continued through focused post-consolidation hardening and independent-analysis remediation.
+
+Current protected `main` is `b904eca3c047c01da7a78e376269e94ed1d2fb48`. Issues #143/#145/#144/#146 are merged, and issue #133 records a targeted AUDIT A recheck PASS on that exact baseline. BSS v1 Product Contract v1.0 is `ACCEPTED / FROZEN` by explicit owner approval on 01.09.2026.; repository integration remains separate.
 
 - PR #99 `feat(backend): integrate MVP Phase B into current main` was squash-merged into protected `main`.
 - Phase-0 merge commit: `198b2ce9f1ad73b7b72058a930cf005cbb35a0da`.
@@ -40,7 +42,7 @@ Every material change affecting architecture, data, security, deployment, termin
 | Area | Exit criterion | Current status | Evidence / next evidence |
 |---|---|---:|---|
 | Authoritative software baseline | One protected `main` contains the reviewed frontend/backend baseline with no unresolved Phase B integration fork | DONE | PR #99 established the baseline; PR #27 superseded; issue #55 completed; later focused hardening continues from current `main` |
-| MVP scope | All functions have clear `in scope`, `out of scope` and acceptance criteria | PARTIAL | Scope freeze, OpenAPI, feature registry and screen map exist; final pilot feature freeze remains before live pilot |
+| MVP scope | All functions have clear `in scope`, `out of scope` and acceptance criteria | ACCEPTED / FROZEN CONTRACT | `BSS_V1_PRODUCT_CONTRACT.md` v1.0 is the owner-approved scope authority; contract freeze does not change implementation or readiness evidence |
 | Architecture | Frontend/backend/terminal/database boundaries are documented and the merged code has no hidden integration fork | PARTIAL | Backend architecture + merged Phase B are authoritative; PR #114 prevents silent growth of known legacy modules; final hosting/network/shared-service topology remains infrastructure work |
 | Codex operating instructions | Codex instructions name current BSS OS truth sources and correct runtime/deployment boundaries | DONE / EVOLVING | `AGENTS.md v3` merged through PR #138 after #126/#127 automation was implemented and proven; future operating changes remain evidence-controlled |
 | Developer automation | Local BSS work starts from a verified baseline, routes checks consistently and chooses Codex effort from explicit task risk without destructive automation | DONE / EVOLVING | #124 design is implemented through #126/PR #134 and #127/PR #137; #125/PR #135 reconciled local Playwright modes; wrappers remain thin local orchestration and do not replace GitHub gates |
@@ -51,7 +53,7 @@ Every material change affecting architecture, data, security, deployment, termin
 | Database and migrations | Clean database migrates from zero and application invariants/RLS work in PostgreSQL | PARTIAL | PostgreSQL CI proves migrations/integration on repository changes; real staging upgrade/rollback/recovery rehearsal remains open |
 | Tenant isolation | Cross-tenant access is technically blocked and regression tested | AUTOMATED | `FORCE ROW LEVEL SECURITY`, `NOBYPASSRLS`, tenant-scoped transactions and cross-tenant CI tests merged through PR #99 |
 | Authentication and sessions | Login, refresh, logout, invitation and revocation have tested security/concurrency boundaries | PARTIAL | Strong merged auth/concurrency coverage; staging configuration and independent security review remain before production |
-| RBAC | Every operation has approved allowed roles and negative tests | PARTIAL | Service guards, OpenAPI role declarations and negative coverage exist; final authoritative role-operation matrix still required before pilot |
+| RBAC | Every operation has approved allowed roles and negative tests | CONTRACT FROZEN / IMPLEMENTATION PARTIAL | Service guards, OpenAPI role declarations and negative coverage exist; the frozen role-operation matrix still requires implementation alignment where identified and later staging revalidation |
 | Audit log | Critical operations leave tenant-scoped, understandable and protected evidence | PARTIAL | Audit implementation and append-only database controls exist; production retention/access/export policy remains open |
 | Secrets and keys | No secrets in Git history; secure custody, rotation and recovery are defined and proven | PARTIAL | Gitleaks full-history automated; production secret store/KMS, rotation, recovery and break-glass drills remain EXTERNAL |
 | Static security | CodeQL and dependency security checks continuously pass | AUTOMATED | Security workflow; PR #99 final CodeQL `js/missing-rate-limiting = 0`; root/backend high-severity audits include development dependencies after PRs #103/#113; Sonar is tracked separately as independent analysis |
@@ -86,7 +88,7 @@ Every material change affecting architecture, data, security, deployment, termin
 | Data minimization | Unnecessary personal/device data are excluded and retention remains controlled | PARTIAL | Strong minimization baseline exists; final production retention and support-access decisions remain |
 | Production/customer-data access | Admin/support access is least-privilege, reviewed and audited | OPEN | Identity/access/secrets OS exists; actual account inventory, MFA, break-glass and access-review evidence remain private/external |
 | Terminal security | Device identity, signing, nonce/replay, revocation and credential validity are tested | PARTIAL | Software contracts are merged; real provisioning, secret custody and physical device tests remain |
-| Offline terminal | Queue, idempotency, clock drift and recovery are defined and verified on real device | PARTIAL | DEC-025 is accepted but not evidence proven. Issue #144 implementation still requires PostgreSQL-backed key-rotation/revocation, lifecycle-race, RLS, reconciliation, retry/recovery evidence and targeted AUDIT A recheck; physical offline/durable-commit/recovery testing remains separate. |
+| Offline terminal | Queue, idempotency, clock drift and recovery are defined and verified on real device | PARTIAL | #144/DEC-025 software implementation and fresh PostgreSQL evidence passed with the targeted AUDIT A recheck on `b904eca`; physical durable-commit, feedback, power-loss, offline and recovery testing remains separate under #132/AUDIT C. |
 | Hardware BOM | Exact SKUs, dimensions, compatibility and substitution policy are confirmed | EXTERNAL | Physical metrology and frozen prototype BOM required |
 | Enclosure and thermals | Final CAD/tolerances/ventilation/mounting are proven by prototype | EXTERNAL | SolidWorks/STEP/manufacturing package after exact measurements |
 | RFID physical reliability | Read range/orientation/metal interference/false reads are measured | OPEN | Bench and installed-environment tests on real prototype |
@@ -124,21 +126,18 @@ The accepted BSS MASTER ROADMAP v4.9 in `docs/bss-os/MASTER_ROADMAP.md` controls
 
 Mandatory execution critical path:
 
-1. Complete #143 — correct manager terminal-history department scope.
-2. Complete #145 — make historical attendance calculation reproducible.
-3. Complete #144 — preserve delayed/offline `USER_ACKNOWLEDGED` attendance integrity.
-4. Complete #146 — make locked-period/reporting results deterministic.
-5. Run the targeted AUDIT A recheck.
-6. Complete #131 — freeze the BSS v1 Product Contract before Design Foundation.
+1. Complete the focused #131 repository/PR workflow for the frozen BSS v1 Product Contract.
+2. Preserve the versioned change-control rule and track implementation gaps separately.
+3. Activate Design Foundation only through its applicable governance and evidence controls.
 
-AUDIT A is `BLOCKED`. Roadmap v4.9 originally routed the accepted path through `AUDIT A -> #131`; the four focused BLACK/GATE blockers above were inserted afterward through the accepted gap-audit/reopen rule when AUDIT A found concrete defects. #131 remains `NOT AUTHORIZED TO FREEZE` until all four blockers are resolved and the targeted recheck passes. The remaining AUDIT A contract decisions remain inputs to #131 and do not create child issues by default.
+The targeted AUDIT A recheck is `PASS` on `b904eca`; #143/#145/#144/#146 are closed with current-main evidence. BSS v1 Product Contract v1.0 is `ACCEPTED / FROZEN` by explicit owner approval. Issue #131 remains open for its focused PR workflow; onboarding/import and other identified contract gaps remain implementation work.
 
 Parallel, non-blocking work:
 
 - #139 — review-first disposition of the 11 PowerShell New Code findings without bulk cleanup or behavior changes made solely for scanner cosmetics; #139 is not a blocker for the mandatory path.
 - Hardware #132 remains parallel and non-blocking and retains its existing physical-evidence boundaries.
 
-Trivy Phase 1 is merged and automated through #129/PR #141. #115, PR #28 retirement, Preview reconstruction, staging, later hardware readiness and later readiness work remain tracked, but this document does not place them ahead of the current critical path `#143 -> #145 -> #144 -> #146 -> targeted AUDIT A recheck -> #131`.
+Trivy Phase 1 is merged and automated through #129/PR #141. #115, PR #28 retirement, Preview reconstruction, staging, later hardware readiness and later readiness work remain tracked; Product Contract freeze does not promote any of them to implemented or evidence-proven status.
 
 ## Working without blind spots
 
