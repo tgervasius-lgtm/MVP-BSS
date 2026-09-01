@@ -10,6 +10,10 @@ Podržane teme: svijetla i tamna
 
 Živi vodič: `/design-system/`
 
+Product scope authority for the later Design Foundation, Figma and Storybook work is
+the explicitly owner-approved, frozen `BSS_V1_PRODUCT_CONTRACT.md`. Design artifacts
+may express that contract but must not invent roles, workflows, states or scope.
+
 ## 1. Svrha i granice
 
 BSS Design System definira zajednički vizualni i interakcijski jezik za evidenciju radnog vremena, odsutnosti, odobravanja, izvještaje i RFID terminal. U ovoj fazi ne mijenja poslovnu logiku niti dodaje module.

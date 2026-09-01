@@ -1,8 +1,10 @@
 # BSS Product Feature Registry
 
-Last reviewed: 2026-08-08
+Last reviewed: 2026-09-01 for #131/AUDIT A affected rows
 
 Important: Backend MVP Phase B is now merged into the authoritative protected `main` baseline through PR #99. The resulting baseline commit is `198b2ce9f1ad73b7b72058a930cf005cbb35a0da`. `MERGED` in this registry means the capability is present in repository code at that baseline; it does **not** mean deployed, production-ready, legally approved or physically validated.
+
+The authoritative baseline has since advanced to `b904eca3c047c01da7a78e376269e94ed1d2fb48`. Issues #143/#145/#144/#146 are merged and the #133 targeted AUDIT A recheck passed. `BSS_V1_PRODUCT_CONTRACT.md` v1.0 is the accepted/frozen #131 product-scope authority; its requirements do not change an implementation row to `MERGED`.
 
 PR #99 integration evidence includes green required repository checks, PostgreSQL-backed integration coverage, full-stack browser/accessibility coverage, dependency/security checks and CodeQL with `js/missing-rate-limiting = 0`. OpenAPI also declares the shared `429 RateLimited` response for operations that have runtime rate limits. Production infrastructure, shared/distributed rate limiting, observability, restore drills, hardware and live-pilot evidence remain separate.
 
@@ -19,7 +21,7 @@ PR #99 integration evidence includes green required repository checks, PostgreSQ
 | IAM-001 | Login with secure browser session | Yes | IMPLEMENTED | MERGED | Auth, session and full-stack coverage integrated through PR #99 | NOT DEPLOYED | External security review and staging verification before production |
 | IAM-002 | Session refresh and logout/revocation | Yes | IMPLEMENTED | MERGED | Refresh rotation, reuse handling, logout/revocation and concurrency coverage | NOT DEPLOYED | Verify production cookie/proxy configuration in staging |
 | IAM-003 | User invitation and one-time activation | Yes | IMPLEMENTED | MERGED | One-time token, password hashing, transaction, stale invitation and race-condition coverage | NOT DEPLOYED | Validate customer onboarding policy and email delivery flow |
-| IAM-004 | Role-based access control | Yes | DEMO / IMPLEMENTED | MERGED | OpenAPI role declarations, service authorization and negative contract coverage | NOT DEPLOYED | Final authoritative role-operation matrix before pilot |
+| IAM-004 | Role-based access control | Yes | DEMO / IMPLEMENTED | MERGED | OpenAPI role declarations, service authorization and negative contract coverage; frozen Product Contract v1.0 contains the consolidated matrix | NOT DEPLOYED | Align any remaining contract gaps and re-prove in staging before Pilot |
 | IAM-005 | Multi-tenant isolation with PostgreSQL RLS | Yes | N/A | MERGED | PostgreSQL 16, `NOBYPASSRLS`, tenant transactions and cross-tenant tests | NOT DEPLOYED | Re-prove in staging and independent security review |
 | IAM-006 | Organization lifecycle and active-status enforcement | Yes | IMPLEMENTED | MERGED | Login/refresh/invitation/device validation and tenant-scoped transactions | NOT DEPLOYED | Final pilot policy review |
 
@@ -42,7 +44,7 @@ PR #99 integration evidence includes green required repository checks, PostgreSQ
 | TIME-003 | Attendance records and filtering | Yes | IMPLEMENTED | MERGED | Bounded filters, tenant scope and contract tests | NOT DEPLOYED | Confirm pagination, timezone and export consistency at scale |
 | TIME-004 | Manual attendance correction | Yes | IMPLEMENTED | MERGED | Audit, stale-snapshot and role constraints tested | NOT DEPLOYED | Define final approval and retention policy |
 | TIME-005 | Missing/irregular event review queue | Yes | IMPLEMENTED | MERGED | Frontend drill-down and merged Phase B backend flow | NOT DEPLOYED | Confirm business rules with pilot employers |
-| TIME-006 | Terminal offline sync event ingestion | Yes | DEMO / IMPLEMENTED | MERGED | Base request/nonce/idempotency controls are merged; DEC-025 is accepted but the unmerged #144 acknowledgement, key lifecycle, event-time authorization and Administrator reconciliation implementation remains PostgreSQL-evidence-dependent. | NOT DEPLOYED | Complete #144 Database/Security evidence and targeted AUDIT A recheck, then run real-device durable-commit/retry/offline/clock-health tests. |
+| TIME-006 | Terminal offline sync event ingestion | Yes | DEMO / IMPLEMENTED | MERGED | #144 DEC-025 acknowledgement, historical key/lifecycle, immutable fingerprint and Admin reconciliation implementation is merged; fresh PostgreSQL evidence and targeted AUDIT A recheck passed on `b904eca`. | NOT DEPLOYED | Run real-device durable-commit, worker-feedback, power-loss, retry/offline and clock-health tests under #132/AUDIT C. |
 | TIME-007 | Terminal sync-event timeline | Yes | IMPLEMENTED | MERGED | Newest-first keyset pagination and tenant filters | NOT DEPLOYED | Verify retention, scale and operational visibility |
 | TIME-008 | Device credential validity, revocation and rotation semantics | Yes | ADMIN UI PARTIAL | MERGED | `valid_from`, revocation/expiry checks and device-auth contracts | NOT DEPLOYED | Implement managed KMS/secrets custody and real rotation drill |
 
@@ -82,6 +84,13 @@ PR #99 integration evidence includes green required repository checks, PostgreSQ
 | AUDIT-001 | Tenant-scoped audit log | Yes | IMPLEMENTED | MERGED | Critical changes recorded with tenant boundaries; append-only DB controls where applicable | NOT DEPLOYED | Define production retention, storage and export policy |
 | AUDIT-002 | Actor, action and entity context | Yes | IMPLEMENTED | MERGED | Contract/service coverage and bounded before/after evidence | NOT DEPLOYED | Confirm privacy minimization for IP/user-agent pseudonyms |
 | AUDIT-003 | Structured error logging with secret/SQL redaction | Yes | N/A | MERGED | PostgreSQL details, credentials and sensitive headers redacted in merged backend | NOT DEPLOYED | Integrate with production observability and verify redaction end to end |
+
+## Customer onboarding and employee import
+
+| ID | Capability | MVP | UI | Core implementation | Security/test evidence | Production | Primary evidence / next action |
+|---|---:|---|---|---|---|---|---|
+| ONBOARD-001 | Resumable company setup through explicit go-live approval | Yes, frozen v1.0 scope | NONE | NONE | Product requirements are frozen; no implementation or environment evidence | NOT DEPLOYED | Create focused implementation/evidence work without bypassing AUDIT C |
+| IMPORT-001 | Admin-only atomic CSV/XLSX employee import with validation and preview | Yes, frozen v1.0 scope | NONE | NONE | Canonical fields, no-default rule, all-or-nothing commit and audit requirements are frozen; no importer evidence exists | NOT DEPLOYED | Implement and verify tenant/privacy/idempotency/capacity behavior in focused future work |
 
 ## Experience and sales validation
 

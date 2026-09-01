@@ -1,5 +1,9 @@
 # BSS profil poslovnih izvještaja v1.0
 
+> Historical frontend/backend-review profile. OpenAPI v1.4 and current `main` now
+> implement CSV, XLSX and PDF. The frozen `BSS_V1_PRODUCT_CONTRACT.md` v1.0 resolves
+> that drift; this profile remains historical.
+
 | Stavka | Odluka |
 | --- | --- |
 | Status | **FROZEN za BSS Frontend v1.0.0 i backend contract review** |

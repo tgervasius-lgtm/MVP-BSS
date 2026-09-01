@@ -1,6 +1,6 @@
 # ADR-002: Terminal event-time lifecycle integrity
 
-Status: ACCEPTED PRODUCT CONTRACT DECISION / NOT YET EVIDENCE PROVEN
+Status: ACCEPTED / MERGED / AUDIT A SOFTWARE EVIDENCE PROVEN
 Date: 2026-08-16
 Issue: #144
 Risk class: BLACK / GATE
@@ -82,4 +82,4 @@ If the application must be recovered after new evidence is written, pause termin
 - Trusted/uncertain clock assertions, Administrator-only accepted/rejected reconciliation, legacy UNKNOWN treatment, RLS and append-only raw/audit evidence.
 - Applicable Backend, Database and Security PR verification and targeted AUDIT A recheck.
 
-DEC-025 is accepted as a Product Contract decision. It is not evidence proven, merged, deployed or production-proven merely because code or this ADR exists.
+DEC-025 is merged through PR #150 and the targeted AUDIT A software/PostgreSQL evidence passed on `b904eca`. This does not prove the terminal's physical durable write, feedback, power-loss recovery, deployment, Pilot or production behavior; those remain #132/AUDIT C evidence.
