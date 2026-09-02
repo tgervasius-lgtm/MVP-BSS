@@ -821,7 +821,7 @@ test("every route-level rate limiter has the shared OpenAPI 429 contract", async
   assert.equal(limited.json().code, "RATE_LIMITED");
 });
 
-test("OpenAPI v1 and the frozen screen map have no unresolved contract gates", async () => {
+test("OpenAPI v1 and the post-freeze screen map preserve ownership and explicit UI gaps", async () => {
   const source = await readFile(join(repositoryRoot, "openapi/bss-mvp-api-v1.yaml"), "utf8");
   const document = YAML.parse(source) as Record<string, unknown>;
   const paths = document.paths as Record<string, Record<string, { operationId?: string }>>;
@@ -871,21 +871,49 @@ test("OpenAPI v1 and the frozen screen map have no unresolved contract gates", a
     await readFile(join(repositoryRoot, "backend/contracts/frontend-screen-api-map-v1.json"), "utf8")
   ) as {
     readiness: string;
+    contractReviewStatus: string;
+    frontendBaseline: { commit: string; status: string; authority: string };
+    repositoryBaseline: string;
     openapi: { sha256: string; version: string; paths: number; operations: number };
-    screens: Array<{ id: string; status: string; operations: string[] }>;
-    contractGatesBeforeLaterPhases: string[];
+    screens: Array<{ id: string; status: string; classification: string; operations: string[] }>;
+    nonScreenPatterns: Array<{ id: string; status: string; operations: string[] }>;
+    contractDefinedUiGaps: Array<{ id: string; status: string; operations: string[]; roles: string[] }>;
+    authorizationBoundary: { mode: string; uiVisibilityIsAuthorizationEvidence: boolean };
+    contractGatesBeforeDesignFoundationPhaseB: string[];
   };
-  assert.equal(screenMap.readiness, "FULL_PASS");
+  assert.equal(screenMap.readiness, "RECONCILED_WITH_EXPLICIT_UI_GAPS");
+  assert.equal(screenMap.contractReviewStatus, "ISSUE_157_RECONCILED_BSS_OS_REVIEW_REQUIRED");
+  assert.deepEqual(screenMap.frontendBaseline, {
+    commit: "91323c7cdbbbbf7b965c4926c94a11af6d31bf62",
+    status: "HISTORICAL_FRONTEND_V1_REFERENCE",
+    authority: "NOT_CURRENT_PRODUCT_AUTHORITY"
+  });
+  assert.equal(screenMap.repositoryBaseline, "29b00c0f63af0b3ffbd2d828550c882b9096fd05");
   assert.equal(screenMap.openapi.version, "1.4.0");
   assert.equal(screenMap.openapi.paths, 52);
   assert.equal(screenMap.openapi.operations, 63);
   const canonicalOpenApiSource = source.replace(/\r\n/g, "\n");
   assert.equal(screenMap.openapi.sha256, createHash("sha256").update(canonicalOpenApiSource).digest("hex"));
-  assert.deepEqual(screenMap.contractGatesBeforeLaterPhases, []);
-  assert.deepEqual(screenMap.screens.filter((screen) => ["partial", "derived"].includes(screen.status)), []);
-  for (const screen of screenMap.screens.filter((item) => item.status === "covered")) {
-    assert.deepEqual(screen.operations.filter((operationId) => !operationIds.includes(operationId)), [], `Unknown operation on ${screen.id}`);
+  assert.deepEqual(screenMap.contractGatesBeforeDesignFoundationPhaseB, ["ISSUE_157_BSS_OS_REVIEW_AND_MERGE"]);
+  assert.equal(screenMap.authorizationBoundary.mode, "SERVER_ENFORCED_DENY_BY_DEFAULT");
+  assert.equal(screenMap.authorizationBoundary.uiVisibilityIsAuthorizationEvidence, false);
+  assert.equal(screenMap.screens.length, 17);
+  assert.deepEqual(screenMap.screens.filter((screen) => screen.status === "demo-only").map((screen) => screen.id).sort(), ["flow", "terminalDemo"]);
+  assert.deepEqual(screenMap.screens.filter((screen) => screen.status === "demo-only").flatMap((screen) => screen.operations), []);
+
+  const mappedItems = [...screenMap.screens, ...screenMap.nonScreenPatterns, ...screenMap.contractDefinedUiGaps];
+  for (const item of mappedItems) {
+    assert.deepEqual(item.operations.filter((operationId) => !operationIds.includes(operationId)), [], `Unknown operation on ${item.id}`);
   }
+  const gapsById = new Map(screenMap.contractDefinedUiGaps.map((gap) => [gap.id, gap]));
+  assert.deepEqual(gapsById.get("attendance-recalculation-provenance")?.operations, ["recalculateAttendanceDay"]);
+  assert.deepEqual(gapsById.get("attendance-period-lifecycle")?.operations, [
+    "getAttendancePeriod", "startAttendancePeriodReview", "finalizeAttendancePeriod", "closeAttendancePeriod", "reopenAttendancePeriod"
+  ]);
+  assert.deepEqual(gapsById.get("report-export-verification")?.operations, ["verifyReportExport"]);
+  assert.deepEqual(gapsById.get("attendance-period-lifecycle")?.roles, ["admin", "manager", "accountant"]);
+  assert.equal(screenMap.screens.find((screen) => screen.id === "reports")?.operations.includes("verifyReportExport"), false);
+  assert.equal(screenMap.screens.find((screen) => screen.id === "attendance")?.operations.includes("recalculateAttendanceDay"), false);
 });
 
 test("clean-clone developer setup is pinned, secret-safe and reproducible", async () => {

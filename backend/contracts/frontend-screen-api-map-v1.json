@@ -1,10 +1,19 @@
 {
-  "contract": "BSS Frontend v1.0.0 to Backend MVP API v1.4",
-  "readiness": "FULL_PASS",
-  "contractReviewedAt": "2026-08-23",
-  "contractReviewStatus": "PROPOSED_ISSUE_146_BSS_OS_REVIEW_REQUIRED",
-  "frontendBaseline": "91323c7cdbbbbf7b965c4926c94a11af6d31bf62",
-  "repositoryBaseline": "e35b53af848b855c986e467a6efacdea4dde777e",
+  "contract": "BSS post-freeze frontend screen ownership to Backend MVP API v1.4",
+  "readiness": "RECONCILED_WITH_EXPLICIT_UI_GAPS",
+  "contractReviewedAt": "2026-09-02",
+  "contractReviewStatus": "ISSUE_157_RECONCILED_BSS_OS_REVIEW_REQUIRED",
+  "productAuthority": {
+    "file": "BSS_V1_PRODUCT_CONTRACT.md",
+    "version": "1.0",
+    "status": "ACCEPTED_FROZEN"
+  },
+  "frontendBaseline": {
+    "commit": "91323c7cdbbbbf7b965c4926c94a11af6d31bf62",
+    "status": "HISTORICAL_FRONTEND_V1_REFERENCE",
+    "authority": "NOT_CURRENT_PRODUCT_AUTHORITY"
+  },
+  "repositoryBaseline": "29b00c0f63af0b3ffbd2d828550c882b9096fd05",
   "openapi": {
     "file": "openapi/bss-mvp-api-v1.yaml",
     "sha256": "9eefb5f272dbef12f52ff631c350a001153923fd38f936627c4529884d6cc91f",
@@ -16,98 +25,210 @@
     "phaseBImplementedOperations": 63
   },
   "statusLegend": {
-    "covered": "Approved OpenAPI v1 contains the required operation and authoritative server semantics.",
-    "excluded": "Demo-only or separately proposed scope; it does not call the production v1 API."
+    "current": "A registered current screen owns the listed operation family; this does not imply every Product Contract state or recovery path is implemented in UI.",
+    "demo-only": "A demo/Preview-only screen is isolated from production API, authentication, secrets and personal data.",
+    "contract-defined-gap": "The frozen Product Contract defines the capability, but current frontend code has no complete owning screen/pattern. OpenAPI or backend implementation is not UI evidence.",
+    "superseded": "Historical demo presentation is not current Product Contract scope and should be deprecated without creating replacement scope."
   },
   "screens": [
     {
       "id": "home",
-      "status": "covered",
+      "status": "current",
+      "classification": "CURRENT_KEEP",
       "operations": ["getDashboardSummary"]
     },
     {
       "id": "attendance",
-      "status": "covered",
-      "operations": ["listAttendance", "listWorkers", "listShifts", "listDepartments"]
+      "status": "current",
+      "classification": "CURRENT_BUT_UPDATE",
+      "operations": ["listAttendance", "listWorkers", "listShifts", "listDepartments"],
+      "note": "Admin-only recalculation/provenance and period readiness remain explicit UI gaps."
     },
     {
       "id": "mytime",
-      "status": "covered",
+      "status": "current",
+      "classification": "CURRENT_KEEP",
       "operations": ["getWorkerAttendance", "createCorrectionRequest"]
     },
     {
       "id": "workers",
-      "status": "covered",
-      "operations": ["listWorkers", "createWorker", "updateWorker", "activateWorker", "deactivateWorker", "listDepartments", "listShifts", "listWorkerRfidCards", "assignWorkerRfidCard", "blockRfidCard"]
+      "status": "current",
+      "classification": "CURRENT_BUT_UPDATE",
+      "operations": ["listWorkers", "createWorker", "updateWorker", "activateWorker", "deactivateWorker", "listDepartments", "listShifts", "listWorkerRfidCards", "assignWorkerRfidCard", "blockRfidCard"],
+      "note": "Worker + department + shift + RFID is authoritative; legacy Job Position presentation is superseded."
     },
     {
       "id": "worker",
-      "status": "covered",
-      "operations": ["getWorker", "getWorkerAttendance", "listLeaveRequests", "listLeaveBalances", "listWorkerRfidCards", "assignWorkerRfidCard", "blockRfidCard"]
+      "status": "current",
+      "classification": "CURRENT_BUT_UPDATE",
+      "operations": ["getWorker", "getWorkerAttendance", "listLeaveRequests", "listLeaveBalances", "listWorkerRfidCards", "assignWorkerRfidCard", "blockRfidCard"],
+      "note": "Legacy Job Position presentation is not a current product entity or permission scope."
     },
     {
       "id": "shifts",
-      "status": "covered",
+      "status": "current",
+      "classification": "CURRENT_KEEP",
       "operations": ["listShifts", "createShift", "updateShift"]
     },
     {
       "id": "requests",
-      "status": "covered",
-      "operations": ["listLeaveRequests", "createLeaveRequest", "listLeaveBalances", "approveLeaveRequest", "rejectLeaveRequest", "cancelOwnLeaveRequest"]
+      "status": "current",
+      "classification": "CURRENT_BUT_UPDATE",
+      "operations": ["listLeaveRequests", "createLeaveRequest", "listLeaveBalances", "approveLeaveRequest", "rejectLeaveRequest", "cancelOwnLeaveRequest"],
+      "note": "Finalized/closed-period recovery requires the governed Admin reopen path and is not a complete current UI pattern."
     },
     {
       "id": "vacations",
-      "status": "covered",
-      "operations": ["listLeaveRequests", "listLeaveBalances", "listHolidays"]
+      "status": "current",
+      "classification": "CURRENT_BUT_UPDATE",
+      "operations": ["listLeaveRequests", "listLeaveBalances", "listHolidays"],
+      "note": "Current navigation is Admin/Voditelj/Radnik. Accountant approved/minimized leave belongs to reporting/shared-calendar ownership."
     },
     {
       "id": "sharedLeave",
-      "status": "covered",
+      "status": "current",
+      "classification": "CURRENT_KEEP",
       "operations": ["listApprovedLeaveCalendar", "getOrganization", "updateOrganization"],
-      "note": "Privacy-minimized approved annual leave only; no sickness, reason or other private data."
+      "note": "Privacy-minimized approved annual leave only; no sickness, reason, notes, balances or other private data."
     },
     {
       "id": "corrections",
-      "status": "covered",
-      "operations": ["listCorrectionRequests", "createCorrectionRequest", "approveCorrectionRequest", "rejectCorrectionRequest", "cancelOwnCorrectionRequest"]
+      "status": "current",
+      "classification": "CURRENT_BUT_UPDATE",
+      "operations": ["listCorrectionRequests", "createCorrectionRequest", "approveCorrectionRequest", "rejectCorrectionRequest", "cancelOwnCorrectionRequest"],
+      "note": "Finalized/closed periods fail closed; late recovery requires Admin period reopen and a new immutable finalized version."
     },
     {
       "id": "reports",
-      "status": "covered",
-      "operations": ["createReportPreview", "listReportExports", "createReportExport", "getReportExport", "downloadReportExport"]
+      "status": "current",
+      "classification": "CURRENT_BUT_UPDATE",
+      "operations": ["createReportPreview", "listReportExports", "createReportExport", "getReportExport", "downloadReportExport"],
+      "note": "Period lifecycle, locked-period provenance selection and export verification remain explicit UI gaps."
     },
     {
       "id": "terminal",
-      "status": "covered",
-      "operations": ["listTerminals", "pairTerminal", "rotateTerminalCredential", "revokeTerminal", "listTerminalSyncEvents", "resolveTerminalEventReconciliation", "ingestTerminalEventBatch", "terminalHeartbeat"]
+      "status": "current",
+      "classification": "CURRENT_BUT_UPDATE",
+      "operations": ["listTerminals", "pairTerminal", "revokeTerminal", "listTerminalSyncEvents"],
+      "note": "Credential rotation and Admin-only reconciliation remain UI gaps; ingestion and heartbeat are device protocol operations, not screen actions."
     },
     {
       "id": "terminalDemo",
-      "status": "excluded",
+      "status": "demo-only",
+      "classification": "DEMO_PREVIEW_ONLY",
       "operations": [],
       "note": "Local simulator never writes production attendance or audit data."
     },
     {
       "id": "flow",
-      "status": "excluded",
+      "status": "demo-only",
+      "classification": "DEMO_PREVIEW_ONLY",
       "operations": [],
-      "note": "Static sales/demo content."
+      "note": "Static sales/demo content is not product-runtime evidence."
     },
     {
       "id": "roles",
-      "status": "covered",
-      "operations": ["listUsers", "inviteUser", "acceptInvitation", "updateUser"]
+      "status": "current",
+      "classification": "CURRENT_KEEP",
+      "operations": ["listUsers", "inviteUser", "updateUser"]
     },
     {
       "id": "audit",
-      "status": "covered",
+      "status": "current",
+      "classification": "CURRENT_KEEP",
       "operations": ["listAuditEvents"]
     },
     {
       "id": "settings",
-      "status": "covered",
-      "operations": ["getOrganization", "updateOrganization", "listDepartments", "createDepartment", "updateDepartment", "listHolidays", "replaceHolidaysForYear"]
+      "status": "current",
+      "classification": "CURRENT_BUT_UPDATE",
+      "operations": ["getOrganization", "updateOrganization", "listDepartments", "createDepartment", "updateDepartment", "listHolidays", "replaceHolidaysForYear"],
+      "note": "Legacy Job Position controls are superseded; onboarding/import are separate Product Contract gaps."
     }
   ],
-  "contractGatesBeforeLaterPhases": []
+  "nonScreenPatterns": [
+    {
+      "id": "invitation-acceptance",
+      "status": "current",
+      "classification": "CURRENT_KEEP",
+      "operations": ["acceptInvitation"],
+      "note": "Authentication entry pattern; not a registered business screen."
+    },
+    {
+      "id": "terminal-device-protocol",
+      "status": "current",
+      "classification": "CURRENT_KEEP",
+      "operations": ["ingestTerminalEventBatch", "terminalHeartbeat"],
+      "note": "Terminal protocol surface; not a web UI capability."
+    },
+    {
+      "id": "legacy-job-position-presentation",
+      "status": "superseded",
+      "classification": "SUPERSEDED_DEPRECATE",
+      "operations": [],
+      "note": "Demo-only state/presentation; no v1 database model, API, authorization scope or persistence."
+    }
+  ],
+  "contractDefinedUiGaps": [
+    {
+      "id": "attendance-recalculation-provenance",
+      "status": "contract-defined-gap",
+      "operations": ["recalculateAttendanceDay"],
+      "roles": ["admin"],
+      "prospectiveOwner": "attendance-recovery-pattern"
+    },
+    {
+      "id": "attendance-period-lifecycle",
+      "status": "contract-defined-gap",
+      "operations": ["getAttendancePeriod", "startAttendancePeriodReview", "finalizeAttendancePeriod", "closeAttendancePeriod", "reopenAttendancePeriod"],
+      "roles": ["admin", "manager", "accountant"],
+      "note": "Admin alone transitions. Manager reads scoped state; Accountant reads state. No worker access.",
+      "prospectiveOwner": "period-control-pattern"
+    },
+    {
+      "id": "report-export-verification",
+      "status": "contract-defined-gap",
+      "operations": ["verifyReportExport"],
+      "roles": ["admin", "manager", "accountant"],
+      "prospectiveOwner": "reports-verification-pattern"
+    },
+    {
+      "id": "terminal-credential-rotation",
+      "status": "contract-defined-gap",
+      "operations": ["rotateTerminalCredential"],
+      "roles": ["admin"],
+      "prospectiveOwner": "terminal-security-pattern"
+    },
+    {
+      "id": "terminal-event-reconciliation",
+      "status": "contract-defined-gap",
+      "operations": ["resolveTerminalEventReconciliation"],
+      "roles": ["admin"],
+      "prospectiveOwner": "terminal-recovery-pattern"
+    },
+    {
+      "id": "customer-onboarding",
+      "status": "contract-defined-gap",
+      "operations": [],
+      "roles": ["admin"],
+      "note": "Frozen v1 scope; no current registered screen or OpenAPI operation."
+    },
+    {
+      "id": "employee-import",
+      "status": "contract-defined-gap",
+      "operations": [],
+      "roles": ["admin"],
+      "note": "Frozen Admin-only create/preview/validate/review/atomic-commit/cancel scope; no current registered screen or OpenAPI operation."
+    }
+  ],
+  "authorizationBoundary": {
+    "mode": "SERVER_ENFORCED_DENY_BY_DEFAULT",
+    "managerDataScope": "ASSIGNED_DEPARTMENTS_WITH_EVENT_EFFECTIVE_HISTORY",
+    "workerDataScope": "SELF_ONLY",
+    "accountantDataScope": "TENANT_REPORTING_WITH_PRIVACY_MINIMIZATION",
+    "uiVisibilityIsAuthorizationEvidence": false
+  },
+  "contractGatesBeforeDesignFoundationPhaseB": [
+    "ISSUE_157_BSS_OS_REVIEW_AND_MERGE"
+  ]
 }
