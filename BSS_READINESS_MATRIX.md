@@ -1,10 +1,10 @@
 # BSS Readiness Matrix
 
-## Authoritative software baseline — 2026-09-02
+## Authoritative software baseline — 2026-09-03
 
 Phase 0 baseline consolidation is complete and the protected `main` has continued through focused post-consolidation hardening and independent-analysis remediation.
 
-Current protected `main` is `29b00c0f63af0b3ffbd2d828550c882b9096fd05`. Issues #143/#145/#144/#146 are merged, and issue #133 records a targeted AUDIT A recheck PASS on the preceding `b904eca` implementation baseline. BSS v1 Product Contract v1.0 is `ACCEPTED / FROZEN`, integrated through merged PR #155 at the current protected-main SHA, and issue #131 is CLOSED/COMPLETED. That repository integration does not upgrade any implementation, Staging, Pilot, hardware or Commercial readiness state.
+Current protected `main` is `aed053a61631eb195e2695f98095a7bdd97cbcba`. Issues #143/#145/#144/#146 are merged, and issue #133 records a targeted AUDIT A recheck PASS on the historical `b904eca` implementation baseline. BSS v1 Product Contract v1.0 remains `ACCEPTED / FROZEN`; PR #155 integrated it at the historical freeze commit `29b00c0f63af0b3ffbd2d828550c882b9096fd05`, and issue #131 remains CLOSED/COMPLETED. Current `main` inherits that frozen contract plus the later merged security-maintenance PRs #160 and #159; those later merges do not change Product Contract scope or upgrade implementation, Staging, Pilot, hardware, Production or Commercial readiness.
 
 - PR #99 `feat(backend): integrate MVP Phase B into current main` was squash-merged into protected `main`.
 - Phase-0 merge commit: `198b2ce9f1ad73b7b72058a930cf005cbb35a0da`.
