@@ -102,8 +102,8 @@
       "id": "reports",
       "status": "current",
       "classification": "CURRENT_BUT_UPDATE",
-      "operations": ["createReportPreview", "listReportExports", "createReportExport", "getReportExport", "downloadReportExport"],
-      "note": "Period lifecycle, locked-period provenance selection and export verification remain explicit UI gaps."
+      "operations": ["listReportExports", "createReportExport", "getReportExport", "downloadReportExport"],
+      "note": "The current preview is rendered from client-side state. Server-authoritative preview, period lifecycle, locked-period provenance selection and export verification remain explicit UI gaps."
     },
     {
       "id": "terminal",
@@ -184,6 +184,13 @@
       "roles": ["admin", "manager", "accountant"],
       "note": "Admin alone transitions. Manager reads scoped state; Accountant reads state. No worker access.",
       "prospectiveOwner": "period-control-pattern"
+    },
+    {
+      "id": "report-server-preview",
+      "status": "contract-defined-gap",
+      "operations": ["createReportPreview"],
+      "roles": ["admin", "manager", "accountant"],
+      "prospectiveOwner": "reports-preview-pattern"
     },
     {
       "id": "report-export-verification",

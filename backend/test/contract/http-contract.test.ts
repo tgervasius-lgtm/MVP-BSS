@@ -910,9 +910,12 @@ test("OpenAPI v1 and the post-freeze screen map preserve ownership and explicit 
   assert.deepEqual(gapsById.get("attendance-period-lifecycle")?.operations, [
     "getAttendancePeriod", "startAttendancePeriodReview", "finalizeAttendancePeriod", "closeAttendancePeriod", "reopenAttendancePeriod"
   ]);
+  assert.deepEqual(gapsById.get("report-server-preview")?.operations, ["createReportPreview"]);
   assert.deepEqual(gapsById.get("report-export-verification")?.operations, ["verifyReportExport"]);
   assert.deepEqual(gapsById.get("attendance-period-lifecycle")?.roles, ["admin", "manager", "accountant"]);
+  assert.deepEqual(gapsById.get("report-server-preview")?.roles, ["admin", "manager", "accountant"]);
   assert.equal(screenMap.screens.find((screen) => screen.id === "reports")?.operations.includes("verifyReportExport"), false);
+  assert.equal(screenMap.screens.find((screen) => screen.id === "reports")?.operations.includes("createReportPreview"), false);
   assert.equal(screenMap.screens.find((screen) => screen.id === "attendance")?.operations.includes("recalculateAttendanceDay"), false);
 });
 
