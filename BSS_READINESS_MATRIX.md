@@ -1,10 +1,10 @@
 # BSS Readiness Matrix
 
-## Authoritative software baseline — 2026-09-01
+## Authoritative software baseline — 2026-09-03
 
 Phase 0 baseline consolidation is complete and the protected `main` has continued through focused post-consolidation hardening and independent-analysis remediation.
 
-Current protected `main` is `b904eca3c047c01da7a78e376269e94ed1d2fb48`. Issues #143/#145/#144/#146 are merged, and issue #133 records a targeted AUDIT A recheck PASS on that exact baseline. BSS v1 Product Contract v1.0 is `ACCEPTED / FROZEN` by explicit owner approval on 01.09.2026.; repository integration remains separate.
+Current protected `main` is `aed053a61631eb195e2695f98095a7bdd97cbcba`. Issues #143/#145/#144/#146 are merged, and issue #133 records a targeted AUDIT A recheck PASS on the historical `b904eca` implementation baseline. BSS v1 Product Contract v1.0 remains `ACCEPTED / FROZEN`; PR #155 integrated it at the historical freeze commit `29b00c0f63af0b3ffbd2d828550c882b9096fd05`, and issue #131 remains CLOSED/COMPLETED. Current `main` inherits that frozen contract plus the later merged security-maintenance PRs #160 and #159; those later merges do not change Product Contract scope or upgrade implementation, Staging, Pilot, hardware, Production or Commercial readiness.
 
 - PR #99 `feat(backend): integrate MVP Phase B into current main` was squash-merged into protected `main`.
 - Phase-0 merge commit: `198b2ce9f1ad73b7b72058a930cf005cbb35a0da`.
@@ -126,11 +126,11 @@ The accepted BSS MASTER ROADMAP v4.9 in `docs/bss-os/MASTER_ROADMAP.md` controls
 
 Mandatory execution critical path:
 
-1. Complete the focused #131 repository/PR workflow for the frozen BSS v1 Product Contract.
-2. Preserve the versioned change-control rule and track implementation gaps separately.
-3. Activate Design Foundation only through its applicable governance and evidence controls.
+1. Review and merge the focused #157 post-freeze governance and screen/API reconciliation without changing the frozen BSS v1 Product Contract.
+2. Keep #156 Design Foundation Phase B blocked until #157 is reviewed and merged; preserve the versioned change-control rule and track implementation gaps separately.
+3. Resume Design Foundation Phase B only through its applicable governance and evidence controls.
 
-The targeted AUDIT A recheck is `PASS` on `b904eca`; #143/#145/#144/#146 are closed with current-main evidence. BSS v1 Product Contract v1.0 is `ACCEPTED / FROZEN` by explicit owner approval. Issue #131 remains open for its focused PR workflow; onboarding/import and other identified contract gaps remain implementation work.
+The targeted AUDIT A recheck is `PASS` on `b904eca`; #143/#145/#144/#146 are closed with implementation evidence on that baseline. BSS v1 Product Contract v1.0 is `ACCEPTED / FROZEN` and integrated through PR #155 on current protected `main`; #131 is CLOSED/COMPLETED. Onboarding/import, the reconciled screen/workflow gaps and other identified contract gaps remain implementation work.
 
 Parallel, non-blocking work:
 

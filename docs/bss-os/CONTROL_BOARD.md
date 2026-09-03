@@ -1,7 +1,7 @@
 # BSS OS Control Board
 
-Last reviewed: 2026-09-01
-Operating phase: `PRODUCT CONTRACT REVIEW / #131`
+Last reviewed: 2026-09-02
+Operating phase: `DESIGN FOUNDATION ACTIVATION / #156 — PHASE B BLOCKED BY #157 REVIEW`
 
 ## Executive state
 
@@ -127,7 +127,7 @@ Roadmap v4.9 originally routed the accepted execution order through:
 1. AUDIT A;
 2. #131 — freeze the BSS v1 Product Contract before Design Foundation.
 
-AUDIT A then found four concrete BLACK/GATE defects. Applying the accepted gap-audit/reopen rule inserted #143, #145, #144 and #146 before a targeted AUDIT A recheck; this preserves rather than rewrites the historical v4.9 route. All four issues are now merged/closed, #133 records the targeted recheck as PASS on `b904eca`, and BSS v1 Product Contract v1.0 is explicitly owner-approved and frozen. Repository integration remains separate.
+AUDIT A then found four concrete BLACK/GATE defects. Applying the accepted gap-audit/reopen rule inserted #143, #145, #144 and #146 before a targeted AUDIT A recheck; this preserves rather than rewrites the historical v4.9 route. All four issues are merged/closed, #133 records the targeted recheck as PASS on `b904eca`, and BSS v1 Product Contract v1.0 is explicitly owner-approved and frozen. PR #155 then integrated the frozen contract into protected `main` at `29b00c0`; #131 is CLOSED/COMPLETED. Design Foundation activation is current, with #156 Phase B blocked until the focused #157 reconciliation is reviewed and merged.
 
 The global A-V ownership map, H1-H11 hardening routes, formal AUDIT A-D gates, Production Readiness Evidence Track, decision maturity/reversibility rules and cost/vendor activation discipline are codified in `docs/bss-os/MASTER_ROADMAP.md`. Mutable plan limits and paid triggers are tracked in `docs/bss-os/TOOL_SERVICE_COST_REGISTER.md`. These documents do not convert governance hardening into implementation or readiness evidence.
 
@@ -142,7 +142,7 @@ The global A-V ownership map, H1-H11 hardening routes, formal AUDIT A-D gates, P
 - #115 retains the repository-level Dependabot settings follow-up without being placed ahead of the accepted critical path.
 - PR #28: compare against current `main`, split useful hardware/API/QA/container/handoff work into focused PRs and close the historical draft.
 - PR #30: reconstruct Preview Portal from current `main`; do not merge the old 146-commit branch wholesale.
-- Staging and later readiness work retain their existing evidence gates and are not placed ahead of the current `#131 review -> explicit BSS OS approval/freeze -> Design Foundation` gate.
+- Staging and later readiness work retain their existing evidence gates and are not placed ahead of the current `#157 reconciliation review/merge -> #156 Design Foundation Phase B` gate.
 
 ## Active legacy pull request portfolio
 
@@ -157,11 +157,11 @@ PR #27 and PR #31 are closed as superseded. Neither is an active integration tar
 
 Mandatory execution critical path under accepted BSS MASTER ROADMAP v4.9:
 
-1. Complete the focused #131 repository/PR workflow for frozen `BSS_V1_PRODUCT_CONTRACT.md` v1.0.
-2. Preserve implementation/readiness gaps and versioned change control without silent scope changes.
-3. Activate formal Design Foundation through its applicable controls.
+1. Review and merge the focused #157 post-freeze governance and screen/API reconciliation without changing the frozen Product Contract.
+2. Keep #156 Phase B blocked until #157 is reviewed and merged; preserve explicit implementation/readiness gaps and versioned change control.
+3. Resume formal Design Foundation Phase B through its applicable BSS OS controls.
 
-AUDIT A targeted recheck is `PASS`; the BSS v1 Product Contract is `ACCEPTED / FROZEN` by explicit owner approval on 01.09.2026. Issue #131 remains open for the focused PR workflow. #139 and Hardware #132 remain parallel and non-blocking. Trivy Phase 1 is merged through #129/PR #141; #115, PR #28, Preview, staging, later hardware readiness and later readiness work retain their existing routing without acquiring implementation or readiness claims from the contract freeze.
+AUDIT A targeted recheck is `PASS`; the BSS v1 Product Contract is `ACCEPTED / FROZEN`, integrated by merged PR #155, and #131 is CLOSED/COMPLETED. #157 is synchronization work, not new product scope or runtime evidence. #139 and Hardware #132 remain parallel and non-blocking. Trivy Phase 1 is merged through #129/PR #141; #115, PR #28, Preview, staging, later hardware readiness and later readiness work retain their existing routing without acquiring implementation or readiness claims from the contract freeze.
 
 ## Management rule
 
