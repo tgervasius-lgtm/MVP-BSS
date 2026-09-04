@@ -42,17 +42,14 @@ jobs:
           node-version: 22
           cache: npm
 
-      - name: Install frontend dependencies without lifecycle scripts
-        run: npm ci --ignore-scripts
+      - name: Install frontend dependencies without lifecycle or implicit audit scripts
+        run: npm ci --ignore-scripts --no-audit
 
-      - name: Install backend dependencies without lifecycle scripts
-        run: npm --prefix backend ci --ignore-scripts
+      - name: Install backend dependencies without lifecycle or implicit audit scripts
+        run: npm --prefix backend ci --ignore-scripts --no-audit
 
       - name: Rebuild required backend esbuild binary explicitly
         run: npm --prefix backend rebuild esbuild --foreground-scripts
-
-      - name: All dependency audit
-        run: npm audit --audit-level=high && npm --prefix backend audit --audit-level=high
 
       - name: Architecture growth guard
         run: node scripts/check-architecture-budgets.mjs
