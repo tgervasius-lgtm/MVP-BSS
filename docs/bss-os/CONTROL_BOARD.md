@@ -1,7 +1,7 @@
 # BSS OS Control Board
 
-Last reviewed: 2026-09-02
-Operating phase: `DESIGN FOUNDATION ACTIVATION / #156 — PHASE B BLOCKED BY #157 REVIEW`
+Last reviewed: 2026-09-04
+Operating phase: `DESIGN FOUNDATION PHASE B / #156 — PR #161 PROPOSAL REVIEW; VISUAL DESIGN GATE + OWNER ACCEPTANCE PENDING`
 
 ## Executive state
 
@@ -127,7 +127,7 @@ Roadmap v4.9 originally routed the accepted execution order through:
 1. AUDIT A;
 2. #131 — freeze the BSS v1 Product Contract before Design Foundation.
 
-AUDIT A then found four concrete BLACK/GATE defects. Applying the accepted gap-audit/reopen rule inserted #143, #145, #144 and #146 before a targeted AUDIT A recheck; this preserves rather than rewrites the historical v4.9 route. All four issues are merged/closed, #133 records the targeted recheck as PASS on `b904eca`, and BSS v1 Product Contract v1.0 is explicitly owner-approved and frozen. PR #155 then integrated the frozen contract into protected `main` at `29b00c0`; #131 is CLOSED/COMPLETED. Design Foundation activation is current, with #156 Phase B blocked until the focused #157 reconciliation is reviewed and merged.
+AUDIT A then found four concrete BLACK/GATE defects. Applying the accepted gap-audit/reopen rule inserted #143, #145, #144 and #146 before a targeted AUDIT A recheck; this preserves rather than rewrites the historical v4.9 route. All four issues are merged/closed, #133 records the targeted recheck as PASS on `b904eca`, and BSS v1 Product Contract v1.0 is explicitly owner-approved and frozen. PR #155 then integrated the frozen contract into protected `main` at `29b00c0`; #131 is CLOSED/COMPLETED. #156 Phase A is complete; #157 reconciliation is CLOSED/COMPLETED and PR #158 is merged, establishing current protected `main` `02a76abe48e750932fbf3002d1ef2dd10ed8881a`. PR #161 is OPEN/DRAFT and proposal-only (`PROPOSED / NOT ACCEPTED`); the Visual Design Gate and explicit owner/BSS OS acceptance are mandatory before Design Foundation can become ACCEPTED. Figma and Storybook remain `CANDIDATE / INACTIVE`, and proposal status authorizes no frontend implementation.
 
 The global A-V ownership map, H1-H11 hardening routes, formal AUDIT A-D gates, Production Readiness Evidence Track, decision maturity/reversibility rules and cost/vendor activation discipline are codified in `docs/bss-os/MASTER_ROADMAP.md`. Mutable plan limits and paid triggers are tracked in `docs/bss-os/TOOL_SERVICE_COST_REGISTER.md`. These documents do not convert governance hardening into implementation or readiness evidence.
 
@@ -142,7 +142,7 @@ The global A-V ownership map, H1-H11 hardening routes, formal AUDIT A-D gates, P
 - #115 retains the repository-level Dependabot settings follow-up without being placed ahead of the accepted critical path.
 - PR #28: compare against current `main`, split useful hardware/API/QA/container/handoff work into focused PRs and close the historical draft.
 - PR #30: reconstruct Preview Portal from current `main`; do not merge the old 146-commit branch wholesale.
-- Staging and later readiness work retain their existing evidence gates and are not placed ahead of the current `#157 reconciliation review/merge -> #156 Design Foundation Phase B` gate.
+- Staging and later readiness work retain their existing evidence gates and are not placed ahead of the current `PR #161 proposal review -> Visual Design Gate -> explicit owner/BSS OS Design Foundation acceptance` gate.
 
 ## Active legacy pull request portfolio
 
@@ -157,11 +157,17 @@ PR #27 and PR #31 are closed as superseded. Neither is an active integration tar
 
 Mandatory execution critical path under accepted BSS MASTER ROADMAP v4.9:
 
-1. Review and merge the focused #157 post-freeze governance and screen/API reconciliation without changing the frozen Product Contract.
-2. Keep #156 Phase B blocked until #157 is reviewed and merged; preserve explicit implementation/readiness gaps and versioned change control.
-3. Resume formal Design Foundation Phase B through its applicable BSS OS controls.
+1. Review PR #161 as a Design Foundation proposal only; it remains OPEN/DRAFT and `PROPOSED / NOT ACCEPTED`.
+2. Complete the Visual Design Gate using representative frozen BSS workflows and preserve Figma/Storybook as `CANDIDATE / INACTIVE` until separately accepted.
+3. Require explicit owner/BSS OS Design Foundation acceptance before any ACCEPTED status or frontend implementation authorization.
+4. Activate roadmap-ordered contract-defined implementation gaps only after Design Foundation acceptance and the applicable BSS OS decision.
+5. Proceed to Production-like Staging and `AUDIT B` without treating merged documentation or implementation as environment evidence.
+6. Reach Pilot readiness only with applicable software evidence plus Hardware 9C and `AUDIT C`.
+7. Run a controlled Pilot.
+8. After Pilot, perform Post-Pilot hardening, require `PRG GO`, then `AUDIT D PASS`.
+9. Commercial Production remains blocked until the accepted Commercial gate is satisfied.
 
-AUDIT A targeted recheck is `PASS`; the BSS v1 Product Contract is `ACCEPTED / FROZEN`, integrated by merged PR #155, and #131 is CLOSED/COMPLETED. #157 is synchronization work, not new product scope or runtime evidence. #139 and Hardware #132 remain parallel and non-blocking. Trivy Phase 1 is merged through #129/PR #141; #115, PR #28, Preview, staging, later hardware readiness and later readiness work retain their existing routing without acquiring implementation or readiness claims from the contract freeze.
+AUDIT A targeted recheck is `PASS`; the BSS v1 Product Contract is `ACCEPTED / FROZEN`, integrated by merged PR #155, and #131 is CLOSED/COMPLETED. #156 Phase A and #157 reconciliation are complete; PR #158 is merged into current protected `main` `02a76abe48e750932fbf3002d1ef2dd10ed8881a`. PR #161 does not change implementation/readiness status. #139 and Hardware #132 remain parallel and non-blocking. Trivy Phase 1 is merged through #129/PR #141; #115, PR #28, Preview, staging, later hardware readiness and later readiness work retain their existing routing without acquiring implementation or readiness claims from the Design Foundation proposal.
 
 ## Management rule
 

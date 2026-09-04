@@ -1,10 +1,10 @@
 # BSS Readiness Matrix
 
-## Authoritative software baseline — 2026-09-03
+## Authoritative software baseline — 2026-09-04
 
 Phase 0 baseline consolidation is complete and the protected `main` has continued through focused post-consolidation hardening and independent-analysis remediation.
 
-Current protected `main` is `aed053a61631eb195e2695f98095a7bdd97cbcba`. Issues #143/#145/#144/#146 are merged, and issue #133 records a targeted AUDIT A recheck PASS on the historical `b904eca` implementation baseline. BSS v1 Product Contract v1.0 remains `ACCEPTED / FROZEN`; PR #155 integrated it at the historical freeze commit `29b00c0f63af0b3ffbd2d828550c882b9096fd05`, and issue #131 remains CLOSED/COMPLETED. Current `main` inherits that frozen contract plus the later merged security-maintenance PRs #160 and #159; those later merges do not change Product Contract scope or upgrade implementation, Staging, Pilot, hardware, Production or Commercial readiness.
+Current protected `main` is `02a76abe48e750932fbf3002d1ef2dd10ed8881a`. Issues #143/#145/#144/#146 are merged, and issue #133 records a targeted AUDIT A recheck PASS on the historical `b904eca` implementation baseline. BSS v1 Product Contract v1.0 remains `ACCEPTED / FROZEN`; PR #155 integrated it at the historical freeze commit `29b00c0f63af0b3ffbd2d828550c882b9096fd05`, and issue #131 remains CLOSED/COMPLETED. Current `main` inherits that frozen contract plus the later merged security-maintenance PRs #160/#159 and the post-freeze governance/screen-map reconciliation from PR #158. #156 Phase A is complete; #157 is CLOSED/COMPLETED and PR #158 is merged. PR #161 is OPEN/DRAFT and proposal-only (`PROPOSED / NOT ACCEPTED`); the Visual Design Gate and explicit owner/BSS OS acceptance remain required before Design Foundation acceptance. Figma and Storybook remain `CANDIDATE / INACTIVE`, and no frontend implementation is authorized by proposal status. None of these facts upgrades implementation, Staging, Pilot, hardware, Production or Commercial readiness.
 
 - PR #99 `feat(backend): integrate MVP Phase B into current main` was squash-merged into protected `main`.
 - Phase-0 merge commit: `198b2ce9f1ad73b7b72058a930cf005cbb35a0da`.
@@ -126,18 +126,24 @@ The accepted BSS MASTER ROADMAP v4.9 in `docs/bss-os/MASTER_ROADMAP.md` controls
 
 Mandatory execution critical path:
 
-1. Review and merge the focused #157 post-freeze governance and screen/API reconciliation without changing the frozen BSS v1 Product Contract.
-2. Keep #156 Design Foundation Phase B blocked until #157 is reviewed and merged; preserve the versioned change-control rule and track implementation gaps separately.
-3. Resume Design Foundation Phase B only through its applicable governance and evidence controls.
+1. Review PR #161 as a Design Foundation proposal only; it remains OPEN/DRAFT and `PROPOSED / NOT ACCEPTED`.
+2. Complete the Visual Design Gate using representative frozen BSS workflows; Figma and Storybook remain `CANDIDATE / INACTIVE` until separately accepted.
+3. Require explicit owner/BSS OS Design Foundation acceptance before ACCEPTED status or frontend implementation authorization.
+4. Activate roadmap-ordered contract-defined implementation gaps only after Design Foundation acceptance and the applicable BSS OS decision.
+5. Proceed to Production-like Staging and `AUDIT B` without treating repository work as environment evidence.
+6. Reach Pilot readiness only with applicable software evidence plus Hardware 9C and `AUDIT C`.
+7. Run a controlled Pilot.
+8. After Pilot, perform Post-Pilot hardening, require `PRG GO`, then `AUDIT D PASS`.
+9. Commercial Production remains blocked until the accepted Commercial gate is satisfied.
 
-The targeted AUDIT A recheck is `PASS` on `b904eca`; #143/#145/#144/#146 are closed with implementation evidence on that baseline. BSS v1 Product Contract v1.0 is `ACCEPTED / FROZEN` and integrated through PR #155 on current protected `main`; #131 is CLOSED/COMPLETED. Onboarding/import, the reconciled screen/workflow gaps and other identified contract gaps remain implementation work.
+The targeted AUDIT A recheck is `PASS` on the historical `b904eca` implementation baseline; #143/#145/#144/#146 are closed with implementation evidence on that baseline. BSS v1 Product Contract v1.0 is `ACCEPTED / FROZEN`, integrated by PR #155 at historical freeze commit `29b00c0f63af0b3ffbd2d828550c882b9096fd05` and inherited by current protected `main`; #131 is CLOSED/COMPLETED. #156 Phase A and #157 reconciliation are complete, and PR #158 is merged into current protected `main` `02a76abe48e750932fbf3002d1ef2dd10ed8881a`. PR #161 remains proposal-only and does not promote any implementation/readiness state. Onboarding/import, the reconciled screen/workflow gaps and other identified contract gaps remain implementation work.
 
 Parallel, non-blocking work:
 
 - #139 — review-first disposition of the 11 PowerShell New Code findings without bulk cleanup or behavior changes made solely for scanner cosmetics; #139 is not a blocker for the mandatory path.
 - Hardware #132 remains parallel and non-blocking and retains its existing physical-evidence boundaries.
 
-Trivy Phase 1 is merged and automated through #129/PR #141. #115, PR #28 retirement, Preview reconstruction, staging, later hardware readiness and later readiness work remain tracked; Product Contract freeze does not promote any of them to implemented or evidence-proven status.
+Trivy Phase 1 is merged and automated through #129/PR #141. #115, PR #28 retirement, Preview reconstruction, staging, later hardware readiness and later readiness work remain tracked; Product Contract freeze and Design Foundation proposal status do not promote any of them to implemented or evidence-proven status.
 
 ## Working without blind spots
 
