@@ -2,6 +2,7 @@
 
 Status: `ACCEPTED GOVERNANCE / REPOSITORY CODIFICATION`
 Roadmap version date: 2026-08-11
+Current-horizon evidence refreshed: 2026-09-04
 Repository codification scope: GitHub issue #133
 Owner: Tomislav Bognar / BSS
 
@@ -110,10 +111,14 @@ The H1-H11 numbering records the completed governance-hardening order; it is not
 
 | Horizon | Ordered focus | Hardening consumed |
 |---|---|---|
-| Current | `#131 focused PR -> Design Foundation activation` | #143/#145/#144/#146 are closed, the targeted AUDIT A recheck passed on `b904eca`, and BSS v1 Product Contract v1.0 is explicitly owner-approved and frozen. Repository integration remains separate; Design Foundation follows its own activation controls. |
+| Current | `PR #161 proposal review -> Visual Design Gate -> explicit owner/BSS OS Design Foundation acceptance` | #131 is CLOSED/COMPLETED; #156 Phase A is complete; #157 is CLOSED/COMPLETED and PR #158 is merged into protected `main` `02a76abe48e750932fbf3002d1ef2dd10ed8881a`. PR #161 is OPEN/DRAFT and remains `PROPOSED / NOT ACCEPTED`; Figma and Storybook remain `CANDIDATE / INACTIVE`, and no frontend implementation is authorized by proposal status. |
 | Before Production-like Staging can be DONE | Focused 6A/6B activation and `AUDIT B` | H1 release/compatibility plus H3-H6 and H10 infrastructure, security, recovery, observability, capacity and vendor evidence. |
 | Before real-customer Pilot | `AUDIT C`, then customer-specific GO/NO-GO | H2-H7 and H9 evidence plus Hardware 9C, source/IP decision, privacy/legal and operational readiness. |
 | After Pilot, before Commercial Rollout | Post-Pilot hardening -> `PRG GO` -> `AUDIT D PASS` | H8/H10/H11, resolved Pilot findings, Hardware 9D where applicable, production DR/security/capacity, support and commercial evidence. |
+
+Current live execution sequence:
+
+`PR #161 proposal review -> Visual Design Gate -> explicit owner/BSS OS Design Foundation acceptance -> roadmap-ordered contract-defined implementation gaps -> Production-like Staging / AUDIT B -> Pilot readiness + Hardware 9C / AUDIT C -> controlled Pilot -> Post-Pilot hardening / PRG / AUDIT D -> Commercial Production`
 
 Parallel work remains permitted only where the Control Board says it is non-blocking and ownership does not create unsafe overlap. A later horizon must not be promoted ahead of an unmet earlier BLACK/GATE dependency.
 
@@ -126,7 +131,7 @@ Parallel work remains permitted only where the Control Board says it is non-bloc
 | `AUDIT C` Pilot Readiness | Before any real-customer Pilot and per-customer go-live | Product, security/privacy, performance, restore, observability, onboarding/import, H9 operations, source/IP decision, terminal 9C, release process and Pilot measurement. | Any BLACK/GATE failure blocks Pilot. Global PASS does not replace customer-specific GO/NO-GO. |
 | `AUDIT D` Commercial Readiness | After Pilot and PRG GO, before Commercial Rollout | Pilot findings, production security/infra/DR, 9D/compliance, legal/privacy, pricing/billing/contracts, support/RMA/install/docs, COGS, vendor cost and capacity. | Commercial Rollout and first paying-customer authorization remain blocked until critical items PASS. |
 
-Current AUDIT A verdict: targeted recheck `PASS` on protected `main` at `b904eca`. The four BLACK/GATE findings owned by #143, #145, #144 and #146 are closed with fresh PostgreSQL evidence. BSS v1 Product Contract v1.0 is `ACCEPTED / FROZEN` by explicit owner approval on 01.09.2026.; repository integration remains separate. Hardware #132 remains parallel and physical 9C/Pilot evidence remains not proven.
+Current AUDIT A verdict: targeted recheck `PASS` on protected `main` at the historical `b904eca` implementation baseline. The four BLACK/GATE findings owned by #143, #145, #144 and #146 are closed with fresh PostgreSQL evidence. BSS v1 Product Contract v1.0 is `ACCEPTED / FROZEN`; PR #155 integrated the frozen contract at historical commit `29b00c0`, and #131 is CLOSED/COMPLETED. #156 Phase A is complete; #157 is CLOSED/COMPLETED and PR #158 is merged, establishing current protected `main` `02a76abe48e750932fbf3002d1ef2dd10ed8881a`. PR #161 is proposal-only, OPEN/DRAFT and `PROPOSED / NOT ACCEPTED`; the Visual Design Gate and explicit owner/BSS OS acceptance remain mandatory before Design Foundation acceptance. Hardware #132 remains parallel and physical 9C/Pilot evidence remains not proven.
 
 Applicable regulatory uncertainty is `NOT_PROVEN`. If qualified review establishes a pre-Pilot conformity requirement for the finished terminal, #132/H7/AUDIT C is reopened. The Legal/Regulatory Live Register must track review owner, jurisdiction, trigger, status, evidence, expiry and recheck date; it does not convert planning notes into legal advice.
 
