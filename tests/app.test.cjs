@@ -40,6 +40,8 @@ const designGuideHtml = fs.readFileSync('design-system/index.html','utf8');
 const designGuideStyles = fs.readFileSync('design-system/guide.css','utf8');
 const designGuideScript = fs.readFileSync('design-system/guide.js','utf8');
 const designSystemDoc = fs.readFileSync('BSS_DESIGN_SYSTEM_V1.md','utf8');
+const designFoundationDoc = fs.readFileSync('BSS_DESIGN_FOUNDATION_V1.md','utf8');
+const productContractDoc = fs.readFileSync('BSS_V1_PRODUCT_CONTRACT.md','utf8');
 const brandBookHtml = fs.readFileSync('brand-book/index.html','utf8');
 const brandBookStyles = fs.readFileSync('brand-book/brand.css','utf8');
 const brandBookScript = fs.readFileSync('brand-book/brand.js','utf8');
@@ -1234,6 +1236,60 @@ test('Design System v1.0 ima jedinstvene primitive i semantičke tokene za obje 
   assert.doesNotMatch([designTokens,...styleLayers,designGuideStyles,brandBookStyles].join('\n'),/--(?:bg|surface(?:-2)?|line(?:-subtle)?|text|muted|teal(?:-dark|-soft)?|green(?:-soft)?|amber(?:-soft)?|red(?:-soft)?|blue(?:-soft)?|shadow(?:-hover)?|radius|safe(?:-top)?)(?=\s*[:)])/);
   assert.match(designSystemDoc,/Quality gate za novu komponentu/);
   assert.match(designSystemDoc,/Refactor v1 R5 dovršio je prijelaz na semantičke/);
+});
+
+test('Design Foundation v1.0 ostaje prijedlog pod zamrznutim Product Contract autoritetom',()=>{
+  assert.match(designFoundationDoc,/Name \| BSS v1 Design Foundation/);
+  assert.match(designFoundationDoc,/Version \| 1\.0/);
+  assert.match(designFoundationDoc,/Status \| \*\*PROPOSED \/ NOT ACCEPTED\*\*/);
+  assert.match(designFoundationDoc,/BSS_V1_PRODUCT_CONTRACT\.md.*ACCEPTED \/ FROZEN/);
+  assert.match(productContractDoc,/\| Status \| \*\*ACCEPTED \/ FROZEN\*\* \|/);
+
+  for(const role of ['Admin','Voditelj','Radnik','Knjigovodstvo']) {
+    assert.match(designFoundationDoc,new RegExp(`\\*\\*${role}\\*\\*`));
+  }
+  for(const screen of [
+    'home','attendance','mytime','workers','worker','shifts','requests','vacations',
+    'sharedLeave','corrections','reports','terminal','terminalDemo','flow','roles',
+    'audit','settings'
+  ]) assert.match(designFoundationDoc,new RegExp('\\| `' + screen + '` \\|'));
+  for(const gap of [
+    'attendance-recalculation','period-lifecycle','report-server-preview',
+    'report-export-verification','terminal-reconciliation',
+    'terminal-credential-rotation','customer-onboarding','employee-import',
+    'locked-period-recovery'
+  ]) assert.match(designFoundationDoc,new RegExp('\\| `' + gap + '` \\|'));
+  for(const classification of [
+    'CURRENT UI','TARGET DESIGN FOUNDATION','CONTRACT-DEFINED GAP',
+    'DEMO/PREVIEW-ONLY','OUT-OF-SCOPE','FUTURE CANDIDATE'
+  ]) assert.match(designFoundationDoc,new RegExp(classification.replace('/','\\/')));
+  for(const state of [
+    'Loading','Empty','Success','Validation','Permission denied','Not found',
+    'Conflict / stale revision','Offline / degraded','Reconciliation required',
+    'Blocked finalization','Destructive confirmation','Recovery / reopen',
+    'Unavailable / legacy-unavailable'
+  ]) assert.match(designFoundationDoc,new RegExp(`\\*\\*${state.replaceAll('/','\\/')}\\*\\*`,'i'));
+
+  assert.match(designFoundationDoc,/Figma:\s+CANDIDATE \/ INACTIVE/i);
+  assert.match(designFoundationDoc,/Storybook:\s+CANDIDATE \/ INACTIVE/i);
+  assert.match(designFoundationDoc,/Neither tool is product authority/);
+  assert.match(designFoundationDoc,/Employee terminal UX/);
+  assert.match(designFoundationDoc,/Web\/PWA terminal administration/);
+  assert.match(designFoundationDoc,/Acceptance of this document would mean only \*\*DESIGN FOUNDATION ACCEPTED\*\*/);
+  assert.match(designFoundationDoc,/would not mean implementation is complete/);
+  assert.match(designFoundationDoc,/MUST NOT be marked ACCEPTED.*Visual Design Gate/);
+  assert.match(designFoundationDoc,/AI-generated mockups.*IDEA \/ RESEARCH only/);
+  assert.match(designFoundationDoc,/not generic placeholder dashboards or prose-only descriptions/);
+  assert.match(designFoundationDoc,/Attendance recalculation.*Admin only; open period/);
+  assert.doesNotMatch(designFoundationDoc,/Attendance recalculation.*Admin\/Voditelj/);
+  assert.match(designFoundationDoc,/transitions: Admin only/);
+  assert.match(designFoundationDoc,/Reports.*Voditelj assigned departments/);
+  assert.match(designFoundationDoc,/Voditelj has read-only terminal status\/history visibility only for event-effective assigned departments/);
+  assert.match(designFoundationDoc,/event-effective assigned departments and cannot pair, revoke, rotate, or reconcile/);
+  assert.match(designFoundationDoc,/Workflow-level responsive and accessibility ownership/);
+  assert.match(designFoundationDoc,/DRAFT -> COMPANY_SETUP -> PEOPLE_IMPORT -> ACCESS_SETUP -> TERMINAL_SETUP -> DRY_RUN -> READY_FOR_GO_LIVE -> GO_LIVE_APPROVED/);
+  assert.match(designFoundationDoc,/UPLOAD -> PARSE -> NORMALIZE\/STAGE -> MAP -> VALIDATE -> PREVIEW -> APPROVE -> COMMIT -> RESULT\/AUDIT/);
+  assert.doesNotMatch(designFoundationDoc,/`employee-onboarding-import`/);
 });
 
 test('R5 učitava CSS slojeve istim redoslijedom i sprema ih za offline rad',()=>{
