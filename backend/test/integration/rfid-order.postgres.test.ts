@@ -71,13 +71,13 @@ test("RFID assignments follow lock order when transaction start order is reverse
   const service = new PgPhaseAService(appPool, pepper);
   const gate = pauseAfterBegin(appPool);
   const delayedService = new PgPhaseAService(gate.pool, pepper);
-  const older = delayedService.assignWorkerRfidCard(actor, worker, { uid: "04:AA:01" }, "older-start-later-lock")
+  const older = delayedService.assignWorkerRfidCard(actor, worker, { uid: "04:AA:00:01" }, "older-start-later-lock")
     .then((value) => ({ status: "fulfilled" as const, value }), (reason: unknown) => ({ status: "rejected" as const, reason }));
   let earlierCard: Awaited<ReturnType<typeof service.assignWorkerRfidCard>>;
   try {
     await Promise.race([gate.started, older.then(() => { throw new Error("Assignment exited before BEGIN gate"); })]);
     await owner.query("SELECT pg_sleep(0.02)");
-    earlierCard = await service.assignWorkerRfidCard(actor, worker, { uid: "04:AA:02" }, "newer-start-earlier-lock");
+    earlierCard = await service.assignWorkerRfidCard(actor, worker, { uid: "04:AA:00:02" }, "newer-start-earlier-lock");
   } finally {
     gate.resume();
     await older;
