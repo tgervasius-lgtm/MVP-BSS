@@ -60,19 +60,23 @@ PostgreSQL integration tests, and the full-stack workflow must pass browser/axe
 checks on the final PR candidate. Their authoritative results are attached to
 PR #108; this document does not predeclare a pending run successful.
 
-The refreshed candidate incorporates two independently reviewed prerequisites:
-PR #174 isolates disposable PostgreSQL fixtures after #173 ACL contention;
-PR #176 corrects the separately reproduced RFID transaction/lock-order defect
-in #175. Those changes keep their own evidence and review boundaries. Merge
-#174, then #176, refresh this PR against resulting main, and require green
-protected checks on each remaining candidate before the R34 merge. This
-candidate composition is validation work, not protected-main acceptance.
+The prerequisites are now merged separately: #174 fixture isolation as
+`290b0476e6f047a42bed72c4247d462d530fc607`, then #176 RFID ordering as
+`a08abb0a9b350ec5c48cf5fb3f6453dd83c5664a`. PR #176 was refreshed and passed
+45 unit/contract plus 9 PostgreSQL tests in run 35524210065 and 106 frontend
+plus 6 browser/axe cases in run 35524210016. Their original failing evidence
+and the independent clean-main ACL reproduction limitation remain recorded.
+R34 is refreshed against that resulting main; only its five-file security
+package remains. Required checks must pass on this refreshed candidate.
 
 ## Review, staging and recovery
 
 This is a high-risk auth/security dependency change. Required GitHub checks,
 review of the final diff and explicit owner merge approval are required by
-`AGENTS.md`. A prepared PR or passing test suite is not deployment approval.
+`AGENTS.md`. On 20 September 2026 the owner approved the concrete
+#174 -> #176 -> #108 sequence with checks between steps and existing automatic
+publications. That decision does not establish production readiness or grant
+a general development restart.
 
 Clients sharing a /64 now share a limiter bucket. Before live staging, verify
 the actual proxy allowlist and observed `request.ip` values, representative
