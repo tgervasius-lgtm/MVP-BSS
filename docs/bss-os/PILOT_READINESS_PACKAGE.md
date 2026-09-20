@@ -1,7 +1,7 @@
 # BSS Pilot Readiness Package
 
 Status: `PROPOSED`
-Last reviewed: 2026-08-05
+Last reviewed: 2026-09-20
 Owner: BSS founders
 Tracking issue: `#62`
 
@@ -27,7 +27,27 @@ No individual checklist line may be treated as complete without evidence. A gene
 
 Current overall status: `BLOCKED`.
 
-Primary blocker: one authoritative software baseline is not yet present in `main` because issue `#55` remains open.
+The historical Phase B integration blocker is resolved: issue `#55` is CLOSED/COMPLETED and PR `#99` is MERGED. This establishes a repository baseline, not a pilot release or deployed environment.
+
+Current blockers are the remaining accepted design/implementation gates, Production-like Staging / `AUDIT B`, deployed security and recovery evidence, Hardware 9C / `AUDIT C`, and customer-specific legal, operational and GO/NO-GO evidence. No live pilot is authorized.
+
+### 2.1 Evidence snapshot and authority
+
+This B2 documentation refresh was prepared from protected `main` at `88c1b8db99a930e87f27470c2c1c3ac393f5339c` on 2026-09-20, after governance PR `#170` merged and `#166` closed. That SHA is the source snapshot before this refresh, not an approved pilot release SHA.
+
+| Source / fact | Verified state and limit |
+|---|---|
+| [Issue #55](https://github.com/tgervasius-lgtm/MVP-BSS/issues/55) / [PR #99](https://github.com/tgervasius-lgtm/MVP-BSS/pull/99) | CLOSED/COMPLETED / MERGED; historical integration commit `198b2ce9f1ad73b7b72058a930cf005cbb35a0da`. Does not prove deployed readiness. |
+| [Readiness Matrix](../../BSS_READINESS_MATRIX.md) | Current readiness and missing evidence; Production-like Staging is NOT IMPLEMENTED / NOT EVIDENCE PROVEN, Hardware 9C and Pilot remain NOT PASS. |
+| [Master Roadmap v4.9](MASTER_ROADMAP.md) | Owns the sequence below and AUDIT A-D / PRG; local G1-G9 rows collect evidence and do not replace those gates. |
+| [Product Contract v1.0](../../BSS_V1_PRODUCT_CONTRACT.md) / DEC-027 | ACCEPTED / FROZEN; controls product scope, roles, onboarding/import and exclusions. Supersedes the old scope freeze for product scope. |
+| [Design Foundation](../../BSS_DESIGN_FOUNDATION_V1.md) / #156 | PR #161 MERGED; proposal remains PROPOSED / NOT ACCEPTED and #156 OPEN. Figma/Storybook remain CANDIDATE / INACTIVE. |
+| [Decision Log](DECISION_LOG.md), DEC-025/026 | Historical targeted AUDIT A PASS is tied to `b904eca`; software acknowledgement evidence does not prove real-device durable write/feedback or a fresh release audit. |
+| [Product Feature Registry](PRODUCT_FEATURE_REGISTRY.md) | Implementation inventory; any older product-scope wording must be reconciled to the frozen contract, not used to invent a new pilot capability. |
+
+Accepted execution route: Visual Design Gate -> explicit owner/BSS OS Design Foundation acceptance -> roadmap-ordered contract-defined implementation gaps -> Production-like Staging / AUDIT B -> Pilot readiness + Hardware 9C / AUDIT C -> controlled Pilot -> Post-Pilot hardening / PRG / AUDIT D -> Commercial Production.
+
+This document refresh implements none of those capabilities and declares no general development restart. Issue `#62` remains OPEN until its full evidence and second-person dry-run requirements are met.
 
 ## 3. Recommended first-pilot envelope
 
@@ -37,7 +57,7 @@ This is the recommended starting boundary, not a contractual commitment:
 - one physical location;
 - one BSS terminal;
 - one primary customer administrator and one backup contact;
-- approximately 10–50 workers;
+- worker count explicitly approved against H6 capacity and H7 pilot evidence before customer commitment;
 - one or two shift patterns;
 - four weeks of live operation after onboarding;
 - one week of preparation and test-data rehearsal before go-live;
@@ -46,23 +66,27 @@ This is the recommended starting boundary, not a contractual commitment:
 - no unsupported third-party integrations;
 - no custom feature development during the active pilot unless required to correct a verified defect or security issue.
 
-Expanding beyond this envelope requires a new risk review and updated acceptance criteria.
+The earlier package suggested 10–50 workers, while the historical scope document described 10–30. This refresh does not approve either a customer count or a capacity increase. Record the agreed count, capacity-test evidence and owner decision in the customer-specific pilot record. Other scheduling estimates above remain proposed planning values.
+
+Expanding beyond the approved envelope requires a new risk review and updated acceptance criteria.
 
 ## 4. Mandatory go-live gates
 
-| Gate | Requirement | Current status | Evidence required |
-|---|---|---|---|
-| G1 — Software baseline | Backend Phase B safely integrated into current `main` | `BLOCKED` | Issue `#55` closed; integration PR merged; all required checks green |
-| G2 — Staging | Staging environment represents the approved release candidate | `OPEN` | Deployment record, environment inventory, smoke test and version identifier |
-| G3 — Infrastructure | Approved EU hosting, private database path, secrets, monitoring, backup and rollback | `OPEN` | Approved ADR, provider configuration evidence, alert test, restore drill |
-| G4 — Tenant security | RLS, RBAC, authentication, audit and cross-tenant isolation proven in deployed environment | `OPEN` | Automated and manual test reports tied to release commit |
-| G5 — Hardware | Exact terminal BOM, physical fit, RFID read-zone and installation acceptance proven | `OPEN` | Issue `#60` evidence, photos, serial/version record and signed checklist |
-| G6 — Legal/privacy | Pilot agreement, DPA, worker notice, retention and subprocessor information approved | `OPEN` | Signed/approved documents and version numbers |
-| G7 — Operations | Named owners, support channel, severity levels, incident process and rollback procedure | `OPEN` | Contact sheet, runbook and alert/escalation rehearsal |
-| G8 — Dry run | Full onboarding-to-export journey succeeds with test data | `OPEN` | Completed dry-run record with screenshots/log references and defects resolved |
-| G9 — Customer acceptance | Customer confirms scope, location, workers, responsibilities and go-live date | `OPEN` | Signed pilot order/acceptance record |
+| Gate | Requirement | Current status | Evidence required | Responsible role |
+|---|---|---|---|---|
+| G1 — Software baseline | Phase B integrated into protected main | `REPOSITORY BASELINE VERIFIED` | #55 CLOSED/COMPLETED and #99 MERGED; source snapshot in section 2.1. Fresh release checks remain required in section 10. | BSS technical owner |
+| G2 — Staging | Production-like environment for the approved release candidate | `BLOCKED / NOT PROVEN` | #59; deployment/version record, environment inventory, smoke, migration/rollback and AUDIT B evidence | BSS technical owner |
+| G3 — Infrastructure | Approved EU hosting, private database path, secrets, monitoring, backup and rollback | `OPEN / NOT PROVEN` | Approved ADR, provider configuration evidence, alert test and isolated restore drill | BSS technical owner |
+| G4 — Tenant security | RLS, RBAC, authentication, audit and cross-tenant isolation in the deployed environment | `OPEN / NOT PROVEN` | Release-specific dependency/security review, automated/independent security evidence and deployed negative tests; scanner success alone is insufficient | BSS technical owner |
+| G5 — Hardware | Qualified terminal configuration, physical fit, RFID, durable offline/recovery and installation acceptance | `BLOCKED / 9C NOT PASS` | #60 metrology and #132 critical 9C results, traceable hardware/software revisions, photos and installation record | BSS hardware owner |
+| G6 — Legal/privacy | Pilot agreement, DPA, worker notice, retention and subprocessors approved | `OPEN / NOT PROVEN` | Qualified review and signed/approved versions for the actual customer and jurisdiction | BSS privacy contact |
+| G7 — Operations | Named owners, support, severity, incident and rollback procedures | `OPEN / NOT PROVEN` | Contact/runbook records, alert/escalation rehearsal and applicable H9 operational evidence | BSS technical and commercial owners |
+| G8 — Dry run | Full onboarding-to-offboarding journey succeeds with fictional data | `BLOCKED / NOT RUN` | Second-person dry-run record tied to release, environment and qualified terminal; blocking defects resolved | BSS technical owner and independent operator |
+| G9 — Customer acceptance | Global AUDIT C PASS plus explicit customer GO/NO-GO | `BLOCKED / NOT APPROVED` | Scope/count/site, named owners, release/configuration, evidence, limitations, rollback and signed GO_LIVE_APPROVED record | BSS commercial and customer executive owners |
 
-Live worker data is prohibited until G1–G9 are complete.
+`REPOSITORY BASELINE VERIFIED` closes only the old integration prerequisite. No G2-G9 evidence is supplied by this refresh. Live worker data remains prohibited until G1-G9, applicable AUDIT C requirements and customer-specific approval are complete. Hardware 9C blocks Pilot; applicable 9D, PRG and AUDIT D remain later Commercial gates.
+
+For every checklist item below, the execution record must contain the named responsible person, status, evidence link/version, tested release/environment, verification date and reviewer. The role column does not assign a person. Missing or inaccessible evidence is UNAVAILABLE / NOT PROVEN, never PASS; skipped checks remain explicitly SKIPPED. An agent summary, green PR or successful export is not a substitute for the underlying evidence.
 
 ## 5. Pilot roles and ownership
 
@@ -102,12 +126,14 @@ The first pilot should favor a cooperative organization with a clear process ove
 
 ### Included capabilities
 
-The final included set must be verified against the post-issue-`#55` Product Feature Registry. The intended pilot scope includes:
+The accepted BSS v1 Product Contract v1.0 defines required product behavior. The list below summarizes that scope; it does not claim implementation or readiness. Onboarding/import and other gaps remain tracked implementation work. Verify every pilot capability against the contract, merged implementation, Readiness Matrix and its release/environment evidence before go-live. BSS retains the narrow Croatian attendance/time-capture claim, not a payroll, accounting or complete statutory employee-record claim.
 
-- tenant and organization setup;
+Required scope includes:
+
+- governed tenant/organization onboarding with one timezone and one single-site business context; no separate site entity;
 - user invitation, login, refresh and logout;
-- supported roles and permissions;
-- worker, department and shift administration;
+- the frozen Admin, Voditelj, Radnik and Knjigovodstvo role-operation matrix;
+- worker, department, shift and holiday administration; Admin-only initial CSV/XLSX employee import with explicit preview/approval and atomic all-or-nothing commit;
 - RFID assignment and replacement;
 - terminal clock-in/clock-out events;
 - attendance review and bounded administrative corrections;
@@ -115,9 +141,9 @@ The final included set must be verified against the post-issue-`#55` Product Fea
 - leave request and approval flow;
 - approved shared leave visibility where authorized;
 - audit history for critical actions;
-- supported report preview and CSV/XLSX export where implemented and tested;
+- governed monthly review/finalize/close/reopen, immutable report snapshots, and CSV/XLSX/PDF exports under Product Contract section 9;
 - terminal synchronization, retry and idempotency behavior;
-- backup, monitoring and operational support.
+- backup, monitoring and operational support as separate evidenced go-live requirements.
 
 ### Explicitly excluded unless separately approved
 
@@ -128,6 +154,9 @@ The final included set must be verified against the post-issue-`#55` Product Fea
 - geofencing or continuous employee location tracking;
 - native mobile application;
 - unsupported custom integrations;
+- historical attendance/leave/correction migration, partial/update/merge employee import or a separate site/job-position entity;
+- self-service full-tenant portability, PDF/A certification or electronic signing;
+- offline browser business mutations or general workflow email/SMS/push;
 - unlimited historical retention;
 - contractual high-availability or response guarantees not backed by evidence;
 - production use of the Preview Portal;
@@ -140,14 +169,14 @@ Before live onboarding, BSS and the customer must agree the exact data fields re
 Minimum expected setup data:
 
 - organization name and internal identifier;
-- location and department structure;
+- one single-site business context and department structure; site is not a separate persisted v1 entity;
 - worker internal identifier;
-- worker display name only where required for the agreed workflow;
-- work email only for users who require portal access;
+- one required canonical worker `name`, as defined in Product Contract section 4;
+- optional worker contact email, separate from login-user identity; portal access uses the explicit invitation workflow;
 - assigned role;
 - shift assignment;
 - RFID credential association;
-- approved leave balance/configuration where part of the pilot.
+- explicit `annualLeaveAllowance` for every worker create/import; missing values block import rather than silently defaulting.
 
 Data not required for the pilot must not be collected merely because the customer has it available.
 
@@ -161,7 +190,7 @@ Do not import:
 - biometric templates;
 - personal location history outside the approved attendance event context.
 
-The approved import template, field definitions, retention period and deletion/export process must be versioned before real data is received.
+The approved import template, field definitions, retention period and deletion/export process must be versioned before real data is received. Product Contract section 12 fixes the create-only CSV/XLSX import columns and all-or-nothing behavior; employment dates, historical attendance, login provisioning and RFID secrets are not import columns. Ordinary CSV/XLSX/PDF reports do not constitute complete tenant offboarding/data return (contract section 13).
 
 ## 9. Environment separation
 
@@ -193,13 +222,14 @@ The pilot uses three distinct contexts:
 
 ### Release and deployment
 
-- [ ] Issue `#55` is closed and one authoritative baseline exists in `main`.
-- [ ] Release commit SHA is recorded.
+- [x] Historical Phase B integration is complete: #55 CLOSED/COMPLETED, #99 MERGED; repository evidence in section 2.1. This is not release or deployment acceptance.
+- [ ] All applicable frozen-contract implementation and design acceptance prerequisites are evidenced.
+- [ ] Approved pilot release commit SHA, artifact identity and fresh checks are recorded.
 - [ ] Frontend and backend artifacts are reproducible from the release commit.
-- [ ] Dependency and secret/security gates are green.
+- [ ] Dependency and secret/security gates are green for the release; known applicable security findings are resolved and documented before Production-like Staging, without treating a non-blocking scanner as security acceptance.
 - [ ] Database migrations are tested forward and through the documented rollback boundary.
 - [ ] Deployment procedure is executed in staging by someone following the runbook.
-- [ ] Rollback procedure is rehearsed without data loss beyond the approved recovery objective.
+- [ ] Rollback and recovery procedures are rehearsed; recovery objectives never permit loss of USER_ACKNOWLEDGED attendance or incorrect attendance duplicates.
 
 ### Authentication and authorization
 
@@ -221,7 +251,8 @@ The pilot uses three distinct contexts:
 
 - [ ] Device identity and credential validity are tested.
 - [ ] Replay protection and request signing behavior are tested where applicable.
-- [ ] Duplicate events do not create duplicate attendance results.
+- [ ] Zero lost `USER_ACKNOWLEDGED` attendance and zero incorrect attendance duplicates are proven across retry/restart/power-loss scenarios under DEC-025 and Product Contract section 10.
+- [ ] Real-device durable local commit occurs before worker feedback; software HMAC receipts alone do not prove that physical behavior.
 - [ ] Offline queue and retry behavior are bounded and documented.
 - [ ] Clock drift and server time handling are tested.
 - [ ] Terminal state is recoverable after power or network interruption.
@@ -239,6 +270,8 @@ The pilot uses three distinct contexts:
 - [ ] Audit and operational logs have retention and access controls.
 
 ## 11. Hardware and installation acceptance
+
+Hardware remains PARTIAL / EXTERNAL until measured and tested. #60 supplies metrology/fit work; #132 owns critical 9C reliability qualification before Pilot and later 9D productization before Commercial Rollout. A CAD drawing, software test, heartbeat or this checklist is not physical qualification evidence.
 
 The terminal delivered to the customer must have a traceable configuration:
 
@@ -339,26 +372,26 @@ These are operational targets for the pilot, not contractual SLAs, until BSS for
 
 ## 14. Dry-run scenario
 
-The full dry run uses fictional test data and must be completed by following written instructions rather than relying on developer memory.
+The full dry run uses fictional test data and must be completed by a second person following written instructions rather than relying on developer memory. Current state: NOT RUN; this refresh provides no dry-run result.
 
 Required journey:
 
-1. create the pilot organization and one location;
+1. create the pilot organization with one timezone and one single-site context, without creating a separate site entity;
 2. create departments, shifts and role assignments;
 3. invite the customer administrator and supervisor;
-4. add/import test workers;
+4. as Admin, stage/validate/preview/approve the initial CSV/XLSX worker import; prove all-or-nothing commit, required allowance, conflict and retry behavior;
 5. assign and replace an RFID credential;
 6. perform terminal clock-in and clock-out;
 7. interrupt network access and verify recovery/synchronization;
 8. review attendance as supervisor;
 9. create and approve a leave request;
-10. perform an authorized correction and confirm audit history;
-11. generate the supported report preview and export;
+10. perform an authorized correction, verify role-negative cases and audit, then exercise the governed finalize/reopen/recalculate/relock boundary without rewriting raw events or issued exports;
+11. generate preview and CSV/XLSX/PDF exports from the same authorized dataset; verify period-version reproducibility and Knjigovodstvo privacy minimization;
 12. confirm tenant isolation with a second test tenant;
 13. trigger and acknowledge a test alert;
 14. restore data into an isolated environment;
 15. execute the documented release rollback boundary;
-16. export and delete the test organization according to the documented procedure.
+16. execute the controlled complete data-return/retention/deletion procedure for the test organization; ordinary reports are insufficient and self-service tenant portability is not a v1 capability.
 
 Every defect is assigned a severity and disposition. The dry run fails if a critical step is skipped, manually patched without documentation or completed only through direct database manipulation.
 
@@ -421,7 +454,7 @@ Every defect is assigned a severity and disposition. The dry run fails if a crit
 
 ## 16. Pilot success metrics
 
-Final targets must be agreed with the customer. Recommended metric categories:
+Customer-specific targets require approval, but the accepted attendance invariant is non-negotiable: **zero lost `USER_ACKNOWLEDGED` attendance / zero incorrect attendance duplicates** (DEC-025, Product Contract section 10, #132). A percentage target or backup recovery objective cannot relax it. Other recommended metric categories:
 
 ### Reliability
 
@@ -461,7 +494,7 @@ BSS must pause or stop the pilot when:
 
 - suspected cross-tenant access occurs;
 - credentials or secrets may be compromised;
-- attendance data cannot be reconciled and the error source is unknown;
+- USER_ACKNOWLEDGED attendance is lost, an incorrect attendance duplicate occurs, or attendance cannot be reconciled and the error source is unknown;
 - backups or restore controls are unavailable;
 - hardware presents an electrical, thermal or physical safety concern;
 - the customer expands usage outside the approved scope without review;
@@ -496,17 +529,28 @@ Evidence may link to controlled external systems, but the BSS OS record must ide
 
 | Area | Status | Next required evidence |
 |---|---|---|
-| Software baseline | `BLOCKED` | Complete issue `#55` |
+| Software baseline | `REPOSITORY BASELINE VERIFIED` | #55/#99 integration resolved; select and independently verify the actual release candidate later |
+| Design and contract gaps | `BLOCKED / PARTIAL` | #156 acceptance and roadmap-ordered implementation, including onboarding/import; contract freeze and proposal merge do not prove completion |
+| Production-like Staging / AUDIT B | `NOT IMPLEMENTED / NOT EVIDENCE PROVEN` | #59 environment, deployed security, load, migration/rollback and restore evidence |
 | Infrastructure architecture | `PROPOSED` | Approve ADR-001 and provision staging |
-| Preview/sales sandbox | `IN REVIEW` | Reconstruct through issue `#58` |
-| Hardware | `PARTIAL` | Complete issue `#60` |
+| Preview/sales sandbox | `SEPARATE / NOT LIVE EVIDENCE` | #58 reconstruction remains separate from staging and real-customer readiness |
+| Hardware | `PARTIAL / 9C NOT PASS` | #60 metrology plus #132 real-device critical 9C qualification |
 | Legal/privacy | `OPEN` | Prepare and review agreement, DPA, notice and retention package |
 | Support/incident operations | `OPEN` | Assign owners and rehearse alerts/escalation |
-| Dry run | `BLOCKED` | Requires staging release, accepted hardware and documented procedures |
-| Live pilot | `BLOCKED` | Requires G1–G9 complete |
+| Dry run | `BLOCKED / NOT RUN` | Qualified staging release/terminal and second-person completion of the written journey |
+| Live pilot | `BLOCKED / NOT APPROVED` | G1-G9 evidence, global AUDIT C PASS and separate customer GO/NO-GO |
 
 ## 20. Approval record
 
 This package remains `PROPOSED` until approved by the BSS founders.
 
-Approval of this document does not approve live data by itself. A separate per-customer go/no-go record must confirm all mandatory gates immediately before onboarding.
+Approval or merge of this document does not approve live data by itself. A separate per-customer go/no-go record must confirm all mandatory gates immediately before onboarding. `READY_FOR_GO_LIVE` and `GO_LIVE_APPROVED` remain distinct under the frozen Product Contract.
+
+| Decision/evidence | Current record |
+|---|---|
+| Package approval | PROPOSED; no founder approval recorded by this refresh |
+| Named pilot owners / customer / worker count | NOT ASSIGNED / NOT APPROVED here |
+| Approved pilot release and configuration | NOT SELECTED here |
+| Second-person dry run | NOT RUN here |
+| Global AUDIT C / customer GO_LIVE_APPROVED | NOT PROVEN / NOT APPROVED |
+| Issue #62 completion | OPEN; this evidence refresh is only part of the package work |
