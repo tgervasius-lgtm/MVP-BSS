@@ -6,8 +6,8 @@ import pg from "pg";
 import { migrateUp } from "../../src/db/migrate.js";
 import type { ActorContext, Role } from "../../src/domain/types.js";
 import { PgMvpService } from "../../src/services/pg-mvp-service.js";
+import { createPostgresFixture } from "../helpers/postgres-fixture.js";
 
-const { Client, Pool } = pg;
 // Keep this #146 fixture on PostgreSQL's calendar-date representation so the
 // separately tracked clean-main DATE parser defect does not become part of the
 // locked-period acceptance evidence.
@@ -22,28 +22,10 @@ function hasCode(expected: string) {
 
 test("#146 PostgreSQL period lifecycle, RLS and correction/finalization/export concurrency", { skip: !databaseUrl && !required }, async (t) => {
   assert.ok(databaseUrl, "BSS_TEST_DATABASE_URL is required when PostgreSQL tests are mandatory");
-  const owner = new Client({ connectionString: databaseUrl });
-  let appPool: InstanceType<typeof Pool> | undefined;
-  let role: string | undefined;
-  await owner.connect();
-  t.after(async () => {
-    if (appPool) await appPool.end();
-    if (role) {
-      await owner.query(`DROP OWNED BY ${role}`);
-      await owner.query(`DROP ROLE IF EXISTS ${role}`);
-    }
-    await owner.end();
-  });
-
+  const { owner, appPool, appUrl, role, suffix, dispose } = await createPostgresFixture(databaseUrl, "period", 4);
+  t.after(dispose);
   await migrateUp(owner);
-  const suffix = randomUUID().replaceAll("-", "").slice(0, 12);
-  role = `bss_period_${suffix}`;
-  const password = `period-${suffix}-password`;
-  const appUrl = new URL(databaseUrl);
-  appUrl.username = role;
-  appUrl.password = password;
 
-  await owner.query(`CREATE ROLE ${role} LOGIN PASSWORD '${password}' NOSUPERUSER NOBYPASSRLS`);
   await owner.query(`GRANT CONNECT ON DATABASE ${appUrl.pathname.slice(1)} TO ${role}`);
   await owner.query(`GRANT USAGE ON SCHEMA public TO ${role}`);
   await owner.query(`GRANT SELECT ON ALL TABLES IN SCHEMA public TO ${role}`);
@@ -217,7 +199,6 @@ test("#146 PostgreSQL period lifecycle, RLS and correction/finalization/export c
       completeConfiguration(ids.worker2)]
   )).rows[0]!;
 
-  appPool = new Pool({ connectionString: appUrl.toString(), max: 4 });
   const service = new PgMvpService(appPool, {
     rfidUidPepper: "period-test-rfid-pepper-0123456789abcdef",
     deviceCredentialEncryptionKey: "period-test-device-key-0123456789abcdef",
