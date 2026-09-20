@@ -14,25 +14,18 @@ import { signTerminalAcknowledgement } from "../../src/security/terminal-acknowl
 import { createOpaqueToken, hashToken } from "../../src/security/tokens.js";
 import { PgAuthService } from "../../src/services/pg-auth-service.js";
 import { PgMvpService } from "../../src/services/pg-mvp-service.js";
+import { createPostgresFixture } from "../helpers/postgres-fixture.js";
 
-const { Client, Pool } = pg;
+const { Client } = pg;
 const databaseUrl = process.env.BSS_TEST_DATABASE_URL;
 const required = process.env.BSS_REQUIRE_POSTGRES_TESTS === "true";
 
 test("PostgreSQL migrations, RLS isolation, auth and manager scope", { skip: !databaseUrl && !required }, async (t) => {
   assert.ok(databaseUrl, "BSS_TEST_DATABASE_URL is required when PostgreSQL tests are mandatory");
-  const owner = new Client({ connectionString: databaseUrl });
-  await owner.connect();
+  const { owner, appPool, appUrl, role, suffix, dispose } = await createPostgresFixture(databaseUrl, "auth");
+  t.after(dispose);
   await migrateUp(owner);
 
-  const suffix = Math.random().toString(36).slice(2, 10);
-  const role = `bss_test_${suffix}`;
-  const password = `test-${suffix}-password`;
-  const appUrl = new URL(databaseUrl);
-  appUrl.username = role;
-  appUrl.password = password;
-
-  await owner.query(`CREATE ROLE ${role} LOGIN PASSWORD '${password}' NOSUPERUSER NOBYPASSRLS`);
   await owner.query(`GRANT CONNECT ON DATABASE ${appUrl.pathname.slice(1)} TO ${role}`);
   await owner.query(`GRANT USAGE ON SCHEMA public TO ${role}`);
   await owner.query(`GRANT SELECT ON ALL TABLES IN SCHEMA public TO ${role}`);
@@ -98,13 +91,6 @@ test("PostgreSQL migrations, RLS isolation, auth and manager scope", { skip: !da
   );
   assert.ok(workerUser.rows[0]?.id);
 
-  const appPool = new Pool({ connectionString: appUrl.toString(), max: 3 });
-  t.after(async () => {
-    await appPool.end();
-    await owner.query(`DROP OWNED BY ${role}`);
-    await owner.query(`DROP ROLE IF EXISTS ${role}`);
-    await owner.end();
-  });
   const config = { accessTokenTtlSeconds: 900, refreshTokenTtlSeconds: 2_592_000 };
   const auth = new PgAuthService(appPool, config);
   const rfidPepper = "integration-rfid-pepper-0123456789abcdef";
@@ -1372,7 +1358,9 @@ test("PostgreSQL migrations, RLS isolation, auth and manager scope", { skip: !da
     service.assignWorkerRfidCard(admin.actor, ids.worker1, { uid: "04:A1:B2:C4" }, "integration-rfid-race-a"),
     service.assignWorkerRfidCard(admin.actor, ids.worker1, { uid: "04:A1:B2:C5" }, "integration-rfid-race-b")
   ]);
-  assert.equal(concurrentCardAssignments.filter((result) => result.status === "fulfilled").length, 2);
+  assert.equal(concurrentCardAssignments.filter((result) => result.status === "fulfilled").length, 2,
+    concurrentCardAssignments.map((result) => result.status === "fulfilled" ? "fulfilled"
+      : `${result.reason?.code}: ${result.reason?.message}`).join("; "));
   const activeCards = await owner.query<{ count: string }>(
     "SELECT COUNT(*)::text AS count FROM rfid_cards WHERE organization_id = $1 AND worker_id = $2 AND status = 'active'",
     [ids.org1, ids.worker1]
