@@ -40,8 +40,16 @@ two audit records, preserved explicit times, rejected invalid history and
 negative tenant/role tests. Required PostgreSQL and repository results are
 recorded on the focused PR, separately from the expected failing reproduction.
 
-The short-lived candidate is stacked on #174 to reuse isolated test fixtures;
-its product-code baseline is current protected main `ae25e231`.
+Candidate `69e225b2059f9eaa58d6eefb6836a13e06253e5e` passed PostgreSQL 16
+run [35521979334](https://github.com/tgervasius-lgtm/MVP-BSS/actions/runs/35521979334):
+45 unit/contract tests and 9 integration tests (7 top-level plus 2 nested),
+with zero failures or skips. Full-stack run
+[35521979356](https://github.com/tgervasius-lgtm/MVP-BSS/actions/runs/35521979356)
+also passed. The same deterministic schedule failed before the correction.
+
+The short-lived candidate logically depends on #174 for isolated test fixtures;
+PR #176 targets main so every protected PR workflow runs. Its current diff
+includes that prerequisite; the product-code baseline is protected main `ae25e231`.
 Integrate #174 first, refresh this candidate and recheck protected gates.
 Explicit owner approval is required before this high-risk runtime merge.
 Green repository checks do not establish pilot, production or terminal readiness.
