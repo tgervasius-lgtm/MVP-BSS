@@ -954,18 +954,23 @@ export class PgPhaseAService implements PhaseAService {
         await lockTerminalEventLifecycle(client, actor.organizationId);
         const worker = await client.query("SELECT id FROM workers WHERE id = $1 AND status = 'active' FOR UPDATE", [workerId]);
         if (!worker.rows[0]) throw new AppError("NOT_FOUND", "Radnik nije pronađen.");
+        // Transaction start order can differ from lock order. Capture one
+        // replacement boundary after locking; retain explicit caller timing.
+        const timing = await client.query<{ effective_from: string }>(
+          "SELECT COALESCE($1::timestamptz, clock_timestamp())::text AS effective_from", [input.validFrom ?? null]);
+        const effectiveFrom = timing.rows[0]!.effective_from;
         await client.query(
           `UPDATE rfid_cards SET status = 'blocked',
-             valid_to = COALESCE(valid_to, COALESCE($2::timestamptz, transaction_timestamp())),
+             valid_to = COALESCE(valid_to, $2::timestamptz),
              revision = revision + 1
            WHERE worker_id = $1 AND status = 'active'`,
-          [workerId, input.validFrom ?? null]
+          [workerId, effectiveFrom]
         );
         const result = await client.query<RfidRow>(
           `INSERT INTO rfid_cards (organization_id, worker_id, uid_hash, masked_uid, valid_from)
-           VALUES ($1, $2, $3, $4, COALESCE($5::timestamptz, transaction_timestamp()))
+           VALUES ($1, $2, $3, $4, $5::timestamptz)
            RETURNING id, masked_uid, worker_id, status, valid_from, valid_to, revision`,
-          [actor.organizationId, workerId, uidHash, maskedUid, input.validFrom ?? null]
+          [actor.organizationId, workerId, uidHash, maskedUid, effectiveFrom]
         );
         const row = result.rows[0];
         if (!row) throw new Error("RFID assignment returned no row");

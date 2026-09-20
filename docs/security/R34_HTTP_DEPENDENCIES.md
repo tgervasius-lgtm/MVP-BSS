@@ -60,6 +60,14 @@ PostgreSQL integration tests, and the full-stack workflow must pass browser/axe
 checks on the final PR candidate. Their authoritative results are attached to
 PR #108; this document does not predeclare a pending run successful.
 
+The refreshed candidate incorporates two independently reviewed prerequisites:
+PR #174 isolates disposable PostgreSQL fixtures after #173 ACL contention;
+PR #176 corrects the separately reproduced RFID transaction/lock-order defect
+in #175. Those changes keep their own evidence and review boundaries. Merge
+#174, then #176, refresh this PR against resulting main, and require green
+protected checks on each remaining candidate before the R34 merge. This
+candidate composition is validation work, not protected-main acceptance.
+
 ## Review, staging and recovery
 
 This is a high-risk auth/security dependency change. Required GitHub checks,
