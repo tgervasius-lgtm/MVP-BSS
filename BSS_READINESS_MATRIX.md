@@ -1,10 +1,14 @@
 # BSS Readiness Matrix
 
-## Authoritative software baseline — 2026-09-01
+## Authoritative software baseline — 2026-09-20
 
 Phase 0 baseline consolidation is complete and the protected `main` has continued through focused post-consolidation hardening and independent-analysis remediation.
 
-Current protected `main` is `b904eca3c047c01da7a78e376269e94ed1d2fb48`. Issues #143/#145/#144/#146 are merged, and issue #133 records a targeted AUDIT A recheck PASS on that exact baseline. BSS v1 Product Contract v1.0 is `ACCEPTED / FROZEN` by explicit owner approval on 01.09.2026.; repository integration remains separate.
+Protected-main evidence baseline on 2026-09-20, before this #166 documentation refresh: `b71710890de1f36c3b9aff6fd38f0e846963f41c`.
+
+Issues #143/#145/#144/#146 are merged, and issue #133 records a targeted AUDIT A recheck PASS on the historical `b904eca` implementation baseline. BSS v1 Product Contract v1.0 remains `ACCEPTED / FROZEN`; PR #155 integrated it at the historical freeze commit `29b00c0f63af0b3ffbd2d828550c882b9096fd05`, and issue #131 remains CLOSED/COMPLETED. Current `main` inherits that frozen contract plus the later merged security-maintenance PRs #160/#159 and the post-freeze governance/screen-map reconciliation from PR #158. #156 Phase A is complete; #157 is CLOSED/COMPLETED and PR #158 is merged. PR #164 merged the #163 horizon refresh and #163 is CLOSED/COMPLETED; PR #165 merged the #162 CI fix and #162 is CLOSED/COMPLETED. PR #161 is MERGED at `4fac30bb7112d765e4f3eefd717f5f0f041086a0` and `BSS_DESIGN_FOUNDATION_V1.md` exists with status `PROPOSED / NOT ACCEPTED`; #156 remains OPEN. Later CI-maintenance PRs #104/#169 advanced the software baseline without changing that design status. The Visual Design Gate and explicit owner/BSS OS acceptance remain required before Design Foundation acceptance.
+
+Figma and Storybook remain `CANDIDATE / INACTIVE`, and no frontend implementation is authorized by proposal status. Production-like Staging remains `NOT IMPLEMENTED / NOT EVIDENCE PROVEN`; Hardware 9C, Pilot and Commercial Production remain `NOT PASS`. None of these repository facts upgrades implementation or environment/physical readiness.
 
 - PR #99 `feat(backend): integrate MVP Phase B into current main` was squash-merged into protected `main`.
 - Phase-0 merge commit: `198b2ce9f1ad73b7b72058a930cf005cbb35a0da`.
@@ -52,7 +56,7 @@ Every material change affecting architecture, data, security, deployment, termin
 | API-runtime alignment | Implemented endpoints, statuses and response schemas match OpenAPI including rate-limit semantics | PARTIAL | Contract tests exist and `429 RateLimited` drift guard was added through PR #99; expand automated drift coverage to all operations |
 | Database and migrations | Clean database migrates from zero and application invariants/RLS work in PostgreSQL | PARTIAL | PostgreSQL CI proves migrations/integration on repository changes; real staging upgrade/rollback/recovery rehearsal remains open |
 | Tenant isolation | Cross-tenant access is technically blocked and regression tested | AUTOMATED | `FORCE ROW LEVEL SECURITY`, `NOBYPASSRLS`, tenant-scoped transactions and cross-tenant CI tests merged through PR #99 |
-| Authentication and sessions | Login, refresh, logout, invitation and revocation have tested security/concurrency boundaries | PARTIAL | Strong merged auth/concurrency coverage; staging configuration and independent security review remain before production |
+| Authentication and sessions | Login, refresh, logout, invitation and revocation have tested security/concurrency boundaries | PARTIAL | Auth/concurrency coverage plus R34 IPv6/proxy limiter regressions in PR #108 / issue #172; actual staging proxy configuration, shared/distributed limiting and independent security review remain before production |
 | RBAC | Every operation has approved allowed roles and negative tests | CONTRACT FROZEN / IMPLEMENTATION PARTIAL | Service guards, OpenAPI role declarations and negative coverage exist; the frozen role-operation matrix still requires implementation alignment where identified and later staging revalidation |
 | Audit log | Critical operations leave tenant-scoped, understandable and protected evidence | PARTIAL | Audit implementation and append-only database controls exist; production retention/access/export policy remains open |
 | Secrets and keys | No secrets in Git history; secure custody, rotation and recovery are defined and proven | PARTIAL | Gitleaks full-history automated; production secret store/KMS, rotation, recovery and break-glass drills remain EXTERNAL |
@@ -60,7 +64,7 @@ Every material change affecting architecture, data, security, deployment, termin
 | Secret scanning | Current code and available Git history block leaked credentials without exposing values | AUTOMATED | Gitleaks full-history scan with verified binary/checksum and redaction |
 | CI/CD workflow correctness | Workflow YAML, expressions and embedded shell are validated | AUTOMATED | Workflow static validation/actionlint gate |
 | GitHub Actions supply chain | Remote actions use immutable full commit SHAs and dependency lifecycle execution is constrained | AUTOMATED | SHA-pinning policy plus PRs #118–#120 supply-chain hardening; explicit required lifecycle rebuilds remain reviewed rather than globally enabled |
-| Dependency maintenance | Dependency updates and new vulnerabilities/licences are continuously reviewed | PARTIAL / AUTOMATED | Root npm, `/backend` npm and GitHub Actions Dependabot version-update streams exist; root/backend full high-severity committed-graph audits are active; repository-level Dependabot alerts/security updates remain issue #115 |
+| Dependency maintenance | Dependency updates and new vulnerabilities/licences are continuously reviewed | PARTIAL / AUTOMATED | Root npm, `/backend` npm and GitHub Actions Dependabot version-update streams and full high-severity graph audits are active; R34 pins Fastify 5.12.5 and rate-limit 11.2.0 with evidence/limits in `docs/security/R34_HTTP_DEPENDENCIES.md`; static-file candidate #167 remains separate; repository-level Dependabot alerts/security updates remain issue #115 |
 | SBOM | Frontend and backend CycloneDX inventories are generated/validated/archiveable | AUTOMATED | BSS dependency inventory workflow |
 | PR size and risk | Large/multi-domain PRs receive automatic warning/classification | AUTOMATED | PR risk/size guardrails |
 | PR documentation | Goal, risk, validation and rollback evidence are required | AUTOMATED | BSS PR governance gate |
@@ -126,18 +130,23 @@ The accepted BSS MASTER ROADMAP v4.9 in `docs/bss-os/MASTER_ROADMAP.md` controls
 
 Mandatory execution critical path:
 
-1. Complete the focused #131 repository/PR workflow for the frozen BSS v1 Product Contract.
-2. Preserve the versioned change-control rule and track implementation gaps separately.
-3. Activate Design Foundation only through its applicable governance and evidence controls.
+1. Complete the Visual Design Gate using representative frozen BSS workflows; Figma and Storybook remain `CANDIDATE / INACTIVE` until separately accepted.
+2. Require explicit owner/BSS OS Design Foundation acceptance before ACCEPTED status or frontend implementation authorization.
+3. Activate roadmap-ordered contract-defined implementation gaps only after Design Foundation acceptance and the applicable BSS OS decision.
+4. Proceed to Production-like Staging and `AUDIT B` without treating repository work as environment evidence.
+5. Reach Pilot readiness only with applicable software evidence plus Hardware 9C and `AUDIT C`.
+6. Run a controlled Pilot.
+7. After Pilot, perform Post-Pilot hardening, require `PRG GO`, then `AUDIT D PASS`.
+8. Commercial Production remains blocked until the accepted Commercial gate is satisfied.
 
-The targeted AUDIT A recheck is `PASS` on `b904eca`; #143/#145/#144/#146 are closed with current-main evidence. BSS v1 Product Contract v1.0 is `ACCEPTED / FROZEN` by explicit owner approval. Issue #131 remains open for its focused PR workflow; onboarding/import and other identified contract gaps remain implementation work.
+The targeted AUDIT A recheck is `PASS` on the historical `b904eca` implementation baseline; #143/#145/#144/#146 are closed with implementation evidence on that baseline. BSS v1 Product Contract v1.0 is `ACCEPTED / FROZEN`, integrated by PR #155 at historical freeze commit `29b00c0f63af0b3ffbd2d828550c882b9096fd05` and inherited by current protected `main`; #131 is CLOSED/COMPLETED. #156 Phase A and #157 reconciliation are complete; PR #158 merged at the historical baseline `02a76abe48e750932fbf3002d1ef2dd10ed8881a`. PR #161 is MERGED into the current evidence baseline stated above, while the Design Foundation remains `PROPOSED / NOT ACCEPTED` and #156 remains OPEN. Onboarding/import, the reconciled screen/workflow gaps and other identified contract gaps remain implementation work.
 
 Parallel, non-blocking work:
 
 - #139 — review-first disposition of the 11 PowerShell New Code findings without bulk cleanup or behavior changes made solely for scanner cosmetics; #139 is not a blocker for the mandatory path.
 - Hardware #132 remains parallel and non-blocking and retains its existing physical-evidence boundaries.
 
-Trivy Phase 1 is merged and automated through #129/PR #141. #115, PR #28 retirement, Preview reconstruction, staging, later hardware readiness and later readiness work remain tracked; Product Contract freeze does not promote any of them to implemented or evidence-proven status.
+Trivy Phase 1 is merged and automated through #129/PR #141. #115, PR #28 retirement, Preview reconstruction, staging, later hardware readiness and later readiness work remain tracked; Product Contract freeze and Design Foundation proposal status do not promote any of them to implemented or evidence-proven status.
 
 ## Working without blind spots
 
