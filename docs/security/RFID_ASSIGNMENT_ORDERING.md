@@ -47,11 +47,12 @@ with zero failures or skips. Full-stack run
 [35521979356](https://github.com/tgervasius-lgtm/MVP-BSS/actions/runs/35521979356)
 also passed. The same deterministic schedule failed before the correction.
 
-The short-lived candidate logically depends on #174 for isolated test fixtures;
-PR #176 targets main so every protected PR workflow runs. Its current diff
-includes that prerequisite; the product-code baseline is protected main `ae25e231`.
-Integrate #174 first, refresh this candidate and recheck protected gates.
-Explicit owner approval is required before this high-risk runtime merge.
+Prerequisite #174 is merged as `290b0476e6f047a42bed72c4247d462d530fc607`.
+PR #176 is refreshed against that protected main; its remaining diff contains
+the RFID correction, regression and evidence documentation. All protected
+checks must pass on the refreshed candidate. On 20 September 2026 the owner
+approved the concrete #174 -> #176 -> #108 merge sequence with checks between
+steps and the existing automatic publications. This is not a general restart.
 Green repository checks do not establish pilot, production or terminal readiness.
 
 ## Recovery and limits
