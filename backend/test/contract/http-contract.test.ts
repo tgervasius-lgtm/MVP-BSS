@@ -944,7 +944,7 @@ test("clean-clone developer setup is pinned, secret-safe and reproducible", asyn
   const compose = YAML.parse(composeSource) as { services?: Record<string, ComposeService> };
 
   assert.equal(nodeVersion.trim(), "22");
-  assert.equal(rootPackage.engines?.node, ">=22.9.0");
+  assert.equal(rootPackage.engines?.node, ">=22.13.0");
   assert.equal(rootPackage.engines?.npm, ">=10.0.0");
   for (const script of ["dev", "migrate", "migrate:down", "migrate:prod", "bootstrap", "bootstrap:prod", "start"]) {
     assert.match(backendPackage.scripts?.[script] ?? "", /--env-file-if-exists=\.env/, `Missing optional .env loading on ${script}`);
