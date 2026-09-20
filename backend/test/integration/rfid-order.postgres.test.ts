@@ -95,4 +95,29 @@ test("RFID assignments follow lock order when transaction start order is reverse
   assert.equal(previous.valid_to, current.valid_from, "replacement must have one shared boundary without gaps");
   assert.equal(current.valid_to, null);
   assert.equal((await owner.query("SELECT id FROM audit_events WHERE action = 'rfid_card.assign'")).rowCount, 2);
+
+  await t.test("explicit activation time and atomic rejection of an invalid earlier boundary remain intact", async () => {
+    const explicitTime = "2030-01-02T03:04:05.123Z";
+    const explicit = await service.assignWorkerRfidCard(actor, worker,
+      { uid: "04:AA:00:03", validFrom: explicitTime }, "explicit-boundary");
+    assert.equal(explicit.validFrom, explicitTime);
+    const boundary = await owner.query<{ shared: boolean }>(`SELECT previous.valid_to = replacement.valid_from AS shared
+      FROM rfid_cards previous, rfid_cards replacement WHERE previous.id = $1 AND replacement.id = $2`, [current.id, explicit.id]);
+    assert.equal(boundary.rows[0]?.shared, true);
+    const snapshot = await owner.query("SELECT id, status, valid_from::text, valid_to::text, revision FROM rfid_cards ORDER BY id");
+    await assert.rejects(service.assignWorkerRfidCard(actor, worker,
+      { uid: "04:AA:00:04", validFrom: "2029-01-01T00:00:00Z" }, "invalid-boundary"), { code: "VALIDATION_FAILED" });
+    assert.deepEqual((await owner.query("SELECT id, status, valid_from::text, valid_to::text, revision FROM rfid_cards ORDER BY id")).rows, snapshot.rows);
+    assert.equal((await owner.query("SELECT id FROM audit_events WHERE action = 'rfid_card.assign'")).rowCount, 3);
+  });
+  await t.test("administrator and tenant boundaries remain enforced", async () => {
+    for (const role of ["manager", "worker", "accountant"] as const) {
+      await assert.rejects(service.assignWorkerRfidCard({ ...actor, role }, worker,
+        { uid: "04:AA:00:05" }, "denied-role"), { code: "FORBIDDEN" });
+    }
+    const otherTenant = (await owner.query("INSERT INTO organizations(name) VALUES ('Other RFID tenant') RETURNING id")).rows[0]!.id as string;
+    await assert.rejects(service.assignWorkerRfidCard({ ...actor, organizationId: otherTenant }, worker,
+      { uid: "04:AA:00:06" }, "denied-tenant"), { code: "NOT_FOUND" });
+    assert.equal((await owner.query("SELECT id FROM audit_events WHERE action = 'rfid_card.assign'")).rowCount, 3);
+  });
 });
