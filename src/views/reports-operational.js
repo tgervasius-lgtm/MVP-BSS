@@ -7,7 +7,7 @@
   }
 
   function render(context){
-    const {currentRole,reportFilters,scopedWorkers,data,REPORT_TYPE_CONFIG,state,title,escapeHtml,departmentOptions,reportPreview,reportHistoryView}=context;
+    const {currentRole,reportFilters,scopedWorkers,data,REPORT_TYPE_CONFIG,state,title,escapeHtml,departmentOptions,reportPreview,reportHistoryView,authoritativePreviewHtml='',authoritativeMetricsHtml=''}=context;
     const roleText=currentRole==='manager'?'Dodijeljeni odjeli':currentRole==='accountant'?'Pregled i izvoz':'Cijela tvrtka ili uži opseg';
     return `${title('Izvještaji','Pregled, provjera i izvoz evidencijskih podataka.',currentRole==='accountant'?'<span class="pill gray">Samo čitanje</span>':'')}
       <section class="card report-workspace-head">
@@ -18,8 +18,8 @@
         <div class="report-type-grid">${Object.entries(REPORT_TYPE_CONFIG).map(([key,config])=>`<button class="report-type ${reportFilters.type===key?'active':''}" data-bss-action="setReportType('${key}')"><i>${config.icon}</i><span><b>${escapeHtml(config.short)}</b><small>${escapeHtml(config.description)}</small></span></button>`).join('')}</div>
         <div class="report-filter-bar"><label><span>Mjesec</span><input id="reportMonth" type="month" value="${reportFilters.month}"></label><label><span>Odjel</span><select id="reportDept" data-bss-change="updateReportDepartment(this.value)">${departmentOptions(reportFilters.department)}</select></label><label><span>Radnik</span><select id="reportWorker"><option value="Svi" ${reportFilters.workerId==='Svi'?'selected':''}>Svi radnici</option>${scopedWorkers.map(worker=>`<option value="${worker.id}" ${String(worker.id)===String(reportFilters.workerId)?'selected':''}>${escapeHtml(worker.name)}</option>`).join('')}</select></label><button class="btn" data-bss-action="applyReportFilters()">Primijeni</button></div>
       </section>
-      ${metrics(data)}
-      ${reportPreview(data)}
+      ${authoritativeMetricsHtml||metrics(data)}
+      ${authoritativePreviewHtml||reportPreview(data)}
       <div class="report-secondary-grid">
         <section class="card report-export"><div class="card-heading"><div><h2>Izvoz</h2><p>Preuzmi isti provjereni skup podataka.</p></div></div><div class="export-file primary-export"><span>XLSX · Excel</span><b>${escapeHtml(data.filenameBase)}.xlsx</b></div><div class="export-file"><span>PDF · službeni pregled</span><b>${escapeHtml(data.filenameBase)}.pdf</b></div><div class="export-file"><span>CSV · UTF-8</span><b>${escapeHtml(data.filenameBase)}.csv</b></div><div class="btns"><button class="btn" data-bss-action="downloadReport('xlsx')" ${data.rows.length?'':'disabled'}>Preuzmi XLSX</button><button class="btn secondary" data-bss-action="downloadReport('pdf')" ${data.rows.length?'':'disabled'}>Preuzmi PDF</button><button class="btn secondary" data-bss-action="downloadReport('csv')" ${data.rows.length?'':'disabled'}>Tehnički CSV</button></div><div class="last-report"><span>Posljednja radnja</span><b>${escapeHtml(state.lastReport)}</b></div></section>
         <section class="card report-quality"><div class="card-heading"><div><h2>Kontrola podataka</h2><p>Provjere prije predaje ili izvoza.</p></div></div>${data.quality.map((item,index)=>`<div class="quality-item"><i>${index+1}</i><span>${escapeHtml(item)}</span></div>`).join('')}</section>
