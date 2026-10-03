@@ -838,3 +838,32 @@ button.day:hover{outline:2px solid var(--bss-color-accent-text);outline-offset:1
 }
 .demo-tools{border-radius:6px}
 .demo-tools .drawer-item{border-radius:4px}
+
+
+/* Owner visual review — sharpness pass residual cleanup */
+.admin-kpis,
+.terminal-kpis{
+  border-radius:8px;
+  padding:3px;
+  box-shadow:none;
+}
+.attendance-live-item{
+  border-radius:7px;
+  background:var(--bss-color-bg-surface);
+}
+.request-search input,
+.report-filter-bar input,
+.report-filter-bar select,
+.manager-departments{
+  border-radius:7px;
+}
+.terminal-live,
+.sync-run,
+.last-report,
+.primary-export,
+.leave-request-preview{
+  border-radius:7px;
+}
+.report-boundary{
+  border-radius:7px;
+}
