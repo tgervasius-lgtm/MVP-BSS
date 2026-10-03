@@ -534,18 +534,7 @@ function bottomNavigation(){
   const items = (NAV_ITEMS[currentRole] || []).filter(item=>picks.includes(item[0]));
   return `<nav class="bottom-nav" aria-label="Glavna navigacija" style="grid-template-columns:repeat(${items.length},1fr)">${items.map(item=>navButton(item,'bottom')).join('')}</nav>`;
 }
-function primaryDesktopNavItems(){
-  const primaryIds={
-    admin:['home','attendance','workers','sharedLeave','requests','reports'],
-    manager:['home','attendance','workers','sharedLeave','requests','reports'],
-    worker:['home','mytime','vacations','sharedLeave','requests'],
-    accountant:['home','reports','sharedLeave']
-  }[currentRole]||['home'];
-  return (NAV_ITEMS[currentRole]||[]).filter(item=>primaryIds.includes(item[0]));
-}
-function desktopPrimaryNav(){
-  return primaryDesktopNavItems().map(item=>navButton(item)).join('');
-}
+function desktopPrimaryNav(){ return BSS_VIEWS.navigationOperational.primaryItems(currentRole,NAV_ITEMS).map(item=>navButton(item)).join(''); }
 function navGroup(id){
   if(['home','attendance','mytime'].includes(id))return 'Pregled';
   if(['workers','worker','shifts','vacations','sharedLeave'].includes(id))return 'Ljudi i rasporedi';
