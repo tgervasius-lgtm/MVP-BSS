@@ -120,3 +120,54 @@ tbody tr:hover{background:#fbfdfc}
 .table-scroll-hint{
   user-select:none;
 }
+
+
+/* Owner visual review — enterprise sharpness pass */
+.section-title h1{
+  font-weight:850;
+  letter-spacing:-.035em;
+}
+.card{
+  border-radius:8px;
+  box-shadow:none;
+}
+.card h2{font-weight:850}
+.card h3{font-weight:800}
+.btn{
+  border-radius:7px;
+  box-shadow:none;
+}
+.btn.small{border-radius:6px}
+.icon-btn{border-radius:7px}
+.pill{
+  border-radius:6px;
+  padding:4px 7px;
+  font-weight:850;
+}
+.tab{
+  border-radius:6px;
+  padding:8px 10px;
+}
+.quick button{
+  border-radius:7px;
+  background:var(--bss-color-bg-surface);
+  box-shadow:none;
+}
+.quick button:hover{
+  border-color:var(--bss-color-border-strong);
+  background:var(--bss-color-bg-hover);
+}
+.avatar{
+  border-radius:7px;
+  background:var(--bss-color-bg-subtle);
+  border:1px solid var(--bss-color-border);
+  color:var(--bss-color-text);
+}
+th{
+  background:#f3f5f7;
+  color:#596579;
+  font-weight:850;
+  letter-spacing:.05em;
+}
+td{font-weight:600}
+tbody tr:hover{background:var(--bss-color-bg-hover)}
