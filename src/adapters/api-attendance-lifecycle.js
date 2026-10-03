@@ -102,7 +102,7 @@
     const [year,monthNumber]=record.date.slice(0,7).split('-').map(Number);
     try{
       const currentPeriod=await BSS_API.getWithMeta(`/attendance-periods/${year}/${monthNumber}`);
-      if(['finalized','closed'].includes(currentPeriod.data.status))return toast('Mjesec je zaključan. Prvo je potreban kontrolirani Admin reopen.');
+      if(currentPeriod.data.status!=='open')return toast('Preračun je dopušten samo u otvorenom periodu. Za zaključani ili review period koristi kontrolirani lifecycle postupak.');
       const modal=$('#modal');
       modal.innerHTML=`<div class="modal-card"><div class="modal-head"><div><div class="eyebrow">Kontrolirani preračun</div><h2>${escapeHtml(isoLabel(record.date))}</h2><div class="small-muted">Revizija zapisa ${escapeHtml(record.revision)} · calculationVersion attendance-v1</div></div><button class="close-btn" aria-label="Zatvori" data-bss-action="closeModal()">×</button></div><div class="record-detail-grid"><div><span>Dolazak</span><b>${escapeHtml(record.start||'—')}</b></div><div><span>Odlazak</span><b>${escapeHtml(record.end||'—')}</b></div><div><span>Status</span><b>${escapeHtml(record.status)}</b></div><div><span>Period</span><b>${escapeHtml(statusLabel(currentPeriod.data.status))}</b></div></div><div class="notice info">Preračun koristi postojeće nepromjenjive terminalske dokaze. Sirovi RFID događaji se ne prepisuju; server sprema before/after, razlog i audit provenance.</div><label>Razlog<textarea id="attendanceRecalculationReason" rows="3" minlength="3" maxlength="1000" placeholder="Zašto je potreban preračun?"></textarea></label><div class="btns"><button class="btn" data-bss-action="submitAttendanceRecalculation(${record.id})">Preračunaj</button><button class="btn secondary" data-bss-action="closeModal()">Odustani</button></div></div>`;
       showModal(modal);
@@ -112,6 +112,12 @@
     if(currentRole!=='admin')return;
     const record=state.records.find(item=>item.id===Number(recordId)),reason=$('#attendanceRecalculationReason')?.value.trim()||'';
     if(!record?.apiId||reason.length<3)return toast('Upiši razlog od najmanje 3 znaka.');
+    if(record.status==='Ispravljeno')return toast('Ispravljeni zapis se ne preračunava ponovno.');
+    const [year,monthNumber]=record.date.slice(0,7).split('-').map(Number);
+    let currentPeriod;
+    try{currentPeriod=await BSS_API.getWithMeta(`/attendance-periods/${year}/${monthNumber}`);}
+    catch(error){return toast(callbacks.apiMessage(error));}
+    if(currentPeriod.data.status!=='open')return toast('Preračun je dopušten samo u otvorenom periodu.');
     await callbacks.mutateApi(()=>BSS_API.post(`/attendance/${record.apiId}/recalculations`,{calculationVersion:'attendance-v1',reason},callbacks.revisionHeaders(record.revision)),'Attendance zapis je preračunat iz nepromjenjivih dokaza.');
   }
   function openRecord(id){
