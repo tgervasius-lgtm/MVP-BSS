@@ -738,53 +738,29 @@ function attendanceEvent(event,type){
   return `<div class="activity-item"><div class="activity-symbol ${type}">${type==='in'?'→':'←'}</div><div><b>${escapeHtml(event.worker?.name||'Nepoznat radnik')}</b><span>${escapeHtml(event.worker?.dept||'—')} · ${escapeHtml(isoLabel(event.date,false))}</span></div><time>${escapeHtml(event.time)}</time></div>`;
 }
 function viewAdminHome(){
-  const workers = activeWorkers();
-  const metrics=dashboardMetrics(workers),workerIds=workers.map(worker=>worker.id),weekly=weeklyAttendance(workerIds),alerts=dashboardAlerts(metrics);
-  const checkins=recentAttendanceEvents('in',workerIds),checkouts=recentAttendanceEvents('out',workerIds);
-  const absentToday=metrics.absent+metrics.vacation+metrics.sick;
-  return `${title('Operativni dashboard',new Date().toLocaleDateString('hr-HR',{weekday:'long',day:'numeric',month:'long',year:'numeric'}),`${pill(APP_STAGE)} ${pill(state.terminal.online?'Online':'Offline')}`)}
-    <section class="card hero dashboard-hero"><div><div class="eyebrow">Dnevni sažetak</div><h2>${metrics.present} od ${metrics.active} radnika trenutačno je evidentirano</h2><p>Odstupanja, odsutnosti i odluke nalaze se u četiri pokazatelja.</p></div></section>
-    <section class="dashboard-kpis" aria-label="Ključni pokazatelji">
-      ${kpiCard('present','✓',metrics.present,'Prisutni','Uključuje evidentirano kašnjenje','green',"openWorkerStatus('Prisutni')")}
-      ${kpiCard('review','!',metrics.review,'Za provjeru','Kašnjenja i nepotpuni zapisi','red',"openAttendanceReview()")}
-      ${kpiCard('absent','—',absentToday,'Odsutni danas','Godišnji, bolovanje ili druga odsutnost','blue',"openWorkerStatus('Odsutni danas')")}
-      ${kpiCard('pending','□',metrics.pending,'Čeka odluku','Zahtjevi za odsutnost','amber',"openPendingRequests()")}
-    </section>
-    <div class="dashboard-layout"><div class="dashboard-primary">
-      <section class="card table-card"><div class="table-card-heading"><div><h2>Dnevni pregled evidencije</h2></div><button class="link-btn" data-bss-action="navigate('attendance')">Otvori evidenciju →</button></div>${weeklyAttendanceTable(weekly)}</section>
-      <section class="card"><div class="card-heading"><div><h2>Zadnje prijave i odjave</h2></div></div><div class="activity-columns"><div><h3>Prijave</h3>${checkins.map(event=>attendanceEvent(event,'in')).join('')}</div><div><h3>Odjave</h3>${checkouts.map(event=>attendanceEvent(event,'out')).join('')}</div></div></section>
-    </div><aside class="dashboard-secondary">
-      <section class="card"><div class="card-heading"><div><h2>Upozorenja i odluke</h2></div><span class="alert-total">${alerts.length}</span></div><div class="alert-list">${alerts.map(alert=>`<button class="alert-item ${alert.tone}" data-bss-action="${alert.action||`navigate('${alert.target}')`}"><span>${alert.icon}</span><div><b>${escapeHtml(alert.title)}</b><small>${escapeHtml(alert.text)}</small></div><i>›</i></button>`).join('')||'<div class="empty-state compact">Nema otvorenih upozorenja.</div>'}</div></section>
-      <section class="card system-card"><div class="card-heading"><div><h2>Status sustava</h2></div>${pill(state.terminal.online?'Online':'Offline')}</div><div class="system-row"><span><i class="system-light ${state.terminal.online?'online':'offline'}"></i>BSS Terminal 01</span><b>${state.terminal.online?'Povezan':'Nije povezan'}</b></div><div class="system-row"><span>Zadnja sinkronizacija</span><b>${escapeHtml(state.terminal.lastSync)}</b></div><div class="system-row"><span>Neposlani zapisi</span><b>${state.terminal.unsynced}</b></div><div class="system-row"><span>Aktivne smjene</span><b>${state.shifts.filter(shift=>shift.active).length}</b></div><button class="btn secondary block" data-bss-action="navigate('terminal')">Detalji terminala</button></section>
-      <section class="card"><div class="card-heading"><div><h2>Zadnje administrativne aktivnosti</h2></div></div>${state.audit.slice(0,3).map(item=>row(initials(item.user),item.action,`${escapeHtml(item.time)} · ${escapeHtml(item.module)}`)).join('')}<button class="btn secondary block" data-bss-action="navigate('audit')">Cijeli audit log</button></section>
-    </aside></div>`;
+  const workers=activeWorkers(),metrics=dashboardMetrics(workers),workerIds=workers.map(worker=>worker.id),weekly=weeklyAttendance(workerIds),alerts=dashboardAlerts(metrics);
+  return BSS_VIEWS.homeOperational.admin({
+    metrics,weekly,alerts,checkins:recentAttendanceEvents('in',workerIds),checkouts:recentAttendanceEvents('out',workerIds),
+    state,title,kpiCard,weeklyAttendanceTable,attendanceEvent,escapeHtml,pill,row,initials
+  });
 }
 function viewWorkerHome(){
-  const worker = currentWorker();
-  const shift = shiftById(worker.shiftId);
-  const ownRequests = state.requests.filter(request=>request.workerId===worker.id);
-  const todayRecord = state.records.find(record=>record.workerId===worker.id && record.date===DEMO_TODAY);
-  return `${title(`Pozdrav, ${worker.name.split(' ')[0]}`,'',pill(worker.status))}
-    <section class="card hero worker-home-card"><div class="worker-home-status"><h2>${['Prisutan','Kasni'].includes(worker.status)?'Trenutačno si prijavljen':'Trenutačno nisi prijavljen'}</h2><p>${escapeHtml(shift?.name || 'Bez smjene')} · ${escapeHtml(shift?.start || '—')} – ${escapeHtml(shift?.end || '—')}</p></div><div class="worker-home-facts"><button data-bss-action="navigate('mytime')"><span>Današnja prijava</span><b>${escapeHtml(todayRecord?.start || '—')}</b></button><button data-bss-action="navigate('mytime')"><span>Evidentirano danas</span><b>${formatMinutes(todayRecord?recordMinutes(todayRecord,true):0)}</b></button><button data-bss-action="navigate('vacations')"><span>Preostali godišnji</span><b>${vacationRemaining(worker.id)} dana</b></button><button data-bss-action="openPendingRequests()"><span>Otvoreni zahtjevi</span><b>${ownRequests.filter(request=>request.status==='Na čekanju').length}</b></button></div></section>`;
+  const worker=currentWorker(),shift=shiftById(worker.shiftId),ownRequests=state.requests.filter(request=>request.workerId===worker.id),todayRecord=state.records.find(record=>record.workerId===worker.id&&record.date===DEMO_TODAY);
+  return BSS_VIEWS.homeOperational.worker({
+    worker,shift,ownRequests,todayRecord,title,pill,escapeHtml,formatMinutes,recordMinutes,vacationRemaining
+  });
 }
 function viewManagerHome(){
-  const team = visibleWorkers().filter(worker=>worker.active);
-  const requestCount = state.requests.filter(request=>requestVisible(request)&&request.status==='Na čekanju').length;
-  const metrics=dashboardMetrics(team),weekly=weeklyAttendance(team.map(worker=>worker.id)),alerts=dashboardAlerts(metrics),absentToday=metrics.absent+metrics.vacation+metrics.sick;
-  return `${title('Dashboard mojeg tima',`Odjeli: ${role().departments.join(' i ')}`,pill(`${team.length} radnika`))}
-    <section class="dashboard-kpis manager-kpis">
-      ${kpiCard('present','✓',metrics.present,'Prisutni','Trenutno evidentirani','green',"openWorkerStatus('Prisutni')")}
-      ${kpiCard('review','!',metrics.review,'Za provjeru','Zapisi mojeg tima','red',"openAttendanceReview()")}
-      ${kpiCard('absent','—',absentToday,'Odsutni danas','Godišnji, bolovanje ili druga odsutnost','blue',"openWorkerStatus('Odsutni danas')")}
-      ${kpiCard('pending','□',requestCount,'Čeka odluku','Zahtjevi za odsutnost','amber',"openPendingRequests()")}
-    </section>
-    <div class="dashboard-layout"><div class="dashboard-primary"><section class="card table-card"><div class="table-card-heading"><div><h2>Dnevni pregled tima</h2></div><button class="link-btn" data-bss-action="navigate('attendance')">Evidencija tima →</button></div>${weeklyAttendanceTable(weekly)}</section><section class="card table-card"><div class="table-card-heading"><div><h2>Radnici mojeg tima</h2></div></div>${workerTable(team)}</section></div><aside class="dashboard-secondary"><section class="card"><div class="card-heading"><div><h2>Upozorenja i odluke</h2></div><span class="alert-total">${alerts.length}</span></div><div class="alert-list">${alerts.map(alert=>`<button class="alert-item ${alert.tone}" data-bss-action="${alert.action||`navigate('${alert.target}')`}"><span>${alert.icon}</span><div><b>${escapeHtml(alert.title)}</b><small>${escapeHtml(alert.text)}</small></div><i>›</i></button>`).join('')||'<div class="empty-state compact">Nema otvorenih upozorenja.</div>'}</div></section></aside></div>`;
+  const team=visibleWorkers().filter(worker=>worker.active),metrics=dashboardMetrics(team),alerts=dashboardAlerts(metrics);
+  return BSS_VIEWS.homeOperational.manager({
+    team,metrics,alerts,weekly:weeklyAttendance(team.map(worker=>worker.id)),requestCount:state.requests.filter(request=>requestVisible(request)&&request.status==='Na čekanju').length,
+    departments:role().departments,title,kpiCard,weeklyAttendanceTable,workerTable,escapeHtml
+  });
 }
 function viewAccountantHome(){
-  const minutes = Number(state.dashboard?.kpis?.find(item=>item.id==='worked_minutes')?.value||0);
-  return `${title('Pregled za knjigovodstvo','Odobreni podaci bez prava izmjene.',pill('Samo čitanje'))}<div class="card hero accountant-home-card"><div><h2>Obračunski podaci</h2><button class="meta-line" data-bss-action="navigate('reports')"><span>Završeni sati u mjesecu</span><b>${formatMinutes(minutes)}</b></button><button class="meta-line" data-bss-action="navigate('reports')"><span>Posljednji izvoz</span><b>${escapeHtml(state.lastReport)}</b></button></div><div class="quick"><button data-bss-action="navigate('reports')"><b>Izvještaji</b><span>XLSX, PDF i tehnički CSV</span></button><button data-bss-action="navigate('sharedLeave')"><b>Zajednički godišnji</b><span>Samo odobrena razdoblja</span></button></div></div>`;
+  const minutes=Number(state.dashboard?.kpis?.find(item=>item.id==='worked_minutes')?.value||0);
+  return BSS_VIEWS.homeOperational.accountant({minutes,lastReport:state.lastReport,title,pill,formatMinutes,escapeHtml});
 }
-
 function statusOptions(selected){
   return ['Svi','Uredno','Aktivno','Kašnjenje','Nepotpun zapis','Ispravljeno'].map(value=>`<option ${selected===value?'selected':''}>${escapeHtml(value)}</option>`).join('');
 }
