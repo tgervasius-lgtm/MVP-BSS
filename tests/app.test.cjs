@@ -1430,7 +1430,7 @@ test('contract gap #232 veže službeni report preview i export verification na 
   assert.match(reportAuthoritySource,/\/report-exports\/\$\{encodeURIComponent\(id\)\}\/verification/);
   assert.match(reportAuthoritySource,/artifactChecksumMatches/);
   assert.match(reportAuthoritySource,/datasetChecksumMatches/);
-  assert.match(reportAuthoritySource,/if\(item\.status!==\'ready\'/);
+  assert.match(reportAuthoritySource,/if\(item\.status!=='ready'/);
   assert.match(reportAuthoritySource,/\['admin','manager','accountant'\]\.includes\(currentRole\)/);
   assert.match(source,/authoritativeReportPreviewHtml/);
   assert.match(source,/reportHistoryAuthorityAction/);
