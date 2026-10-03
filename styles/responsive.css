@@ -199,3 +199,8 @@
 
 /* Shifts operational checkpoint */
 @media(min-width:620px){.shifts-summary{grid-template-columns:repeat(4,minmax(0,1fr))}}
+
+
+/* My time operational checkpoint */
+@media(min-width:620px){.mytime-summary-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media(max-width:520px){.mytime-summary-head{flex-direction:column}.mytime-summary-head label,.mytime-summary-head input{width:100%}.mytime-shift-row{align-items:flex-start;flex-direction:column}.mytime-shift-row b{text-align:left}}
