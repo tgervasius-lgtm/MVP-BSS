@@ -1421,6 +1421,36 @@ test('izbornik i modal podržavaju Escape, aria stanje i imenovani dijalog',()=>
   assert.equal(modal.getAttribute('aria-hidden'),'true');
 });
 
+test('attendance period lifecycle i recalculation hookovi ostaju API-only i role-bound',()=>{
+  const bindings=fs.readFileSync('src/adapters/api-bindings.js','utf8');
+  assert.match(apiStateSource,/attendancePeriod=api\.get\(\`\/attendance-periods\/\$\{year\}\/\$\{month\}\`\)/);
+  assert.match(apiStateSource,/attendancePeriod:data\.attendancePeriod\|\|null/);
+  assert.match(bindings,/submitAttendancePeriodTransition/);
+  assert.match(bindings,/\/attendance-periods\/\$\{parts\.year\}\/\$\{parts\.month\}\/\$\{config\.path\}/);
+  assert.match(bindings,/Idempotency-Key/);
+  assert.match(bindings,/currentRole!=='admin'/);
+  assert.match(bindings,/\/attendance\/\$\{record\.apiId\}\/recalculations/);
+  assert.match(bindings,/calculationVersion:'attendance-v1'/);
+  assert.match(bindings,/Raw terminal evidence se ne prepisuje/);
+  assert.match(styles,/Contract-defined attendance period lifecycle — #227/);
+
+  const admin=boot('admin');
+  admin.window.attendancePeriodPanel=month=>`<section class="test-period-panel">${month}</section>`;
+  admin.window.attendanceRecordExtraActions=record=>`<button class="test-recalc" data-record="${record.id}">Recalc</button>`;
+  admin.window.navigate('attendance');
+  assert.equal(admin.document.querySelector('.test-period-panel')?.textContent,'2026-07');
+  admin.window.openAttendanceRecord(1);
+  assert.equal(admin.document.querySelector('.test-recalc')?.getAttribute('data-record'),'1');
+  admin.window.closeModal();
+  admin.window.navigate('reports');
+  assert.equal(admin.document.querySelector('.report-workspace-head + .test-period-panel')?.textContent,'2026-07');
+
+  const worker=boot('worker');
+  worker.window.attendancePeriodPanel=()=>'<section class="test-period-panel">should-not-be-reachable</section>';
+  assert.doesNotMatch(worker.document.querySelector('.desktop-nav').textContent,/Evidencija/);
+  assert.doesNotMatch(worker.document.querySelector('.desktop-nav').textContent,/Izvještaji/);
+});
+
 test('produkcijski runtime ne vraća poslovne mock podatke u lokalnu pohranu',()=>{
   assert.match(source,/function loadState\(\)\{ return createApiState\(\); \}/);
   assert.match(source,/function saveState\(\)\{ \/\* Poslovni podaci spremaju se isključivo preko API-ja\. \*\/ \}/);
