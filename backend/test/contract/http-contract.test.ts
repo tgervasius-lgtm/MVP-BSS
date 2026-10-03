@@ -882,13 +882,13 @@ test("OpenAPI v1 and the post-freeze screen map preserve ownership and explicit 
     contractGatesBeforeDesignFoundationPhaseB: string[];
   };
   assert.equal(screenMap.readiness, "RECONCILED_WITH_EXPLICIT_UI_GAPS");
-  assert.equal(screenMap.contractReviewStatus, "ISSUE_234_TERMINAL_CANDIDATE_BSS_OS_REVIEW_REQUIRED");
+  assert.equal(screenMap.contractReviewStatus, "POST_TERMINAL_MERGE_RECONCILED_WITH_EXPLICIT_GAPS");
   assert.deepEqual(screenMap.frontendBaseline, {
     commit: "91323c7cdbbbbf7b965c4926c94a11af6d31bf62",
     status: "HISTORICAL_FRONTEND_V1_REFERENCE",
     authority: "NOT_CURRENT_PRODUCT_AUTHORITY"
   });
-  assert.equal(screenMap.repositoryBaseline, "9ac82a4b2764110f879343bdad1e2e4aeb0d01c8");
+  assert.equal(screenMap.repositoryBaseline, "e6d191c0933d3e32dce68ef874a9b8af722a64d8");
   assert.equal(screenMap.openapi.version, "1.4.0");
   assert.equal(screenMap.openapi.paths, 52);
   assert.equal(screenMap.openapi.operations, 63);
@@ -914,6 +914,7 @@ test("OpenAPI v1 and the post-freeze screen map preserve ownership and explicit 
   assert.equal(screenMap.screens.find((screen) => screen.id === "terminal")?.operations.includes("resolveTerminalEventReconciliation"), true);
   assert.equal(gapsById.has("terminal-credential-rotation"), false);
   assert.equal(screenMap.screens.find((screen) => screen.id === "terminal")?.operations.includes("rotateTerminalCredential"), true);
+  assert.deepEqual(gapsById.get("report-locked-version-selection")?.operations, ["getAttendancePeriod", "createReportExport"]);
   const reportsOperations=screenMap.screens.find((screen) => screen.id === "reports")?.operations ?? [];
   assert.deepEqual(
     ["getAttendancePeriod", "startAttendancePeriodReview", "finalizeAttendancePeriod", "closeAttendancePeriod", "reopenAttendancePeriod"]

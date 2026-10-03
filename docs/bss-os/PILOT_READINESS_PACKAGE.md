@@ -1,7 +1,7 @@
 # BSS Pilot Readiness Package
 
 Status: `PROPOSED`
-Last reviewed: 2026-09-20
+Last reviewed: 2026-10-04 (repository status only; live evidence remains open)
 Owner: BSS founders
 Tracking issue: `#62`
 
@@ -47,7 +47,7 @@ This B2 documentation refresh was prepared from protected `main` at `88c1b8db99a
 
 Accepted execution route: Design Foundation ACCEPTED/HARDENED -> roadmap-ordered contract-defined implementation gaps + OM-01 -> minimum operational foundation -> Production-like Staging / AUDIT B -> Pilot readiness + Hardware 9C / AUDIT C -> controlled Pilot -> Post-Pilot hardening / PRG / AUDIT D -> Commercial Production.
 
-This status refresh does not implement the remaining gaps or operational capabilities. OM-01 is tracked in #225. Issue `#62` remains OPEN until its full evidence and second-person dry-run requirements are met.
+Current software evidence is main `e6d191c`: #228/#233/#235/#236 are merged and #234 is completed. OM-01 architecture is accepted and merged through #229; #225 is completed for architecture only. Onboarding/import #237 and explicit locked report-version selection remain open. See [the implementation preparation](CUSTOMER_ONBOARDING_IMPORT_IMPLEMENTATION_PLAN.md). This status refresh does not implement those gaps or operational capabilities. Issue `#62` remains OPEN until its full evidence and second-person dry-run requirements are met.
 
 ## 3. Recommended first-pilot envelope
 
@@ -530,7 +530,7 @@ Evidence may link to controlled external systems, but the BSS OS record must ide
 | Area | Status | Next required evidence |
 |---|---|---|
 | Software baseline | `REPOSITORY BASELINE VERIFIED` | #55/#99 integration resolved; select and independently verify the actual release candidate later |
-| Design and contract gaps | `BLOCKED / PARTIAL` | #156 acceptance and roadmap-ordered implementation, including onboarding/import; contract freeze and proposal merge do not prove completion |
+| Design and contract gaps | `IMPLEMENTATION PARTIAL` | #156 acceptance is complete; #228/#233/#235/#236 are merged. Onboarding/import #237 and locked report-version selection remain open; complete remaining flows and evidence before Pilot |
 | Production-like Staging / AUDIT B | `NOT IMPLEMENTED / NOT EVIDENCE PROVEN` | #59 environment, deployed security, load, migration/rollback and restore evidence |
 | Infrastructure architecture | `PROPOSED` | Approve ADR-001 and provision staging |
 | Preview/sales sandbox | `SEPARATE / NOT LIVE EVIDENCE` | #58 reconstruction remains separate from staging and real-customer readiness |
