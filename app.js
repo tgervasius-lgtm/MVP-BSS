@@ -792,97 +792,11 @@ function departmentOptions(selected, includeAll = true){
   return `${includeAll?`<option value="Svi" ${selected==='Svi'?'selected':''}>Svi odjeli</option>`:''}${departments.map(value=>`<option value="${escapeHtml(value)}" ${selected===value?'selected':''}>${escapeHtml(value)}</option>`).join('')}`;
 }
 
-function attendanceDailyRows(){
-  const search=attendanceFilters.search.toLocaleLowerCase('hr');
-  return visibleWorkers().filter(worker=>worker.active).filter(worker=>
-    (attendanceFilters.department==='Svi'||worker.dept===attendanceFilters.department)
-    &&(!search||`${worker.name} ${worker.dept} ${worker.jobTitle}`.toLocaleLowerCase('hr').includes(search))
-  ).map(worker=>{
-    const record=state.records.find(item=>item.workerId===worker.id&&item.date===DEMO_TODAY);
-    const shift=shiftById(worker.shiftId);
-    const planned=plannedShiftMinutes(worker.id);
-    const worked=record?(record.end?recordMinutes(record):recordMinutes(record,true)):0;
-    const balance=record?.end?recordMinutes(record)-planned:null;
-    let status='Bez dolaska';
-    if(['Godišnji','Bolovanje','Odsutna'].includes(worker.status))status=worker.status==='Odsutna'?'Odsutan':worker.status;
-    else if(record?.start&&!record?.end)status='Prisutan';
-    else if(record?.start&&record?.end)status='Završen';
-    else if(['Prisutan','Kasni'].includes(worker.status))status='Prisutan';
-    const anomaly=record&&['Kašnjenje','Nepotpun zapis'].includes(record.status)
-      ?record.status
-      :pendingCorrectionFor(record||{workerId:worker.id,date:DEMO_TODAY})?'Korekcija čeka'
-      :(!record&&status==='Bez dolaska'?'Nema prijave':'—');
-    return {worker,record,shift,planned,worked,balance,status,anomaly};
-  });
-}
-function attendanceDailyMetrics(rows=attendanceDailyRows()){
-  return {
-    present:rows.filter(row=>['Prisutan','Završen'].includes(row.status)).length,
-    missing:rows.filter(row=>row.status==='Bez dolaska').length,
-    absent:rows.filter(row=>['Odsutan','Godišnji','Bolovanje'].includes(row.status)).length,
-    anomaly:rows.filter(row=>row.anomaly!=='—').length,
-    total:rows.length
-  };
-}
-function filteredAttendanceDailyRows(){
-  const rows=attendanceDailyRows();
-  if(attendanceDailyFilter==='present')return rows.filter(row=>['Prisutan','Završen'].includes(row.status));
-  if(attendanceDailyFilter==='missing')return rows.filter(row=>row.status==='Bez dolaska');
-  if(attendanceDailyFilter==='absent')return rows.filter(row=>['Odsutan','Godišnji','Bolovanje'].includes(row.status));
-  if(attendanceDailyFilter==='anomaly')return rows.filter(row=>row.anomaly!=='—');
-  return rows;
-}
 function setAttendanceDailyFilter(next){
   if(!['all','present','missing','absent','anomaly'].includes(next))return;
   attendanceDailyFilter=next;
   render();
 }
-function attendanceOperationalKpis(){
-  const metrics=attendanceDailyMetrics();
-  const cards=[
-    ['present','✓',metrics.present,'Prisutni','Evidentirani danas','green'],
-    ['missing','—',metrics.missing,'Bez dolaska','Bez današnje prijave','amber'],
-    ['absent','○',metrics.absent,'Odsutni','Godišnji, bolovanje ili odsutnost','blue'],
-    ['anomaly','!',metrics.anomaly,'Anomalije','Redovi koji traže pažnju','red'],
-    ['all','Σ',metrics.total,'Ukupno','Radnici u dopuštenom opsegu','neutral']
-  ];
-  return `<section class="attendance-operational-kpis" aria-label="Dnevni attendance pokazatelji">${cards.map(([key,icon,value,label,detail,tone])=>`<button class="attendance-op-kpi ${tone} ${attendanceDailyFilter===key?'active':''}" data-bss-action="setAttendanceDailyFilter('${key}')" aria-pressed="${attendanceDailyFilter===key}"><span class="attendance-op-icon" aria-hidden="true">${icon}</span><span><b>${value}</b><strong>${label}</strong><small>${detail}</small></span></button>`).join('')}</section>`;
-}
-function attendanceOperationalStatus(status){
-  if(status==='Prisutan'||status==='Završen')return pill(status==='Završen'?'Uredno':'Prisutan');
-  if(status==='Bez dolaska')return '<span class="pill gray">Bez dolaska</span>';
-  if(status==='Godišnji')return pill('Godišnji');
-  if(status==='Bolovanje')return pill('Bolovanje');
-  return '<span class="pill gray">Odsutan</span>';
-}
-function attendanceOperationalAnomaly(anomaly){
-  if(anomaly==='—')return '<span class="attendance-anomaly-none">—</span>';
-  const cls=anomaly==='Nepotpun zapis'||anomaly==='Nema prijave'?'red':'orange';
-  return `<span class="pill ${cls}">${escapeHtml(anomaly)}</span>`;
-}
-function attendanceOperationalTable(){
-  const rows=filteredAttendanceDailyRows();
-  const body=rows.map(({worker,record,shift,planned,worked,balance,status,anomaly})=>`<tr class="${anomaly!=='—'?'attendance-op-review':''}">
-    <td class="attendance-code">R-${String(worker.id).padStart(3,'0')}</td>
-    <td><button class="attendance-person-link" data-bss-action="openWorker(${worker.id})"><b>${escapeHtml(worker.name)}</b><small>${escapeHtml(worker.jobTitle||'—')}</small></button></td>
-    <td>${escapeHtml(worker.dept||'—')}</td>
-    <td><b>${escapeHtml(shift?`${shift.start} – ${shift.end}`:'Bez plana')}</b><small>${escapeHtml(shift?.name||'')}</small></td>
-    <td>${escapeHtml(record?.start||'—')}</td>
-    <td>${escapeHtml(record?.end||'—')}</td>
-    <td>${record?.start?formatMinutes(worked):'—'}</td>
-    <td><span class="record-balance ${balance===null?'neutral':balance<0?'negative':'positive'}">${balance===null?'—':formatSignedMinutes(balance)}</span></td>
-    <td>${attendanceOperationalStatus(status)}</td>
-    <td>${attendanceOperationalAnomaly(anomaly)}</td>
-    <td>${record?`<button class="table-detail-btn" data-bss-action="openAttendanceRecord(${record.id})" aria-label="Otvori evidenciju za ${escapeHtml(worker.name)}">Otvori</button>`:'<span class="small-muted">Bez zapisa</span>'}</td>
-  </tr>`).join('');
-  const metrics=attendanceDailyMetrics(rows);
-  return `<section class="card table-card attendance-operational-card" id="attendanceDaily" tabindex="-1">
-    <div class="table-card-heading"><div><h2>Dnevna evidencija</h2><p>${escapeHtml(isoLabel(DEMO_TODAY))} · status i anomalija prikazani su odvojeno.</p></div><span class="pill gray">${rows.length} redaka</span></div>
-    <div class="table-wrap"><table class="attendance-operational-table"><thead><tr><th>Šifra</th><th>Ime i prezime</th><th>Odjel</th><th>Planirano</th><th>Dolazak</th><th>Odlazak</th><th>Odrađeno</th><th>Saldo</th><th>Status</th><th>Anomalija</th><th></th></tr></thead><tbody>${body||'<tr><td colspan="11"><div class="empty-state">Nema radnika za odabrani dnevni filtar.</div></td></tr>'}</tbody></table></div>
-    <div class="table-summary"><span>${rows.length} prikazano · ${metrics.anomaly} anomalija</span><span>Izvorni attendance zapisi ostaju nepromijenjeni.</span></div>
-  </section>`;
-}
-
 function attendanceRecordsForCurrentFilters(){
   return state.records.filter(recordVisible).filter(record=>{
     const worker = workerById(record.workerId);
@@ -928,9 +842,14 @@ function viewAttendance(){
   const records=filteredAttendanceRecords();
   const counts=attendanceViewCounts();
   const viewTitle={all:'Svi zapisi',review:'Za provjeru',active:'Aktivni danas'}[attendanceView];
+  const operational=BSS_VIEWS.attendanceOperational.render(attendanceDailyFilter,{
+    visibleWorkers:visibleWorkers(),attendanceFilters,records:state.records,today:DEMO_TODAY,
+    shiftById,plannedShiftMinutes,recordMinutes,pendingCorrectionFor,escapeHtml,formatMinutes,
+    formatSignedMinutes,pill,isoLabel
+  });
   return `${title(currentRole==='manager'?'Evidencija mojeg tima':'Evidencija dolazaka',isoToDate(DEMO_TODAY).toLocaleDateString('hr-HR',{weekday:'long',day:'numeric',month:'long',year:'numeric'}),'<span class="pill gray">Dnevni operativni pregled</span>')}
-    ${attendanceOperationalKpis()}
-    ${attendanceOperationalTable()}
+    ${operational.kpis}
+    ${operational.table}
     <section class="attendance-history-heading"><div><h2>Povijest evidencije</h2><p>Mjesečni zapisi, filtri i dokazni detalji.</p></div></section>
     <div class="attendance-tabs" role="group" aria-label="Prikaz povijesti evidencije"><button class="${attendanceView==='all'?'active':''}" data-bss-action="setAttendanceView('all')">Svi zapisi <span>${counts.all}</span></button><button class="${attendanceView==='review'?'active':''}" data-bss-action="setAttendanceView('review')">Za provjeru <span>${counts.review}</span></button><button class="${attendanceView==='active'?'active':''}" data-bss-action="setAttendanceView('active')">Aktivni danas <span>${counts.active}</span></button></div>
     <div class="card attendance-filter-card"><div class="filter-bar"><input id="attSearch" aria-label="Traži radnika" placeholder="Traži po imenu" value="${escapeHtml(attendanceFilters.search)}"><input id="attMonth" aria-label="Mjesec" type="month" value="${attendanceFilters.month}"><select id="attDept" aria-label="Odjel">${departmentOptions(attendanceFilters.department)}</select><select id="attStatus" aria-label="Status">${statusOptions(attendanceFilters.status)}</select><div class="filter-actions"><button class="btn" data-bss-action="applyAttendanceFilters()">Primijeni</button><button class="btn secondary" data-bss-action="clearAttendanceFilters()">Očisti</button></div></div></div>
