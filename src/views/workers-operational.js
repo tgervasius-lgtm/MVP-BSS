@@ -18,19 +18,6 @@
     return `<div class="table-wrap"><table class="compact-table workers-table"><thead><tr><th>Šifra</th><th>Ime i prezime</th><th>Odjel</th><th>Radno mjesto</th><th>Smjena</th><th>Status</th><th></th></tr></thead><tbody>${body||'<tr><td colspan="7"><div class="empty-state">Nema radnika za odabrani filtar.</div></td></tr>'}</tbody></table></div>`;
   }
 
-  function summary(visibleWorkers){
-    const scoped=visibleWorkers,active=scoped.filter(worker=>worker.active);
-    const present=active.filter(worker=>['Prisutan','Kasni'].includes(worker.status)).length;
-    const away=active.filter(worker=>['Odsutna','Godišnji','Bolovanje'].includes(worker.status)).length;
-    const inactive=scoped.filter(worker=>!worker.active).length;
-    return `<section class="workers-summary" aria-label="Sažetak radnika">
-      <div><span>Aktivni</span><b>${active.length}</b></div>
-      <div><span>Prisutni</span><b>${present}</b></div>
-      <div><span>Odsutni danas</span><b>${away}</b></div>
-      <div><span>Neaktivni</span><b>${inactive}</b></div>
-    </section>`;
-  }
-
   function screen(context){
     const {workers,isAdmin,workerSearch,workerListTab,workerShiftFilter,shiftById,escapeHtml,title,workerTable}=context;
     const tabs=isAdmin?['Svi','Prisutni','Odsutni danas','Godišnji','Neaktivni']:['Svi','Prisutni','Odsutni danas','Godišnji'];
@@ -44,7 +31,7 @@
       <section class="card table-card workers-operational-card"><div class="table-card-heading"><div><h2>${isAdmin?'Popis radnika':'Radnici u mojem opsegu'}</h2><p>RFID i pristup nalaze se u detalju radnika.</p></div><span class="pill gray">${workers.length} radnika</span></div>${workerTable(workers)}</section>`;
   }
 
-  const workersOperational=Object.freeze({table,summary,screen});
+  const workersOperational=Object.freeze({table,screen});
   const views=Object.freeze({...root.BSSCore?.views,workersOperational});
   root.BSSCore=Object.freeze({...root.BSSCore,views});
 
