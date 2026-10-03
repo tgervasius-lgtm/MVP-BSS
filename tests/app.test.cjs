@@ -532,6 +532,19 @@ test('kalendar koristi jednu period kontrolu bez duplog mjeseca iznad sadržaja'
   assert.match(styles,/\.month-view>\.month-card>h3\{display:none\}/);
 });
 
+test('visual pass 2 usklađuje korekcije, audit i prava pristupa s enterprise summary grammarom',()=>{
+  const admin=boot('admin');
+  admin.window.navigate('corrections');
+  assert.equal(admin.document.querySelectorAll('.approval-summary>div').length,4);
+  admin.window.navigate('audit');
+  assert.equal(admin.document.querySelectorAll('.audit-summary>div').length,4);
+  admin.window.navigate('roles');
+  assert.equal(admin.document.querySelectorAll('.access-summary>button').length,4);
+  assert.match(styles,/Owner visual review pass 2 — secondary enterprise summary strips/);
+  assert.match(styles,/\.approval-summary,[\s\S]*?\.access-summary\{[\s\S]*?border-radius:7px/);
+  assert.match(styles,/\.access-summary>button\.active\{[\s\S]*?box-shadow:inset 0 -2px 0 var\(--bss-color-accent-text\)/);
+});
+
 test('Zahtjevi uklanjaju duplicirani sažetak, a korekcije čuvaju jedini operativni sažetak',()=>{
   const admin=boot('admin');
   admin.window.navigate('requests');
