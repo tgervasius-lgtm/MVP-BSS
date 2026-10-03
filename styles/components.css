@@ -83,3 +83,40 @@ th{position:sticky;top:0;background:#f7faf8;color:var(--bss-color-text-muted);fo
 td{font-size:11px;font-weight:650;padding:10px 11px;border-bottom:1px solid #edf3ef;vertical-align:top}
 tbody tr:hover{background:#fbfdfc}
 .table-summary{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:9px 12px;border-top:1px solid var(--bss-color-border);font-size:10px;color:var(--bss-color-text-muted)}
+
+
+/* Final cross-screen polish — shared workflow states and focus */
+:where(button,a,input,select,textarea,[tabindex]):focus-visible{
+  outline:3px solid var(--bss-color-focus);
+  outline-offset:2px;
+}
+.empty-state{
+  min-height:72px;
+  display:grid;
+  place-items:center;
+  padding:18px 14px;
+  border:1px dashed var(--bss-color-border);
+  border-radius:8px;
+  background:var(--bss-color-bg-subtle);
+  color:var(--bss-color-text-muted);
+  line-height:1.45;
+}
+.empty-state.compact{min-height:0;padding:12px}
+.notice{border-radius:8px}
+.notice.danger{
+  border-color:var(--bss-color-danger);
+  background:var(--bss-color-danger-soft);
+  color:var(--bss-color-danger);
+}
+.notice.info{
+  border-color:var(--bss-color-info);
+  background:var(--bss-color-info-soft);
+  color:var(--bss-color-info);
+}
+.table-wrap{
+  -webkit-overflow-scrolling:touch;
+  scroll-snap-type:x proximity;
+}
+.table-scroll-hint{
+  user-select:none;
+}
