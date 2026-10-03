@@ -1160,6 +1160,8 @@ test("PostgreSQL migrations, RLS isolation, auth and manager scope", { skip: !da
   const reconciliationRawId = (await owner.query<{ id: string }>(
     "SELECT id FROM attendance_events WHERE device_event_id = $1", [reconciliationEventId]
   )).rows[0]!.id;
+  const beforeResolution = await service.listTerminalSyncEvents(admin.actor, paired.terminal.id, transferHistoryFilters);
+  assert.equal(beforeResolution.items.find((item) => item.attendanceEventId === reconciliationRawId)?.reconciliation, null);
   const acceptedReconciliation = await service.resolveTerminalEventReconciliation(
     admin.actor,
     reconciliationRawId,
@@ -1191,6 +1193,29 @@ test("PostgreSQL migrations, RLS isolation, auth and manager scope", { skip: !da
     "SELECT COUNT(*)::text AS count FROM terminal_event_reconciliations WHERE attendance_event_id = $1",
     [reconciliationRawId]
   )).rows[0]?.count, "1");
+
+  // Read-back is independent of POST response and immutable delivery status.
+  const resolvedHistory = await service.listTerminalSyncEvents(admin.actor, paired.terminal.id, transferHistoryFilters);
+  const resolvedDeliveries = resolvedHistory.items.filter((item) => item.attendanceEventId === reconciliationRawId);
+  assert.equal(resolvedDeliveries.length, 2);
+  assert.deepEqual(resolvedDeliveries.map((item) => item.status).sort(), ["duplicate", "reconciliation_required"]);
+  for (const delivery of resolvedDeliveries) {
+    assert.deepEqual(delivery.reconciliation, {
+      resolution: "accepted", attendanceDayId: acceptedReconciliation.attendanceDayId, createdAt: acceptedReconciliation.createdAt
+    });
+    assert.equal("reason" in delivery.reconciliation!, false);
+    assert.equal("resolvedBy" in delivery.reconciliation!, false);
+  }
+  const managerResolvedHistory = await service.listTerminalSyncEvents(manager.actor, paired.terminal.id, transferHistoryFilters);
+  assert.ok(managerResolvedHistory.items.some((item) => item.attendanceEventId === reconciliationRawId));
+  assert.ok(managerResolvedHistory.items.every((item) => item.reconciliation === null));
+  await assert.rejects(service.listTerminalSyncEvents({ ...admin.actor, organizationId: ids.org2 }, paired.terminal.id, transferHistoryFilters),
+    (error: unknown) => typeof error === "object" && error !== null && "code" in error && error.code === "NOT_FOUND");
+  assert.deepEqual(await service.resolveTerminalEventReconciliation(admin.actor, reconciliationRawId,
+    { resolution: "accepted", reason: "Administrator verified the missing worker-status boundary evidence" }, "same-decision"), acceptedReconciliation);
+  await assert.rejects(service.resolveTerminalEventReconciliation(admin.actor, reconciliationRawId,
+    { resolution: "rejected", reason: "Cannot replace a final decision" }, "different-decision"),
+    (error: unknown) => typeof error === "object" && error !== null && "code" in error && error.code === "CONFLICT");
 
   const uncertainClockEvent = await ingest(
     "check_in", randomUUID(), new Date(Date.now() - 2000).toISOString(), 33,

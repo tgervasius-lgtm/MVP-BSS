@@ -16,6 +16,7 @@
     'startCorrectionFromRecord','submitCorrection','submitVacationRequest','switchRole','toggleAccessDepartmentFields',
     'toggleAccessUser','toggleCard','toggleDemoMode','toggleDepartment','toggleHoliday','toggleJobPosition','toggleShift',
     'toggleTheme','toggleWorkerActive','updateCorrection','updateCorrectionPreview','updateReportDepartment',
+    'openTerminalEvent','submitTerminalReconciliation','reloadTerminalEvents',
     'updateVacationRequestPreview'
   ]);
   const allowedActions=new Set(actionNames);
