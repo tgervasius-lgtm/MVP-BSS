@@ -29,7 +29,8 @@ const coreSources = [
   'src/views/leave-calendar-operational.js',
   'src/views/home-operational.js',
   'src/views/terminal-operational.js',
-  'src/views/access-operational.js'
+  'src/views/access-operational.js',
+  'src/views/audit-operational.js'
 ].map(path=>fs.readFileSync(path,'utf8'));
 const styleEntry = fs.readFileSync('styles.css','utf8');
 const styleLayerPaths = [
@@ -1005,6 +1006,15 @@ test('postavke tvrtke provjeravaju OIB i sigurnosne rokove prije spremanja',()=>
   assert.equal(state().security.passwordResetValidityMinutes,45);
   assert.equal(state().security.sessionMinutes,600);
   assert.equal(state().audit[0].module,'Postavke');
+});
+
+test('Audit operational checkpoint zadržava evidence table i filtre',()=>{
+  const {window,document}=boot('admin');
+  window.navigate('audit');
+  assert.equal(document.querySelectorAll('.audit-summary>div').length,4);
+  assert.ok(document.querySelector('.audit-table'));
+  assert.ok(document.querySelector('#auditModule'));
+  assert.ok(document.querySelector('#auditSearch'));
 });
 
 test('audit trag filtrira administrativne radnje po modulu i tekstu',()=>{
