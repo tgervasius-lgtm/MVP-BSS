@@ -9,7 +9,7 @@
   function render(context){
     const {currentRole,reportFilters,scopedWorkers,data,REPORT_TYPE_CONFIG,state,title,escapeHtml,departmentOptions,reportPreview,reportHistoryView}=context;
     const roleText=currentRole==='manager'?'Dodijeljeni odjeli':currentRole==='accountant'?'Pregled i izvoz':'Cijela tvrtka ili uži opseg';
-    return `${title('Izvještaji','Pregled, provjera i izvoz evidencijskih podataka.')}
+    return `${title('Izvještaji','Pregled, provjera i izvoz evidencijskih podataka.',currentRole==='accountant'?'<span class="pill gray">Samo čitanje</span>':'')}
       <section class="card report-workspace-head">
         <div class="report-workspace-title"><div><span>Aktivni izvještaj</span><h2>${escapeHtml(data.title)}</h2><p>${escapeHtml(data.description)}</p></div><div class="report-scope"><b>${escapeHtml(data.period)}</b><span>${escapeHtml(data.scope)}</span><small>${escapeHtml(roleText)}</small></div></div>
         <div class="report-boundary"><b>Granica modula</b><span>BSS priprema evidencijske podatke. Ne izračunava plaću, poreze ni doprinose.</span></div>
