@@ -359,14 +359,18 @@ test('UX/UI Cleanup v1.1 koristi tablice i kompaktne informacijske sažetke bez 
   assert.equal(worker.document.querySelector('.worker-home-summary'),null);
   worker.window.navigate('mytime');
   assert.ok(worker.document.querySelector('.mytime-summary-card'));
-  assert.ok(worker.document.querySelector('.mytime-summary-grid>button[data-bss-action]'));
-  assert.equal(worker.document.querySelectorAll('.data-summary-metrics>button[data-bss-action]').length,2);
-  assert.match(worker.document.querySelector('.time-donut').getAttribute('aria-label'),/Odrađeno.*planiranih.*Saldo/);
+  assert.equal(worker.document.querySelectorAll('.mytime-summary-grid>button[data-bss-action]').length,4);
+  assert.equal(worker.document.querySelector('.time-donut'),null);
+  assert.equal(worker.document.querySelector('.data-summary-metrics'),null);
   assert.equal(worker.document.querySelector('.attendance-kpis'),null);
-  assert.equal(worker.document.querySelector('.mytime-review'),null);
+  let reviewButton=worker.document.querySelector('[data-bss-action="setMyTimeReview(true)"]');
+  assert.ok(reviewButton);
+  assert.equal(reviewButton.disabled,true);
   worker.state().records.find(record=>record.workerId===1&&record.date==='2026-07-09').status='Nepotpun zapis';
   worker.window.render();
-  assert.ok(worker.document.querySelector('.mytime-review'));
+  reviewButton=worker.document.querySelector('[data-bss-action="setMyTimeReview(true)"]');
+  assert.equal(reviewButton.disabled,false);
+  assert.match(reviewButton.textContent,/Za provjeru/);
   assert.equal(worker.document.querySelector('.personal-attendance-table thead').textContent.includes('Radnik'),false);
 });
 
