@@ -21,7 +21,8 @@ const coreSources = [
   'src/use-cases/corrections.js',
   'src/views/registry.js',
   'src/views/events.js',
-  'src/views/attendance-operational.js'
+  'src/views/attendance-operational.js',
+  'src/views/workers-operational.js'
 ].map(path=>fs.readFileSync(path,'utf8'));
 const styleEntry = fs.readFileSync('styles.css','utf8');
 const styleLayerPaths = [
@@ -449,7 +450,7 @@ test('Radnici operational lista skriva RFID iz glavne tablice ali ga zadržava u
   assert.equal(document.querySelectorAll('.workers-summary>div').length,4);
   assert.doesNotMatch(document.querySelector('.workers-table').textContent,/RFID kartica/);
   window.openWorker(1);
-  document.querySelector('[data-bss-action="setWorkerDetailTab(\'RFID kartica\')"]')?.click();
+  window.setWorkerDetailTab('RFID kartica');
   assert.match(document.querySelector('#content').textContent,/RFID UID/);
 });
 
