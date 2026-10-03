@@ -933,12 +933,17 @@ test('korisničke uloge, reset i blokiranje imaju zaštitne granice i audit trag
 });
 
 test('Prava pristupa operational checkpoint zadržava sigurnosne akcije i role evidence',()=>{
-  const {window,document}=boot('admin');
+  const {window,document,state}=boot('admin');
   window.navigate('roles');
   assert.equal(document.querySelectorAll('.access-summary>button').length,4);
   assert.equal(document.querySelectorAll('.permission-table tbody tr').length,4);
-  assert.ok(document.querySelector('[data-bss-action^="openAccessModal("]'));
-  assert.ok(document.querySelector('[data-bss-action^="sendPasswordReset("]'));
+  window.openAccessModal(1);
+  assert.ok(document.querySelector('#modal').classList.contains('open'));
+  assert.match(document.querySelector('#modal').textContent,/Uredi korisnički pristup/);
+  window.closeModal();
+  window.sendPasswordReset(1);
+  assert.ok(state().accessUsers.find(item=>item.id===1).passwordResetAt);
+  assert.equal(state().audit[0].module,'Prava pristupa');
   assert.match(document.querySelector('.access-boundary-note').textContent,/backendu/);
 });
 
