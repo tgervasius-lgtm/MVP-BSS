@@ -8,7 +8,7 @@
   const baseViewReports=root.viewReports;
   const baseOpenAttendanceRecord=root.openAttendanceRecord;
   const baseApplyReportFilters=root.applyReportFilters;
-  let apiAttendancePeriod=null,apiAttendancePeriodEtag='',apiPeriodMonth='';
+  let apiAttendancePeriod=null,apiAttendancePeriodEtag='',apiPeriodMonth='',periodIdempotencySequence=0;
 
   function revisionHeaders(value){return{'If-Match':`"${String(value||'0')}"`};}
   function apiMessage(error){
@@ -190,8 +190,8 @@
     return({review:'Pokreni pregled',finalize:'Finaliziraj mjesec',close:'Zatvori mjesec',reopen:'Ponovno otvori'})[action]||action;
   }
   function periodIdempotencyKey(action){
-    const random=root.crypto?.randomUUID?.()||`${Date.now()}-${Math.random().toString(36).slice(2)}`;
-    return `bss-period-${action}-${random}`;
+    const unique=root.crypto?.randomUUID?.()||`${Date.now()}-${++periodIdempotencySequence}`;
+    return `bss-period-${action}-${unique}`;
   }
   function periodHeaders(action){
     return {...revisionHeaders(apiAttendancePeriod?.revision||apiAttendancePeriodEtag||'0'),'Idempotency-Key':periodIdempotencyKey(action)};
