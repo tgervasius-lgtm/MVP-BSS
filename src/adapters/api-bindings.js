@@ -12,6 +12,143 @@
     if(error?.code==='UNAUTHENTICATED')return'Sesija je istekla. Prijavi se ponovno.';
     return error?.message||'API zahtjev nije uspio.';
   }
+  const periodStatusLabel={open:'Otvoreno',review:'Pregled',finalized:'Finalizirano',closed:'Zatvoreno'};
+  const periodActionConfig={
+    review:{path:'review',label:'Pokreni pregled',confirm:'Pokreni pregled ovog mjeseca?'},
+    finalize:{path:'finalize',label:'Finaliziraj',confirm:'Finalizirati i zaključati ovaj mjesec?'},
+    close:{path:'close',label:'Zatvori mjesec',confirm:'Zatvoriti finalizirani mjesec?'},
+    reopen:{path:'reopen',label:'Ponovno otvori',confirm:'Ponovno otvoriti zaključani mjesec? Ranije finalizirane verzije ostaju nepromijenjene.'}
+  };
+  function periodMonthParts(month){
+    if(!/^\d{4}-(0[1-9]|1[0-2])$/.test(month||''))return null;
+    const [year,value]=month.split('-').map(Number);
+    return {year,month:value,key:month};
+  }
+  function idempotencyKey(){
+    return root.crypto?.randomUUID?.()||`bss-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  }
+  async function fetchAttendancePeriod(month,rerender=false){
+    const parts=periodMonthParts(month);if(!parts||!['admin','manager','accountant'].includes(currentRole))return null;
+    try{
+      const period=await BSS_API.get(`/attendance-periods/${parts.year}/${parts.month}`);
+      state.attendancePeriod=period;state.attendancePeriodMonth=parts.key;apiError='';
+      if(rerender)render();
+      return period;
+    }catch(error){
+      apiError=apiMessage(error);
+      state.attendancePeriod=null;state.attendancePeriodMonth=parts.key;
+      if(rerender){render();toast(apiError);}
+      return null;
+    }
+  }
+  function unresolvedItems(period){
+    const unresolved=period?.unresolved||{};
+    return [
+      ['Aktivni zapisi',Number(unresolved.active||0)],
+      ['Nepotpuni zapisi',Number(unresolved.incomplete||0)],
+      ['Korekcije na čekanju',Number(unresolved.pendingCorrections||0)],
+      ['Terminal reconciliation',Number(unresolved.reconciliationRequired||0)]
+    ];
+  }
+  function attendancePeriodPanel(month){
+    if(!BSS_API_ACTIVE||!['admin','manager','accountant'].includes(currentRole))return'';
+    const parts=periodMonthParts(month);if(!parts)return'';
+    const period=state.attendancePeriodMonth===parts.key?state.attendancePeriod:null;
+    if(!period)return `<section class="card attendance-period-card"><div class="attendance-period-head"><div><span>Mjesečni period</span><h2>${escapeHtml(reportMonthLabel(parts.key))}</h2></div><span class="pill gray">Nije učitano</span></div><p class="small-muted">Period state nije dostupan u ovom prikazu. Osvježi filtre ili pokušaj ponovno.</p></section>`;
+    const unresolved=unresolvedItems(period),total=Number(period.unresolved?.total||0),readOnly=currentRole!=='admin';
+    const actions=[];
+    if(!readOnly){
+      if(period.status==='open')actions.push(['review',false]);
+      if(period.status==='review')actions.push(['finalize',total>0]);
+      if(period.status==='finalized')actions.push(['close',false],['reopen',false]);
+      if(period.status==='closed')actions.push(['reopen',false]);
+    }
+    const provenance=period.provenanceStatus==='complete'?'Potpuna':period.provenanceStatus==='legacy_unavailable'?'Legacy nedostupna':'Nije zaključana';
+    const dataset=period.datasetVersion?String(period.datasetVersion):'—';
+    return `<section class="card attendance-period-card" aria-label="Status mjesečnog attendance perioda">
+      <div class="attendance-period-head"><div><span>Mjesečni period</span><h2>${escapeHtml(reportMonthLabel(parts.key))}</h2></div><span class="pill ${period.status==='finalized'||period.status==='closed'?'green':period.status==='review'?'orange':'gray'}">${escapeHtml(periodStatusLabel[period.status]||period.status)}</span></div>
+      <div class="attendance-period-summary">
+        <div><span>Revizija</span><b>${escapeHtml(period.revision||'0')}</b></div>
+        <div><span>Blokatori</span><b>${total}</b></div>
+        <div><span>Provenance</span><b>${escapeHtml(provenance)}</b></div>
+        <div><span>Dataset verzija</span><b class="mono">${escapeHtml(dataset)}</b></div>
+      </div>
+      ${total?`<div class="attendance-period-blockers"><b>Prije finalizacije riješi blokatore</b><div>${unresolved.filter(([,value])=>value>0).map(([label,value])=>`<span>${escapeHtml(label)} <b>${value}</b></span>`).join('')}</div></div>`:'<div class="notice info attendance-period-ready">Nema prijavljenih blokatora za ovaj period.</div>'}
+      ${period.lastReason?`<p class="attendance-period-reason"><span>Zadnji razlog</span>${escapeHtml(period.lastReason)}</p>`:''}
+      ${readOnly?'<div class="attendance-period-readonly">Samo čitanje — promjene lifecyclea izvršava Administrator.</div>':actions.length?`<div class="btns attendance-period-actions">${actions.map(([action,disabled])=>`<button class="btn ${action==='reopen'?'secondary':''}" data-bss-action="openAttendancePeriodTransition('${action}')" ${disabled?'disabled':''}>${escapeHtml(periodActionConfig[action].label)}</button>`).join('')}</div>`:''}
+    </section>`;
+  }
+  function openAttendancePeriodTransition(action){
+    if(currentRole!=='admin'||!periodActionConfig[action]||!state.attendancePeriod)return;
+    const period=state.attendancePeriod,config=periodActionConfig[action],modal=$('#modal');
+    const destructive=action==='finalize'||action==='close'||action==='reopen';
+    modal.innerHTML=`<div class="modal-card"><div class="modal-head"><div><div class="eyebrow">Mjesečni attendance period</div><h2>${escapeHtml(config.label)}</h2><div class="small-muted">${escapeHtml(reportMonthLabel(state.attendancePeriodMonth||CURRENT_MONTH))} · trenutno ${escapeHtml(periodStatusLabel[period.status]||period.status)}</div></div><button class="close-btn" data-bss-action="closeModal()">×</button></div><div class="notice ${destructive?'warning':'info'}">${escapeHtml(config.confirm)}</div><label>Razlog<textarea id="periodTransitionReason" rows="3" maxlength="1000" placeholder="Najmanje 3 znaka"></textarea></label><div class="btns"><button class="btn ${action==='reopen'?'red':''}" data-bss-action="submitAttendancePeriodTransition('${action}')">${escapeHtml(config.label)}</button><button class="btn secondary" data-bss-action="closeModal()">Odustani</button></div></div>`;
+    showModal(modal);
+  }
+  async function submitAttendancePeriodTransition(action){
+    const config=periodActionConfig[action],period=state.attendancePeriod,parts=periodMonthParts(state.attendancePeriodMonth);
+    const reason=$('#periodTransitionReason')?.value.trim()||'';
+    if(currentRole!=='admin'||!config||!period||!parts)return;
+    if(reason.length<3){toast('Upiši razlog od najmanje 3 znaka.');return;}
+    if(action==='finalize'&&Number(period.unresolved?.total||0)>0){toast('Finalizacija je blokirana dok postoje neriješene stavke.');return;}
+    apiLoading=true;apiError='';
+    try{
+      const headers={...revisionHeaders(period.revision),'Idempotency-Key':idempotencyKey()};
+      const updated=await BSS_API.post(`/attendance-periods/${parts.year}/${parts.month}/${config.path}`,{reason},headers);
+      state.attendancePeriod=updated;state.attendancePeriodMonth=parts.key;closeModal();render();toast(`${config.label}: spremljeno.`);
+    }catch(error){
+      apiError=apiMessage(error);render();toast(apiError);
+    }finally{apiLoading=false;}
+  }
+  function attendanceRecordExtraActions(record){
+    if(!BSS_API_ACTIVE||currentRole!=='admin'||!record?.apiId)return'';
+    return `<button class="btn secondary" data-bss-action="openAttendanceRecalculation(${record.id})">Ponovno izračunaj</button>`;
+  }
+  function openAttendanceRecalculation(id){
+    const record=state.records.find(item=>item.id===Number(id));
+    if(currentRole!=='admin'||!record?.apiId)return;
+    const worker=workerById(record.workerId),periodLocked=['finalized','closed'].includes(state.attendancePeriod?.status)&&state.attendancePeriodMonth===record.date.slice(0,7);
+    const modal=$('#modal');
+    modal.innerHTML=`<div class="modal-card"><div class="modal-head"><div><div class="eyebrow">Kontrolirani recalculation</div><h2>${escapeHtml(worker?.name||'Radnik')}</h2><div class="small-muted">${escapeHtml(isoLabel(record.date))} · revizija ${escapeHtml(record.revision||'—')}</div></div><button class="close-btn" data-bss-action="closeModal()">×</button></div><div class="record-detail-grid"><div><span>Dolazak</span><b>${escapeHtml(record.start||'—')}</b></div><div><span>Odlazak</span><b>${escapeHtml(record.end||'—')}</b></div><div><span>Status</span><b>${escapeHtml(record.status||'—')}</b></div><div><span>Izvor</span><b>Immutable attendance evidence</b></div></div>${periodLocked?'<div class="notice danger">Mjesec je zaključan. Recalculation nije dopušten prije kontroliranog reopen postupka.</div>':'<div class="notice info">Recalculation ponovno računa izvedeni zapis iz sačuvanih izvornih dokaza. Raw terminal evidence se ne prepisuje.</div>'}<label>Razlog<textarea id="recalcReason" rows="3" maxlength="1000" placeholder="Zašto se zapis ponovno računa?"></textarea></label><div class="btns"><button class="btn" data-bss-action="submitAttendanceRecalculation(${record.id})" ${periodLocked?'disabled':''}>Ponovno izračunaj</button><button class="btn secondary" data-bss-action="closeModal()">Odustani</button></div></div>`;
+    showModal(modal);
+  }
+  async function submitAttendanceRecalculation(id){
+    const record=state.records.find(item=>item.id===Number(id)),reason=$('#recalcReason')?.value.trim()||'';
+    if(currentRole!=='admin'||!record?.apiId)return;
+    if(reason.length<3){toast('Upiši razlog od najmanje 3 znaka.');return;}
+    apiLoading=true;apiError='';
+    try{
+      await BSS_API.post(`/attendance/${record.apiId}/recalculations`,{calculationVersion:'attendance-v1',reason},revisionHeaders(record.revision));
+      await hydrateApi();
+      await fetchAttendancePeriod(record.date.slice(0,7));
+      closeModal();render();toast('Evidencija je ponovno izračunata iz sačuvanih dokaza.');
+    }catch(error){apiError=apiMessage(error);render();toast(apiError);}
+    finally{apiLoading=false;}
+  }
+  async function apiApplyAttendanceFilters(){
+    const previous=attendanceFilters.month;
+    attendanceFilters={month:$('#attMonth')?.value||CURRENT_MONTH,department:$('#attDept')?.value||'Svi',status:$('#attStatus')?.value||'Svi',search:$('#attSearch')?.value.trim()||''};
+    if(attendanceFilters.month!==previous||state.attendancePeriodMonth!==attendanceFilters.month)await fetchAttendancePeriod(attendanceFilters.month);
+    render();
+  }
+  async function apiClearAttendanceFilters(){
+    attendanceFilters={month:CURRENT_MONTH,department:'Svi',status:'Svi',search:''};attendanceView='all';
+    if(state.attendancePeriodMonth!==CURRENT_MONTH)await fetchAttendancePeriod(CURRENT_MONTH);
+    render();
+  }
+  async function apiApplyReportFilters(log=true){
+    if(!['admin','manager','accountant'].includes(currentRole)){navigate('home');return;}
+    reportFilters=normalizeReportFilters({month:$('#reportMonth')?.value,department:$('#reportDept')?.value,workerId:$('#reportWorker')?.value,type:reportFilters.type});
+    if(state.attendancePeriodMonth!==reportFilters.month)await fetchAttendancePeriod(reportFilters.month);
+    const data=getReportData();if(log)recordReportActivity('Pregled generiran',data);
+    render();if(log)toast('Pregled izvještaja je ažuriran.');
+  }
+  async function apiUpdateReportDepartment(department){
+    const month=$('#reportMonth')?.value||reportFilters.month;
+    reportFilters=normalizeReportFilters({...reportFilters,month,department,workerId:'Svi'});
+    if(state.attendancePeriodMonth!==reportFilters.month)await fetchAttendancePeriod(reportFilters.month);
+    render();
+  }
   function resetApiFilters(){
     attendanceFilters={month:CURRENT_MONTH,department:'Svi',status:'Svi',search:''};attendanceView='all';
     myTimeMonth=CURRENT_MONTH;myTimeReviewOnly=false;workerShiftFilter='Svi';requestStatusFilter=currentRole==='worker'?'Svi':'Na čekanju';requestSearch='';
@@ -319,6 +456,8 @@
     submitCorrection:apiSubmitCorrection,updateCorrection:apiUpdateCorrection,cancelCorrection:apiCancelCorrection,downloadReport:apiDownloadReport,
     saveAccessUser:apiSaveAccess,toggleAccessUser:apiToggleAccess,sendInvitation:apiSendInvitation,sendPasswordReset:()=>toast('Reset lozinke nije dio zaključanog MVP ugovora.'),resendInvitation:()=>toast('Ponovno slanje pozivnice nije dio zaključanog MVP ugovora.'),cancelInvitation:()=>toast('Poništavanje pozivnice nije dio zaključanog MVP ugovora.'),
     saveSettings:apiSaveSettings,openDepartmentModal:apiOpenDepartmentModal,saveDepartment:apiSaveDepartment,toggleDepartment:apiToggleDepartment,openHolidayModal:apiOpenHolidayModal,saveHoliday:apiSaveHoliday,toggleHoliday:apiToggleHoliday,setSharedLeaveVisibility:apiSetSharedLeaveVisibility,
+    attendancePeriodPanel,attendanceRecordExtraActions,openAttendancePeriodTransition,submitAttendancePeriodTransition,openAttendanceRecalculation,submitAttendanceRecalculation,
+    applyAttendanceFilters:apiApplyAttendanceFilters,clearAttendanceFilters:apiClearAttendanceFilters,applyReportFilters:apiApplyReportFilters,updateReportDepartment:apiUpdateReportDepartment,
     saveJobPosition:()=>toast('Radna mjesta nisu zaseban MVP entitet.'),toggleJobPosition:()=>toast('Radna mjesta nisu zaseban MVP entitet.'),
     viewShifts:apiViewShifts,viewRoles:apiViewRoles,viewSettings:apiViewSettings,viewSharedLeave:apiViewSharedLeave,showSharedLeaveDay:apiShowSharedLeaveDay,viewTerminal:apiViewTerminal,pairTerminal:apiPairTerminalSubmit,revokeTerminal:apiRevokeTerminal,
     simulateTerminalOffline:disabledDemoAction,restoreTerminal:disabledDemoAction,simulateRfid:disabledDemoAction,
