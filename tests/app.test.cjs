@@ -418,6 +418,13 @@ test('svaki KPI i kompaktni brojčani sažetak ima drill-down bez slijepih karti
   }
 });
 
+test('statični sažeci vizualno se razlikuju od interaktivnih kontrola',()=>{
+  assert.match(styles,/Owner visual review — interaction affordance clarity/);
+  assert.match(styles,/\.approval-summary>div,[\s\S]*?background:var\(--bss-color-bg-subtle\)/);
+  assert.match(styles,/\.access-summary>button\.active\{[\s\S]*?box-shadow:inset/);
+  assert.match(styles,/\.terminal-operational-kpis>button,[\s\S]*?cursor:pointer/);
+});
+
 test('statusni filteri nemaju paralelni dekorativni duplikat',()=>{
   const requests=boot('admin');
   requests.window.navigate('requests');
