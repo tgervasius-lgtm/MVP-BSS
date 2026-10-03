@@ -448,7 +448,11 @@ test('Zahtjevi i korekcije imaju operational sažetak bez promjene approval akci
   assert.equal(admin.document.querySelectorAll('.approval-summary>div').length,4);
   assert.match(admin.document.querySelector('.corrections-operational-card').textContent,/Izvorno/);
   assert.match(admin.document.querySelector('.corrections-operational-card').textContent,/Predloženo/);
-  assert.ok(admin.document.querySelector('[data-bss-action*="updateCorrection("]'));
+  const beforeCorrection=admin.state().corrections.find(item=>item.id===1).status;
+  assert.equal(beforeCorrection,'Na čekanju');
+  admin.window.updateCorrection(1,'Odobreno');
+  assert.equal(admin.state().corrections.find(item=>item.id===1).status,'Odobreno');
+  assert.match(admin.state().audit[0].action,/Odobrena korekcija/);
 });
 
 test('desktop navigacija prikazuje samo primarne Admin stavke i puni izbornik ostaje u draweru',()=>{
