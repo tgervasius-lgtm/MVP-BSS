@@ -916,7 +916,7 @@ function filteredWorkers(){
 function workerTable(workers){ return BSS_VIEWS.workersOperational.table(workers,{shiftById,escapeHtml,pill}); }
 function viewWorkers(){
   return BSS_VIEWS.workersOperational.screen({
-    workers:filteredWorkers(),isAdmin:currentRole==='admin',visibleWorkers:visibleWorkers(),workerSearch,workerListTab,workerShiftFilter,
+    workers:filteredWorkers(),isAdmin:currentRole==='admin',workerSearch,workerListTab,workerShiftFilter,
     shiftById,escapeHtml,title,workerTable
   });
 }
@@ -1123,9 +1123,9 @@ function updateVacationRequestPreview(){
   if(element)element.textContent=vacationRequestPreviewText($('#vacType').value,$('#vacStart').value,$('#vacEnd').value,currentWorker().id);
 }
 function viewRequests(){
-  const isApprover=['admin','manager'].includes(currentRole),isWorker=currentRole==='worker',scoped=scopedLeaveRequests(),requests=filteredLeaveRequests(),counts=requestStatusCounts(scoped);
+  const isApprover=['admin','manager'].includes(currentRole),isWorker=currentRole==='worker',scoped=scopedLeaveRequests(),requests=filteredLeaveRequests();
   return BSS_VIEWS.approvalsOperational.requests({
-    currentRole,isApprover,isWorker,scoped,requests,counts,requestSearch,title,requestTabs,requestTable,vacationRequestForm,escapeHtml
+    currentRole,isApprover,isWorker,scoped,requests,requestSearch,title,requestTabs,requestTable,vacationRequestForm,escapeHtml
   });
 }
 function submitVacationRequest(){
