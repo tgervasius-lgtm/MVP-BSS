@@ -333,3 +333,18 @@ button.day:hover{outline:2px solid var(--bss-color-accent-text);outline-offset:1
 .shifts-operational-card{box-shadow:none}.shifts-operational-card td{padding-top:9px;padding-bottom:9px}
 .shifts-operational-card td .pill{background:transparent;border-color:transparent;padding:3px 0;border-radius:0;font-weight:800}
 .shifts-boundary-note{font-size:9px}
+
+
+/* Visual Design Gate — worker detail operational checkpoint */
+.worker-detail-workspace .worker-detail-tabs{margin-bottom:10px}
+.worker-detail-card{box-shadow:none;border-radius:9px;padding:13px 14px}
+.worker-detail-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 16px}
+.worker-detail-grid>div{min-width:0;padding:9px 0;border-bottom:1px solid var(--bss-color-border)}
+.worker-detail-grid span,.worker-detail-grid b,.worker-detail-grid small{display:block}
+.worker-detail-grid span{font-size:8px;color:var(--bss-color-text-muted)}
+.worker-detail-grid b{margin-top:3px;font-size:11px;word-break:break-word}
+.worker-detail-grid small{margin-top:3px;font-size:8px;color:var(--bss-color-text-muted)}
+.worker-detail-grid .pill{margin-top:3px;background:transparent;border-color:transparent;padding:3px 0;border-radius:0;font-weight:800}
+.worker-detail-actions{margin-top:12px;padding-top:10px;border-top:1px solid var(--bss-color-border)}
+.worker-footer-actions{margin-top:10px}
+.worker-evidence-wrap>.card{box-shadow:none}
