@@ -296,6 +296,14 @@ test('Visual Design Gate shell checkpoint koristi light enterprise desktop shell
   assert.doesNotMatch(document.querySelector('.desktop-nav')?.textContent||'',/Zajednički godišnji/);
 });
 
+test('Attendance polish v2 zadržava semantičku boju samo kao signal',()=>{
+  assert.match(styles,/Attendance polish v2: restrained enterprise semantics/);
+  assert.match(styles,/background:transparent!important/);
+  assert.match(styles,/td:nth-child\(9\) \.pill/);
+  assert.match(styles,/td:nth-child\(10\) \.pill\.red/);
+  assert.match(styles,/box-shadow:none/);
+});
+
 test('Attendance operational checkpoint odvaja status i anomaliju uz dnevni KPI strip',()=>{
   const {window,document}=boot('admin');
   window.navigate('attendance');
