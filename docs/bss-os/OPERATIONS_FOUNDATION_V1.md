@@ -1,8 +1,8 @@
 # BSS Operations Foundation v1
 
-Status: **HARDENED DRAFT / BSS OS REVIEW REQUIRED**  
+Status: **ACCEPTED / HARDENED — ARCHITECTURE ONLY**  
 Date: 2026-10-03  
-Revision: consolidated review draft (PR #229; useful additions from PR #231)
+Revision: owner-accepted consolidated architecture (PR #229; useful additions from PR #231)
 Tracking issue: #225  
 Product authority: `BSS_V1_PRODUCT_CONTRACT.md` v1.0 — **ACCEPTED / FROZEN**  
 Design authority: `BSS_DESIGN_FOUNDATION_V1.md` v1.0 — **ACCEPTED / HARDENED**  
@@ -24,7 +24,7 @@ Its job is to connect existing owners and evidence gates so implementation work 
 
 ## 2. Strict status boundary
 
-`HARDENED DRAFT`
+`ACCEPTED / HARDENED ARCHITECTURE`
 
 != IMPLEMENTED  
 != EVIDENCE PROVEN  
@@ -267,10 +267,10 @@ AUDIT B is not ready until at least:
 
 ## 12. Next actions
 
-After review of this draft:
+After owner acceptance on 2026-10-03:
 
-1. ACCEPT / REVISE OM-01 architecture.
-2. Keep #225 as the governance owner until the reviewed document is merged and explicitly accepted/hardened.
+1. OM-01 architecture is ACCEPTED / HARDENED; merge PR #229 only after all applicable checks pass.
+2. Close #225 only after that merge. This closes architecture scope, not operations implementation or readiness.
 3. Continue focused frozen-contract implementation gaps independently where already authorized.
 4. Refresh #59 against current vendor facts immediately before any Staging provisioning or spend.
 5. Open separate implementation issues for OM-02/03/04/05 only when concrete Staging evidence work becomes near-active.
@@ -283,4 +283,10 @@ Retained from #231: the #124/#133 ownership links, explicit staging environment/
 
 The stricter #229 requirements remain: independent encrypted off-platform recovery and isolated restore before Production-like Staging passes, explicit reviewer/recheck metadata, immutable release/artifact linkage, and activation only when concrete staging work is near-active. The later-before-Pilot wording in #231 does not defer these staging gates. Vendor examples remain candidates, not new selections or current-price claims.
 
-OM-01 closes only after explicit owner/BSS OS architecture acceptance and merge of this focused proposal, with current/target separation, existing ownership, OM-02..05 scope/evidence, reversible cost posture and all security boundaries retained. Green checks or merge alone do not automatically accept the architecture or prove Staging/Pilot/Production readiness. Until that decision, #225 remains open and this document remains HARDENED DRAFT / BSS OS REVIEW REQUIRED. OM-12 time-travel forensics remains HOLD / DO NOT START.
+OM-01 closes only after explicit owner/BSS OS architecture acceptance and merge of this focused proposal, with current/target separation, existing ownership, OM-02..05 scope/evidence, reversible cost posture and all security boundaries retained. Green checks or merge alone do not automatically accept the architecture or prove Staging/Pilot/Production readiness. The owner acceptance recorded below supersedes the draft status; #225 remains open until the authorized merge completes. OM-12 time-travel forensics remains HOLD / DO NOT START.
+
+## 14. Owner acceptance — 2026-10-03
+
+At 22:16 CEST the BSS owner approved the next stated decision: acceptance of the consolidated OM-01 architecture and merge of PR #229. The approved basis was consolidated head `ffb0dbb5c5e447ab650a9831bfb9fe69547eaa33`, with 15/15 reported GitHub checks successful and no unresolved review threads. This status-only record implements that decision; its new commit must pass the applicable checks before merge.
+
+Accepted: the architecture, existing ownership map, minimum OM-02..05 requirements/evidence, pre-Staging backup/restore gate, and activation discipline in this document. No Product Contract change, runtime implementation, infrastructure provisioning, paid service, live Pilot or Production release is authorized. Staging, Hardware 9C, Pilot and Commercial Production remain NOT PASS. Future implementation follows the existing scoped issue/review/release controls; this acceptance does not activate OM-06+ or OM-12.
