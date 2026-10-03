@@ -238,3 +238,23 @@
   .section-title p{line-height:1.4}
   .card-heading,.table-card-heading{gap:8px}
 }
+
+
+/* Owner visual review — desktop sharpness override */
+@media(min-width:960px){
+  .side-role{border-radius:6px}
+  .desktop-nav .drawer-item{
+    border-radius:5px;
+    font-weight:800;
+  }
+  .desktop-nav .drawer-item.active{
+    background:var(--bss-color-bg-subtle);
+    color:var(--bss-color-text);
+    box-shadow:inset 2px 0 0 var(--bss-color-accent-text);
+  }
+  .desktop-nav .drawer-item.active:before{display:none}
+  .desktop-more{
+    border-radius:5px;
+    font-weight:800;
+  }
+}
