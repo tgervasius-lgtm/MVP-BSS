@@ -503,6 +503,20 @@ test('zajednički godišnji je frontend demo za sve uloge i prikazuje samo odobr
   assert.equal(worker.evaluate("sharedLeaveRequests().every(request=>workerById(request.workerId).dept===currentWorker().dept)"),true);
 });
 
+test('kalendar koristi jednu period kontrolu bez duplog mjeseca iznad sadržaja',()=>{
+  const worker=boot('worker');
+  worker.window.navigate('vacations');
+  assert.equal(worker.document.querySelector('.calendar-workspace-toolbar'),null);
+  assert.equal(worker.document.querySelectorAll('.calendar-card-toolbar').length,1);
+  assert.equal(worker.document.querySelectorAll('.calendar-period-control button').length,2);
+  assert.equal(worker.document.querySelector('.month-view>.month-card>h3')?.textContent.trim(),'srpanj 2026');
+  worker.window.navigate('sharedLeave');
+  assert.equal(worker.document.querySelector('.calendar-workspace-toolbar'),null);
+  assert.equal(worker.document.querySelectorAll('.calendar-card-toolbar').length,1);
+  assert.match(styles,/Owner visual review — calendar controls deduplicated/);
+  assert.match(styles,/\.month-view>\.month-card>h3\{display:none\}/);
+});
+
 test('Zahtjevi uklanjaju duplicirani sažetak, a korekcije čuvaju jedini operativni sažetak',()=>{
   const admin=boot('admin');
   admin.window.navigate('requests');
