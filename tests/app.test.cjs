@@ -295,6 +295,21 @@ test('Visual Design Gate shell checkpoint koristi light enterprise desktop shell
   assert.doesNotMatch(document.querySelector('.desktop-nav')?.textContent||'',/Zajednički godišnji/);
 });
 
+test('Attendance operational checkpoint odvaja status i anomaliju uz dnevni KPI strip',()=>{
+  const {window,document}=boot('admin');
+  window.navigate('attendance');
+  assert.equal(document.querySelectorAll('.attendance-operational-kpis .attendance-op-kpi').length,5);
+  for(const label of ['Prisutni','Bez dolaska','Odsutni','Anomalije','Ukupno']) assert.match(document.querySelector('.attendance-operational-kpis').textContent,new RegExp(label));
+  const headers=[...document.querySelectorAll('.attendance-operational-table th')].map(node=>node.textContent.trim());
+  assert.ok(headers.includes('Status'));
+  assert.ok(headers.includes('Anomalija'));
+  assert.ok(headers.includes('Planirano'));
+  assert.equal(document.querySelectorAll('.attendance-operational-table tbody tr').length,7);
+  window.setAttendanceDailyFilter('anomaly');
+  assert.ok(document.querySelectorAll('.attendance-operational-table tbody tr').length>=1);
+  assert.match(document.querySelector('.attendance-history-heading').textContent,/Povijest evidencije/);
+});
+
 test('UX/UI Cleanup v1.1 koristi tablice i kompaktne informacijske sažetke bez promjene funkcija',()=>{
   const admin=boot('admin');
   const screens=[
