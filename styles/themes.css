@@ -41,3 +41,16 @@
 :root[data-theme="dark"] .scope-switch button{background:var(--bss-color-bg-surface);color:var(--bss-color-text-muted)}
 :root[data-theme="dark"] .scope-switch button.active{background:var(--bss-color-action-primary);border-color:var(--bss-color-action-primary);color:var(--bss-color-action-primary-text)}
 :root[data-theme="dark"] .active-filter{border-color:#1e4b67}
+
+
+/* Final cross-screen polish — state parity */
+:root[data-theme="dark"] .empty-state{
+  background:var(--bss-color-bg-subtle);
+  border-color:var(--bss-color-border);
+  color:var(--bss-color-text-muted);
+}
+:root[data-theme="dark"] .notice.danger{
+  border-color:var(--bss-color-danger);
+  background:var(--bss-color-danger-soft);
+  color:#fecaca;
+}

@@ -1518,6 +1518,17 @@ test('Design Foundation v1.0 je prihvaćen nakon Visual Design Gatea pod zamrznu
   assert.doesNotMatch(designFoundationDoc,/`employee-onboarding-import`/);
 });
 
+test('final cross-screen polish zaključava focus touch i workflow state baseline',()=>{
+  assert.match(styles,/Final cross-screen polish — shared workflow states and focus/);
+  assert.match(styles,/:focus-visible/);
+  assert.match(styles,/\.notice\.danger/);
+  assert.match(styles,/\.empty-state/);
+  assert.match(styles,/pointer:coarse/);
+  assert.match(styles,/min-height:44px/);
+  assert.match(styles,/prefers-reduced-motion:reduce/);
+  assert.match(styles,/scroll-snap-type:x proximity/);
+});
+
 test('R5 učitava CSS slojeve istim redoslijedom i sprema ih za offline rad',()=>{
   const imports=['./design-system/tokens.css',...styleLayerPaths.map(path=>`./${path}`)];
   const positions=imports.map(path=>styleEntry.indexOf(`@import url("${path}")`));
