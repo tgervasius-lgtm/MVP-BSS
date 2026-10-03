@@ -157,3 +157,8 @@
   .desktop-more:hover{background:var(--bss-color-bg-hover);color:var(--bss-color-text)}
   .desktop-more>span:first-child{width:17px;text-align:center;letter-spacing:1px}
 }
+
+
+/* Requests + corrections operational checkpoint */
+@media(min-width:620px){.approval-summary{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media(max-width:520px){.approval-context{align-items:flex-start;flex-direction:column}.approval-context span{text-align:left}}
