@@ -6,8 +6,8 @@
 |---|---|
 | Name | BSS v1 Design Foundation |
 | Version | 1.0 |
-| Status | **PROPOSED / NOT ACCEPTED** |
-| Date | 04.09.2026 |
+| Status | **ACCEPTED / HARDENED** |
+| Date | 03.10.2026 |
 | Issue | #156 |
 | Proposal baseline | protected `main` at `43565ab6c3117369d46a33270eace283110f37ca` |
 | Product authority | `BSS_V1_PRODUCT_CONTRACT.md` v1.0 — **ACCEPTED / FROZEN** |
@@ -20,9 +20,7 @@
 
 The status boundary is strict:
 
-> **PROPOSED / NOT ACCEPTED**
->
-> != ACCEPTED
+> **ACCEPTED / HARDENED**
 >
 > != IMPLEMENTED
 >
@@ -451,7 +449,7 @@ This register records only established gaps. It activates no implementation issu
 
 ## 27. Acceptance and evidence boundary
 
-Acceptance of this document would mean only **DESIGN FOUNDATION ACCEPTED**. It would not mean implementation is complete, a gap is implemented, evidence is proven, Staging is ready, Pilot has passed, hardware is proven, or Production/Commercial readiness exists.
+Acceptance of this document means **DESIGN FOUNDATION ACCEPTED / HARDENED** as of 03.10.2026. It does not mean implementation is complete, a gap is implemented, evidence is proven, Staging is ready, Pilot has passed, hardware is proven, or Production/Commercial readiness exists.
 
 ### Visual Design Gate — mandatory #156 acceptance checkpoint
 
@@ -469,10 +467,44 @@ The BSS v1 Design Foundation **MUST NOT be marked ACCEPTED** until the Visual De
 
 This Visual Design Gate is an acceptance checkpoint inside #156. It is not new product scope, a new roadmap phase, an implementation issue, or authorization to activate tooling. BSS visual direction must be intentionally designed and owner-approved; it must not default to generic AI/SaaS aesthetics, decorative KPI density, gamification, or unjustified visual effects.
 
+
+### 27.1 Visual Design Gate acceptance — 03.10.2026
+
+The required #156 Visual Design Gate has been completed and explicitly approved by the BSS owner.
+
+Owner decisions:
+- Desktop visual direction — **ACCEPT**
+- Table/list density — **ACCEPT**
+- Contextual drawer/detail pattern — **ACCEPT**
+- Semantic color/status language — **ACCEPT**
+- Mobile Worker density — **ACCEPT WITH REVISED STRUCTURE**
+- Terminal visual direction — **ACCEPT PROVISIONAL FOR HARDWARE VALIDATION**
+- Overall BSS system feel — **ACCEPT**
+
+Accepted direction:
+- light enterprise UI;
+- quiet BSS branding;
+- stable role-purposeful shell;
+- operational table/list density;
+- semantic non-color-only states;
+- contextual desktop drawer with adaptive smaller-viewport detail;
+- worker mobile UI focused on own current work;
+- terminal UI focused on unambiguous trust/acknowledgement feedback.
+
+Acceptance boundaries remain strict:
+- this acceptance authorizes roadmap-ordered design-system/frontend implementation work for the already-frozen v1 scope;
+- it does **not** claim implementation, deployment, Staging, Pilot, Production, Commercial or hardware evidence;
+- Figma and Storybook remain **CANDIDATE / INACTIVE** until separately activated;
+- final font family, icon library, exact spacing/breakpoint tokens, component APIs and visual-regression/accessibility evidence remain implementation-hardening work;
+- terminal visuals remain provisional until physical 4.3-inch / 800x480 validation and applicable #132 evidence.
+
+Shared approved-leave calendar visibility is already part of the frozen Product Contract. The Visual Design Gate therefore treats the worker-facing `Kalendar` naming and pull-based presentation as visual/interaction refinement, not new product scope. Cross-worker visibility remains privacy-minimized to employee name plus approved `annual_leave` dates within the configured visibility; reasons, notes, balances and other absence types are not exposed.
+
+
 ## 28. Change control / rollback
 
 - **Before merge:** close the Draft PR if the proposal is rejected or superseded.
-- **After merge:** use a reviewed revert if the proposal must be withdrawn. A merge would still leave the document PROPOSED until separate owner/BSS OS acceptance and completion of the Visual Design Gate.
+- **After merge:** use a reviewed revert if this accepted Design Foundation must be withdrawn or superseded. Any material Product Contract change still requires separate versioned change control.
 - **Material product change:** use a separately reviewed, versioned Product Contract change; do not edit this document to bypass product authority.
 - **Implementation gap:** create a focused future issue only when the gap is activated and authorized.
 - **Design Foundation acceptance:** requires explicit owner/BSS OS review, completed Visual Design Gate evidence, and a separately governed status change.
