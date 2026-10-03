@@ -6,20 +6,11 @@
   }
 
   function requests(context){
-    const {currentRole,isApprover,isWorker,scoped,requests,counts,requestSearch,title,requestTabs,requestTable,vacationRequestForm,escapeHtml}=context;
-    const rejected=scoped.filter(item=>item.status==='Odbijeno').length;
-    const approved=scoped.filter(item=>item.status==='Odobreno').length;
-    const summary=metricStrip([
-      ['Na čekanju',counts['Na čekanju']],
-      ['Odobreno',approved],
-      ['Odbijeno',rejected],
-      ['Ukupno',scoped.length]
-    ],'Sažetak zahtjeva');
+    const {currentRole,isApprover,isWorker,scoped,requests,requestSearch,title,requestTabs,requestTable,vacationRequestForm,escapeHtml}=context;
     const heading=isWorker?'Moji zahtjevi':currentRole==='manager'?'Zahtjevi mojeg tima':'Zahtjevi za odsutnost';
     const subtitle=isWorker?'Statusi i povijest mojih zahtjeva.':'Odluke o odsutnosti u dopuštenom opsegu.';
     const queueCopy=isApprover?'<div class="approval-context"><b>Red čekanja za odluku</b><span>Preklapanje je signal za provjeru, ne automatska zabrana.</span></div>':'';
     return `${title(heading,subtitle)}
-      ${summary}
       ${queueCopy}
       <section class="card request-control-card approval-control">
         ${requestTabs(scoped)}

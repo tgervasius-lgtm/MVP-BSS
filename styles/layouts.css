@@ -134,3 +134,81 @@
   color:var(--bss-color-text-muted);
   padding-top:12px;
 }
+
+
+/* Owner visual review — focused login entry point */
+.login{
+  display:grid;
+  place-items:center;
+  padding:calc(32px + var(--bss-safe-area-top)) 22px calc(32px + var(--bss-safe-area-bottom));
+}
+.login-inner{
+  width:min(480px,100%);
+  margin:0 auto;
+}
+.brand{
+  text-align:center;
+  margin-bottom:22px;
+}
+.mark{
+  width:54px;
+  height:54px;
+  margin:0 auto;
+  font-size:24px;
+}
+.brand h1{
+  font-size:34px;
+  margin:14px 0 4px;
+}
+.brand small{
+  font-size:11px;
+  letter-spacing:.01em;
+}
+.brand p{
+  font-size:13px;
+  line-height:1.5;
+  max-width:420px;
+  margin:10px auto 0;
+}
+.login-version{
+  margin-top:9px;
+  font-size:10px;
+}
+.glass{
+  border-radius:12px;
+  padding:22px;
+  box-shadow:0 12px 32px rgba(16,24,40,.07);
+}
+.login .form{gap:12px}
+.login .form label{
+  font-size:11px;
+  gap:7px;
+}
+.login .form input,
+.login .form select{
+  min-height:46px;
+  padding:11px 12px;
+  font-size:13px;
+}
+.login-row{
+  font-size:10px;
+  line-height:1.4;
+  margin:2px 0 2px;
+}
+.primary-login{
+  min-height:48px;
+  padding:12px 14px;
+  font-size:14px;
+}
+.login-note{
+  text-align:center;
+  font-size:10px;
+  line-height:1.5;
+  padding-top:12px;
+}
+@media(max-width:520px){
+  .login-inner{width:min(100%,440px)}
+  .brand h1{font-size:31px}
+  .brand p{font-size:12px}
+  .glass{padding:18px}
+}

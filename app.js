@@ -565,7 +565,7 @@ function desktopSidebar(){
 }
 function shell(){
   const [heading,subtitle] = topCopy();
-  const roleControl = state.demoMode ? `<div class="role-panel"><label>Demo prikaz aplikacije kao</label><select data-bss-change="switchRole(this.value)">${roleOptions()}</select></div>` : '';
+  const demoTools = state.demoMode ? `<details class="demo-tools" open><summary>Demo alati <span>nije dio korisničkog sučelja</span></summary><div class="demo-tools-body"><div class="role-panel"><label>Prikaži demo kao</label><select data-bss-change="switchRole(this.value)">${roleOptions()}</select></div><a class="drawer-item design-system-link" href="./design-system/" target="_blank" rel="noopener"><span aria-hidden="true">◈</span><span class="nav-label">Design System v${DESIGN_SYSTEM_VERSION}</span><span aria-hidden="true">↗</span></a><a class="drawer-item brand-book-link" href="./brand-book/" target="_blank" rel="noopener"><span aria-hidden="true">◆</span><span class="nav-label">Brand Book v${BRAND_BOOK_VERSION}</span><span aria-hidden="true">↗</span></a><button class="drawer-item" data-bss-action="openResetDemoDialog()"><span aria-hidden="true">↻</span>Vrati početne demo-podatke</button></div></details>` : '';
   const darkTheme=currentTheme==='dark';
   const invitationMode=Boolean(INVITATION_TOKEN);
   const authFields=invitationMode
@@ -593,12 +593,9 @@ function shell(){
       ${bottomNavigation()}
       <div class="drawer" id="drawer" role="dialog" aria-modal="true" aria-label="BSS izbornik" aria-hidden="true" data-bss-backdrop="closeDrawer"><div class="drawer-panel">
         <div class="modal-head"><div><h2>BSS izbornik</h2><div class="small-muted">${escapeHtml(currentWorker().name)} · ${escapeHtml(role().label)}</div></div><button class="close-btn" aria-label="Zatvori" data-bss-action="closeDrawer()">×</button></div>
-        ${roleControl}
         <div class="theme-panel"><div><label>Tema sučelja</label><p data-theme-copy>${darkTheme?'Aktivna je tamna tema.':'Aktivna je svijetla tema.'}</p></div><button class="switch ${darkTheme?'on':''}" type="button" role="switch" aria-checked="${darkTheme}" aria-label="${darkTheme?'Uključi svijetlu temu':'Uključi tamnu temu'}" data-theme-switch data-bss-action="toggleTheme()"><i aria-hidden="true"></i></button></div>
+        ${demoTools}
         ${navList(true)}
-        <a class="drawer-item design-system-link" href="./design-system/" target="_blank" rel="noopener"><span aria-hidden="true">◈</span><span class="nav-label">Design System v${DESIGN_SYSTEM_VERSION}</span><span aria-hidden="true">↗</span></a>
-        <a class="drawer-item brand-book-link" href="./brand-book/" target="_blank" rel="noopener"><span aria-hidden="true">◆</span><span class="nav-label">Brand Book v${BRAND_BOOK_VERSION}</span><span aria-hidden="true">↗</span></a>
-        ${state.demoMode?'<button class="drawer-item" data-bss-action="openResetDemoDialog()"><span aria-hidden="true">↻</span>Vrati početne demo-podatke</button>':''}
         <button class="drawer-item" data-bss-action="logout()"><span>⇥</span>Odjava</button>
       </div></div>
       <div class="modal" id="modal" role="dialog" aria-modal="true" aria-hidden="true" data-bss-backdrop="closeModal"></div>
@@ -919,7 +916,7 @@ function filteredWorkers(){
 function workerTable(workers){ return BSS_VIEWS.workersOperational.table(workers,{shiftById,escapeHtml,pill}); }
 function viewWorkers(){
   return BSS_VIEWS.workersOperational.screen({
-    workers:filteredWorkers(),isAdmin:currentRole==='admin',visibleWorkers:visibleWorkers(),workerSearch,workerListTab,workerShiftFilter,
+    workers:filteredWorkers(),isAdmin:currentRole==='admin',workerSearch,workerListTab,workerShiftFilter,
     shiftById,escapeHtml,title,workerTable
   });
 }
@@ -1126,9 +1123,9 @@ function updateVacationRequestPreview(){
   if(element)element.textContent=vacationRequestPreviewText($('#vacType').value,$('#vacStart').value,$('#vacEnd').value,currentWorker().id);
 }
 function viewRequests(){
-  const isApprover=['admin','manager'].includes(currentRole),isWorker=currentRole==='worker',scoped=scopedLeaveRequests(),requests=filteredLeaveRequests(),counts=requestStatusCounts(scoped);
+  const isApprover=['admin','manager'].includes(currentRole),isWorker=currentRole==='worker',scoped=scopedLeaveRequests(),requests=filteredLeaveRequests();
   return BSS_VIEWS.approvalsOperational.requests({
-    currentRole,isApprover,isWorker,scoped,requests,counts,requestSearch,title,requestTabs,requestTable,vacationRequestForm,escapeHtml
+    currentRole,isApprover,isWorker,scoped,requests,requestSearch,title,requestTabs,requestTable,vacationRequestForm,escapeHtml
   });
 }
 function submitVacationRequest(){
@@ -1249,10 +1246,8 @@ function departmentLeaveSummary(requests){
   });
 }
 function vacationBalanceVisual(balance,year){
-  const usedStop=progressPercent(balance.used,balance.allowance);
-  const plannedStop=progressPercent(balance.used+balance.reserved,balance.allowance);
-  const aria=`Godišnji ${year}. Iskorišteno ${balance.used}, planirano ${balance.reserved}, raspoloživo ${balance.available} dana.`;
-  return `<section class="card data-summary-card vacation-balance-visual"><button class="data-donut leave-donut" style="--donut-used:${usedStop}%;--donut-planned:${plannedStop}%" data-bss-action="openVacationRequestStatus('Svi')" aria-label="${escapeHtml(`${aria} Otvori zahtjeve.`)}"><span class="data-donut-center"><b>${balance.available}</b><span>raspoloživo</span></span></button><div class="data-summary-main"><div class="eyebrow">Godišnji ${year}.</div><h2>${balance.allowance} dana ukupno</h2><div class="donut-legend"><button data-bss-action="openVacationRequestStatus('Odobreno')"><i class="used"></i><span>Iskorišteno</span><b>${balance.used}</b></button><button data-bss-action="openVacationRequestStatus('Na čekanju')"><i class="planned"></i><span>Planirano</span><b>${balance.reserved}</b></button><button data-bss-action="openVacationRequestStatus('Svi')"><i class="available"></i><span>Raspoloživo</span><b>${balance.available}</b></button></div></div></section>`;
+  const aria=`Godišnji ${year}. Ukupno ${balance.allowance}, iskorišteno ${balance.used}, planirano ${balance.reserved}, raspoloživo ${balance.available} dana.`;
+  return `<section class="card vacation-balance-visual vacation-balance-neutral" aria-label="${escapeHtml(aria)}"><div class="vacation-balance-head"><div><span class="worker-kicker">Godišnji ${year}.</span><h2><strong>${balance.available}</strong> dana raspoloživo</h2><p>Od ukupnog fonda od ${balance.allowance} dana.</p></div><button class="btn secondary" data-bss-action="openVacationRequestStatus('Svi')">Pregled zahtjeva</button></div><div class="vacation-balance-grid"><button data-bss-action="openVacationRequestStatus('Odobreno')"><span>Iskorišteno</span><b>${balance.used}</b><small>odobreni dani</small></button><button data-bss-action="openVacationRequestStatus('Na čekanju')"><span>Planirano</span><b>${balance.reserved}</b><small>čeka odluku</small></button><button data-bss-action="openVacationRequestStatus('Svi')"><span>Preostalo</span><b>${balance.remaining}</b><small>prije rezervacija</small></button><button data-bss-action="openVacationRequestStatus('Svi')"><span>Raspoloživo</span><b>${balance.available}</b><small>za novo planiranje</small></button></div></section>`;
 }
 function viewVacations(){
   const requests=calendarRequests().filter(request=>request.start.slice(0,4)<=String(calendarYear)&&request.end.slice(0,4)>=String(calendarYear));
