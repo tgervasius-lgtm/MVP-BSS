@@ -1,8 +1,8 @@
 {
   "contract": "BSS post-freeze frontend screen ownership to Backend MVP API v1.4",
   "readiness": "RECONCILED_WITH_EXPLICIT_UI_GAPS",
-  "contractReviewedAt": "2026-10-03",
-  "contractReviewStatus": "ISSUE_234_TERMINAL_CANDIDATE_BSS_OS_REVIEW_REQUIRED",
+  "contractReviewedAt": "2026-10-04",
+  "contractReviewStatus": "POST_TERMINAL_MERGE_RECONCILED_WITH_EXPLICIT_GAPS",
   "productAuthority": {
     "file": "BSS_V1_PRODUCT_CONTRACT.md",
     "version": "1.0",
@@ -13,7 +13,7 @@
     "status": "HISTORICAL_FRONTEND_V1_REFERENCE",
     "authority": "NOT_CURRENT_PRODUCT_AUTHORITY"
   },
-  "repositoryBaseline": "9ac82a4b2764110f879343bdad1e2e4aeb0d01c8",
+  "repositoryBaseline": "e6d191c0933d3e32dce68ef874a9b8af722a64d8",
   "openapi": {
     "file": "openapi/bss-mvp-api-v1.yaml",
     "sha256": "62a649b1f63ee571d1f43b9be5bbe145810159fe13fb71f556ec82bcf6788d6a",
@@ -280,6 +280,20 @@
         "admin"
       ],
       "note": "Frozen Admin-only create/preview/validate/review/atomic-commit/cancel scope; no current registered screen or OpenAPI operation."
+    },
+    {
+      "id": "report-locked-version-selection",
+      "status": "contract-defined-gap",
+      "operations": [
+        "getAttendancePeriod",
+        "createReportExport"
+      ],
+      "roles": [
+        "admin",
+        "manager",
+        "accountant"
+      ],
+      "note": "Existing API supports a named immutable periodVersionId; complete explicit selection for official export remains a separate UI gap. Report preview/verification completion does not close it."
     }
   ],
   "authorizationBoundary": {
