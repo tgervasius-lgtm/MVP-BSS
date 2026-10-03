@@ -524,6 +524,15 @@ test('Zahtjevi uklanjaju duplicirani sažetak, a korekcije čuvaju jedini operat
   assert.match(admin.state().audit[0].action,/Odobrena korekcija/);
 });
 
+test('public demo credentials koriste isti neutralni login treatment i tocan CTA copy',()=>{
+  const demoAuthCss=fs.readFileSync('src/demo-auth.css','utf8');
+  const demoAuthJs=fs.readFileSync('src/demo-auth.js','utf8');
+  assert.match(demoAuthCss,/background:var\(--bss-color-bg-subtle\)/);
+  assert.match(demoAuthCss,/font-size:var\(--bss-font-size-xs\)/);
+  assert.match(demoAuthJs,/Odaberi demo ulogu i klikni „Prijavi se”/);
+  assert.doesNotMatch(demoAuthJs,/Uđi u BSS/);
+});
+
 test('login entry point koristi vecu tipografiju i centrirani fokus',()=>{
   assert.match(styles,/Owner visual review — focused login entry point/);
   assert.match(styles,/\.login\{[\s\S]*?place-items:center/);
