@@ -467,6 +467,17 @@ test('Zahtjevi i korekcije imaju operational sažetak bez promjene approval akci
   assert.match(admin.state().audit[0].action,/Odobrena korekcija/);
 });
 
+test('login auth shell koristi neutralni enterprise treatment bez promjene login forme',()=>{
+  const {document}=boot('admin',false);
+  assert.match(document.querySelector('.brand').textContent,/Bognar Smart Systems/);
+  assert.ok(document.querySelector('#loginEmail'));
+  assert.ok(document.querySelector('#loginPassword'));
+  assert.ok(document.querySelector('.primary-login'));
+  assert.match(styles,/enterprise auth shell/);
+  assert.match(styles,/background:#f5f7fa/);
+  assert.match(styles,/background:#17212b/);
+});
+
 test('desktop navigacija prikazuje samo primarne Admin stavke i puni izbornik ostaje u draweru',()=>{
   const {document}=boot('admin');
   const primary=[...document.querySelectorAll('.desktop-nav-primary .drawer-item .nav-label')].map(node=>node.textContent.trim());

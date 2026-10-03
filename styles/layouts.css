@@ -64,3 +64,73 @@
   border-color:#17212b;
 }
 .content{background:var(--bss-color-bg-canvas)}
+
+
+/* Owner visual review — enterprise auth shell */
+.login{
+  min-height:100dvh;
+  padding:calc(44px + var(--bss-safe-area-top)) 22px calc(28px + var(--bss-safe-area-bottom));
+  background:#f5f7fa;
+  color:var(--bss-color-text);
+}
+.login:before,.login:after{display:none}
+.login-inner{width:min(420px,100%)}
+.brand{text-align:left;margin-bottom:18px}
+.mark{
+  width:46px;height:46px;margin:0;
+  border-radius:10px;
+  background:#17212b;
+  border:1px solid #17212b;
+  color:#fff;
+  font-size:21px;
+  backdrop-filter:none;
+}
+.brand h1{font-size:28px;letter-spacing:-.04em;margin:14px 0 3px;color:var(--bss-color-text)}
+.brand small{font-size:9px;letter-spacing:.02em;text-transform:none;color:var(--bss-color-text-muted)}
+.brand p{font-size:11px;line-height:1.45;color:var(--bss-color-text-muted);max-width:360px;margin:10px 0 0}
+.login-version{
+  margin-top:10px;padding:0;
+  border:0;border-radius:0;background:transparent;
+  color:var(--bss-color-text-muted);
+  font-size:8px;letter-spacing:0;
+}
+.glass{
+  background:var(--bss-color-bg-surface);
+  border:1px solid var(--bss-color-border);
+  backdrop-filter:none;
+  border-radius:10px;
+  padding:18px;
+  box-shadow:0 8px 24px rgba(16,24,40,.06);
+}
+.login .form label{color:var(--bss-color-text);font-size:9px}
+.login .form input,.login .form select{
+  background:var(--bss-color-bg-surface);
+  border-color:var(--bss-color-border-strong);
+  color:var(--bss-color-text);
+  border-radius:8px;
+}
+.login .form input:focus,.login .form select:focus{
+  border-color:var(--bss-color-focus);
+  box-shadow:0 0 0 3px rgba(46,108,230,.10);
+}
+.login .form select option{color:var(--bss-color-text);background:var(--bss-color-bg-surface)}
+.login-row{
+  font-size:9px;
+  color:var(--bss-color-text-muted);
+  margin:4px 0 14px;
+}
+.primary-login{
+  padding:12px;
+  border-radius:8px;
+  background:#17212b;
+  color:#fff;
+  box-shadow:none;
+}
+.primary-login:hover{background:#0f7e83}
+.login-note{
+  text-align:left;
+  font-size:9px;
+  line-height:1.5;
+  color:var(--bss-color-text-muted);
+  padding-top:12px;
+}
