@@ -2,7 +2,7 @@
   "contract": "BSS post-freeze frontend screen ownership to Backend MVP API v1.4",
   "readiness": "RECONCILED_WITH_EXPLICIT_UI_GAPS",
   "contractReviewedAt": "2026-10-03",
-  "contractReviewStatus": "ISSUE_232_IMPLEMENTATION_CANDIDATE_BSS_OS_REVIEW_REQUIRED",
+  "contractReviewStatus": "ISSUE_234_RECONCILIATION_CANDIDATE_BSS_OS_REVIEW_REQUIRED",
   "productAuthority": {
     "file": "BSS_V1_PRODUCT_CONTRACT.md",
     "version": "1.0",
@@ -13,10 +13,10 @@
     "status": "HISTORICAL_FRONTEND_V1_REFERENCE",
     "authority": "NOT_CURRENT_PRODUCT_AUTHORITY"
   },
-  "repositoryBaseline": "cd2aee008b8971060a711808e31c4ca0d7b67fdf",
+  "repositoryBaseline": "9ac82a4b2764110f879343bdad1e2e4aeb0d01c8",
   "openapi": {
     "file": "openapi/bss-mvp-api-v1.yaml",
-    "sha256": "9eefb5f272dbef12f52ff631c350a001153923fd38f936627c4529884d6cc91f",
+    "sha256": "62a649b1f63ee571d1f43b9be5bbe145810159fe13fb71f556ec82bcf6788d6a",
     "version": "1.4.0",
     "status": "MVP_IMPLEMENTED",
     "paths": 52,
@@ -180,9 +180,10 @@
         "listTerminals",
         "pairTerminal",
         "revokeTerminal",
-        "listTerminalSyncEvents"
+        "listTerminalSyncEvents",
+        "resolveTerminalEventReconciliation"
       ],
-      "note": "Credential rotation and Admin-only reconciliation remain UI gaps; ingestion and heartbeat are device protocol operations, not screen actions."
+      "note": "Admin-only reconciliation uses immutable raw receipt identity and authoritative resolution read-back. Credential rotation remains a UI gap; ingestion and heartbeat are device protocol operations."
     },
     {
       "id": "terminalDemo",
@@ -271,17 +272,6 @@
         "admin"
       ],
       "prospectiveOwner": "terminal-security-pattern"
-    },
-    {
-      "id": "terminal-event-reconciliation",
-      "status": "contract-defined-gap",
-      "operations": [
-        "resolveTerminalEventReconciliation"
-      ],
-      "roles": [
-        "admin"
-      ],
-      "prospectiveOwner": "terminal-recovery-pattern"
     },
     {
       "id": "customer-onboarding",

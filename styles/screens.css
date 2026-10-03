@@ -1571,3 +1571,8 @@ button.day:hover{outline:2px solid var(--bss-color-accent-text);outline-offset:1
   }
   .report-verification-grid>div:last-child{border-bottom:0}
 }
+
+/* Terminal evidence keeps the immutable delivery and reconciliation separate. */
+.terminal-evidence{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
+.terminal-evidence div{min-width:0}.terminal-evidence dt{font-size:13px;color:var(--bss-color-text-muted)}
+.terminal-evidence dd{margin:4px 0 0;overflow-wrap:anywhere}

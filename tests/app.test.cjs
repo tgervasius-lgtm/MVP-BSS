@@ -1909,7 +1909,7 @@ test('aplikacija povezuje vodič i offline predmemorira cijeli Design System',()
   for(const asset of ['design-system/index.html','design-system/tokens.css','design-system/guide.css','design-system/guide.js']){
     assert.match(serviceWorker,new RegExp(asset.replaceAll('.','\\.')));
   }
-  assert.match(serviceWorker,/bss-backend-mvp-v1-r3/);
+  assert.match(serviceWorker,/bss-backend-mvp-v1-r4/);
 });
 
 test('Brand Book v1.0 pokriva svih devet dogovorenih područja',()=>{
@@ -1973,7 +1973,7 @@ test('aplikacija povezuje Brand Book i cijeli paket radi offline',()=>{
     'bss-presentation-cover.svg','bss-terminal-label.svg',
     'BSS_BRAND-BOOK_v1.0_11.07.2026.pdf'
   ]) assert.match(serviceWorker,new RegExp(asset.replaceAll('.','\\.')));
-  assert.match(serviceWorker,/bss-backend-mvp-v1-r3/);
+  assert.match(serviceWorker,/bss-backend-mvp-v1-r4/);
   assert.match(serviceWorker,/path\.includes\('\/brand-book'\)/);
 });
 
@@ -2074,11 +2074,11 @@ test('Backend MVP učitava API adaptere prije aplikacije i sprema shell za offli
   ]){
     assert.match(serviceWorker,new RegExp(asset.replaceAll('.','\\.')));
   }
-  assert.match(serviceWorker,/bss-backend-mvp-v1-r3/);
+  assert.match(serviceWorker,/bss-backend-mvp-v1-r4/);
 });
 
 test('cache invalidation hotfix osvježava app shell i odmah preuzima otvorene klijente',()=>{
-  assert.match(serviceWorker,/const CACHE_NAME = 'bss-backend-mvp-v1-r3'/);
+  assert.match(serviceWorker,/const CACHE_NAME = 'bss-backend-mvp-v1-r4'/);
   assert.match(serviceWorker,/new Request\(asset,\{cache:'reload'\}\)/);
   assert.match(serviceWorker,/new Request\(request,\{cache:'no-store'\}\)/);
   assert.match(serviceWorker,/new Request\(request,\{cache:'no-cache'\}\)/);
@@ -2531,4 +2531,73 @@ test('MVP Scope v1.1 zajednički godišnji ostaje privatno minimiziran i koristi
   assert.match(sharedLeaveCalendarScope,/pending\/odbijene\/poništene zahtjeve/);
   assert.match(fs.readFileSync('src/adapters/api-state.js','utf8'),/approved-leave-calendar/);
   assert.doesNotMatch(apiContractDraft,/sick_leave|medical_reason|diagnosis/i);
+});
+
+function terminalReconciliationHarness(role='admin',post=async(_path,body)=>({attendanceEventId:'30000000-0000-4000-8000-000000000003',resolution:body.resolution})){
+  const dom=new JSDOM('<div id="modal"></div>');
+  const rawId='30000000-0000-4000-8000-000000000003';
+  const item={syncEventId:'10000000-0000-4000-8000-000000000001',eventId:'20000000-0000-4000-8000-000000000002',attendanceEventId:rawId,statusCode:'reconciliation_required',status:'Za usklađenje',label:'Radnik <script>',type:'Prijava',occurredAt:'2026-10-03T08:00:00Z',reconciliation:null,reconciliationLoaded:true};
+  const context=vm.createContext({document:dom.window.document,Element:dom.window.Element,BSS_API_ACTIVE:true,logged:true,screen:'terminal',currentRole:role,state:{terminal:{recentEvents:[item]},company:{timezone:'Europe/Zagreb'}},BSS_API:{post},$:selector=>dom.window.document.querySelector(selector),escapeHtml:value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char])),showModal:modal=>modal.classList.add('open'),closeModal:()=>dom.window.document.querySelector('#modal').classList.remove('open'),toast:message=>{context.message=message;}});
+  vm.runInContext(fs.readFileSync('src/adapters/api-terminal-reconciliation.js','utf8'),context);
+  const module=context.BSSTerminalReconciliation;
+  module.configure({refresh:async()=>true});
+  Object.assign(context,{openTerminalEvent:module.open,submitTerminalReconciliation:module.submit,reloadTerminalEvents:module.reload});
+  vm.runInContext(fs.readFileSync('src/views/events.js','utf8'),context);
+  const fill=(resolution='accepted',reason='Provjera dokaza')=>{
+    dom.window.document.querySelector('#terminalResolution').value=resolution;
+    dom.window.document.querySelector('#terminalResolutionReason').value=reason;
+    dom.window.document.querySelector('#terminalResolutionConfirm').checked=true;
+  };
+  return{context,module,item,fill,document:dom.window.document};
+}
+
+test('terminal reconciliation uses raw receipt ID, trims reason and prevents concurrent submission',async()=>{
+  let release,calls=0,path,payload;
+  const h=terminalReconciliationHarness('admin',async(value,body)=>{calls++;path=value;payload=body;return new Promise(resolve=>{release=()=>resolve({attendanceEventId:h.item.attendanceEventId,resolution:body.resolution});});});
+  await h.module.open(h.item.syncEventId);h.fill('rejected','  Provjeren dokaz  ');
+  assert.equal(h.document.querySelector('script'),null);
+  const first=h.module.submit();await h.module.submit();
+  assert.equal(calls,1);assert.equal(path,`/attendance-events/${h.item.attendanceEventId}/reconciliation`);
+  assert.equal(payload.reason,'Provjeren dokaz');assert.equal(payload.resolution,'rejected');
+  assert.equal(h.document.querySelector('#terminalResolution').disabled,true);
+  release();await first;
+  assert.match(h.context.message,/Odbijeno/);
+});
+
+test('terminal reconciliation rejects invalid reason, missing confirmation, missing raw ID and old read contract',async()=>{
+  let calls=0;const h=terminalReconciliationHarness('admin',async()=>{calls++;});
+  await h.module.open(h.item.syncEventId);h.fill('accepted',' x ');await h.module.submit();assert.equal(calls,0);
+  h.fill();h.document.querySelector('#terminalResolutionConfirm').checked=false;await h.module.submit();assert.equal(calls,0);
+  h.item.attendanceEventId=null;await h.module.open(h.item.syncEventId);assert.equal(h.document.querySelector('#terminalResolution'),null);
+  h.item.attendanceEventId='30000000-0000-4000-8000-000000000003';h.item.reconciliationLoaded=false;
+  await h.module.open(h.item.syncEventId);assert.equal(h.document.querySelector('#terminalResolution'),null);
+});
+
+test('terminal reconciliation read-back recognizes a committed timeout without retrying',async()=>{
+  let calls=0;const h=terminalReconciliationHarness('admin',async()=>{calls++;h.item.reconciliation={resolution:'accepted',createdAt:'2026-10-03T10:00:00Z',attendanceDayId:'day'};throw new Error('timeout');});
+  await h.module.open(h.item.syncEventId);h.fill();await h.module.submit();
+  assert.equal(calls,1);assert.match(h.context.message,/Spremljena odluka: Prihvaćeno/);
+  await h.module.open(h.item.syncEventId);
+  assert.equal(h.document.querySelector('#terminalResolution'),null);
+  assert.match(h.document.querySelector('#modal').textContent,/Za usklađenje/);
+  assert.match(h.document.querySelector('#modal').textContent,/Zaključena odluka: Prihvaćeno/);
+});
+
+test('terminal reconciliation preserves unknown outcome and never retries automatically',async()=>{
+  let calls=0;const h=terminalReconciliationHarness('admin',async()=>{calls++;throw new Error('network');});
+  await h.module.open(h.item.syncEventId);h.fill();h.module.configure({refresh:async()=>false});
+  await h.module.submit();await h.module.submit();
+  assert.equal(calls,1);assert.match(h.context.message,/Ishod zahtjeva nije poznat/);
+});
+
+test('terminal reconciliation respects role, refreshed competing decision and event action registration',async()=>{
+  for(const role of ['manager','worker','accountant']){
+    let calls=0;const h=terminalReconciliationHarness(role,async()=>{calls++;});
+    await h.module.open(h.item.syncEventId);await h.module.submit();
+    assert.equal(h.document.querySelector('#terminalResolution'),null);assert.equal(calls,0);
+  }
+  const h=terminalReconciliationHarness();h.module.configure({refresh:async()=>{h.item.reconciliation={resolution:'rejected',createdAt:'2026-10-03T10:00:00Z',attendanceDayId:null};return true;}});
+  await h.module.open(h.item.syncEventId);assert.equal(h.document.querySelector('#terminalResolution'),null);
+  assert.ok(h.context.BSSCore.views.events.parse(`openTerminalEvent('${h.item.syncEventId}')`));
+  assert.ok(h.context.BSSCore.views.events.parse('submitTerminalReconciliation()'));
 });
