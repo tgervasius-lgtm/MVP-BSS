@@ -416,3 +416,47 @@ button.day:hover{outline:2px solid var(--bss-color-accent-text);outline-offset:1
 .demo-tools-body{padding:0 8px 8px}
 .demo-tools .role-panel{margin:0 0 6px}
 .demo-tools .drawer-item{border-radius:6px}
+
+
+/* Owner visual readability sweep — 2026-10-03
+   Frozen Design System scale: xs=10px metadata/labels, sm=12px helper/business copy. */
+.worker-home-operational .worker-home-status p{
+  font-size:var(--bss-font-size-sm);
+  line-height:var(--bss-line-height-normal);
+}
+.workers-table td:nth-child(5)>small{
+  font-size:var(--bss-font-size-sm);
+  line-height:var(--bss-line-height-normal);
+}
+.worker-home-operational .worker-home-facts span,
+.worker-name-link small,
+.attendance-operational-table td small,
+.attendance-op-kpi small,
+.corrections-operational-card td small,
+.vacation-balance-table td small,
+.access-operational-card td small,
+.worker-detail-grid span,
+.worker-detail-grid small,
+.mytime-summary-head span,
+.mytime-summary-head label,
+.mytime-summary-grid span,
+.shifts-summary span,
+.audit-summary span,
+.terminal-summary-label,
+.terminal-summary-card p,
+.report-workspace-title span,
+.report-workspace-title p,
+.report-scope span,
+.report-scope small,
+.report-workspace-head .report-boundary span,
+.approval-context,
+.shifts-boundary-note,
+.access-boundary-note{
+  font-size:var(--bss-font-size-xs);
+  line-height:var(--bss-line-height-normal);
+}
+.demo-tools>summary,
+.demo-tools>summary span{
+  font-size:var(--bss-font-size-xs);
+  line-height:var(--bss-line-height-normal);
+}

@@ -500,6 +500,17 @@ test('Početna operational checkpoint uklanja hero treatment i čuva role drill-
   assert.match(accountant.document.querySelector('#content').textContent,/Samo čitanje/);
 });
 
+
+test('owner readability sweep koristi frozen Design System tipografsku skalu za poslovni tekst',()=>{
+  assert.match(styles,/Owner visual readability sweep/);
+  assert.match(styles,/worker-home-operational \.worker-home-status p\{[\s\S]*?font-size:var\(--bss-font-size-sm\)/);
+  assert.match(styles,/workers-table td:nth-child\(5\)>small\{[\s\S]*?font-size:var\(--bss-font-size-sm\)/);
+  assert.match(styles,/worker-home-operational \.worker-home-facts span,[\s\S]*?font-size:var\(--bss-font-size-xs\)/);
+  assert.match(styles,/\.pill\{[\s\S]*?font-size:var\(--bss-font-size-xs\)/);
+  assert.match(styles,/th\{[\s\S]*?font-size:var\(--bss-font-size-xs\)/);
+  assert.match(styles,/\.nav-item\{[\s\S]*?font-size:var\(--bss-font-size-xs\)/);
+});
+
 test('owner visual review fixes razdvajaju smjenu, worker facts i demo alate',()=>{
   const admin=boot('admin');
   admin.window.navigate('workers');
