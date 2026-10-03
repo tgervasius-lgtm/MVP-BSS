@@ -207,3 +207,34 @@
 /* My time operational checkpoint */
 @media(min-width:620px){.mytime-summary-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
 @media(max-width:520px){.mytime-summary-head{flex-direction:column}.mytime-summary-head label,.mytime-summary-head input{width:100%}.mytime-shift-row{align-items:flex-start;flex-direction:column}.mytime-shift-row b{text-align:left}}
+
+
+/* Final cross-screen polish — operational responsive baseline */
+@media(pointer:coarse){
+  button,
+  [role="button"],
+  .drawer-item,
+  .table-detail-btn,
+  .table-actions button,
+  .link-btn{
+    min-height:44px;
+  }
+  input,select,textarea{font-size:16px}
+}
+@media(max-width:720px){
+  .table-wrap{max-width:100%;overflow-x:auto}
+  .filter-bar,.report-filter-bar,.audit-filter-bar{gap:8px}
+  .filter-actions,.btns{row-gap:8px}
+  .modal-card{width:min(100%,calc(100vw - 20px))}
+}
+@media(max-width:520px){
+  .table-scroll-hint{
+    justify-content:flex-start;
+    padding:7px 10px;
+    color:var(--bss-color-text-muted);
+    font-weight:700;
+  }
+  .section-title h1{line-height:1.12}
+  .section-title p{line-height:1.4}
+  .card-heading,.table-card-heading{gap:8px}
+}
