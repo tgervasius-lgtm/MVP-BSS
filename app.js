@@ -220,7 +220,6 @@ let requestStatusFilter = 'Na čekanju';
 let requestSearch = '';
 let attendanceFilters = {month: CURRENT_MONTH, department: 'Svi', status: 'Svi', search: ''};
 let attendanceView = 'all';
-let attendanceDailyFilter = 'all';
 let myTimeMonth = CURRENT_MONTH;
 let myTimeReviewOnly = false;
 let correctionDraft = {date: DEMO_TODAY, start: '07:42', end: '16:02'};
@@ -792,11 +791,6 @@ function departmentOptions(selected, includeAll = true){
   return `${includeAll?`<option value="Svi" ${selected==='Svi'?'selected':''}>Svi odjeli</option>`:''}${departments.map(value=>`<option value="${escapeHtml(value)}" ${selected===value?'selected':''}>${escapeHtml(value)}</option>`).join('')}`;
 }
 
-function setAttendanceDailyFilter(next){
-  if(!['all','present','missing','absent','anomaly'].includes(next))return;
-  attendanceDailyFilter=next;
-  render();
-}
 function attendanceRecordsForCurrentFilters(){
   return state.records.filter(recordVisible).filter(record=>{
     const worker = workerById(record.workerId);
@@ -830,7 +824,7 @@ function applyAttendanceFilters(){
   attendanceFilters = {month:$('#attMonth').value,department:$('#attDept').value,status:$('#attStatus').value,search:$('#attSearch').value.trim()};
   render();
 }
-function clearAttendanceFilters(){ attendanceFilters={month:CURRENT_MONTH,department:'Svi',status:'Svi',search:''};attendanceView='all';attendanceDailyFilter='all';render(); }
+function clearAttendanceFilters(){ attendanceFilters={month:CURRENT_MONTH,department:'Svi',status:'Svi',search:''};attendanceView='all';render(); }
 function attendanceLivePanel(records){
   const active=records.filter(record=>record.date===DEMO_TODAY&&!record.end);
   return `<section class="card attendance-live"><div class="card-heading"><div><h2>Aktivne evidencije danas</h2></div><span class="live-count">${active.length} aktivno</span></div><div class="attendance-live-grid">${active.map(record=>{
@@ -842,11 +836,8 @@ function viewAttendance(){
   const records=filteredAttendanceRecords();
   const counts=attendanceViewCounts();
   const viewTitle={all:'Svi zapisi',review:'Za provjeru',active:'Aktivni danas'}[attendanceView];
-  const operational=BSS_VIEWS.attendanceOperational.render(attendanceDailyFilter,{
-    visibleWorkers:visibleWorkers(),attendanceFilters,records:state.records,today:DEMO_TODAY,
-    shiftById,plannedShiftMinutes,recordMinutes,pendingCorrectionFor,escapeHtml,formatMinutes,
-    formatSignedMinutes,pill,isoLabel
-  });
+  const operational=BSS_VIEWS.attendanceOperational.render({visibleWorkers:visibleWorkers(),attendanceFilters,records:state.records,today:DEMO_TODAY,
+    shiftById,plannedShiftMinutes,recordMinutes,pendingCorrectionFor,escapeHtml,formatMinutes,formatSignedMinutes,pill,isoLabel});
   return `${title(currentRole==='manager'?'Evidencija mojeg tima':'Evidencija dolazaka',isoToDate(DEMO_TODAY).toLocaleDateString('hr-HR',{weekday:'long',day:'numeric',month:'long',year:'numeric'}),'<span class="pill gray">Dnevni operativni pregled</span>')}
     ${operational.kpis}
     ${operational.table}
