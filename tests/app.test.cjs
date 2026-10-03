@@ -22,7 +22,8 @@ const coreSources = [
   'src/views/registry.js',
   'src/views/events.js',
   'src/views/attendance-operational.js',
-  'src/views/workers-operational.js'
+  'src/views/workers-operational.js',
+  'src/views/navigation-operational.js'
 ].map(path=>fs.readFileSync(path,'utf8'));
 const styleEntry = fs.readFileSync('styles.css','utf8');
 const styleLayerPaths = [
