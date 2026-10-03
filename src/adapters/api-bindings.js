@@ -104,17 +104,28 @@
     if(!root.BSS_API_ACTIVE||currentRole!=='admin'||!record?.apiId)return'';
     return `<button class="btn secondary" data-bss-action="openAttendanceRecalculation(${record.id})">Ponovno izračunaj</button>`;
   }
-  function openAttendanceRecalculation(id){
+  async function openAttendanceRecalculation(id){
     const record=state.records.find(item=>item.id===Number(id));
     if(currentRole!=='admin'||!record?.apiId)return;
-    const worker=workerById(record.workerId),periodLocked=['finalized','closed'].includes(state.attendancePeriod?.status)&&state.attendancePeriodMonth===record.date.slice(0,7);
+    const recordMonth=record.date.slice(0,7);
+    if(state.attendancePeriodMonth!==recordMonth)await fetchAttendancePeriod(recordMonth);
+    const worker=workerById(record.workerId),period=state.attendancePeriodMonth===recordMonth?state.attendancePeriod:null;
+    const recalculationAllowed=period?.status==='open';
+    const boundaryCopy=!period
+      ?'Status mjeseca nije dostupan. Recalculation je zaključan dok se period ne može pouzdano provjeriti.'
+      :period.status!=='open'
+        ?`Mjesec je u statusu ${periodStatusLabel[period.status]||period.status}. Recalculation je dopušten samo u otvorenom periodu; za zaključani period koristi kontrolirani reopen postupak.`
+        :'Recalculation ponovno računa izvedeni zapis iz sačuvanih izvornih dokaza. Raw terminal evidence se ne prepisuje.';
     const modal=$('#modal');
-    modal.innerHTML=`<div class="modal-card"><div class="modal-head"><div><div class="eyebrow">Kontrolirani recalculation</div><h2>${escapeHtml(worker?.name||'Radnik')}</h2><div class="small-muted">${escapeHtml(isoLabel(record.date))} · revizija ${escapeHtml(record.revision||'—')}</div></div><button class="close-btn" data-bss-action="closeModal()">×</button></div><div class="record-detail-grid"><div><span>Dolazak</span><b>${escapeHtml(record.start||'—')}</b></div><div><span>Odlazak</span><b>${escapeHtml(record.end||'—')}</b></div><div><span>Status</span><b>${escapeHtml(record.status||'—')}</b></div><div><span>Izvor</span><b>Immutable attendance evidence</b></div></div>${periodLocked?'<div class="notice danger">Mjesec je zaključan. Recalculation nije dopušten prije kontroliranog reopen postupka.</div>':'<div class="notice info">Recalculation ponovno računa izvedeni zapis iz sačuvanih izvornih dokaza. Raw terminal evidence se ne prepisuje.</div>'}<label>Razlog<textarea id="recalcReason" rows="3" maxlength="1000" placeholder="Zašto se zapis ponovno računa?"></textarea></label><div class="btns"><button class="btn" data-bss-action="submitAttendanceRecalculation(${record.id})" ${periodLocked?'disabled':''}>Ponovno izračunaj</button><button class="btn secondary" data-bss-action="closeModal()">Odustani</button></div></div>`;
+    modal.innerHTML=`<div class="modal-card"><div class="modal-head"><div><div class="eyebrow">Kontrolirani recalculation</div><h2>${escapeHtml(worker?.name||'Radnik')}</h2><div class="small-muted">${escapeHtml(isoLabel(record.date))} · revizija ${escapeHtml(record.revision||'—')}</div></div><button class="close-btn" data-bss-action="closeModal()">×</button></div><div class="record-detail-grid"><div><span>Dolazak</span><b>${escapeHtml(record.start||'—')}</b></div><div><span>Odlazak</span><b>${escapeHtml(record.end||'—')}</b></div><div><span>Status</span><b>${escapeHtml(record.status||'—')}</b></div><div><span>Izvor</span><b>Immutable attendance evidence</b></div></div><div class="notice ${recalculationAllowed?'info':'danger'}">${escapeHtml(boundaryCopy)}</div><label>Razlog<textarea id="recalcReason" rows="3" maxlength="1000" placeholder="Zašto se zapis ponovno računa?"></textarea></label><div class="btns"><button class="btn" data-bss-action="submitAttendanceRecalculation(${record.id})" ${recalculationAllowed?'':'disabled'}>Ponovno izračunaj</button><button class="btn secondary" data-bss-action="closeModal()">Odustani</button></div></div>`;
     showModal(modal);
   }
   async function submitAttendanceRecalculation(id){
     const record=state.records.find(item=>item.id===Number(id)),reason=$('#recalcReason')?.value.trim()||'';
     if(currentRole!=='admin'||!record?.apiId)return;
+    const recordMonth=record.date.slice(0,7);
+    if(state.attendancePeriodMonth!==recordMonth)await fetchAttendancePeriod(recordMonth);
+    if(state.attendancePeriodMonth!==recordMonth||state.attendancePeriod?.status!=='open'){toast('Recalculation je dopušten samo u otvorenom attendance periodu.');return;}
     if(reason.length<3){toast('Upiši razlog od najmanje 3 znaka.');return;}
     apiLoading=true;apiError='';
     try{
