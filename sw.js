@@ -5,7 +5,7 @@ const ASSETS = [
   './styles/navigation.css','./styles/themes.css','./styles/responsive.css','./src/demo-auth.css',
   './src/adapters/runtime.js','./src/adapters/api.js','./src/adapters/api-state.js','./src/adapters/api-bindings.js','./src/adapters/theme-bootstrap.js','./src/domain/contracts.js','./src/domain/time.js','./src/policies/access.js',
   './src/use-cases/attendance.js','./src/use-cases/leave.js','./src/use-cases/corrections.js',
-  './src/views/registry.js','./src/views/events.js','./src/views/attendance-operational.js','./src/views/workers-operational.js','./src/demo-auth.js',
+  './src/views/registry.js','./src/views/events.js','./src/views/attendance-operational.js','./src/views/workers-operational.js','./src/views/navigation-operational.js','./src/demo-auth.js',
   './design-system/index.html','./design-system/tokens.css','./design-system/guide.css','./design-system/guide.js',
   './brand-book/index.html','./brand-book/brand.css','./brand-book/brand.js',
   './brand-book/assets/bss-symbol.svg','./brand-book/assets/bss-logo-primary.svg','./brand-book/assets/bss-logo-reversed.svg','./brand-book/assets/bss-logo-monochrome.svg',
