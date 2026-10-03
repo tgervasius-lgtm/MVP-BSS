@@ -20,7 +20,8 @@ const coreSources = [
   'src/use-cases/leave.js',
   'src/use-cases/corrections.js',
   'src/views/registry.js',
-  'src/views/events.js'
+  'src/views/events.js',
+  'src/views/attendance-operational.js'
 ].map(path=>fs.readFileSync(path,'utf8'));
 const styleEntry = fs.readFileSync('styles.css','utf8');
 const styleLayerPaths = [
