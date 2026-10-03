@@ -21,7 +21,9 @@ const coreSources = [
   'src/use-cases/corrections.js',
   'src/views/registry.js',
   'src/views/events.js',
-  'src/views/attendance-operational.js'
+  'src/views/attendance-operational.js',
+  'src/views/workers-operational.js',
+  'src/views/navigation-operational.js'
 ].map(path=>fs.readFileSync(path,'utf8'));
 const styleEntry = fs.readFileSync('styles.css','utf8');
 const styleLayerPaths = [
@@ -432,11 +434,32 @@ test('zajednički godišnji je frontend demo za sve uloge i prikazuje samo odobr
   assert.equal(worker.evaluate("sharedLeaveRequests().every(request=>workerById(request.workerId).dept===currentWorker().dept)"),true);
 });
 
+test('desktop navigacija prikazuje samo primarne Admin stavke i puni izbornik ostaje u draweru',()=>{
+  const {document}=boot('admin');
+  const primary=[...document.querySelectorAll('.desktop-nav-primary .drawer-item .nav-label')].map(node=>node.textContent.trim());
+  assert.deepEqual(primary,['Početna','Evidencija','Radnici','Kalendar','Zahtjevi','Izvještaji']);
+  assert.equal(document.querySelectorAll('.desktop-more').length,1);
+  const drawer=document.querySelector('#drawer').textContent;
+  for(const label of ['Smjene','Godišnji','Korekcije','Terminali','Prava pristupa','Audit log','Postavke']) assert.match(drawer,new RegExp(label));
+});
+
+test('Radnici operational lista skriva RFID iz glavne tablice ali ga zadržava u detalju radnika',()=>{
+  const {window,document}=boot('admin');
+  window.navigate('workers');
+  const headers=[...document.querySelectorAll('.workers-table th')].map(node=>node.textContent.trim());
+  assert.deepEqual(headers,['Šifra','Ime i prezime','Odjel','Radno mjesto','Smjena','Status','']);
+  assert.equal(document.querySelectorAll('.workers-summary>div').length,4);
+  assert.doesNotMatch(document.querySelector('.workers-table').textContent,/RFID kartica/);
+  window.openWorker(1);
+  window.setWorkerDetailTab('RFID kartica');
+  assert.match(document.querySelector('#content').textContent,/RFID UID/);
+});
+
 test('navigacija je grupirana i prikazuje brojače otvorenih stavki',()=>{
   const {document} = boot('admin');
-  const groups=new Set([...document.querySelectorAll('.desktop-nav .nav-group-label')].map(item=>item.textContent));
+  const groups=new Set([...document.querySelectorAll('#drawer .nav-group-label')].map(item=>item.textContent));
   assert.deepEqual(groups,new Set(['Pregled','Ljudi i rasporedi','Odobravanja','Sustav','Demo alati']));
-  const badges=[...document.querySelectorAll('.desktop-nav .nav-count')].map(item=>Number(item.textContent));
+  const badges=[...document.querySelectorAll('#drawer .nav-count')].map(item=>Number(item.textContent));
   assert.ok(badges.length>=2);
   assert.ok(badges.every(value=>value>0));
 });

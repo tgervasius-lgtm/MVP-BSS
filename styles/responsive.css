@@ -147,3 +147,13 @@
   .attendance-op-kpi:last-child{grid-column:1/-1}
   .attendance-history-heading{margin-top:16px}
 }
+
+
+/* Navigation + workers checkpoint */
+@media(min-width:620px){.workers-summary{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media(min-width:960px){
+  .desktop-nav-primary{gap:3px}
+  .desktop-more{width:100%;display:flex;align-items:center;gap:10px;margin-top:8px;padding:9px 10px;border-radius:7px;background:transparent;border:1px solid transparent;color:var(--bss-color-text-muted);text-align:left;font-size:11px;font-weight:800}
+  .desktop-more:hover{background:var(--bss-color-bg-hover);color:var(--bss-color-text)}
+  .desktop-more>span:first-child{width:17px;text-align:center;letter-spacing:1px}
+}
