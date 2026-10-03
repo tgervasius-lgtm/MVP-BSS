@@ -363,3 +363,56 @@ button.day:hover{outline:2px solid var(--bss-color-accent-text);outline-offset:1
 .mytime-summary-grid span,.mytime-summary-grid b{display:block}.mytime-summary-grid span{font-size:8px;color:var(--bss-color-text-muted)}.mytime-summary-grid b{font-size:17px;margin-top:3px}
 .mytime-shift-row{display:flex;justify-content:space-between;gap:12px;margin-top:10px;padding-top:9px;border-top:1px solid var(--bss-color-border);font-size:9px}.mytime-shift-row span{color:var(--bss-color-text-muted)}.mytime-shift-row b{text-align:right}
 #myTimeRecords{box-shadow:none}.correction-form-card{box-shadow:none}
+
+
+/* Owner visual review fixes — 2026-10-03 */
+.workers-table td:nth-child(5)>b,
+.workers-table td:nth-child(5)>small{display:block}
+.workers-table td:nth-child(5)>small{margin-top:3px;color:var(--bss-color-text-muted);font-size:8px}
+
+.worker-home-operational{background:var(--bss-color-bg-surface);color:var(--bss-color-text)}
+.worker-home-operational .worker-home-status p{color:var(--bss-color-text-muted)}
+.worker-home-operational .worker-home-facts{
+  border-color:var(--bss-color-border);
+  background:transparent;
+  border-radius:8px;
+}
+.worker-home-operational .worker-home-facts button{
+  min-height:68px;
+  padding:10px 11px;
+  border-color:var(--bss-color-border);
+  background:var(--bss-color-bg-surface);
+  color:var(--bss-color-text);
+}
+.worker-home-operational .worker-home-facts button:hover{background:var(--bss-color-bg-hover)}
+.worker-home-operational .worker-home-facts span{color:var(--bss-color-text-muted)}
+.worker-home-operational .worker-home-facts b{color:var(--bss-color-text);font-size:15px}
+.worker-home-operational .worker-home-links{padding-top:2px}
+
+.demo-tools{
+  margin:10px 0;
+  border:1px dashed var(--bss-color-border-strong);
+  border-radius:8px;
+  background:var(--bss-color-bg-subtle);
+}
+.demo-tools>summary{
+  cursor:pointer;
+  list-style:none;
+  padding:10px 11px;
+  font-size:9px;
+  font-weight:850;
+  color:var(--bss-color-text);
+}
+.demo-tools>summary::-webkit-details-marker{display:none}
+.demo-tools>summary:after{content:"+";float:right;color:var(--bss-color-text-muted)}
+.demo-tools[open]>summary:after{content:"−"}
+.demo-tools>summary span{
+  display:block;
+  margin-top:2px;
+  font-size:8px;
+  font-weight:650;
+  color:var(--bss-color-text-muted);
+}
+.demo-tools-body{padding:0 8px 8px}
+.demo-tools .role-panel{margin:0 0 6px}
+.demo-tools .drawer-item{border-radius:6px}
