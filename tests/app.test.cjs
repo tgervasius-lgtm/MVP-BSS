@@ -8,6 +8,7 @@ const html = fs.readFileSync('index.html','utf8');
 const source = fs.readFileSync('app.js','utf8');
 const apiAdapterSource = fs.readFileSync('src/adapters/api.js','utf8');
 const apiStateSource = fs.readFileSync('src/adapters/api-state.js','utf8');
+const apiBindingsSource = fs.readFileSync('src/adapters/api-bindings.js','utf8');
 const coreSources = [
   'src/adapters/runtime.js',
   'src/adapters/api.js',
@@ -1725,6 +1726,39 @@ test('Design System v1.0 ima jedinstvene primitive i semantičke tokene za obje 
   assert.doesNotMatch([designTokens,...styleLayers,designGuideStyles,brandBookStyles].join('\n'),/--(?:bg|surface(?:-2)?|line(?:-subtle)?|text|muted|teal(?:-dark|-soft)?|green(?:-soft)?|amber(?:-soft)?|red(?:-soft)?|blue(?:-soft)?|shadow(?:-hover)?|radius|safe(?:-top)?)(?=\s*[:)])/);
   assert.match(designSystemDoc,/Quality gate za novu komponentu/);
   assert.match(designSystemDoc,/Refactor v1 R5 dovršio je prijelaz na semantičke/);
+});
+
+test('attendance period lifecycle UI koristi frozen API contract i čuva admin-only transition granicu',()=>{
+  assert.match(apiStateSource,/tasks\.attendancePeriod=api\.get\(`\/attendance-periods\/\$\{year\}\/\$\{month\}`\)/);
+  assert.match(apiBindingsSource,/function attendancePeriodPanel\(month\)/);
+  assert.match(apiBindingsSource,/currentRole!==\'admin\'/);
+  assert.match(apiBindingsSource,/Idempotency-Key/);
+  assert.match(apiBindingsSource,/revisionHeaders\(period\.revision\)/);
+  for(const action of ['review','finalize','close','reopen']) assert.match(apiBindingsSource,new RegExp(`${action}:\\{path:'${action}'`));
+  assert.match(apiBindingsSource,/finalize.*Number\(period\.unresolved\?\.total\|\|0\)>0/s);
+  assert.match(apiBindingsSource,/Samo čitanje — promjene lifecyclea izvršava Administrator/);
+  assert.match(source,/attendancePeriodPanel\(attendanceFilters\.month\)/);
+  assert.match(source,/attendancePeriodPanel\(reportFilters\.month\)/);
+});
+
+test('attendance recalculation UI fail-closed radi samo u otvorenom periodu i ne prepisuje raw evidence',()=>{
+  assert.match(apiBindingsSource,/async function openAttendanceRecalculation\(id\)/);
+  assert.match(apiBindingsSource,/await fetchAttendancePeriod\(recordMonth\)/);
+  assert.match(apiBindingsSource,/recalculationAllowed=period\?\.status===\'open\'/);
+  assert.match(apiBindingsSource,/state\.attendancePeriod\?\.status!==\'open\'/);
+  assert.match(apiBindingsSource,/\/attendance\/\$\{record\.apiId\}\/recalculations/);
+  assert.match(apiBindingsSource,/calculationVersion:'attendance-v1'/);
+  assert.match(apiBindingsSource,/revisionHeaders\(record\.revision\)/);
+  assert.match(apiBindingsSource,/Raw terminal evidence se ne prepisuje/);
+  assert.match(source,/attendanceRecordExtraActions\(record\)/);
+});
+
+test('attendance period workspace ima jasan blocker, provenance i responsive treatment',()=>{
+  assert.match(styles,/Attendance period lifecycle workspace/);
+  assert.match(styles,/\.attendance-period-summary/);
+  assert.match(styles,/\.attendance-period-blockers/);
+  assert.match(styles,/\.attendance-period-actions/);
+  assert.match(styles,/@media\(max-width:760px\)[\s\S]*?\.attendance-period-summary/);
 });
 
 test('Design Foundation v1.0 je prihvaćen nakon Visual Design Gatea pod zamrznutim Product Contract autoritetom',()=>{
