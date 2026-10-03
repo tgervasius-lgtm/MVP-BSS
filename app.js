@@ -565,7 +565,7 @@ function desktopSidebar(){
 }
 function shell(){
   const [heading,subtitle] = topCopy();
-  const demoTools = state.demoMode ? `<details class="demo-tools"><summary>Demo alati <span>nije dio korisničkog sučelja</span></summary><div class="demo-tools-body"><div class="role-panel"><label>Prikaži demo kao</label><select data-bss-change="switchRole(this.value)">${roleOptions()}</select></div><a class="drawer-item design-system-link" href="./design-system/" target="_blank" rel="noopener"><span aria-hidden="true">◈</span><span class="nav-label">Design System v${DESIGN_SYSTEM_VERSION}</span><span aria-hidden="true">↗</span></a><a class="drawer-item brand-book-link" href="./brand-book/" target="_blank" rel="noopener"><span aria-hidden="true">◆</span><span class="nav-label">Brand Book v${BRAND_BOOK_VERSION}</span><span aria-hidden="true">↗</span></a><button class="drawer-item" data-bss-action="openResetDemoDialog()"><span aria-hidden="true">↻</span>Vrati početne demo-podatke</button></div></details>` : '';
+  const demoTools = state.demoMode ? `<details class="demo-tools" open><summary>Demo alati <span>nije dio korisničkog sučelja</span></summary><div class="demo-tools-body"><div class="role-panel"><label>Prikaži demo kao</label><select data-bss-change="switchRole(this.value)">${roleOptions()}</select></div><a class="drawer-item design-system-link" href="./design-system/" target="_blank" rel="noopener"><span aria-hidden="true">◈</span><span class="nav-label">Design System v${DESIGN_SYSTEM_VERSION}</span><span aria-hidden="true">↗</span></a><a class="drawer-item brand-book-link" href="./brand-book/" target="_blank" rel="noopener"><span aria-hidden="true">◆</span><span class="nav-label">Brand Book v${BRAND_BOOK_VERSION}</span><span aria-hidden="true">↗</span></a><button class="drawer-item" data-bss-action="openResetDemoDialog()"><span aria-hidden="true">↻</span>Vrati početne demo-podatke</button></div></details>` : '';
   const darkTheme=currentTheme==='dark';
   const invitationMode=Boolean(INVITATION_TOKEN);
   const authFields=invitationMode
@@ -594,8 +594,8 @@ function shell(){
       <div class="drawer" id="drawer" role="dialog" aria-modal="true" aria-label="BSS izbornik" aria-hidden="true" data-bss-backdrop="closeDrawer"><div class="drawer-panel">
         <div class="modal-head"><div><h2>BSS izbornik</h2><div class="small-muted">${escapeHtml(currentWorker().name)} · ${escapeHtml(role().label)}</div></div><button class="close-btn" aria-label="Zatvori" data-bss-action="closeDrawer()">×</button></div>
         <div class="theme-panel"><div><label>Tema sučelja</label><p data-theme-copy>${darkTheme?'Aktivna je tamna tema.':'Aktivna je svijetla tema.'}</p></div><button class="switch ${darkTheme?'on':''}" type="button" role="switch" aria-checked="${darkTheme}" aria-label="${darkTheme?'Uključi svijetlu temu':'Uključi tamnu temu'}" data-theme-switch data-bss-action="toggleTheme()"><i aria-hidden="true"></i></button></div>
-        ${navList(true)}
         ${demoTools}
+        ${navList(true)}
         <button class="drawer-item" data-bss-action="logout()"><span>⇥</span>Odjava</button>
       </div></div>
       <div class="modal" id="modal" role="dialog" aria-modal="true" aria-hidden="true" data-bss-backdrop="closeModal"></div>
