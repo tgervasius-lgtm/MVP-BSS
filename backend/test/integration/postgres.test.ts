@@ -1262,8 +1262,9 @@ test("PostgreSQL migrations, RLS isolation, auth and manager scope", { skip: !da
     (error: unknown) => typeof error === "object" && error !== null && "code" in error && error.code === "STALE_REVISION");
   const beforeCompromiseCredential = activeDeviceCredential;
   const beforeCompromiseKey = activeAcknowledgementKey;
+  const terminalBeforeCompromise = (await service.listTerminals(admin.actor)).find((item) => item.id === paired.terminal.id)!;
   const compromised = await service.rotateTerminalCredential(admin.actor, paired.terminal.id,
-    { reason: "suspected_compromise" }, rotated.terminal.revision, "rotation-compromise");
+    { reason: "suspected_compromise" }, terminalBeforeCompromise.revision, "rotation-compromise");
   activeDeviceCredential = compromised.deviceCredential;
   activeAcknowledgementKey = compromised.acknowledgementKey;
   assert.equal(compromised.acknowledgementKey.version, beforeCompromiseKey.version + 1);

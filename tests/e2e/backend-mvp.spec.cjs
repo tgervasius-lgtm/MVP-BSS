@@ -3,6 +3,9 @@ const {randomUUID}=require('node:crypto');
 const {test,expect}=require('@playwright/test');
 const {AxeBuilder}=require('@axe-core/playwright');
 
+// This full-stack file handles disposable credentials: never record browser artifacts.
+test.use({trace:'off',screenshot:'off',video:'off'});
+
 const adminEmail=process.env.BSS_BOOTSTRAP_ADMIN_EMAIL;
 const adminPassword=process.env.BSS_BOOTSTRAP_ADMIN_PASSWORD;
 
@@ -44,7 +47,6 @@ test('full-stack prije autentikacije posluĹľuje login ljusku stvarnog backenda
 
 test.describe('administratorski ekran i terminalska sigurnost',()=>{
 // Do not capture one-time credentials, including disposable test credentials.
-test.use({trace:'off',screenshot:'off',video:'off'});
 test('stvarni PostgreSQL backend prijavljuje administratora i otvara svaki ugovoreni ekran',async({page},testInfo)=>{
   const errors=trackErrors(page);
   const response=await page.goto('/');
