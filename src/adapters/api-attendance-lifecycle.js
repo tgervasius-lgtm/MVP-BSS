@@ -1,3 +1,4 @@
+/* global CURRENT_MONTH, currentRole, BSS_API, render, apiLoading, apiError, toast, escapeHtml, monthDisplay, reportFilters, $, showModal, state, isoLabel */
 (function registerAttendanceLifecycleApi(root){
   'use strict';
 
