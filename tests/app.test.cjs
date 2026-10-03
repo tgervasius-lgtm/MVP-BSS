@@ -354,9 +354,10 @@ test('UX/UI Cleanup v1.1 koristi tablice i kompaktne informacijske sažetke bez 
   const worker=boot('worker');
   const homeText=worker.document.querySelector('#content').textContent;
   assert.doesNotMatch(homeText,/Završeni sati u srpnju|Moji zadnji zapisi|Brze akcije/);
-  assert.ok(worker.document.querySelector('.worker-home-card'));
-  assert.equal(worker.document.querySelectorAll('.worker-home-facts>button[data-bss-action]').length,4);
-  assert.equal(worker.document.querySelector('.worker-home-summary'),null);
+  assert.ok(worker.document.querySelector('.worker-home-workspace'));
+  assert.ok(worker.document.querySelector('.worker-today-card'));
+  assert.equal(worker.document.querySelectorAll('.worker-today-grid>button[data-bss-action]').length,2);
+  assert.equal(worker.document.querySelectorAll('.worker-summary-row[data-bss-action]').length,2);
   worker.window.navigate('mytime');
   assert.ok(worker.document.querySelector('.mytime-summary-card'));
   assert.ok(worker.document.querySelector('.mytime-summary-grid>button[data-bss-action]'));
@@ -402,8 +403,8 @@ test('svaki KPI i kompaktni brojčani sažetak ima drill-down bez slijepih karti
   assert.match(document.querySelector('.request-tabs button.active').textContent,/Na čekanju/);
 
   const summarySelectors=[
-    '.dashboard-kpis>.kpi-card','.worker-home-facts>*','.attendance-operational-kpis>.attendance-op-kpi',
-    '.data-summary-metrics>*','.donut-legend>*','.admin-kpis>*','.terminal-kpis>*'
+    '.dashboard-kpis>.kpi-card','.worker-today-grid>*','.worker-summary-row','.attendance-operational-kpis>.attendance-op-kpi',
+    '.data-summary-metrics>*','.vacation-balance-grid>*','.admin-kpis>*','.terminal-kpis>*'
   ].join(',');
   for(const role of ['admin','manager','worker','accountant']){
     const app=boot(role);
@@ -495,7 +496,7 @@ test('Početna operational checkpoint uklanja hero treatment i čuva role drill-
   assert.ok(admin.document.querySelector('[data-kpi="review"]'));
   const worker=boot('worker');
   assert.doesNotMatch(worker.document.querySelector('#content').textContent,/Marko Marić|Petra Novak|Ana Kovač/);
-  assert.match(worker.document.querySelector('.worker-home-operational').textContent,/Kalendar/);
+  assert.match(worker.document.querySelector('.worker-home-workspace').textContent,/Kalendar/);
   const accountant=boot('accountant');
   assert.match(accountant.document.querySelector('#content').textContent,/Samo čitanje/);
 });
@@ -503,9 +504,9 @@ test('Početna operational checkpoint uklanja hero treatment i čuva role drill-
 
 test('owner readability sweep koristi frozen Design System tipografsku skalu za poslovni tekst',()=>{
   assert.match(styles,/Owner visual readability sweep/);
-  assert.match(styles,/worker-home-operational \.worker-home-status p\{[\s\S]*?font-size:var\(--bss-font-size-sm\)/);
+  assert.match(styles,/worker-today-head p\{[\s\S]*?font-size:var\(--bss-font-size-sm\)/);
   assert.match(styles,/workers-table td:nth-child\(5\)>small\{[\s\S]*?font-size:var\(--bss-font-size-sm\)/);
-  assert.match(styles,/worker-home-operational \.worker-home-facts span,[\s\S]*?font-size:var\(--bss-font-size-xs\)/);
+  assert.match(styles,/worker-today-grid span,[\s\S]*?font-size:var\(--bss-font-size-xs\)/);
   assert.match(styles,/\.pill\{[\s\S]*?font-size:var\(--bss-font-size-xs\)/);
   assert.match(styles,/th\{[\s\S]*?font-size:var\(--bss-font-size-xs\)/);
   assert.match(styles,/\.nav-item\{[\s\S]*?font-size:var\(--bss-font-size-xs\)/);
@@ -524,8 +525,27 @@ test('owner visual review fixes razdvajaju smjenu, worker facts i demo alate',()
   assert.ok(demoTools.querySelector('select[data-bss-change]'));
   assert.match(demoTools.querySelector('summary').textContent,/nije dio korisničkog sučelja/);
   const worker=boot('worker');
-  assert.equal(worker.document.querySelectorAll('.worker-home-facts>button').length,4);
-  assert.match(styles,/worker-home-operational \.worker-home-facts button/);
+  assert.ok(worker.document.querySelector('.worker-home-workspace'));
+  assert.equal(worker.document.querySelectorAll('.worker-today-grid>button').length,2);
+  assert.match(worker.document.querySelector('.worker-summary-card').textContent,/Preostali godišnji/);
+});
+
+test('primarna desktop navigacija razlikuje operativni fokus po ulozi',()=>{
+  const admin=boot('admin');
+  const adminPrimary=[...admin.document.querySelectorAll('.desktop-nav-primary .nav-label')].map(node=>node.textContent.trim());
+  assert.deepEqual(adminPrimary,['Početna','Evidencija','Radnici','Kalendar','Zahtjevi','Izvještaji']);
+
+  const manager=boot('manager');
+  const managerPrimary=[...manager.document.querySelectorAll('.desktop-nav-primary .nav-label')].map(node=>node.textContent.trim());
+  assert.deepEqual(managerPrimary,['Početna','Evidencija tima','Moj tim','Godišnji tima','Zahtjevi']);
+
+  const worker=boot('worker');
+  const workerPrimary=[...worker.document.querySelectorAll('.desktop-nav-primary .nav-label')].map(node=>node.textContent.trim());
+  assert.deepEqual(workerPrimary,['Početna','Moji sati','Moj godišnji','Kalendar','Moji zahtjevi']);
+
+  const accountant=boot('accountant');
+  const accountantPrimary=[...accountant.document.querySelectorAll('.desktop-nav-primary .nav-label')].map(node=>node.textContent.trim());
+  assert.deepEqual(accountantPrimary,['Početna','Izvještaji','Kalendar']);
 });
 
 test('desktop navigacija prikazuje samo primarne Admin stavke i puni izbornik ostaje u draweru',()=>{
@@ -702,9 +722,9 @@ test('administrator ima godišnji pregled, radnik vidi samo sebe',()=>{
   const text = worker.document.querySelector('#content').textContent;
   assert.ok(worker.window.calendarRequests().every(request=>request.workerId===1));
   assert.doesNotMatch(text,/Marko Marić|Petra Novak/);
-  assert.ok(worker.document.querySelector('.vacation-balance-visual button.leave-donut[data-bss-action]'));
-  assert.equal(worker.document.querySelectorAll('.vacation-balance-visual .donut-legend>button[data-bss-action]').length,3);
-  assert.match(worker.document.querySelector('.leave-donut').getAttribute('aria-label'),/Iskorišteno 10, planirano 3, raspoloživo 11/);
+  assert.equal(worker.document.querySelector('.vacation-balance-visual .leave-donut'),null);
+  assert.equal(worker.document.querySelectorAll('.vacation-balance-grid>button[data-bss-action]').length,4);
+  assert.match(worker.document.querySelector('.vacation-balance-visual').getAttribute('aria-label'),/iskorišteno 10, planirano 3, raspoloživo 11/i);
   assert.equal(worker.document.querySelector('.vacation-summary-card'),null);
   assert.equal(worker.document.querySelector('.vacation-balance-table'),null);
   assert.equal(worker.document.querySelector('.personal-requests-table thead').textContent.includes('Radnik'),false);
