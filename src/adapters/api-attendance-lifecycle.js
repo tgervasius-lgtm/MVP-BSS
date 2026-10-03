@@ -1,4 +1,4 @@
-/* global CURRENT_MONTH, currentRole, BSS_API, render, apiLoading, apiError, toast, escapeHtml, monthDisplay, reportFilters, $, showModal, state, isoLabel */
+/* global CURRENT_MONTH, currentRole, BSS_API, render, toast, escapeHtml, monthDisplay, reportFilters, $, showModal, state, isoLabel */
 (function registerAttendanceLifecycleApi(root){
   'use strict';
 
@@ -39,11 +39,8 @@
     }
   }
   async function load(month=periodMonth||CURRENT_MONTH){
-    if(apiLoading)return false;
-    apiLoading=true;
     try{return await fetchPeriod(month);}
-    catch(error){apiError=callbacks.apiMessage(error);render();toast(apiError);return false;}
-    finally{apiLoading=false;}
+    catch(error){const message=callbacks.apiMessage(error);render();toast(message);return false;}
   }
   function blockerRows(){
     const unresolved=period?.unresolved||{};
@@ -103,7 +100,6 @@
     if(!record?.apiId)return;
     if(record.status==='Ispravljeno')return toast('Ispravljeni zapis se ne preračunava ponovno.');
     const [year,monthNumber]=record.date.slice(0,7).split('-').map(Number);
-    apiLoading=true;
     try{
       const currentPeriod=await BSS_API.getWithMeta(`/attendance-periods/${year}/${monthNumber}`);
       if(['finalized','closed'].includes(currentPeriod.data.status))return toast('Mjesec je zaključan. Prvo je potreban kontrolirani Admin reopen.');
@@ -111,7 +107,6 @@
       modal.innerHTML=`<div class="modal-card"><div class="modal-head"><div><div class="eyebrow">Kontrolirani preračun</div><h2>${escapeHtml(isoLabel(record.date))}</h2><div class="small-muted">Revizija zapisa ${escapeHtml(record.revision)} · calculationVersion attendance-v1</div></div><button class="close-btn" aria-label="Zatvori" data-bss-action="closeModal()">×</button></div><div class="record-detail-grid"><div><span>Dolazak</span><b>${escapeHtml(record.start||'—')}</b></div><div><span>Odlazak</span><b>${escapeHtml(record.end||'—')}</b></div><div><span>Status</span><b>${escapeHtml(record.status)}</b></div><div><span>Period</span><b>${escapeHtml(statusLabel(currentPeriod.data.status))}</b></div></div><div class="notice info">Preračun koristi postojeće nepromjenjive terminalske dokaze. Sirovi RFID događaji se ne prepisuju; server sprema before/after, razlog i audit provenance.</div><label>Razlog<textarea id="attendanceRecalculationReason" rows="3" minlength="3" maxlength="1000" placeholder="Zašto je potreban preračun?"></textarea></label><div class="btns"><button class="btn" data-bss-action="submitAttendanceRecalculation(${record.id})">Preračunaj</button><button class="btn secondary" data-bss-action="closeModal()">Odustani</button></div></div>`;
       showModal(modal);
     }catch(error){toast(callbacks.apiMessage(error));}
-    finally{apiLoading=false;}
   }
   async function submitRecalculation(recordId){
     if(currentRole!=='admin')return;
