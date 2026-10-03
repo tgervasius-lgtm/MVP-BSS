@@ -440,7 +440,10 @@ test('Zahtjevi i korekcije imaju operational sažetak bez promjene approval akci
   admin.window.navigate('requests');
   assert.equal(admin.document.querySelectorAll('.approval-summary>div').length,4);
   assert.match(admin.document.querySelector('.approval-summary').textContent,/Na čekanju/);
-  assert.ok(admin.document.querySelector('[data-bss-action^="openRequestDecision("]'));
+  admin.window.openRequestDecision(1);
+  assert.ok(admin.document.querySelector('#modal').classList.contains('open'));
+  assert.match(admin.document.querySelector('#modal').textContent,/Marko Marić|Obiteljski odmor/);
+  admin.window.closeModal();
   admin.window.navigate('corrections');
   assert.equal(admin.document.querySelectorAll('.approval-summary>div').length,4);
   assert.match(admin.document.querySelector('.corrections-operational-card').textContent,/Izvorno/);
