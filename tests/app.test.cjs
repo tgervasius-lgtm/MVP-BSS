@@ -532,6 +532,18 @@ test('kalendar koristi jednu period kontrolu bez duplog mjeseca iznad sadržaja'
   assert.match(styles,/\.month-view>\.month-card>h3\{display:none\}/);
 });
 
+test('visual pass 2 usklađuje moje sate i postavke s enterprise summary grammarom',()=>{
+  const worker=boot('worker');
+  worker.window.navigate('mytime');
+  assert.equal(worker.document.querySelectorAll('.mytime-summary-grid>button').length,4);
+  const admin=boot('admin');
+  admin.window.navigate('settings');
+  assert.equal(admin.document.querySelectorAll('.settings-workspace .admin-kpis>button').length,4);
+  assert.match(styles,/Owner visual review pass 2 — personal\/admin summary consistency/);
+  assert.match(styles,/\.mytime-summary-grid\{[\s\S]*?grid-template-columns:repeat\(4,minmax\(0,1fr\)\)/);
+  assert.match(styles,/\.settings-workspace \.admin-kpis\{[\s\S]*?border-radius:7px/);
+});
+
 test('visual pass 2 usklađuje korekcije, audit i prava pristupa s enterprise summary grammarom',()=>{
   const admin=boot('admin');
   admin.window.navigate('corrections');
