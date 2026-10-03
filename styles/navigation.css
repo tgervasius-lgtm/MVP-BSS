@@ -31,3 +31,34 @@
 @keyframes modalVeil{from{background:rgba(19,53,43,0)}to{background:rgba(19,53,43,.49)}}
 .toast{position:absolute;left:16px;right:16px;bottom:calc(101px + var(--bss-safe-area-bottom));background:#17352b;color:#fff;padding:13px 15px;border-radius:15px;font-size:12px;font-weight:800;opacity:0;transform:translateY(15px);transition:.18s;z-index:50;box-shadow:0 13px 30px rgba(19,53,43,.25);pointer-events:none}
 .toast.show{opacity:1;transform:none}
+
+
+/* Owner visual review — enterprise navigation sharpness */
+.drawer-panel{box-shadow:-8px 0 24px rgba(16,24,40,.10)}
+.drawer-item{
+  border-radius:6px;
+  font-weight:800;
+}
+.drawer-item.active{
+  background:var(--bss-color-bg-subtle);
+  color:var(--bss-color-text);
+}
+.drawer-item:hover{
+  background:var(--bss-color-bg-hover);
+  color:var(--bss-color-text);
+}
+.nav-count{
+  border-radius:5px;
+  min-width:20px;
+  height:20px;
+}
+.nav-group-label{
+  letter-spacing:.08em;
+  font-weight:850;
+}
+.role-panel,.demo-panel,.theme-panel{border-radius:8px}
+.role-panel select{border-radius:7px}
+.close-btn{border-radius:7px}
+.role-badge,.menu-btn{border-radius:7px}
+.bottom-nav{border-radius:12px}
+.nav-item{border-radius:8px}
