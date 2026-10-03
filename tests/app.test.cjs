@@ -518,8 +518,11 @@ test('owner visual review fixes razdvajaju smjenu, worker facts i demo alate',()
   assert.equal(shiftCell.querySelectorAll('b').length,1);
   assert.equal(shiftCell.querySelectorAll('small').length,1);
   admin.window.openDrawer();
-  assert.ok(admin.document.querySelector('.demo-tools'));
-  assert.match(admin.document.querySelector('.demo-tools summary').textContent,/nije dio korisničkog sučelja/);
+  const demoTools=admin.document.querySelector('.demo-tools');
+  assert.ok(demoTools);
+  assert.equal(demoTools.open,true);
+  assert.ok(demoTools.querySelector('select[data-bss-change]'));
+  assert.match(demoTools.querySelector('summary').textContent,/nije dio korisničkog sučelja/);
   const worker=boot('worker');
   assert.equal(worker.document.querySelectorAll('.worker-home-facts>button').length,4);
   assert.match(styles,/worker-home-operational \.worker-home-facts button/);
