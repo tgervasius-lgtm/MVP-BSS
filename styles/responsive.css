@@ -136,3 +136,14 @@
   .content{padding:24px 28px 36px}
   .section-title h1{font-size:27px;letter-spacing:-.035em}
 }
+
+
+/* Attendance operational checkpoint responsive */
+@media(min-width:620px){
+  .attendance-operational-kpis{grid-template-columns:repeat(5,minmax(0,1fr))}
+}
+@media(max-width:520px){
+  .attendance-operational-kpis{grid-template-columns:1fr 1fr}
+  .attendance-op-kpi:last-child{grid-column:1/-1}
+  .attendance-history-heading{margin-top:16px}
+}
