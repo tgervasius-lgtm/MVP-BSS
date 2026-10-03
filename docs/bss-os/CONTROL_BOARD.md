@@ -3,7 +3,7 @@
 Last reviewed: 2026-09-20
 Operating phase: `POST-DESIGN-FOUNDATION / CONTRACT-GAP RECONCILIATION + OM-01 ACTIVATION`
 
-Protected-main evidence baseline on 2026-09-20, before this #166 documentation refresh: `b71710890de1f36c3b9aff6fd38f0e846963f41c`. PR #164 is MERGED and #163 is CLOSED/COMPLETED; PR #165 is MERGED and #162 is CLOSED/COMPLETED; PR #161 merged the proposal at `4fac30bb7112d765e4f3eefd717f5f0f041086a0`. Later CI-maintenance PRs #104/#169 advanced `main` without accepting the Design Foundation. #156 remains OPEN. This refresh does not authorize a general development restart; the design/product gate sequence below remains subject to explicit BSS OS activation.
+Current protected-main software baseline at OM-01 activation: `cd2aee008b8971060a711808e31c4ca0d7b67fdf` (PR #228). Design Foundation v1.0 is `ACCEPTED / HARDENED`, #156 is CLOSED/COMPLETED, and the first attendance contract-defined UI gaps are IMPLEMENTED on main with post-merge repository/CI/deploy evidence. Production-like Staging, Hardware 9C, Pilot and Commercial Production remain NOT PASS. OM-01 (#225) defines the minimum operations architecture before staging evidence work.
 
 ## Executive state
 
