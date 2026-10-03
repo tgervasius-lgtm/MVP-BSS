@@ -524,6 +524,16 @@ test('Zahtjevi uklanjaju duplicirani sažetak, a korekcije čuvaju jedini operat
   assert.match(admin.state().audit[0].action,/Odobrena korekcija/);
 });
 
+test('login entry point koristi vecu tipografiju i centrirani fokus',()=>{
+  assert.match(styles,/Owner visual review — focused login entry point/);
+  assert.match(styles,/\.login\{[\s\S]*?place-items:center/);
+  assert.match(styles,/\.login-inner\{[\s\S]*?width:min\(480px,100%\)/);
+  assert.match(styles,/\.brand\{[\s\S]*?text-align:center/);
+  assert.match(styles,/\.brand h1\{[\s\S]*?font-size:34px/);
+  assert.match(styles,/\.login \.form input,[\s\S]*?font-size:13px/);
+  assert.match(styles,/\.primary-login\{[\s\S]*?font-size:14px/);
+});
+
 test('login auth shell koristi neutralni enterprise treatment bez promjene login forme',()=>{
   const {document}=boot('admin',false);
   assert.match(document.querySelector('.brand').textContent,/Bognar Smart Systems/);
