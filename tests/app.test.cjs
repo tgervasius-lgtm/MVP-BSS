@@ -524,6 +524,15 @@ test('Zahtjevi uklanjaju duplicirani sažetak, a korekcije čuvaju jedini operat
   assert.match(admin.state().audit[0].action,/Odobrena korekcija/);
 });
 
+test('sharpness pass ostaje konzistentan na ekranima i compact layoutu',()=>{
+  assert.match(styles,/Owner visual review — sharpness pass residual cleanup/);
+  assert.match(styles,/\.admin-kpis,[\s\S]*?border-radius:8px/);
+  assert.match(styles,/\.attendance-live-item\{[\s\S]*?border-radius:7px/);
+  assert.match(styles,/Owner visual review — keep sharpness on compact layouts/);
+  assert.match(styles,/@media\(max-width:959px\)\{[\s\S]*?\.card\{border-radius:8px\}/);
+  assert.match(styles,/\.form input,[\s\S]*?border-radius:7px/);
+});
+
 test('enterprise sharpness pass smanjuje soft i pill treatment',()=>{
   assert.match(styles,/Owner visual review — enterprise sharpness pass/);
   assert.match(styles,/\.card\{[\s\S]*?border-radius:8px;[\s\S]*?box-shadow:none/);
