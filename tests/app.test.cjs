@@ -506,6 +506,7 @@ test('zajednički godišnji je frontend demo za sve uloge i prikazuje samo odobr
 test('kalendar koristi jednu period kontrolu bez duplog mjeseca iznad sadržaja',()=>{
   const worker=boot('worker');
   worker.window.navigate('vacations');
+  worker.window.setCalendarMode('month');
   assert.equal(worker.document.querySelector('.calendar-workspace-toolbar'),null);
   assert.equal(worker.document.querySelectorAll('.calendar-card-toolbar').length,1);
   assert.equal(worker.document.querySelectorAll('.calendar-period-control button').length,2);
