@@ -6,7 +6,7 @@ Phase 0 baseline consolidation is complete and the protected `main` has continue
 
 Protected-main evidence baseline on 2026-09-20, before this #166 documentation refresh: `b71710890de1f36c3b9aff6fd38f0e846963f41c`.
 
-Issues #143/#145/#144/#146 are merged, and issue #133 records a targeted AUDIT A recheck PASS on the historical `b904eca` implementation baseline. BSS v1 Product Contract v1.0 remains `ACCEPTED / FROZEN`; PR #155 integrated it at the historical freeze commit `29b00c0f63af0b3ffbd2d828550c882b9096fd05`, and issue #131 remains CLOSED/COMPLETED. Current `main` inherits that frozen contract plus the later merged security-maintenance PRs #160/#159 and the post-freeze governance/screen-map reconciliation from PR #158. #156 Phase A is complete; #157 is CLOSED/COMPLETED and PR #158 is merged. PR #164 merged the #163 horizon refresh and #163 is CLOSED/COMPLETED; PR #165 merged the #162 CI fix and #162 is CLOSED/COMPLETED. PR #161 is MERGED at `4fac30bb7112d765e4f3eefd717f5f0f041086a0` and `BSS_DESIGN_FOUNDATION_V1.md` exists with status `PROPOSED / NOT ACCEPTED`; #156 remains OPEN. Later CI-maintenance PRs #104/#169 advanced the software baseline without changing that design status. The Visual Design Gate and explicit owner/BSS OS acceptance remain required before Design Foundation acceptance.
+Issues #143/#145/#144/#146 are merged, and issue #133 records a targeted AUDIT A recheck PASS on the historical `b904eca` implementation baseline. BSS v1 Product Contract v1.0 remains `ACCEPTED / FROZEN`; PR #155 integrated it at the historical freeze commit `29b00c0f63af0b3ffbd2d828550c882b9096fd05`, and issue #131 remains CLOSED/COMPLETED. Current `main` inherits that frozen contract plus the later merged security-maintenance PRs #160/#159 and the post-freeze governance/screen-map reconciliation from PR #158. #156 Phase A is complete; #157 is CLOSED/COMPLETED and PR #158 is merged. PR #164 merged the #163 horizon refresh and #163 is CLOSED/COMPLETED; PR #165 merged the #162 CI fix and #162 is CLOSED/COMPLETED. PR #161 is the historical proposal merge. Visual Design Gate owner review completed on 03.10.2026; PR #183 is MERGED and `BSS_DESIGN_FOUNDATION_V1.md` v1.0 is `ACCEPTED / HARDENED`; #156 is CLOSED/COMPLETED. Focused frontend visual implementation has subsequently progressed through reviewed PRs including #223/#224, but contract-defined gaps remain and no environment/physical readiness is implied. OM-01 Operations Foundation architecture is active as #225.
 
 Figma and Storybook remain `CANDIDATE / INACTIVE`, and no frontend implementation is authorized by proposal status. Production-like Staging remains `NOT IMPLEMENTED / NOT EVIDENCE PROVEN`; Hardware 9C, Pilot and Commercial Production remain `NOT PASS`. None of these repository facts upgrades implementation or environment/physical readiness.
 
@@ -130,16 +130,16 @@ The accepted BSS MASTER ROADMAP v4.9 in `docs/bss-os/MASTER_ROADMAP.md` controls
 
 Mandatory execution critical path:
 
-1. Complete the Visual Design Gate using representative frozen BSS workflows; Figma and Storybook remain `CANDIDATE / INACTIVE` until separately accepted.
-2. Require explicit owner/BSS OS Design Foundation acceptance before ACCEPTED status or frontend implementation authorization.
-3. Activate roadmap-ordered contract-defined implementation gaps only after Design Foundation acceptance and the applicable BSS OS decision.
-4. Proceed to Production-like Staging and `AUDIT B` without treating repository work as environment evidence.
+1. Design Foundation remains `ACCEPTED / HARDENED`; preserve Figma and Storybook as `CANDIDATE / INACTIVE` until separately justified.
+2. Reconcile and implement only roadmap-ordered contract-defined gaps from the frozen Product Contract; do not treat visual/frontend polish as completion of those gaps.
+3. Execute OM-01 (#225) and activate only the minimum near-term operational capabilities required before Production-like Staging.
+4. Proceed to Production-like Staging and `AUDIT B` only with environment evidence; repository checks and Cloudflare preview are not that evidence.
 5. Reach Pilot readiness only with applicable software evidence plus Hardware 9C and `AUDIT C`.
 6. Run a controlled Pilot.
 7. After Pilot, perform Post-Pilot hardening, require `PRG GO`, then `AUDIT D PASS`.
 8. Commercial Production remains blocked until the accepted Commercial gate is satisfied.
 
-The targeted AUDIT A recheck is `PASS` on the historical `b904eca` implementation baseline; #143/#145/#144/#146 are closed with implementation evidence on that baseline. BSS v1 Product Contract v1.0 is `ACCEPTED / FROZEN`, integrated by PR #155 at historical freeze commit `29b00c0f63af0b3ffbd2d828550c882b9096fd05` and inherited by current protected `main`; #131 is CLOSED/COMPLETED. #156 Phase A and #157 reconciliation are complete; PR #158 merged at the historical baseline `02a76abe48e750932fbf3002d1ef2dd10ed8881a`. PR #161 is MERGED into the current evidence baseline stated above, while the Design Foundation remains `PROPOSED / NOT ACCEPTED` and #156 remains OPEN. Onboarding/import, the reconciled screen/workflow gaps and other identified contract gaps remain implementation work.
+The targeted AUDIT A recheck is `PASS` on the historical `b904eca` implementation baseline; #143/#145/#144/#146 are closed with implementation evidence on that baseline. BSS v1 Product Contract v1.0 is `ACCEPTED / FROZEN`, integrated by PR #155 at historical freeze commit `29b00c0f63af0b3ffbd2d828550c882b9096fd05` and inherited by current protected `main`; #131 is CLOSED/COMPLETED. #156 Phase A and #157 reconciliation are complete; PR #158 merged at the historical baseline `02a76abe48e750932fbf3002d1ef2dd10ed8881a`. PR #183 records the completed Visual Design Gate acceptance and the Design Foundation is `ACCEPTED / HARDENED`; #156 is CLOSED/COMPLETED. Onboarding/import, period lifecycle/recovery, server-authoritative report preview/export verification, terminal reconciliation/credential rotation and other reconciled contract-defined gaps remain implementation work until separately evidenced.
 
 Parallel, non-blocking work:
 

@@ -113,14 +113,14 @@ Evidence snapshot for #166: protected `main` was `b71710890de1f36c3b9aff6fd38f0e
 
 | Horizon | Ordered focus | Hardening consumed |
 |---|---|---|
-| Current | `Visual Design Gate -> explicit owner/BSS OS Design Foundation acceptance` | #131 and #157 are CLOSED/COMPLETED; #156 Phase A is complete and #156 remains OPEN. PR #158 is merged; PR #161 is MERGED and `BSS_DESIGN_FOUNDATION_V1.md` exists on the evidence baseline above with status `PROPOSED / NOT ACCEPTED`. Figma and Storybook remain `CANDIDATE / INACTIVE`, and no frontend implementation is authorized by proposal merge. |
+| Current | `contract-defined implementation gaps + OM-01 Operations Foundation architecture` | Visual Design Gate owner review is complete; PR #183 is MERGED and `BSS_DESIGN_FOUNDATION_V1.md` v1.0 is `ACCEPTED / HARDENED`; #156 is CLOSED/COMPLETED. Focused frontend visual implementation continued through later reviewed PRs, including #223/#224, without changing the frozen Product Contract. Figma and Storybook remain `CANDIDATE / INACTIVE`. OM-01 is activated as #225; this does not make Production-like Staging or Pilot ready. |
 | Before Production-like Staging can be DONE | Focused 6A/6B activation and `AUDIT B` | H1 release/compatibility plus H3-H6 and H10 infrastructure, security, recovery, observability, capacity and vendor evidence. |
 | Before real-customer Pilot | `AUDIT C`, then customer-specific GO/NO-GO | H2-H7 and H9 evidence plus Hardware 9C, source/IP decision, privacy/legal and operational readiness. |
 | After Pilot, before Commercial Rollout | Post-Pilot hardening -> `PRG GO` -> `AUDIT D PASS` | H8/H10/H11, resolved Pilot findings, Hardware 9D where applicable, production DR/security/capacity, support and commercial evidence. |
 
 Current live execution sequence:
 
-`Visual Design Gate -> explicit owner/BSS OS Design Foundation acceptance -> roadmap-ordered contract-defined implementation gaps -> Production-like Staging / AUDIT B -> Pilot readiness + Hardware 9C / AUDIT C -> controlled Pilot -> Post-Pilot hardening / PRG / AUDIT D -> Commercial Production`
+`Design Foundation ACCEPTED/HARDENED -> roadmap-ordered contract-defined implementation gaps + OM-01 -> minimum operations foundation -> Production-like Staging / AUDIT B -> Pilot readiness + Hardware 9C / AUDIT C -> controlled Pilot -> Post-Pilot hardening / PRG / AUDIT D -> Commercial Production`
 
 Parallel work remains permitted only where the Control Board says it is non-blocking and ownership does not create unsafe overlap. A later horizon must not be promoted ahead of an unmet earlier BLACK/GATE dependency.
 
