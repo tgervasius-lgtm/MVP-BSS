@@ -1434,6 +1434,12 @@ test('contract gap #227 veže attendance lifecycle i recalculation na postojeći
   assert.match(bindings,/Mjesec je zaključan\. Prvo je potreban kontrolirani Admin reopen/);
   assert.match(bindings,/Lifecycle je samo za čitanje\. Tranzicije su Admin-only/);
   assert.match(styles,/Contract gap #227 — attendance period lifecycle/);
+  const screenApiMap=JSON.parse(fs.readFileSync('backend/contracts/frontend-screen-api-map-v1.json','utf8'));
+  assert.ok(screenApiMap.screens.find(item=>item.id==='attendance').operations.includes('recalculateAttendanceDay'));
+  assert.ok(screenApiMap.screens.find(item=>item.id==='reports').operations.includes('reopenAttendancePeriod'));
+  assert.equal(screenApiMap.contractDefinedUiGaps.some(item=>['attendance-recalculation-provenance','attendance-period-lifecycle'].includes(item.id)),false);
+  assert.doesNotMatch(screenMap,/\| Attendance recalculation\/provenance \|/);
+  assert.doesNotMatch(screenMap,/\| Period lifecycle i blocker recovery \|/);
 });
 
 test('produkcijski runtime ne vraća poslovne mock podatke u lokalnu pohranu',()=>{
