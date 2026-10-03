@@ -132,6 +132,8 @@
 
   async function reload(){await loadPreview({renderLoading:true});}
 
+  function hasRows(){return Boolean(preview&&!previewLoading&&!previewError&&Number(preview.totals?.rowCount||0)>0);}
+
   function verificationState(exportId){return verifications.get(String(exportId))||null;}
 
   function historyAction(item){
@@ -183,6 +185,6 @@
   }
 
   root.BSSReportAuthority=Object.freeze({
-    configure,hydrate,loadPreview,previewHtml,metricsHtml,historyAction,applyFilters,updateDepartment,setType,reload,verifyExport,openVerification
+    configure,hydrate,loadPreview,previewHtml,metricsHtml,hasRows,historyAction,applyFilters,updateDepartment,setType,reload,verifyExport,openVerification
   });
 })(typeof globalThis==='object'?globalThis:window);
