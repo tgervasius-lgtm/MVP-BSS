@@ -574,7 +574,7 @@ function shell(){
   return `<div class="device">
     <section id="login" class="login ${logged?'hidden':''}">
       <div class="login-inner">
-        <div class="brand"><div class="mark">B</div><h1>BSS</h1><small>Smart Systems</small><p>Evidencija radnog vremena, odsutnosti i RFID terminala na jednom mjestu.</p><span class="login-version">v${APP_VERSION} · ${APP_STAGE}</span></div>
+        <div class="brand"><div class="mark">B</div><h1>BSS</h1><small>Bognar Smart Systems</small><p>Evidencija radnog vremena, odsutnosti i RFID terminala na jednom mjestu.</p><span class="login-version">v${APP_VERSION} · ${APP_STAGE}</span></div>
         <div class="glass"><div class="form">
           ${authFields}
           ${state.demoMode?`<label>Demo uloga<select id="loginRole">${roleOptions()}</select></label>`:''}
