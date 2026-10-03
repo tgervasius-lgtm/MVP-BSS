@@ -532,6 +532,17 @@ test('kalendar koristi jednu period kontrolu bez duplog mjeseca iznad sadržaja'
   assert.match(styles,/\.month-view>\.month-card>h3\{display:none\}/);
 });
 
+test('visual pass 2 uklanja ponovljene brojeve iz summary i table headinga',()=>{
+  const admin=boot('admin');
+  admin.window.navigate('corrections');
+  assert.equal(admin.document.querySelector('.corrections-operational-card .table-card-heading .pill'),null);
+  admin.window.navigate('audit');
+  assert.equal(admin.document.querySelector('.audit-evidence-card .table-card-heading .pill'),null);
+  admin.window.navigate('shifts');
+  assert.equal(admin.document.querySelector('.shifts-operational-card .table-card-heading .pill'),null);
+  assert.equal(admin.document.querySelectorAll('.shifts-summary>div').length,4);
+});
+
 test('visual pass 2 usklađuje moje sate i postavke s enterprise summary grammarom',()=>{
   const worker=boot('worker');
   worker.window.navigate('mytime');
