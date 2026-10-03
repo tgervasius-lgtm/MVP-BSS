@@ -35,13 +35,13 @@
   --bss-color-neutral-950: #071b17;
 
   /* Status primitive */
-  --bss-color-success-600: #0b9b6b;
+  --bss-color-success-600: #067647;
   --bss-color-success-100: #dcf5e9;
-  --bss-color-warning-700: #c97908;
+  --bss-color-warning-700: #8a5a00;
   --bss-color-warning-100: #fff1d6;
-  --bss-color-danger-700: #d92d20;
+  --bss-color-danger-700: #b42318;
   --bss-color-danger-100: #fee4e2;
-  --bss-color-info-700: #2e6ce6;
+  --bss-color-info-700: #175cd3;
   --bss-color-info-100: #e8f0ff;
 
   /* Semantičke boje */
