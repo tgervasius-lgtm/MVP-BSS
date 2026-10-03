@@ -1394,3 +1394,95 @@ button.day:hover{outline:2px solid var(--bss-color-accent-text);outline-offset:1
 .request-search input{
   border-radius:7px;
 }
+
+
+/* Contract gap #227 — attendance period lifecycle */
+.period-lifecycle-card{
+  padding:0;
+  overflow:hidden;
+  border-radius:7px;
+  box-shadow:none;
+}
+.period-lifecycle-head{
+  display:flex;
+  justify-content:space-between;
+  gap:16px;
+  align-items:flex-start;
+  padding:13px 14px;
+  border-bottom:1px solid var(--bss-color-border);
+}
+.period-lifecycle-head>div>span{
+  display:block;
+  font-size:var(--bss-font-size-xs);
+  color:var(--bss-color-text-muted);
+  text-transform:uppercase;
+  letter-spacing:.06em;
+}
+.period-lifecycle-head h2{margin:4px 0 3px;font-size:19px}
+.period-lifecycle-head p{margin:0;color:var(--bss-color-text-muted);font-size:var(--bss-font-size-xs)}
+.period-lifecycle-head label{
+  display:grid;
+  gap:4px;
+  min-width:160px;
+  font-size:var(--bss-font-size-xs);
+  color:var(--bss-color-text-muted);
+}
+.period-lifecycle-head input{
+  min-height:40px;
+  padding:8px 9px;
+  border:1px solid var(--bss-color-border);
+  border-radius:6px;
+  background:var(--bss-color-bg-surface);
+  color:var(--bss-color-text);
+}
+.period-lifecycle-strip{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  border-bottom:1px solid var(--bss-color-border);
+}
+.period-lifecycle-strip>div{
+  min-width:0;
+  min-height:70px;
+  padding:11px 12px;
+  border-right:1px solid var(--bss-color-border);
+}
+.period-lifecycle-strip>div:last-child{border-right:0}
+.period-lifecycle-strip span,
+.period-lifecycle-strip b{display:block}
+.period-lifecycle-strip span{font-size:var(--bss-font-size-xs);color:var(--bss-color-text-muted)}
+.period-lifecycle-strip b{margin-top:4px;font-size:18px;letter-spacing:-.02em}
+.period-checksum{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:12px!important;letter-spacing:0!important}
+.period-lifecycle-body{
+  display:grid;
+  grid-template-columns:minmax(0,1.4fr) minmax(230px,.8fr);
+  gap:14px;
+  padding:12px 14px;
+}
+.period-blocker-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0;border:1px solid var(--bss-color-border)}
+.period-blocker-list>div{display:flex;justify-content:space-between;gap:10px;padding:9px 10px;border-right:1px solid var(--bss-color-border);border-bottom:1px solid var(--bss-color-border)}
+.period-blocker-list>div:nth-child(2n){border-right:0}
+.period-blocker-list>div:nth-last-child(-n+2){border-bottom:0}
+.period-blocker-list span{font-size:var(--bss-font-size-xs);color:var(--bss-color-text-muted)}
+.period-blocker-list b{font-size:var(--bss-font-size-sm)}
+.period-provenance{padding-left:14px;border-left:1px solid var(--bss-color-border)}
+.period-provenance span,.period-provenance b,.period-provenance small{display:block}
+.period-provenance span{font-size:var(--bss-font-size-xs);color:var(--bss-color-text-muted)}
+.period-provenance b{margin-top:4px;font-size:var(--bss-font-size-sm)}
+.period-provenance small{margin-top:5px;font-size:var(--bss-font-size-xs);line-height:1.4;color:var(--bss-color-text-muted);overflow-wrap:anywhere}
+.period-lifecycle-actions{
+  margin:0;
+  padding:11px 14px;
+  border-top:1px solid var(--bss-color-border);
+}
+.period-lifecycle-card>.notice{margin:0;border-width:1px 0 0;border-radius:0}
+.period-readonly{margin:0!important;border-width:1px 0 0!important;border-radius:0!important}
+
+@media(max-width:760px){
+  .period-lifecycle-head{display:grid}
+  .period-lifecycle-head label{min-width:0}
+  .period-lifecycle-strip{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .period-lifecycle-strip>div:nth-child(2n){border-right:0}
+  .period-lifecycle-strip>div:nth-child(-n+2){border-bottom:1px solid var(--bss-color-border)}
+  .period-lifecycle-body{grid-template-columns:1fr}
+  .period-provenance{padding:10px 0 0;border-left:0;border-top:1px solid var(--bss-color-border)}
+}

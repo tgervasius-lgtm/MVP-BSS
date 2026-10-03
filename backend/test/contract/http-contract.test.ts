@@ -882,7 +882,7 @@ test("OpenAPI v1 and the post-freeze screen map preserve ownership and explicit 
     contractGatesBeforeDesignFoundationPhaseB: string[];
   };
   assert.equal(screenMap.readiness, "RECONCILED_WITH_EXPLICIT_UI_GAPS");
-  assert.equal(screenMap.contractReviewStatus, "ISSUE_157_RECONCILED_BSS_OS_REVIEW_REQUIRED");
+  assert.equal(screenMap.contractReviewStatus, "ISSUE_227_IMPLEMENTATION_CANDIDATE_BSS_OS_REVIEW_REQUIRED");
   assert.deepEqual(screenMap.frontendBaseline, {
     commit: "91323c7cdbbbbf7b965c4926c94a11af6d31bf62",
     status: "HISTORICAL_FRONTEND_V1_REFERENCE",
@@ -906,17 +906,20 @@ test("OpenAPI v1 and the post-freeze screen map preserve ownership and explicit 
     assert.deepEqual(item.operations.filter((operationId) => !operationIds.includes(operationId)), [], `Unknown operation on ${item.id}`);
   }
   const gapsById = new Map(screenMap.contractDefinedUiGaps.map((gap) => [gap.id, gap]));
-  assert.deepEqual(gapsById.get("attendance-recalculation-provenance")?.operations, ["recalculateAttendanceDay"]);
-  assert.deepEqual(gapsById.get("attendance-period-lifecycle")?.operations, [
-    "getAttendancePeriod", "startAttendancePeriodReview", "finalizeAttendancePeriod", "closeAttendancePeriod", "reopenAttendancePeriod"
-  ]);
+  assert.equal(gapsById.has("attendance-recalculation-provenance"), false);
+  assert.equal(gapsById.has("attendance-period-lifecycle"), false);
   assert.deepEqual(gapsById.get("report-server-preview")?.operations, ["createReportPreview"]);
   assert.deepEqual(gapsById.get("report-export-verification")?.operations, ["verifyReportExport"]);
-  assert.deepEqual(gapsById.get("attendance-period-lifecycle")?.roles, ["admin", "manager", "accountant"]);
   assert.deepEqual(gapsById.get("report-server-preview")?.roles, ["admin", "manager", "accountant"]);
-  assert.equal(screenMap.screens.find((screen) => screen.id === "reports")?.operations.includes("verifyReportExport"), false);
-  assert.equal(screenMap.screens.find((screen) => screen.id === "reports")?.operations.includes("createReportPreview"), false);
-  assert.equal(screenMap.screens.find((screen) => screen.id === "attendance")?.operations.includes("recalculateAttendanceDay"), false);
+  const reportsOperations=screenMap.screens.find((screen) => screen.id === "reports")?.operations ?? [];
+  assert.deepEqual(
+    ["getAttendancePeriod", "startAttendancePeriodReview", "finalizeAttendancePeriod", "closeAttendancePeriod", "reopenAttendancePeriod"]
+      .filter((operationId) => !reportsOperations.includes(operationId)),
+    []
+  );
+  assert.equal(reportsOperations.includes("verifyReportExport"), false);
+  assert.equal(reportsOperations.includes("createReportPreview"), false);
+  assert.equal(screenMap.screens.find((screen) => screen.id === "attendance")?.operations.includes("recalculateAttendanceDay"), true);
 });
 
 test("clean-clone developer setup is pinned, secret-safe and reproducible", async () => {
