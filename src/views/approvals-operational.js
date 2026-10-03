@@ -19,7 +19,6 @@
     const subtitle=isWorker?'Statusi i povijest mojih zahtjeva.':'Odluke o odsutnosti u dopuštenom opsegu.';
     const queueCopy=isApprover?'<div class="approval-context"><b>Red čekanja za odluku</b><span>Preklapanje je signal za provjeru, ne automatska zabrana.</span></div>':'';
     return `${title(heading,subtitle)}
-      ${summary}
       ${queueCopy}
       <section class="card request-control-card approval-control">
         ${requestTabs(scoped)}
