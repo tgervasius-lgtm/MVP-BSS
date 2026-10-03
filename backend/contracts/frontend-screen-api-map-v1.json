@@ -2,7 +2,7 @@
   "contract": "BSS post-freeze frontend screen ownership to Backend MVP API v1.4",
   "readiness": "RECONCILED_WITH_EXPLICIT_UI_GAPS",
   "contractReviewedAt": "2026-10-03",
-  "contractReviewStatus": "ISSUE_227_IMPLEMENTATION_CANDIDATE_BSS_OS_REVIEW_REQUIRED",
+  "contractReviewStatus": "ISSUE_232_IMPLEMENTATION_CANDIDATE_BSS_OS_REVIEW_REQUIRED",
   "productAuthority": {
     "file": "BSS_V1_PRODUCT_CONTRACT.md",
     "version": "1.0",
@@ -13,7 +13,7 @@
     "status": "HISTORICAL_FRONTEND_V1_REFERENCE",
     "authority": "NOT_CURRENT_PRODUCT_AUTHORITY"
   },
-  "repositoryBaseline": "29b00c0f63af0b3ffbd2d828550c882b9096fd05",
+  "repositoryBaseline": "cd2aee008b8971060a711808e31c4ca0d7b67fdf",
   "openapi": {
     "file": "openapi/bss-mvp-api-v1.yaml",
     "sha256": "9eefb5f272dbef12f52ff631c350a001153923fd38f936627c4529884d6cc91f",
@@ -166,9 +166,11 @@
         "startAttendancePeriodReview",
         "finalizeAttendancePeriod",
         "closeAttendancePeriod",
-        "reopenAttendancePeriod"
+        "reopenAttendancePeriod",
+        "createReportPreview",
+        "verifyReportExport"
       ],
-      "note": "Attendance-period lifecycle is implemented in API mode with Admin-only transitions and read-only Manager/Accountant state. Current report preview is still client-state derived; server-authoritative preview, locked-period provenance selection and export verification remain explicit UI gaps."
+      "note": "Attendance-period lifecycle, server-authoritative preview and stored export verification are implemented in API mode under server-enforced role/data scope. Explicit locked periodVersionId selection remains a separate boundary and is not claimed by this change."
     },
     {
       "id": "terminal",
@@ -259,32 +261,6 @@
     }
   ],
   "contractDefinedUiGaps": [
-    {
-      "id": "report-server-preview",
-      "status": "contract-defined-gap",
-      "operations": [
-        "createReportPreview"
-      ],
-      "roles": [
-        "admin",
-        "manager",
-        "accountant"
-      ],
-      "prospectiveOwner": "reports-preview-pattern"
-    },
-    {
-      "id": "report-export-verification",
-      "status": "contract-defined-gap",
-      "operations": [
-        "verifyReportExport"
-      ],
-      "roles": [
-        "admin",
-        "manager",
-        "accountant"
-      ],
-      "prospectiveOwner": "reports-verification-pattern"
-    },
     {
       "id": "terminal-credential-rotation",
       "status": "contract-defined-gap",

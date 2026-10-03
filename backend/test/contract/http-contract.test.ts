@@ -882,13 +882,13 @@ test("OpenAPI v1 and the post-freeze screen map preserve ownership and explicit 
     contractGatesBeforeDesignFoundationPhaseB: string[];
   };
   assert.equal(screenMap.readiness, "RECONCILED_WITH_EXPLICIT_UI_GAPS");
-  assert.equal(screenMap.contractReviewStatus, "ISSUE_227_IMPLEMENTATION_CANDIDATE_BSS_OS_REVIEW_REQUIRED");
+  assert.equal(screenMap.contractReviewStatus, "ISSUE_232_IMPLEMENTATION_CANDIDATE_BSS_OS_REVIEW_REQUIRED");
   assert.deepEqual(screenMap.frontendBaseline, {
     commit: "91323c7cdbbbbf7b965c4926c94a11af6d31bf62",
     status: "HISTORICAL_FRONTEND_V1_REFERENCE",
     authority: "NOT_CURRENT_PRODUCT_AUTHORITY"
   });
-  assert.equal(screenMap.repositoryBaseline, "29b00c0f63af0b3ffbd2d828550c882b9096fd05");
+  assert.equal(screenMap.repositoryBaseline, "cd2aee008b8971060a711808e31c4ca0d7b67fdf");
   assert.equal(screenMap.openapi.version, "1.4.0");
   assert.equal(screenMap.openapi.paths, 52);
   assert.equal(screenMap.openapi.operations, 63);
@@ -908,17 +908,16 @@ test("OpenAPI v1 and the post-freeze screen map preserve ownership and explicit 
   const gapsById = new Map(screenMap.contractDefinedUiGaps.map((gap) => [gap.id, gap]));
   assert.equal(gapsById.has("attendance-recalculation-provenance"), false);
   assert.equal(gapsById.has("attendance-period-lifecycle"), false);
-  assert.deepEqual(gapsById.get("report-server-preview")?.operations, ["createReportPreview"]);
-  assert.deepEqual(gapsById.get("report-export-verification")?.operations, ["verifyReportExport"]);
-  assert.deepEqual(gapsById.get("report-server-preview")?.roles, ["admin", "manager", "accountant"]);
+  assert.equal(gapsById.has("report-server-preview"), false);
+  assert.equal(gapsById.has("report-export-verification"), false);
   const reportsOperations=screenMap.screens.find((screen) => screen.id === "reports")?.operations ?? [];
   assert.deepEqual(
     ["getAttendancePeriod", "startAttendancePeriodReview", "finalizeAttendancePeriod", "closeAttendancePeriod", "reopenAttendancePeriod"]
       .filter((operationId) => !reportsOperations.includes(operationId)),
     []
   );
-  assert.equal(reportsOperations.includes("verifyReportExport"), false);
-  assert.equal(reportsOperations.includes("createReportPreview"), false);
+  assert.equal(reportsOperations.includes("verifyReportExport"), true);
+  assert.equal(reportsOperations.includes("createReportPreview"), true);
   assert.equal(screenMap.screens.find((screen) => screen.id === "attendance")?.operations.includes("recalculateAttendanceDay"), true);
 });
 

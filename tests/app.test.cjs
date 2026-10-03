@@ -8,6 +8,7 @@ const html = fs.readFileSync('index.html','utf8');
 const source = fs.readFileSync('app.js','utf8');
 const apiAdapterSource = fs.readFileSync('src/adapters/api.js','utf8');
 const apiStateSource = fs.readFileSync('src/adapters/api-state.js','utf8');
+const reportAuthoritySource = fs.readFileSync('src/adapters/api-report-authority.js','utf8');
 const coreSources = [
   'src/adapters/runtime.js',
   'src/adapters/api.js',
@@ -1421,6 +1422,31 @@ test('izbornik i modal podržavaju Escape, aria stanje i imenovani dijalog',()=>
   assert.equal(modal.getAttribute('aria-hidden'),'true');
 });
 
+test('contract gap #232 veže službeni report preview i export verification na postojeći API',()=>{
+  assert.match(reportAuthoritySource,/BSS_API\.post\('\/report-previews',body\)/);
+  assert.match(reportAuthoritySource,/sameFilters\(result\.filters,body\)/);
+  assert.match(reportAuthoritySource,/datasetVersion/);
+  assert.match(reportAuthoritySource,/preview\.truncated/);
+  assert.match(reportAuthoritySource,/\/report-exports\/\$\{encodeURIComponent\(id\)\}\/verification/);
+  assert.match(reportAuthoritySource,/artifactChecksumMatches/);
+  assert.match(reportAuthoritySource,/datasetChecksumMatches/);
+  assert.match(reportAuthoritySource,/if\(item\.status!=='ready'/);
+  assert.match(reportAuthoritySource,/\['admin','manager','accountant'\]\.includes\(currentRole\)/);
+  assert.match(source,/authoritativeReportPreviewHtml/);
+  assert.match(source,/reportHistoryAuthorityAction/);
+  assert.match(styles,/Contract gap #232 — authoritative reports and export verification/);
+  assert.match(html,/src\/adapters\/api-report-authority\.js/);
+  assert.match(serviceWorker,/src\/adapters\/api-attendance-lifecycle\.js/);
+  assert.match(serviceWorker,/src\/adapters\/api-report-authority\.js/);
+});
+
+test('server-authoritative report preview ne koristi lokalni preview kao fallback uspjeha u API modu',()=>{
+  assert.match(reportAuthoritySource,/Službeni preview nije dostupan/);
+  assert.match(reportAuthoritySource,/Lokalni prikaz se ne predstavlja kao službeni report dataset/);
+  assert.match(reportAuthoritySource,/Server preview nije vratio isti normalizirani skup kriterija/);
+  assert.match(reportAuthoritySource,/server-authoritative/);
+});
+
 test('contract gap #227 veže attendance lifecycle i recalculation na postojeći API bez role proširenja',()=>{
   const bindings=fs.readFileSync('src/adapters/api-bindings.js','utf8');
   const lifecycle=fs.readFileSync('src/adapters/api-attendance-lifecycle.js','utf8');
@@ -1883,7 +1909,7 @@ test('aplikacija povezuje vodič i offline predmemorira cijeli Design System',()
   for(const asset of ['design-system/index.html','design-system/tokens.css','design-system/guide.css','design-system/guide.js']){
     assert.match(serviceWorker,new RegExp(asset.replaceAll('.','\\.')));
   }
-  assert.match(serviceWorker,/bss-backend-mvp-v1-r2/);
+  assert.match(serviceWorker,/bss-backend-mvp-v1-r3/);
 });
 
 test('Brand Book v1.0 pokriva svih devet dogovorenih područja',()=>{
@@ -1947,7 +1973,7 @@ test('aplikacija povezuje Brand Book i cijeli paket radi offline',()=>{
     'bss-presentation-cover.svg','bss-terminal-label.svg',
     'BSS_BRAND-BOOK_v1.0_11.07.2026.pdf'
   ]) assert.match(serviceWorker,new RegExp(asset.replaceAll('.','\\.')));
-  assert.match(serviceWorker,/bss-backend-mvp-v1-r2/);
+  assert.match(serviceWorker,/bss-backend-mvp-v1-r3/);
   assert.match(serviceWorker,/path\.includes\('\/brand-book'\)/);
 });
 
@@ -2048,11 +2074,11 @@ test('Backend MVP učitava API adaptere prije aplikacije i sprema shell za offli
   ]){
     assert.match(serviceWorker,new RegExp(asset.replaceAll('.','\\.')));
   }
-  assert.match(serviceWorker,/bss-backend-mvp-v1-r2/);
+  assert.match(serviceWorker,/bss-backend-mvp-v1-r3/);
 });
 
 test('cache invalidation hotfix osvježava app shell i odmah preuzima otvorene klijente',()=>{
-  assert.match(serviceWorker,/const CACHE_NAME = 'bss-backend-mvp-v1-r2'/);
+  assert.match(serviceWorker,/const CACHE_NAME = 'bss-backend-mvp-v1-r3'/);
   assert.match(serviceWorker,/new Request\(asset,\{cache:'reload'\}\)/);
   assert.match(serviceWorker,/new Request\(request,\{cache:'no-store'\}\)/);
   assert.match(serviceWorker,/new Request\(request,\{cache:'no-cache'\}\)/);

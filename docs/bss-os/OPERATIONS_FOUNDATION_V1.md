@@ -2,6 +2,7 @@
 
 Status: **HARDENED DRAFT / BSS OS REVIEW REQUIRED**  
 Date: 2026-10-03  
+Revision: consolidated review draft (PR #229; useful additions from PR #231)
 Tracking issue: #225  
 Product authority: `BSS_V1_PRODUCT_CONTRACT.md` v1.0 — **ACCEPTED / FROZEN**  
 Design authority: `BSS_DESIGN_FOUNDATION_V1.md` v1.0 — **ACCEPTED / HARDENED**  
@@ -62,6 +63,8 @@ Minimum before Production-like Staging can be called DONE:
 - health and external uptime evidence;
 - actionable 5xx/runtime/database/migration/backup/terminal-sync alerts;
 - named alert recipients and escalation owner;
+- a controlled staging fault must produce the expected signal and reach the intended recipient;
+- verify telemetry redaction and record recovery/closure of the fault;
 - staging vs production separation in telemetry;
 - alert-delivery test and incident-tabletop evidence.
 
@@ -86,6 +89,8 @@ Minimum before Production-like Staging can be called DONE:
 
 A successful backup job is not restore evidence.
 
+Staging datasets must be synthetic or irreversibly anonymized; no real customer/employee production data may enter staging. Staging backend identity, database, secrets and configuration must be separate and explicitly labeled.
+
 ### OM-04 equivalent — Tenant-safe operational control boundary
 
 No large new Control Plane is authorized.
@@ -104,6 +109,7 @@ Hard boundaries:
 - no universal support credential or service PIN;
 - privileged operations require named actor, reason, scope and audit;
 - secrets and device credentials remain outside ordinary support views;
+- any future break-glass path requires separate approval, a time limit, named identity and audit;
 - production database manual edits require an approved emergency procedure.
 
 A standalone Control Plane implementation issue is **NOT ACTIVATED** by this document. Open one only if Staging evidence proves an actual missing operational capability.
@@ -123,6 +129,8 @@ Minimum target:
 - database connection/query behavior;
 - correctness reconciliation after load;
 - explicit supported envelope and failure threshold;
+- repeatable synthetic fixtures and recorded API/browser workload, latency, error and database-resource measurements;
+- define the soak window and stop conditions before execution;
 - no correctness loss under performance pressure.
 
 Performance evidence may never trade off:
@@ -146,6 +154,8 @@ A focused harness implementation issue should be opened only when Production-lik
 | Privacy/data governance | #64 / accepted privacy docs | Apply to telemetry, logs, backup and incident evidence |
 | Release/change | #93 / release OS | Own release record, artifact identity, migration/rollback and communication |
 | Identity/access/secrets | #95 / identity OS | Own secrets custody, rotation, admin access and recovery boundaries |
+| Development execution/verification | #124 | Reuse existing CI/developer controls; do not substitute them for staging evidence |
+| Global roadmap/governance | #133 | Own cross-program sequencing, status and change control |
 
 OM-01 does not copy these backlogs.
 
@@ -264,3 +274,13 @@ After review of this draft:
 3. Continue focused frozen-contract implementation gaps independently where already authorized.
 4. Refresh #59 against current vendor facts immediately before any Staging provisioning or spend.
 5. Open separate implementation issues for OM-02/03/04/05 only when concrete Staging evidence work becomes near-active.
+
+## 13. Consolidation record and OM-01 exit criteria
+
+On 2026-10-03 the owner authorized consolidation of competing OM-01 proposals into PR #229, without authorizing its merge or architecture acceptance. PR #231 is superseded by this consolidated proposal; its source branch and history remain available.
+
+Retained from #231: the #124/#133 ownership links, explicit staging environment/data boundaries, controlled fault and alert-delivery evidence, time-limited future break-glass boundary, and repeatable load/soak measurements and stop conditions. Its Control Board baseline correction is carried forward using the later merged PR #233 baseline.
+
+The stricter #229 requirements remain: independent encrypted off-platform recovery and isolated restore before Production-like Staging passes, explicit reviewer/recheck metadata, immutable release/artifact linkage, and activation only when concrete staging work is near-active. The later-before-Pilot wording in #231 does not defer these staging gates. Vendor examples remain candidates, not new selections or current-price claims.
+
+OM-01 closes only after explicit owner/BSS OS architecture acceptance and merge of this focused proposal, with current/target separation, existing ownership, OM-02..05 scope/evidence, reversible cost posture and all security boundaries retained. Green checks or merge alone do not automatically accept the architecture or prove Staging/Pilot/Production readiness. Until that decision, #225 remains open and this document remains HARDENED DRAFT / BSS OS REVIEW REQUIRED. OM-12 time-travel forensics remains HOLD / DO NOT START.

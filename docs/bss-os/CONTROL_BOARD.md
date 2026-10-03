@@ -1,9 +1,9 @@
 # BSS OS Control Board
 
-Last reviewed: 2026-09-20
+Last reviewed: 2026-10-03 (current baseline / OM-01 consolidation; historical milestones retain their original dates)
 Operating phase: `POST-DESIGN-FOUNDATION / CONTRACT-GAP RECONCILIATION + OM-01 ACTIVATION`
 
-Protected-main evidence baseline on 2026-09-20, before this #166 documentation refresh: `b71710890de1f36c3b9aff6fd38f0e846963f41c`. PR #164 is MERGED and #163 is CLOSED/COMPLETED; PR #165 is MERGED and #162 is CLOSED/COMPLETED; PR #161 merged the proposal at `4fac30bb7112d765e4f3eefd717f5f0f041086a0`. Later CI-maintenance PRs #104/#169 advanced `main` without accepting the Design Foundation. #156 remains OPEN. This refresh does not authorize a general development restart; the design/product gate sequence below remains subject to explicit BSS OS activation.
+Current protected-main software baseline for this review: `d13f9e3aa41fd3d5dba14546b4bdbbb88603e1b0` (merged PR #233). PR #228 implemented attendance-period lifecycle/recalculation; PR #233 implemented server-authoritative report preview and export verification. The reviewed #233 head `82cbbd050fbb8dcf496f5e4c13f0c039bb0e5863` passed all 15 reported checks before owner-authorized merge. Post-merge evidence must be checked against the new main SHA separately. Design Foundation v1.0 is `ACCEPTED / HARDENED`; #156 is CLOSED/COMPLETED. Remaining frozen-contract gaps, including onboarding/import and terminal recovery/security UI, retain their separate ownership. Production-like Staging, Hardware 9C, Pilot and Commercial Production remain NOT PASS. OM-01 (#225) is consolidated in PR #229 as HARDENED DRAFT / REVIEW REQUIRED; #231 is superseded, and neither consolidation nor green checks authorizes architecture acceptance or merge.
 
 ## Executive state
 
@@ -159,8 +159,8 @@ PR #27 and PR #31 are closed as superseded. Neither is an active integration tar
 
 Mandatory execution critical path under accepted BSS MASTER ROADMAP v4.9:
 
-1. Complete the Visual Design Gate using representative frozen BSS workflows and preserve Figma/Storybook as `CANDIDATE / INACTIVE` until separately accepted.
-2. Require explicit owner/BSS OS Design Foundation acceptance before any ACCEPTED status or frontend implementation authorization.
+1. Visual Design Gate is completed and owner-accepted through PR #183; preserve Figma/Storybook as `CANDIDATE / INACTIVE` until separately accepted.
+2. Preserve the accepted Design Foundation and its focused frozen-scope implementation authorization; new material scope changes still require a separate decision.
 3. Activate roadmap-ordered contract-defined implementation gaps only after Design Foundation acceptance and the applicable BSS OS decision.
 4. Proceed to Production-like Staging and `AUDIT B` without treating merged documentation or implementation as environment evidence.
 5. Reach Pilot readiness only with applicable software evidence plus Hardware 9C and `AUDIT C`.
@@ -168,7 +168,7 @@ Mandatory execution critical path under accepted BSS MASTER ROADMAP v4.9:
 7. After Pilot, perform Post-Pilot hardening, require `PRG GO`, then `AUDIT D PASS`.
 8. Commercial Production remains blocked until the accepted Commercial gate is satisfied.
 
-AUDIT A targeted recheck is `PASS`; the BSS v1 Product Contract is `ACCEPTED / FROZEN`, integrated by merged PR #155, and #131 is CLOSED/COMPLETED. #156 Phase A and #157 reconciliation are complete; PR #158 and PR #161 are merged into the protected-main evidence baseline stated above. The Design Foundation remains `PROPOSED / NOT ACCEPTED` and #156 remains OPEN. Production-like Staging is `NOT IMPLEMENTED / NOT EVIDENCE PROVEN`; Hardware 9C, Pilot and Commercial Production remain `NOT PASS`. #139 and Hardware #132 remain parallel and non-blocking. Trivy Phase 1 is merged through #129/PR #141; #115, PR #28, Preview, staging, later hardware readiness and later readiness work retain their existing routing without acquiring implementation or readiness claims from the Design Foundation proposal.
+AUDIT A targeted recheck is `PASS`; the BSS v1 Product Contract is `ACCEPTED / FROZEN`, integrated by merged PR #155, and #131 is CLOSED/COMPLETED. #156 Phase A and #157 reconciliation are complete; PR #158 and PR #161 are merged into the protected-main evidence baseline stated above. The Design Foundation is `ACCEPTED / HARDENED` through PR #183 and #156 is CLOSED/COMPLETED. Production-like Staging is `NOT IMPLEMENTED / NOT EVIDENCE PROVEN`; Hardware 9C, Pilot and Commercial Production remain `NOT PASS`. #139 and Hardware #132 remain parallel and non-blocking. Trivy Phase 1 is merged through #129/PR #141; #115, PR #28, Preview, staging, later hardware readiness and later readiness work retain their existing routing without acquiring readiness claims from design acceptance or repository implementation.
 
 ## Management rule
 
