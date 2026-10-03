@@ -23,7 +23,8 @@ const coreSources = [
   'src/views/events.js',
   'src/views/attendance-operational.js',
   'src/views/workers-operational.js',
-  'src/views/navigation-operational.js'
+  'src/views/navigation-operational.js',
+  'src/views/approvals-operational.js'
 ].map(path=>fs.readFileSync(path,'utf8'));
 const styleEntry = fs.readFileSync('styles.css','utf8');
 const styleLayerPaths = [
@@ -432,6 +433,19 @@ test('zajednički godišnji je frontend demo za sve uloge i prikazuje samo odobr
   assert.equal(worker.document.querySelector('.scope-switch'),null);
   assert.match(worker.document.querySelector('.shared-scope-readonly').textContent,/Odjel/);
   assert.equal(worker.evaluate("sharedLeaveRequests().every(request=>workerById(request.workerId).dept===currentWorker().dept)"),true);
+});
+
+test('Zahtjevi i korekcije imaju operational sažetak bez promjene approval akcija',()=>{
+  const admin=boot('admin');
+  admin.window.navigate('requests');
+  assert.equal(admin.document.querySelectorAll('.approval-summary>div').length,4);
+  assert.match(admin.document.querySelector('.approval-summary').textContent,/Na čekanju/);
+  assert.ok(admin.document.querySelector('[data-bss-action^="openRequestDecision("]'));
+  admin.window.navigate('corrections');
+  assert.equal(admin.document.querySelectorAll('.approval-summary>div').length,4);
+  assert.match(admin.document.querySelector('.corrections-operational-card').textContent,/Izvorno/);
+  assert.match(admin.document.querySelector('.corrections-operational-card').textContent,/Predloženo/);
+  assert.ok(admin.document.querySelector('[data-bss-action*="updateCorrection("]'));
 });
 
 test('desktop navigacija prikazuje samo primarne Admin stavke i puni izbornik ostaje u draweru',()=>{
