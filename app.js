@@ -790,6 +790,7 @@ function departmentOptions(selected, includeAll = true){
   const departments=currentRole==='manager'?[...new Set(visibleWorkers().map(worker=>worker.dept))].sort((a,b)=>a.localeCompare(b,'hr')):departmentList();
   return `${includeAll?`<option value="Svi" ${selected==='Svi'?'selected':''}>Svi odjeli</option>`:''}${departments.map(value=>`<option value="${escapeHtml(value)}" ${selected===value?'selected':''}>${escapeHtml(value)}</option>`).join('')}`;
 }
+
 function attendanceRecordsForCurrentFilters(){
   return state.records.filter(recordVisible).filter(record=>{
     const worker = workerById(record.workerId);
@@ -832,15 +833,14 @@ function attendanceLivePanel(records){
   }).join('')||'<div class="empty-state compact">Nema aktivnih prijava za odabrane filtre.</div>'}</div></section>`;
 }
 function viewAttendance(){
-  const baseRecords=attendanceRecordsForCurrentFilters();
-  const records = filteredAttendanceRecords();
-  const summary=attendanceSummary(records),counts=attendanceViewCounts();
-  const viewTitle={all:'Svi zapisi',review:'Za provjeru',active:'Aktivni danas'}[attendanceView];
-  return `${title(currentRole==='manager'?'Evidencija mojeg tima':'Evidencija dolazaka','Zapisi po smjeni i statusu.',pill(`${records.length} zapisa`))}
-    <section class="card attendance-summary-card"><div><div class="eyebrow">Obračunski pregled · ${escapeHtml(viewTitle)}</div><h2>${summary.completed} završenih od ${summary.records} prikazanih zapisa</h2><p>Plan i saldo računaju se samo iz završenih zapisa.</p></div><div class="attendance-summary-values"><button data-bss-action="focusSection('attendanceRecords')"><span>Evidentirano</span><b>${formatMinutes(summary.workedMinutes)}</b></button><button data-bss-action="focusSection('attendanceRecords')"><span>Plan završ. zapisa</span><b>${formatMinutes(summary.plannedMinutes)}</b></button><button data-bss-action="focusSection('attendanceRecords')"><span>Saldo</span><b class="${summary.balanceMinutes<0?'negative':'positive'}">${formatSignedMinutes(summary.balanceMinutes)}</b></button></div></section>
-    <div class="attendance-tabs" role="group" aria-label="Prikaz evidencije"><button class="${attendanceView==='all'?'active':''}" data-bss-action="setAttendanceView('all')">Svi zapisi <span>${counts.all}</span></button><button class="${attendanceView==='review'?'active':''}" data-bss-action="setAttendanceView('review')">Za provjeru <span>${counts.review}</span></button><button class="${attendanceView==='active'?'active':''}" data-bss-action="setAttendanceView('active')">Aktivni danas <span>${counts.active}</span></button></div>
-    <div class="card"><div class="filter-bar"><input id="attSearch" aria-label="Traži radnika" placeholder="Ime radnika" value="${escapeHtml(attendanceFilters.search)}"><input id="attMonth" aria-label="Mjesec" type="month" value="${attendanceFilters.month}"><select id="attDept" aria-label="Odjel">${departmentOptions(attendanceFilters.department)}</select><select id="attStatus" aria-label="Status">${statusOptions(attendanceFilters.status)}</select><div class="filter-actions"><button class="btn" data-bss-action="applyAttendanceFilters()">Primijeni</button><button class="btn secondary" data-bss-action="clearAttendanceFilters()">Očisti</button></div></div></div>
-    ${attendanceLivePanel(baseRecords)}
+  const records=filteredAttendanceRecords(),counts=attendanceViewCounts(),viewTitle={all:'Svi zapisi',review:'Za provjeru',active:'Aktivni danas'}[attendanceView],operational=BSS_VIEWS.attendanceOperational.render({visibleWorkers:visibleWorkers(),attendanceFilters,records:state.records,today:DEMO_TODAY,
+    shiftById,plannedShiftMinutes,recordMinutes,pendingCorrectionFor,escapeHtml,formatMinutes,formatSignedMinutes,pill,isoLabel});
+  return `${title(currentRole==='manager'?'Evidencija mojeg tima':'Evidencija dolazaka',isoToDate(DEMO_TODAY).toLocaleDateString('hr-HR',{weekday:'long',day:'numeric',month:'long',year:'numeric'}),'<span class="pill gray">Dnevni operativni pregled</span>')}
+    ${operational.kpis}
+    ${operational.table}
+    <section class="attendance-history-heading"><div><h2>Povijest evidencije</h2><p>Mjesečni zapisi, filtri i dokazni detalji.</p></div></section>
+    <div class="attendance-tabs" role="group" aria-label="Prikaz povijesti evidencije"><button class="${attendanceView==='all'?'active':''}" data-bss-action="setAttendanceView('all')">Svi zapisi <span>${counts.all}</span></button><button class="${attendanceView==='review'?'active':''}" data-bss-action="setAttendanceView('review')">Za provjeru <span>${counts.review}</span></button><button class="${attendanceView==='active'?'active':''}" data-bss-action="setAttendanceView('active')">Aktivni danas <span>${counts.active}</span></button></div>
+    <div class="card attendance-filter-card"><div class="filter-bar"><input id="attSearch" aria-label="Traži radnika" placeholder="Traži po imenu" value="${escapeHtml(attendanceFilters.search)}"><input id="attMonth" aria-label="Mjesec" type="month" value="${attendanceFilters.month}"><select id="attDept" aria-label="Odjel">${departmentOptions(attendanceFilters.department)}</select><select id="attStatus" aria-label="Status">${statusOptions(attendanceFilters.status)}</select><div class="filter-actions"><button class="btn" data-bss-action="applyAttendanceFilters()">Primijeni</button><button class="btn secondary" data-bss-action="clearAttendanceFilters()">Očisti</button></div></div></div>
     ${recordTable(records,viewTitle,true,true,true,true,true,'attendanceRecords')}`;
 }
 function recordTable(records,heading = 'Evidencija',showDepartment = false,showDetails = false,showWorker = true,showTotals = true,showReviewBadge = true,sectionId = ''){

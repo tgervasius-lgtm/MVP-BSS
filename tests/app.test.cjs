@@ -20,7 +20,8 @@ const coreSources = [
   'src/use-cases/leave.js',
   'src/use-cases/corrections.js',
   'src/views/registry.js',
-  'src/views/events.js'
+  'src/views/events.js',
+  'src/views/attendance-operational.js'
 ].map(path=>fs.readFileSync(path,'utf8'));
 const styleEntry = fs.readFileSync('styles.css','utf8');
 const styleLayerPaths = [
@@ -295,6 +296,21 @@ test('Visual Design Gate shell checkpoint koristi light enterprise desktop shell
   assert.doesNotMatch(document.querySelector('.desktop-nav')?.textContent||'',/Zajednički godišnji/);
 });
 
+test('Attendance operational checkpoint odvaja status i anomaliju uz dnevni KPI strip',()=>{
+  const {window,document}=boot('admin');
+  window.navigate('attendance');
+  assert.equal(document.querySelectorAll('.attendance-operational-kpis .attendance-op-kpi').length,5);
+  for(const label of ['Prisutni','Bez dolaska','Odsutni','Anomalije','Ukupno']) assert.match(document.querySelector('.attendance-operational-kpis').textContent,new RegExp(label));
+  const headers=[...document.querySelectorAll('.attendance-operational-table th')].map(node=>node.textContent.trim());
+  assert.ok(headers.includes('Status'));
+  assert.ok(headers.includes('Anomalija'));
+  assert.ok(headers.includes('Planirano'));
+  assert.equal(document.querySelectorAll('.attendance-operational-table tbody tr').length,7);
+  window.setAttendanceDailyFilter('anomaly');
+  assert.ok(document.querySelectorAll('.attendance-operational-table tbody tr').length>=1);
+  assert.match(document.querySelector('.attendance-history-heading').textContent,/Povijest evidencije/);
+});
+
 test('UX/UI Cleanup v1.1 koristi tablice i kompaktne informacijske sažetke bez promjene funkcija',()=>{
   const admin=boot('admin');
   const screens=[
@@ -364,7 +380,7 @@ test('svaki KPI i kompaktni brojčani sažetak ima drill-down bez slijepih karti
   assert.match(document.querySelector('.request-tabs button.active').textContent,/Na čekanju/);
 
   const summarySelectors=[
-    '.dashboard-kpis>.kpi-card','.worker-home-facts>*','.attendance-summary-values>*',
+    '.dashboard-kpis>.kpi-card','.worker-home-facts>*','.attendance-operational-kpis>.attendance-op-kpi',
     '.data-summary-metrics>*','.donut-legend>*','.admin-kpis>*','.terminal-kpis>*'
   ].join(',');
   for(const role of ['admin','manager','worker','accountant']){
@@ -423,11 +439,12 @@ test('Demo 3.0 ostaje unutar uskog BSS opsega',()=>{
   assert.doesNotMatch(text,/skladište|gps|geofencing|ai analitika|obračun plaće|otvaranje vrata|crm/);
 });
 
-test('Sprint 2 evidencija povezuje plan, saldo, aktivne zapise i odstupanja',()=>{
+test('Sprint 2 evidencija povezuje dnevni operativni roster i dokaznu povijest',()=>{
   const {window,document,state}=boot('admin');
   window.navigate('attendance');
+  assert.equal(document.querySelectorAll('.attendance-operational-kpis .attendance-op-kpi').length,5);
+  assert.equal(document.querySelectorAll('.attendance-operational-table tbody tr').length,7);
   assert.equal(document.querySelectorAll('.attendance-tabs button').length,3);
-  assert.equal(document.querySelectorAll('.attendance-live-item').length,3);
   assert.equal(document.querySelectorAll('.attendance-table .table-detail-btn').length,22);
   const summary=window.attendanceSummary(state().records);
   assert.equal(summary.records,22);

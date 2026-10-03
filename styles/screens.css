@@ -111,3 +111,27 @@ button.day:hover{outline:2px solid var(--bss-color-accent-text);outline-offset:1
 .demo-story-proof{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.demo-story-proof span{padding:11px;border-radius:14px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.09);font-size:8px;color:rgba(255,255,255,.72)}.demo-story-proof b{display:block;margin-top:5px;color:#fff;font-size:20px;letter-spacing:-.04em}
 .process-flow{display:grid;gap:10px;margin-bottom:14px}.process-step{position:relative;min-width:0;padding:16px;border:1px solid var(--bss-color-border);border-radius:19px;background:linear-gradient(145deg,#fff,#f7fbf9);box-shadow:var(--bss-shadow-md)}.process-icon,.proof-icon{display:grid;place-items:center;width:38px;height:38px;border-radius:13px;background:var(--bss-color-accent-soft);color:var(--bss-color-accent-text);font-size:17px;font-weight:950}.process-step>span{display:block;margin-top:14px;color:var(--bss-color-accent-text);font-size:8px;font-weight:950;letter-spacing:.08em;text-transform:uppercase}.process-step h2{margin:6px 0;font-size:14px;line-height:1.25}.process-step p,.demo-proof-grid p{margin:0;color:var(--bss-color-text-muted);font-size:10px;line-height:1.55}.demo-proof-grid{display:grid;gap:10px}.demo-proof-grid .card{height:100%}.demo-proof-grid h2{margin:12px 0 7px}.proof-icon{background:#eef7f2}.demo-story-footer{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:15px 16px;border:1px solid #cfe4d7;border-radius:18px;background:#f1faf5;margin-bottom:4px}.demo-story-footer b,.demo-story-footer span{display:block}.demo-story-footer b{font-size:12px}.demo-story-footer span{margin-top:4px;color:var(--bss-color-text-muted);font-size:10px;line-height:1.45}
 .confirm-card{text-align:center;max-width:480px!important}.confirm-symbol{display:grid;place-items:center;width:54px;height:54px;margin:0 auto 13px;border-radius:18px;background:var(--bss-color-warning-soft);color:var(--bss-color-warning);font-size:25px;font-weight:950}.confirm-card h2{font-size:21px}.confirm-card p{max-width:400px;margin:0 auto;color:var(--bss-color-text-muted);font-size:12px;line-height:1.55}.confirm-card .btns{justify-content:center;margin-top:18px}
+
+
+/* Visual Design Gate 2026-10-03 — Attendance operational checkpoint */
+.attendance-operational-kpis{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:12px}
+.attendance-op-kpi{min-width:0;min-height:78px;padding:11px 12px;border:1px solid var(--bss-color-border);border-radius:10px;background:var(--bss-color-bg-surface);color:var(--bss-color-text);display:grid;grid-template-columns:32px minmax(0,1fr);gap:10px;align-items:center;text-align:left;box-shadow:var(--bss-shadow-sm)}
+.attendance-op-kpi:hover{border-color:var(--bss-color-border-strong);background:var(--bss-color-bg-hover)}
+.attendance-op-kpi.active{border-color:var(--bss-color-accent-text);box-shadow:0 0 0 1px var(--bss-color-accent-text)}
+.attendance-op-icon{width:32px;height:32px;border-radius:8px;display:grid;place-items:center;background:var(--bss-color-bg-subtle);color:var(--bss-color-text-muted);font-size:12px;font-weight:950}
+.attendance-op-kpi.green .attendance-op-icon{background:var(--bss-color-success-soft);color:var(--bss-color-success)}
+.attendance-op-kpi.amber .attendance-op-icon{background:var(--bss-color-warning-soft);color:var(--bss-color-warning)}
+.attendance-op-kpi.blue .attendance-op-icon{background:var(--bss-color-info-soft);color:var(--bss-color-info)}
+.attendance-op-kpi.red .attendance-op-icon{background:var(--bss-color-danger-soft);color:var(--bss-color-danger)}
+.attendance-op-kpi b,.attendance-op-kpi strong,.attendance-op-kpi small{display:block}.attendance-op-kpi b{font-size:20px;line-height:1;font-variant-numeric:tabular-nums}.attendance-op-kpi strong{font-size:10px;margin-top:4px}.attendance-op-kpi small{font-size:8px;line-height:1.3;color:var(--bss-color-text-muted);margin-top:3px}
+.attendance-operational-card{margin-bottom:18px}
+.attendance-operational-table{min-width:1240px}
+.attendance-operational-table th{background:#f8fafc}
+.attendance-operational-table td{padding-top:9px;padding-bottom:9px}
+.attendance-operational-table td small{display:block;margin-top:3px;font-size:8px;color:var(--bss-color-text-muted)}
+.attendance-op-review{background:#fffaf2}
+.attendance-code{font-size:9px;font-weight:850;color:var(--bss-color-text-muted);font-variant-numeric:tabular-nums}
+.attendance-person-link{background:transparent;color:var(--bss-color-text);text-align:left;padding:0}.attendance-person-link b,.attendance-person-link small{display:block}.attendance-person-link:hover b{color:var(--bss-color-accent-text)}
+.attendance-anomaly-none{color:var(--bss-color-text-muted);font-weight:800}
+.attendance-history-heading{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin:20px 0 8px;padding-top:4px}.attendance-history-heading h2{margin:0;font-size:17px}.attendance-history-heading p{margin:3px 0 0;font-size:10px;color:var(--bss-color-text-muted)}
+.attendance-filter-card{padding:11px;margin-bottom:10px}
