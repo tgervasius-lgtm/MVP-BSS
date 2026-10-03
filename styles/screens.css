@@ -278,3 +278,8 @@ button.day:hover{outline:2px solid var(--bss-color-accent-text);outline-offset:1
 .access-operational-card{box-shadow:none}.access-operational-card td small{display:block;margin-top:3px;font-size:8px;color:var(--bss-color-text-muted)}
 .access-operational-card td .pill{background:transparent;border-color:transparent;padding:3px 0;border-radius:0;font-weight:800}
 .access-secondary-grid>.card{box-shadow:none}.access-boundary-note{font-size:9px}
+
+
+/* Visual Design Gate — audit operational checkpoint */
+.audit-summary{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:10px}.audit-summary>div{padding:11px 12px;border:1px solid var(--bss-color-border);border-radius:8px;background:var(--bss-color-bg-surface)}.audit-summary span,.audit-summary b{display:block}.audit-summary span{font-size:8px;color:var(--bss-color-text-muted)}.audit-summary b{font-size:18px;margin-top:4px}
+.audit-control-card{padding:11px}.audit-evidence-card{margin-top:10px;box-shadow:none}.audit-evidence-card td{padding-top:9px;padding-bottom:9px}
