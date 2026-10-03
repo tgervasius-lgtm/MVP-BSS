@@ -32,7 +32,7 @@
   }
 
   function screen(context){
-    const {workers,isAdmin,visibleWorkers,workerSearch,workerListTab,workerShiftFilter,shiftById,escapeHtml,title,workerTable}=context;
+    const {workers,isAdmin,workerSearch,workerListTab,workerShiftFilter,shiftById,escapeHtml,title,workerTable}=context;
     const tabs=isAdmin?['Svi','Prisutni','Odsutni danas','Godišnji','Neaktivni']:['Svi','Prisutni','Odsutni danas','Godišnji'];
     const shiftLabel=workerShiftFilter==='Svi'?'':shiftById(workerShiftFilter)?.name||'';
     return `${title(isAdmin?'Radnici':'Moj tim',isAdmin?'Zaposlenici i operativni status.':'Radnici u dodijeljenim odjelima.',isAdmin?'<button class="btn" data-bss-action="openWorkerModal()">Dodaj radnika</button>':'')}
