@@ -8,6 +8,7 @@ const html = fs.readFileSync('index.html','utf8');
 const source = fs.readFileSync('app.js','utf8');
 const apiAdapterSource = fs.readFileSync('src/adapters/api.js','utf8');
 const apiStateSource = fs.readFileSync('src/adapters/api-state.js','utf8');
+const reportAuthoritySource = fs.readFileSync('src/adapters/api-report-authority.js','utf8');
 const coreSources = [
   'src/adapters/runtime.js',
   'src/adapters/api.js',
@@ -1419,6 +1420,29 @@ test('izbornik i modal podržavaju Escape, aria stanje i imenovani dijalog',()=>
   document.dispatchEvent(new window.KeyboardEvent('keydown',{key:'Escape',bubbles:true}));
   assert.equal(modal.classList.contains('open'),false);
   assert.equal(modal.getAttribute('aria-hidden'),'true');
+});
+
+test('contract gap #232 veže službeni report preview i export verification na postojeći API',()=>{
+  assert.match(reportAuthoritySource,/BSS_API\.post\('\/report-previews',body\)/);
+  assert.match(reportAuthoritySource,/sameFilters\(result\.filters,body\)/);
+  assert.match(reportAuthoritySource,/datasetVersion/);
+  assert.match(reportAuthoritySource,/preview\.truncated/);
+  assert.match(reportAuthoritySource,/\/report-exports\/\$\{encodeURIComponent\(id\)\}\/verification/);
+  assert.match(reportAuthoritySource,/artifactChecksumMatches/);
+  assert.match(reportAuthoritySource,/datasetChecksumMatches/);
+  assert.match(reportAuthoritySource,/if\(item\.status!==\'ready\'/);
+  assert.match(reportAuthoritySource,/\['admin','manager','accountant'\]\.includes\(currentRole\)/);
+  assert.match(source,/authoritativeReportPreviewHtml/);
+  assert.match(source,/reportHistoryAuthorityAction/);
+  assert.match(styles,/Contract gap #232 — authoritative reports and export verification/);
+  assert.match(html,/src\/adapters\/api-report-authority\.js/);
+});
+
+test('server-authoritative report preview ne koristi lokalni preview kao fallback uspjeha u API modu',()=>{
+  assert.match(reportAuthoritySource,/Službeni preview nije dostupan/);
+  assert.match(reportAuthoritySource,/Lokalni prikaz se ne predstavlja kao službeni report dataset/);
+  assert.match(reportAuthoritySource,/Server preview nije vratio isti normalizirani skup kriterija/);
+  assert.match(reportAuthoritySource,/server-authoritative/);
 });
 
 test('contract gap #227 veže attendance lifecycle i recalculation na postojeći API bez role proširenja',()=>{
