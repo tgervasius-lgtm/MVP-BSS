@@ -199,3 +199,7 @@
 
 /* Shifts operational checkpoint */
 @media(min-width:620px){.shifts-summary{grid-template-columns:repeat(4,minmax(0,1fr))}}
+
+
+/* Worker detail operational checkpoint */
+@media(max-width:620px){.worker-detail-grid{grid-template-columns:1fr}.worker-detail-tabs{overflow:auto;white-space:nowrap}}
