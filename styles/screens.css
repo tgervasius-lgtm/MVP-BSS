@@ -591,3 +591,35 @@ button.day:hover{outline:2px solid var(--bss-color-accent-text);outline-offset:1
   .vacation-balance-head{display:block}
   .vacation-balance-head .btn{margin-top:10px}
 }
+
+
+/* Owner visual review — interaction affordance clarity
+   Static summaries are quieter; controls carry hover/active feedback. */
+.approval-summary>div,
+.audit-summary>div,
+.shifts-summary>div,
+.report-metrics>div{
+  background:var(--bss-color-bg-subtle);
+  border-color:var(--bss-color-border-subtle);
+}
+.access-summary>button,
+.terminal-operational-kpis>button,
+.home-kpis .kpi-card,
+.vacation-balance-grid>button,
+.worker-today-grid>button,
+.worker-summary-row{
+  cursor:pointer;
+}
+.access-summary>button.active{
+  background:var(--bss-color-bg-subtle);
+  box-shadow:inset 0 0 0 1px var(--bss-color-border-strong);
+}
+.access-summary>button:focus-visible,
+.terminal-operational-kpis>button:focus-visible,
+.home-kpis .kpi-card:focus-visible,
+.vacation-balance-grid>button:focus-visible,
+.worker-today-grid>button:focus-visible,
+.worker-summary-row:focus-visible{
+  outline:3px solid var(--bss-color-focus);
+  outline-offset:2px;
+}
