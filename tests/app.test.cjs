@@ -267,8 +267,10 @@ test('evidencija i RFID simulator su odvojeni',()=>{
 
 test('UX/UI Cleanup v1 svodi dashboard na četiri KPI-ja i tablični dnevni pregled',()=>{
   const {window,document,state} = boot('admin');
-  assert.match(document.querySelector('.version-chip').textContent,/v3\.0/);
-  assert.match(document.querySelector('.side-footer').textContent,/Backend MVP · API v1\.1/);
+  assert.equal(document.querySelector('.version-chip'),null);
+  assert.match(document.querySelector('.side-brand').textContent,/BSS/);
+  assert.match(document.querySelector('.side-brand').textContent,/Bognar Smart Systems/);
+  assert.match(document.querySelector('.side-footer').textContent,/People\. Work\. Progress\./);
   assert.equal(document.querySelectorAll('.dashboard-kpis .kpi-card').length,4);
   assert.equal(document.querySelector('[data-kpi="present"] .kpi-value').textContent,'3');
   assert.equal(document.querySelector('[data-kpi="absent"] .kpi-value').textContent,'3');
@@ -281,6 +283,16 @@ test('UX/UI Cleanup v1 svodi dashboard na četiri KPI-ja i tablični dnevni preg
   assert.equal(metrics.active,7);
   assert.ok(metrics.monthMinutes>0);
   assert.ok(metrics.overtime>=0);
+});
+
+test('Visual Design Gate shell checkpoint koristi light enterprise desktop shell',()=>{
+  const {window,document}=boot('admin');
+  assert.equal(document.querySelector('.desktop-sidebar')?.tagName,'ASIDE');
+  assert.match(document.querySelector('.side-brand')?.textContent||'',/Bognar Smart Systems/);
+  assert.match(document.querySelector('.side-footer')?.textContent||'',/People\. Work\. Progress\./);
+  window.switchRole('worker');
+  assert.match(document.querySelector('.desktop-nav')?.textContent||'',/Kalendar/);
+  assert.doesNotMatch(document.querySelector('.desktop-nav')?.textContent||'',/Zajednički godišnji/);
 });
 
 test('UX/UI Cleanup v1.1 koristi tablice i kompaktne informacijske sažetke bez promjene funkcija',()=>{
@@ -1308,8 +1320,8 @@ test('R5 učitava CSS slojeve istim redoslijedom i sprema ih za offline rad',()=
 });
 
 test('ključni tekst i statusi Design Systema zadovoljavaju WCAG AA kontrast',()=>{
-  assert.match(designTokens,/--bss-color-text-muted: var\(--bss-color-neutral-600\)/);
-  assert.equal(hexToken(designTokens,'--bss-color-success-600'),'#166534');
+  assert.match(designTokens,/--bss-color-text-muted: #667085/);
+  assert.equal(hexToken(designTokens,'--bss-color-success-600'),'#067647');
   const pairs=[
     ['--bss-color-neutral-600','--bss-color-neutral-50'],
     ['--bss-color-success-600','--bss-color-success-100'],

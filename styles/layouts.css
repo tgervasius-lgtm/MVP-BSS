@@ -41,3 +41,26 @@
 @keyframes fade{from{transform:translateY(8px)}to{transform:none}}
 @keyframes screenRise{from{transform:translateY(7px)}to{transform:none}}
 .desktop-sidebar{display:none}
+
+
+/* Visual Design Gate 2026-10-03 — accepted shell checkpoint 1 */
+.topbar{
+  background:var(--bss-color-bg-surface);
+  color:var(--bss-color-text);
+  border-bottom:1px solid var(--bss-color-border);
+  box-shadow:none;
+}
+.top-copy p{color:var(--bss-color-text-muted)}
+.topbar-meta{color:var(--bss-color-text-muted)}
+.topbar-meta b{color:var(--bss-color-text)}
+.role-badge,.menu-btn{
+  background:var(--bss-color-bg-subtle);
+  color:var(--bss-color-text);
+  border-color:var(--bss-color-border);
+}
+.topbar .mini-logo{
+  background:#17212b;
+  color:#fff;
+  border-color:#17212b;
+}
+.content{background:var(--bss-color-bg-canvas)}
