@@ -604,6 +604,7 @@ function shell(){
   </div>`;
 }
 function render(){
+  globalThis.BSSTerminalCredential?.clear();
   if(!allowedScreens().includes(screen)) screen = 'home';
   document.getElementById('root').innerHTML = shell();
   updateThemeControls();
@@ -645,11 +646,13 @@ function closeDrawer(restoreFocus=false){
   if(restoreFocus)layerReturnFocus?.focus?.();
 }
 function showModal(modal){
+  globalThis.BSSTerminalCredential?.clear();
   if(!modal)return;
   const heading=modal.querySelector('h2');if(heading){heading.id='activeModalTitle';modal.setAttribute('aria-labelledby',heading.id);}
   layerReturnFocus=document.activeElement;modal.classList.add('open');modal.setAttribute('aria-hidden','false');focusFirst(modal);
 }
 function closeModal(){
+  globalThis.BSSTerminalCredential?.clear();
   const modal=$('#modal');if(!modal)return;
   modal.classList.remove('open');modal.setAttribute('aria-hidden','true');layerReturnFocus?.focus?.();
 }

@@ -2,7 +2,7 @@
   "contract": "BSS post-freeze frontend screen ownership to Backend MVP API v1.4",
   "readiness": "RECONCILED_WITH_EXPLICIT_UI_GAPS",
   "contractReviewedAt": "2026-10-03",
-  "contractReviewStatus": "ISSUE_234_RECONCILIATION_CANDIDATE_BSS_OS_REVIEW_REQUIRED",
+  "contractReviewStatus": "ISSUE_234_TERMINAL_CANDIDATE_BSS_OS_REVIEW_REQUIRED",
   "productAuthority": {
     "file": "BSS_V1_PRODUCT_CONTRACT.md",
     "version": "1.0",
@@ -181,9 +181,10 @@
         "pairTerminal",
         "revokeTerminal",
         "listTerminalSyncEvents",
-        "resolveTerminalEventReconciliation"
+        "resolveTerminalEventReconciliation",
+        "rotateTerminalCredential"
       ],
-      "note": "Admin-only reconciliation uses immutable raw receipt identity and authoritative resolution read-back. Credential rotation remains a UI gap; ingestion and heartbeat are device protocol operations."
+      "note": "Admin-only reconciliation preserves raw evidence with authoritative read-back. Credential rotation uses revision confirmation and a transient one-time secret. Ingestion and heartbeat remain device protocol operations."
     },
     {
       "id": "terminalDemo",
@@ -262,17 +263,6 @@
     }
   ],
   "contractDefinedUiGaps": [
-    {
-      "id": "terminal-credential-rotation",
-      "status": "contract-defined-gap",
-      "operations": [
-        "rotateTerminalCredential"
-      ],
-      "roles": [
-        "admin"
-      ],
-      "prospectiveOwner": "terminal-security-pattern"
-    },
     {
       "id": "customer-onboarding",
       "status": "contract-defined-gap",
