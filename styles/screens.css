@@ -1486,3 +1486,88 @@ button.day:hover{outline:2px solid var(--bss-color-accent-text);outline-offset:1
   .period-lifecycle-body{grid-template-columns:1fr}
   .period-provenance{padding:10px 0 0;border-left:0;border-top:1px solid var(--bss-color-border)}
 }
+
+
+/* Contract gap #232 — authoritative reports and export verification */
+.report-authoritative-state{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:14px;
+  padding:12px 14px;
+  border-radius:7px;
+  box-shadow:none;
+}
+.report-authoritative-state span{
+  flex:1;
+  color:var(--bss-color-text-muted);
+  font-size:var(--bss-font-size-xs);
+}
+.report-authoritative-preview .table-card-heading p{
+  margin:3px 0 0;
+  color:var(--bss-color-text-muted);
+  font-size:var(--bss-font-size-xs);
+}
+.report-preview-truncated{
+  margin:0;
+  border-width:0 0 1px;
+  border-radius:0;
+}
+.report-authoritative-metrics{
+  border-radius:7px;
+  box-shadow:none;
+}
+.report-history-tail{
+  display:grid;
+  justify-items:end;
+  gap:6px;
+}
+.report-verification-result{
+  min-height:32px;
+  padding:5px 8px;
+  border:1px solid var(--bss-color-border);
+  border-radius:6px;
+  background:var(--bss-color-bg-surface);
+  font-size:var(--bss-font-size-xs);
+}
+.report-verification-result.verified{color:var(--bss-color-success)}
+.report-verification-result.failed{color:var(--bss-color-danger)}
+.report-verification-grid{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:0;
+  margin:12px 0;
+  border:1px solid var(--bss-color-border);
+}
+.report-verification-grid>div{
+  min-width:0;
+  padding:10px 11px;
+  border-right:1px solid var(--bss-color-border);
+  border-bottom:1px solid var(--bss-color-border);
+}
+.report-verification-grid>div:nth-child(2n){border-right:0}
+.report-verification-grid>div:nth-last-child(-n+2){border-bottom:0}
+.report-verification-grid span,
+.report-verification-grid b{display:block}
+.report-verification-grid span{
+  color:var(--bss-color-text-muted);
+  font-size:var(--bss-font-size-xs);
+}
+.report-verification-grid b{
+  margin-top:4px;
+  overflow-wrap:anywhere;
+  font-size:var(--bss-font-size-sm);
+}
+@media(max-width:760px){
+  .report-authoritative-state{
+    display:grid;
+    align-items:start;
+  }
+  .report-history-tail{justify-items:start}
+  .report-verification-grid{grid-template-columns:1fr}
+  .report-verification-grid>div{
+    border-right:0;
+    border-bottom:1px solid var(--bss-color-border);
+  }
+  .report-verification-grid>div:last-child{border-bottom:0}
+}

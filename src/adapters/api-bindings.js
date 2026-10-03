@@ -30,6 +30,7 @@
     ROLE_CONFIG[currentRole].userId=hydrated.selfWorkerId||0;
     if(currentRole==='manager')ROLE_CONFIG.manager.departments=state.departments.map(item=>item.name);
     await root.BSSAttendanceLifecycle?.hydrate();
+    await root.BSSReportAuthority?.hydrate();
     logged=true;apiError='';
     return hydrated;
   }
@@ -318,6 +319,7 @@
     baseOpenAttendanceRecord:root.openAttendanceRecord,
     baseApplyReportFilters:root.applyReportFilters
   });
+  root.BSSReportAuthority?.configure({apiMessage,getReportFilters:()=>reportFilters,setReportFilters:value=>{reportFilters=value;}});
 
   function installApiBindings(){
     root.BSS_API_ACTIVE=true;
@@ -325,7 +327,18 @@
     login:apiLogin,acceptInvitation:apiAcceptInvitation,logout:apiLogout,openWorkerModal:apiOpenWorkerModal,saveWorker:apiSaveWorker,toggleWorkerActive:apiToggleWorker,toggleCard:apiToggleCard,
     saveShift:apiSaveShift,toggleShift:()=>toast('Smjena s povijesnim zapisima ne deaktivira se u MVP-u.'),submitVacationRequest:apiSubmitVacation,decideRequest:apiDecideRequest,cancelVacationRequest:apiCancelVacation,
     submitCorrection:apiSubmitCorrection,updateCorrection:apiUpdateCorrection,cancelCorrection:apiCancelCorrection,downloadReport:apiDownloadReport,
-    viewReports:root.BSSAttendanceLifecycle?.viewReports,applyReportFilters:root.BSSAttendanceLifecycle?.applyReportFilters,loadAttendancePeriod:root.BSSAttendanceLifecycle?.load,openPeriodTransition:root.BSSAttendanceLifecycle?.openTransition,submitPeriodTransition:root.BSSAttendanceLifecycle?.submitTransition,
+    viewReports:root.BSSAttendanceLifecycle?.viewReports,
+    setReportType:root.BSSReportAuthority?.setType||root.setReportType,
+    applyReportFilters:root.BSSReportAuthority?.applyFilters||root.BSSAttendanceLifecycle?.applyReportFilters,
+    updateReportDepartment:root.BSSReportAuthority?.updateDepartment||root.updateReportDepartment,
+    reloadReportPreview:root.BSSReportAuthority?.reload,
+    verifyReportExport:root.BSSReportAuthority?.verifyExport,
+    openReportVerification:root.BSSReportAuthority?.openVerification,
+    authoritativeReportPreviewHtml:root.BSSReportAuthority?.previewHtml,
+    authoritativeReportMetricsHtml:root.BSSReportAuthority?.metricsHtml,
+    authoritativeReportHasRows:root.BSSReportAuthority?.hasRows,
+    reportHistoryAuthorityAction:root.BSSReportAuthority?.historyAction,
+    loadAttendancePeriod:root.BSSAttendanceLifecycle?.load,openPeriodTransition:root.BSSAttendanceLifecycle?.openTransition,submitPeriodTransition:root.BSSAttendanceLifecycle?.submitTransition,
     openAttendanceRecord:root.BSSAttendanceLifecycle?.openRecord,openAttendanceRecalculation:root.BSSAttendanceLifecycle?.openRecalculation,submitAttendanceRecalculation:root.BSSAttendanceLifecycle?.submitRecalculation,
     saveAccessUser:apiSaveAccess,toggleAccessUser:apiToggleAccess,sendInvitation:apiSendInvitation,sendPasswordReset:()=>toast('Reset lozinke nije dio zaključanog MVP ugovora.'),resendInvitation:()=>toast('Ponovno slanje pozivnice nije dio zaključanog MVP ugovora.'),cancelInvitation:()=>toast('Poništavanje pozivnice nije dio zaključanog MVP ugovora.'),
     saveSettings:apiSaveSettings,openDepartmentModal:apiOpenDepartmentModal,saveDepartment:apiSaveDepartment,toggleDepartment:apiToggleDepartment,openHolidayModal:apiOpenHolidayModal,saveHoliday:apiSaveHoliday,toggleHoliday:apiToggleHoliday,setSharedLeaveVisibility:apiSetSharedLeaveVisibility,
