@@ -1421,6 +1421,21 @@ test('izbornik i modal podržavaju Escape, aria stanje i imenovani dijalog',()=>
   assert.equal(modal.getAttribute('aria-hidden'),'true');
 });
 
+test('contract gap #227 veže attendance lifecycle i recalculation na postojeći API bez role proširenja',()=>{
+  const bindings=fs.readFileSync('src/adapters/api-bindings.js','utf8');
+  assert.match(bindings,/\/attendance-periods\/\$\{year\}\/\$\{monthNumber\}/);
+  assert.match(bindings,/\/attendance-periods\/\$\{year\}\/\$\{monthNumber\}\/\$\{action\}/);
+  assert.match(bindings,/Idempotency-Key/);
+  assert.match(bindings,/revisionHeaders\(apiAttendancePeriod\?\.revision/);
+  assert.match(bindings,/currentRole!=='admin'\|\|!apiAttendancePeriod/);
+  assert.match(bindings,/\/attendance\/\$\{record\.apiId\}\/recalculations/);
+  assert.match(bindings,/calculationVersion:'attendance-v1'/);
+  assert.match(bindings,/Ispravljeni zapis se ne preračunava ponovno/);
+  assert.match(bindings,/Mjesec je zaključan\. Prvo je potreban kontrolirani Admin reopen/);
+  assert.match(bindings,/Lifecycle je samo za čitanje\. Tranzicije su Admin-only/);
+  assert.match(styles,/Contract gap #227 — attendance period lifecycle/);
+});
+
 test('produkcijski runtime ne vraća poslovne mock podatke u lokalnu pohranu',()=>{
   assert.match(source,/function loadState\(\)\{ return createApiState\(\); \}/);
   assert.match(source,/function saveState\(\)\{ \/\* Poslovni podaci spremaju se isključivo preko API-ja\. \*\/ \}/);
