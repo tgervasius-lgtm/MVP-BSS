@@ -1917,10 +1917,10 @@ function applyAuditFilters(){ auditFilters={module:$('#auditModule').value,searc
 function clearAuditFilters(){ auditFilters={module:'Svi',search:''};render(); }
 function viewAudit(){
   const entries=filteredAuditEntries(),modules=[...new Set(state.audit.map(item=>item.module))].sort((a,b)=>a.localeCompare(b,'hr'));
-  return `${title('Audit log','Tko je, kada i što promijenio.',pill(`${entries.length} od ${state.audit.length}`))}<section class="card"><div class="audit-filter-bar"><select id="auditModule"><option ${auditFilters.module==='Svi'?'selected':''}>Svi</option>${modules.map(module=>`<option ${auditFilters.module===module?'selected':''}>${escapeHtml(module)}</option>`).join('')}</select><input id="auditSearch" placeholder="Korisnik, radnja ili modul" value="${escapeHtml(auditFilters.search)}"><button class="btn" data-bss-action="applyAuditFilters()">Primijeni</button><button class="btn secondary" data-bss-action="clearAuditFilters()">Očisti</button></div></section><section class="card table-card"><div class="table-card-heading"><div><h2>Administrativni događaji</h2></div>${pill(`${entries.length} događaja`)}</div><div class="table-wrap"><table class="compact-table audit-table"><thead><tr><th>Vrijeme</th><th>Korisnik</th><th>Modul</th><th>Radnja</th></tr></thead><tbody>${entries.map(item=>`<tr><td>${escapeHtml(item.time)}</td><td><b>${escapeHtml(item.user)}</b></td><td>${escapeHtml(item.module)}</td><td>${escapeHtml(item.action)}</td></tr>`).join('')||'<tr><td colspan="4"><div class="empty-state">Nema događaja za odabrane kriterije.</div></td></tr>'}</tbody></table></div></section>`;
+  return BSS_VIEWS.auditOperational.render({
+    entries,modules,total:state.audit.length,auditFilters,title,pill,escapeHtml
+  });
 }
-
-const SETTINGS_TABS=['overview','company','organization','holidays'];
 function setSettingsTab(tab){ if(SETTINGS_TABS.includes(tab)){settingsTab=tab;render();} }
 function settingsTabs(){
   const labels={overview:'Pregled',company:'Tvrtka',organization:'Organizacija',holidays:'Blagdani'};
