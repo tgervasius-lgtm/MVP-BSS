@@ -1,3 +1,4 @@
+/* global state */
 const {randomUUID}=require('node:crypto');
 const {test,expect}=require('@playwright/test');
 const {AxeBuilder}=require('@axe-core/playwright');
@@ -97,5 +98,28 @@ test('radnik spremljen kroz UI odmah dolazi iz stvarnog API-ja i PostgreSQL baze
   expect(stored.status).toBe(200);
   expect(stored.worker.name).toBe(name);
   expect(stored.worker.annualLeaveAllowance).toBe(24);
+  expect(errors).toEqual([]);
+});
+
+test('sintetički terminalski detalj koristi registrirane akcije, fokus i validaciju bez backend mutacije',async({page})=>{
+  const errors=trackErrors(page);
+  await login(page);
+  await page.evaluate(()=>{
+    window.navigate('terminal');
+    window.BSS_API_ACTIVE=true;
+    const item={syncEventId:'10000000-0000-4000-8000-000000000001',eventId:'20000000-0000-4000-8000-000000000002',attendanceEventId:'30000000-0000-4000-8000-000000000003',statusCode:'reconciliation_required',status:'Za usklađenje',label:'Testni radnik',type:'Prijava',occurredAt:'2026-10-03T08:00:00Z',reconciliationLoaded:true,reconciliation:null};
+    state.terminal.recentEvents=[item];
+    window.BSSTerminalReconciliation.configure({refresh:async()=>true});
+    Object.assign(window,{openTerminalEvent:window.BSSTerminalReconciliation.open,submitTerminalReconciliation:window.BSSTerminalReconciliation.submit,reloadTerminalEvents:window.BSSTerminalReconciliation.reload});
+    document.querySelector('#content .content-inner').innerHTML=window.BSSTerminalReconciliation.tableHtml([item]);
+  });
+  await page.getByRole('button',{name:'Pregledaj'}).click();
+  await expect(page.getByRole('dialog')).toBeVisible();
+  await expect(page.getByRole('button',{name:'Zatvori',exact:true})).toBeFocused();
+  await page.getByRole('button',{name:'Potvrdi usklađenje'}).click();
+  await expect(page.locator('#terminalResolutionFeedback')).toContainText('Odaberi odluku');
+  expect((await new AxeBuilder({page}).withTags(['wcag2a','wcag2aa']).analyze()).violations.filter(item=>['serious','critical'].includes(item.impact))).toEqual([]);
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog')).not.toBeVisible();
   expect(errors).toEqual([]);
 });
