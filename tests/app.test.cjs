@@ -500,6 +500,20 @@ test('Početna operational checkpoint uklanja hero treatment i čuva role drill-
   assert.match(accountant.document.querySelector('#content').textContent,/Samo čitanje/);
 });
 
+test('owner visual review fixes razdvajaju smjenu, worker facts i demo alate',()=>{
+  const admin=boot('admin');
+  admin.window.navigate('workers');
+  const shiftCell=admin.document.querySelector('.workers-table tbody tr td:nth-child(5)');
+  assert.equal(shiftCell.querySelectorAll('b').length,1);
+  assert.equal(shiftCell.querySelectorAll('small').length,1);
+  admin.window.openDrawer();
+  assert.ok(admin.document.querySelector('.demo-tools'));
+  assert.match(admin.document.querySelector('.demo-tools summary').textContent,/nije dio korisničkog sučelja/);
+  const worker=boot('worker');
+  assert.equal(worker.document.querySelectorAll('.worker-home-facts>button').length,4);
+  assert.match(styles,/worker-home-operational \.worker-home-facts button/);
+});
+
 test('desktop navigacija prikazuje samo primarne Admin stavke i puni izbornik ostaje u draweru',()=>{
   const {document}=boot('admin');
   const primary=[...document.querySelectorAll('.desktop-nav-primary .drawer-item .nav-label')].map(node=>node.textContent.trim());
