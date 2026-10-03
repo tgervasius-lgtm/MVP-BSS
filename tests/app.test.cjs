@@ -418,6 +418,23 @@ test('svaki KPI i kompaktni brojčani sažetak ima drill-down bez slijepih karti
   }
 });
 
+test('statusni filteri nemaju paralelni dekorativni duplikat',()=>{
+  const requests=boot('admin');
+  requests.window.navigate('requests');
+  assert.equal(requests.document.querySelector('.approval-summary'),null);
+  assert.equal(requests.document.querySelectorAll('.request-tabs').length,1);
+
+  const workers=boot('admin');
+  workers.window.navigate('workers');
+  assert.equal(workers.document.querySelector('.workers-summary'),null);
+  assert.equal(workers.document.querySelectorAll('.workers-tabs').length,1);
+
+  const access=boot('admin');
+  access.window.navigate('roles');
+  assert.equal(access.document.querySelectorAll('.access-summary').length,1);
+  assert.equal(access.document.querySelector('.access-filter'),null);
+});
+
 test('Kalendar operational checkpoint zadržava privacy-minimized podatke i jednostavan naziv',()=>{
   const worker=boot('worker');
   worker.window.navigate('sharedLeave');
@@ -457,11 +474,12 @@ test('zajednički godišnji je frontend demo za sve uloge i prikazuje samo odobr
   assert.equal(worker.evaluate("sharedLeaveRequests().every(request=>workerById(request.workerId).dept===currentWorker().dept)"),true);
 });
 
-test('Zahtjevi i korekcije imaju operational sažetak bez promjene approval akcija',()=>{
+test('Zahtjevi uklanjaju duplicirani sažetak, a korekcije čuvaju jedini operativni sažetak',()=>{
   const admin=boot('admin');
   admin.window.navigate('requests');
-  assert.equal(admin.document.querySelectorAll('.approval-summary>div').length,4);
-  assert.match(admin.document.querySelector('.approval-summary').textContent,/Na čekanju/);
+  assert.equal(admin.document.querySelector('.approval-summary'),null);
+  assert.equal(admin.document.querySelectorAll('.request-tabs button').length,5);
+  assert.match(admin.document.querySelector('.request-tabs button.active').textContent,/Na čekanju/);
   admin.window.openRequestDecision(1);
   assert.ok(admin.document.querySelector('#modal').classList.contains('open'));
   assert.match(admin.document.querySelector('#modal').textContent,/Marko Marić|Obiteljski odmor/);
@@ -576,7 +594,8 @@ test('Radnici operational lista skriva RFID iz glavne tablice ali ga zadržava u
   window.navigate('workers');
   const headers=[...document.querySelectorAll('.workers-table th')].map(node=>node.textContent.trim());
   assert.deepEqual(headers,['Šifra','Ime i prezime','Odjel','Radno mjesto','Smjena','Status','']);
-  assert.equal(document.querySelectorAll('.workers-summary>div').length,4);
+  assert.equal(document.querySelector('.workers-summary'),null);
+  assert.equal(document.querySelectorAll('.workers-tabs .tab').length,5);
   assert.doesNotMatch(document.querySelector('.workers-table').textContent,/RFID kartica/);
   window.openWorker(1);
   window.setWorkerDetailTab('RFID kartica');
@@ -1030,6 +1049,8 @@ test('Prava pristupa operational checkpoint zadržava sigurnosne akcije i role e
   const {window,document,state}=boot('admin');
   window.navigate('roles');
   assert.equal(document.querySelectorAll('.access-summary>button').length,4);
+  assert.equal(document.querySelector('.access-filter'),null);
+  assert.match(document.querySelector('.access-summary>button.active').textContent,/Svi računi/);
   assert.equal(document.querySelectorAll('.permission-table tbody tr').length,4);
   window.openAccessModal(1);
   assert.ok(document.querySelector('#modal').classList.contains('open'));
