@@ -36,7 +36,6 @@
     const tabs=isAdmin?['Svi','Prisutni','Odsutni danas','Godišnji','Neaktivni']:['Svi','Prisutni','Odsutni danas','Godišnji'];
     const shiftLabel=workerShiftFilter==='Svi'?'':shiftById(workerShiftFilter)?.name||'';
     return `${title(isAdmin?'Radnici':'Moj tim',isAdmin?'Zaposlenici i operativni status.':'Radnici u dodijeljenim odjelima.',isAdmin?'<button class="btn" data-bss-action="openWorkerModal()">Dodaj radnika</button>':'')}
-      ${summary(visibleWorkers)}
       <section class="card workers-control-card">
         <div class="workers-toolbar"><input id="workerSearch" aria-label="Traži radnike" placeholder="Traži po imenu, odjelu ili radnom mjestu" value="${escapeHtml(workerSearch)}"><button class="btn" data-bss-action="applyWorkerSearch()">Traži</button></div>
         <div class="tabs workers-tabs">${tabs.map(tab=>`<button class="tab ${workerListTab===tab?'active':''}" data-bss-action="setWorkerTab('${tab}')">${tab}</button>`).join('')}</div>
