@@ -1,6 +1,8 @@
 (function registerAttendanceOperational(root){
   'use strict';
 
+  let activeFilter='all';
+
   function dailyRows(context){
     const {visibleWorkers,attendanceFilters,records,today,shiftById,plannedShiftMinutes,recordMinutes,pendingCorrectionFor}=context;
     const search=attendanceFilters.search.toLocaleLowerCase('hr');
@@ -94,14 +96,21 @@
     </section>`;
   }
 
-  function render(filter,context){
-    const rows=dailyRows(context);
-    return Object.freeze({kpis:renderKpis(filter,rows),table:renderTable(filter,rows,context)});
+  function setFilter(next){
+    if(!['all','present','missing','absent','anomaly'].includes(next))return false;
+    activeFilter=next;
+    return true;
   }
 
-  const attendanceOperational=Object.freeze({dailyRows,metrics,filterRows,render});
+  function render(context){
+    const rows=dailyRows(context);
+    return Object.freeze({kpis:renderKpis(activeFilter,rows),table:renderTable(activeFilter,rows,context)});
+  }
+
+  const attendanceOperational=Object.freeze({dailyRows,metrics,filterRows,setFilter,render});
   const views=Object.freeze({...root.BSSCore?.views,attendanceOperational});
   root.BSSCore=Object.freeze({...root.BSSCore,views});
+  root.setAttendanceDailyFilter=next=>{ if(attendanceOperational.setFilter(next)&&typeof root.render==='function')root.render(); };
 
   if(typeof module==='object'&&module.exports)module.exports=attendanceOperational;
 })(typeof globalThis==='object'?globalThis:window);
