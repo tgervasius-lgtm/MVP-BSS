@@ -221,3 +221,17 @@ button.day:hover{outline:2px solid var(--bss-color-accent-text);outline-offset:1
 .worker-code{font-size:9px;font-weight:850;color:var(--bss-color-text-muted);font-variant-numeric:tabular-nums}
 .worker-name-link{padding:0;background:transparent;color:var(--bss-color-text);text-align:left}.worker-name-link b,.worker-name-link small{display:block}.worker-name-link small{font-size:8px;color:var(--bss-color-text-muted);margin-top:3px}.worker-name-link:hover b{color:var(--bss-color-accent-text)}
 .workers-table td:nth-child(6) .pill{background:transparent;border-color:transparent;padding:3px 0;border-radius:0;font-weight:800}
+
+
+/* Visual Design Gate — requests + corrections operational checkpoint */
+.approval-summary{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:10px}
+.approval-summary>div{padding:11px 12px;border:1px solid var(--bss-color-border);border-radius:8px;background:var(--bss-color-bg-surface)}
+.approval-summary span,.approval-summary b{display:block}.approval-summary span{font-size:9px;color:var(--bss-color-text-muted)}.approval-summary b{font-size:19px;margin-top:4px;letter-spacing:-.03em}
+.approval-context{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:9px 11px;margin-bottom:9px;border-left:2px solid var(--bss-color-warning);background:#fffdfa;font-size:9px}.approval-context b{font-size:10px}.approval-context span{color:var(--bss-color-text-muted);text-align:right}
+.approval-control{padding:11px}.approval-table-card{margin-top:10px}.approval-table-card .pill{font-size:8px}
+.approval-table-card td .pill{background:transparent;border-color:transparent;padding:3px 0;border-radius:0;font-weight:800}
+.approval-table-card td .pill.green{color:#356859}.approval-table-card td .pill.orange{color:#805d13}.approval-table-card td .pill.red{color:#a8332a}.approval-table-card td .pill.gray{color:#667085}
+.approval-links{justify-content:flex-start}
+.corrections-operational-card td small{display:block;margin-top:3px;font-size:8px;color:var(--bss-color-text-muted)}
+.correction-before{color:var(--bss-color-text-muted);font-variant-numeric:tabular-nums}.correction-after{font-variant-numeric:tabular-nums}
+.corrections-operational-card tbody tr:has(.table-actions){background:#fffdfa}
