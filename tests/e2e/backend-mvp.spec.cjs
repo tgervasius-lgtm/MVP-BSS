@@ -10,9 +10,9 @@ const adminEmail=process.env.BSS_BOOTSTRAP_ADMIN_EMAIL;
 const adminPassword=process.env.BSS_BOOTSTRAP_ADMIN_PASSWORD;
 
 function trackErrors(page){
-  const errors=[],pending=new Set();
+  const errors=[],pending=new Map();
   Object.defineProperty(errors,'pending',{value:pending});
-  page.on('request',request=>{if(new URL(request.url()).pathname.startsWith('/api/'))pending.add(request);});
+  page.on('request',request=>{if(new URL(request.url()).pathname.startsWith('/api/'))pending.set(request,null);});
   page.on('requestfinished',request=>pending.delete(request));
   page.on('pageerror',error=>errors.push(`page: ${error.message}`));
   page.on('console',message=>{
@@ -22,6 +22,7 @@ function trackErrors(page){
   });
   page.on('requestfailed',request=>{pending.delete(request);errors.push(`request: ${request.url()} · ${request.failure()?.errorText||'failed'}`);});
   page.on('response',response=>{
+    if(pending.has(response.request()))pending.set(response.request(),response.status());
     if(response.status()>=500)errors.push(`response: ${response.status()} · ${response.url()}`);
   });
   return errors;
@@ -141,7 +142,7 @@ async function assertTerminalRotation(page,pending){
       const data=await response.json();data.deviceCredential='';return response.ok;
     },process.env.TERMINAL_ACTIVATION_CODE);
     expect(paired).toBe(true);
-    await expect.poll(()=>[...pending].map(request=>new URL(request.url()).pathname),{message:'API requests must finish before explicit reload'}).toEqual([]);
+    await expect.poll(()=>[...pending].map(([request,status])=>({path:new URL(request.url()).pathname,status})),{message:'API requests must finish before explicit reload'}).toEqual([]);
     await page.reload();
     await page.waitForFunction(()=>window.BSS_API_ACTIVE===true);
     await expect(page.locator('#content .screen')).toBeVisible();
@@ -158,7 +159,7 @@ async function assertTerminalRotation(page,pending){
     await expect(page.locator('#terminalCredential')).toHaveAttribute('type','text');
     await page.getByRole('button',{name:'Zatvori i ukloni prikaz',exact:true}).click();
     expect(await page.locator('#terminalCredential').evaluate(element=>element.value.length===0)).toBe(true);
-    await expect.poll(()=>[...pending].map(request=>new URL(request.url()).pathname),{message:'API requests must finish before explicit reload'}).toEqual([]);
+    await expect.poll(()=>[...pending].map(([request,status])=>({path:new URL(request.url()).pathname,status})),{message:'API requests must finish before explicit reload'}).toEqual([]);
     await page.reload();
     await page.waitForFunction(()=>window.BSS_API_ACTIVE===true);
     await expect(page.locator('#content .screen')).toBeVisible();
