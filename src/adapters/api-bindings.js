@@ -319,7 +319,7 @@
     baseOpenAttendanceRecord:root.openAttendanceRecord,
     baseApplyReportFilters:root.applyReportFilters
   });
-  root.BSSReportAuthority?.configure({apiMessage});
+  root.BSSReportAuthority?.configure({apiMessage,getReportFilters:()=>reportFilters,setReportFilters:value=>{reportFilters=value;}});
 
   function installApiBindings(){
     root.BSS_API_ACTIVE=true;
