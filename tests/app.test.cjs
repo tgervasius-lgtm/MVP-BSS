@@ -2000,7 +2000,7 @@ test('screen registry zaključava sve BSS ekrane i sigurno vraća početni prika
   ]);
   assert.equal(evaluate("BSS_CORE.views.registry.has('reports')"),true);
   assert.equal(evaluate("BSS_CORE.views.registry.has('__proto__')"),false);
-  assert.match(evaluate("BSS_CORE.views.registry.render('nepoznato',globalThis)"),/Operativni dashboard/);
+  assert.match(evaluate("BSS_CORE.views.registry.render('nepoznato',globalThis)"),/Početna/);
 });
 
 test('event registry parsira samo dopuštene akcije bez evala',()=>{
