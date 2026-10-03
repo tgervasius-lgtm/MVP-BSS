@@ -524,6 +524,19 @@ test('Zahtjevi uklanjaju duplicirani sažetak, a korekcije čuvaju jedini operat
   assert.match(admin.state().audit[0].action,/Odobrena korekcija/);
 });
 
+test('enterprise sharpness pass smanjuje soft i pill treatment',()=>{
+  assert.match(styles,/Owner visual review — enterprise sharpness pass/);
+  assert.match(styles,/\.card\{[\s\S]*?border-radius:8px;[\s\S]*?box-shadow:none/);
+  assert.match(styles,/\.pill\{[\s\S]*?border-radius:6px/);
+  assert.match(styles,/\.avatar\{[\s\S]*?background:var\(--bss-color-bg-subtle\)/);
+  assert.match(styles,/Owner visual review — enterprise navigation sharpness/);
+  assert.match(styles,/\.drawer-item\{[\s\S]*?border-radius:6px/);
+  assert.match(styles,/Owner visual review — business density and sharpness/);
+  assert.match(styles,/\.request-tabs button,[\s\S]*?border-radius:6px/);
+  assert.match(styles,/Owner visual review — desktop sharpness override/);
+  assert.match(styles,/\.desktop-nav \.drawer-item\.active\{[\s\S]*?box-shadow:inset 2px 0 0 var\(--bss-color-accent-text\)/);
+});
+
 test('public demo credentials koriste isti neutralni login treatment i tocan CTA copy',()=>{
   const demoAuthCss=fs.readFileSync('src/demo-auth.css','utf8');
   const demoAuthJs=fs.readFileSync('src/demo-auth.js','utf8');
