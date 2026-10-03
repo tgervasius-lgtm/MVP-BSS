@@ -260,3 +260,13 @@ button.day:hover{outline:2px solid var(--bss-color-accent-text);outline-offset:1
 .home-operational-layout{margin-top:10px}.home-actions-card .alert-item{border-radius:7px;background:transparent}.home-actions-card .alert-item:hover{background:var(--bss-color-bg-hover)}
 .home-activity-card{box-shadow:none}.worker-home-operational,.accountant-home-operational{box-shadow:none;border-radius:10px}
 .worker-home-links{display:flex;gap:8px;margin-top:12px}
+
+
+/* Visual Design Gate — terminal operational checkpoint */
+.terminal-summary-card{display:flex;justify-content:space-between;align-items:center;gap:18px;padding:13px 14px;box-shadow:none;border-radius:9px;background:var(--bss-color-bg-surface)}
+.terminal-summary-card h2{margin:3px 0;font-size:18px}.terminal-summary-card p{margin:0;font-size:9px;color:var(--bss-color-text-muted)}.terminal-summary-label{font-size:8px;text-transform:uppercase;letter-spacing:.06em;color:var(--bss-color-text-muted)}
+.terminal-summary-card .terminal-live{min-width:180px;border-radius:8px;background:var(--bss-color-bg-subtle);border:1px solid var(--bss-color-border);box-shadow:none}
+.terminal-operational-kpis>button{box-shadow:none;border-radius:8px;background:var(--bss-color-bg-surface)}
+.terminal-operational-kpis>button:hover{background:var(--bss-color-bg-hover)}
+.terminal-operational-layout>.card{box-shadow:none}.terminal-health-grid .pill{background:transparent;border-color:transparent;padding:3px 0}
+.terminal-rule-status .pill{background:transparent;border-color:transparent;padding:3px 0}
