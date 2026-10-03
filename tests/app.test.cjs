@@ -27,7 +27,8 @@ const coreSources = [
   'src/views/approvals-operational.js',
   'src/views/reports-operational.js',
   'src/views/leave-calendar-operational.js',
-  'src/views/home-operational.js'
+  'src/views/home-operational.js',
+  'src/views/terminal-operational.js'
 ].map(path=>fs.readFileSync(path,'utf8'));
 const styleEntry = fs.readFileSync('styles.css','utf8');
 const styleLayerPaths = [
@@ -1123,6 +1124,19 @@ test('mobilni, desktop, animacijski i PWA završni sloj imaju zaštitna pravila'
   assert.equal(manifest.lang,'hr');
   assert.ok(manifest.categories.includes('business'));
   assert.ok(manifest.categories.includes('productivity'));
+});
+
+test('Terminal operational checkpoint zadržava integrity evidence i kontrole',()=>{
+  const admin=boot('admin');
+  admin.window.navigate('terminal');
+  assert.match(admin.document.querySelector('.terminal-summary-card').textContent,/BSS-T01.*Ulaz proizvodnje/s);
+  assert.equal(admin.document.querySelectorAll('.terminal-operational-kpis>button').length,4);
+  assert.match(admin.document.querySelector('.terminal-rule').textContent,/jedinstveni ID/);
+  assert.ok(admin.document.querySelector('[data-terminal-controls]'));
+  const manager=boot('manager');
+  manager.window.navigate('terminal');
+  assert.equal(manager.document.querySelector('[data-terminal-controls]'),null);
+  assert.match(manager.document.querySelector('.terminal-readonly').textContent,/bez prava upravljanja/);
 });
 
 test('Sprint 5 prikazuje identitet, dijagnostiku i događaje terminala',()=>{

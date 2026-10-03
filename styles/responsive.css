@@ -176,3 +176,7 @@
 
 /* Operational home checkpoint */
 @media(max-width:520px){.worker-home-links{display:grid;grid-template-columns:1fr 1fr}}
+
+
+/* Terminal operational checkpoint */
+@media(max-width:620px){.terminal-summary-card{align-items:flex-start;flex-direction:column}.terminal-summary-card .terminal-live{min-width:0;width:100%}}
