@@ -1101,3 +1101,96 @@ button.day:hover{outline:2px solid var(--bss-color-accent-text);outline-offset:1
     justify-content:space-between;
   }
 }
+
+
+/* Owner visual review pass 2 — enterprise summary grammar */
+.attendance-operational-kpis,
+.terminal-operational-kpis{
+  display:grid;
+  gap:0;
+  margin-bottom:10px;
+  padding:0;
+  overflow:hidden;
+  border:1px solid var(--bss-color-border);
+  border-radius:7px;
+  background:var(--bss-color-bg-surface);
+  box-shadow:none;
+}
+.attendance-operational-kpis{
+  grid-template-columns:repeat(5,minmax(0,1fr));
+}
+.terminal-operational-kpis{
+  grid-template-columns:repeat(4,minmax(0,1fr));
+}
+.attendance-op-kpi,
+.terminal-operational-kpis>button{
+  min-height:76px;
+  padding:11px 12px;
+  display:block;
+  text-align:left;
+  border:0;
+  border-right:1px solid var(--bss-color-border);
+  border-radius:0;
+  background:var(--bss-color-bg-surface);
+  color:var(--bss-color-text);
+  box-shadow:none;
+}
+.attendance-op-kpi:last-child,
+.terminal-operational-kpis>button:last-child{border-right:0}
+.attendance-op-kpi:hover,
+.terminal-operational-kpis>button:hover{
+  background:var(--bss-color-bg-hover);
+}
+.attendance-op-kpi.active{
+  background:var(--bss-color-bg-subtle);
+  box-shadow:inset 0 -2px 0 var(--bss-color-accent-text);
+}
+.attendance-op-kpi>span,
+.attendance-op-kpi>b,
+.attendance-op-kpi>small,
+.terminal-operational-kpis>button>span,
+.terminal-operational-kpis>button>b,
+.terminal-operational-kpis>button>small{
+  display:block;
+}
+.attendance-op-kpi>span,
+.terminal-operational-kpis>button>span{
+  font-size:var(--bss-font-size-xs);
+  color:var(--bss-color-text-muted);
+}
+.attendance-op-kpi>b,
+.terminal-operational-kpis>button>b{
+  margin-top:4px;
+  font-size:20px;
+  letter-spacing:-.03em;
+}
+.attendance-op-kpi>small,
+.terminal-operational-kpis>button>small{
+  margin-top:3px;
+  font-size:var(--bss-font-size-xs);
+  line-height:var(--bss-line-height-normal);
+  color:var(--bss-color-text-muted);
+}
+.attendance-op-icon{display:none!important}
+
+@media(max-width:900px){
+  .attendance-operational-kpis{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+  .attendance-op-kpi{
+    border-bottom:1px solid var(--bss-color-border);
+  }
+  .attendance-op-kpi:nth-child(2n){border-right:0}
+  .attendance-op-kpi:last-child{
+    grid-column:1/-1;
+    border-bottom:0;
+  }
+  .terminal-operational-kpis{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+  .terminal-operational-kpis>button{
+    border-bottom:1px solid var(--bss-color-border);
+  }
+  .terminal-operational-kpis>button:nth-child(2n){border-right:0}
+  .terminal-operational-kpis>button:nth-last-child(-n+2){border-bottom:0}
+}
