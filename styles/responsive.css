@@ -195,3 +195,7 @@
   .settings-workspace .settings-tabs{width:100%}
   .settings-workspace .settings-tabs button{flex:1 0 auto}
 }
+
+
+/* Shifts operational checkpoint */
+@media(min-width:620px){.shifts-summary{grid-template-columns:repeat(4,minmax(0,1fr))}}

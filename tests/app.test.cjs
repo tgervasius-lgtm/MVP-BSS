@@ -1046,6 +1046,17 @@ test('audit trag filtrira administrativne radnje po modulu i tekstu',()=>{
   assert.ok(document.querySelectorAll('.audit-table tbody tr').length>entries.length);
 });
 
+test('Smjene operational checkpoint zadržava tablicu i read-only granicu',()=>{
+  const admin=boot('admin');
+  admin.window.navigate('shifts');
+  assert.equal(admin.document.querySelectorAll('.shifts-summary>div').length,4);
+  assert.ok(admin.document.querySelector('[data-bss-action="openShiftModal()"]'));
+  const manager=boot('manager');
+  manager.window.navigate('shifts');
+  assert.match(manager.document.querySelector('#content').textContent,/Samo čitanje/);
+  assert.equal(manager.document.querySelector('[data-bss-action="openShiftModal()"]'),null);
+});
+
 test('aktivna smjena se ne gasi dok ima radnike, a nova smjena mora imati valjano trajanje',()=>{
   const {window,document,state}=boot('admin');
   window.navigate('shifts');

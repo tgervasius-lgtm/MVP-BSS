@@ -324,3 +324,12 @@ button.day:hover{outline:2px solid var(--bss-color-accent-text);outline-offset:1
 .settings-workspace .form select,
 .settings-workspace .form textarea{border-radius:8px}
 .settings-workspace .notice.info{font-size:9px}
+
+
+/* Visual Design Gate — shifts operational checkpoint */
+.shifts-summary{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:10px}
+.shifts-summary>div{padding:11px 12px;border:1px solid var(--bss-color-border);border-radius:8px;background:var(--bss-color-bg-surface)}
+.shifts-summary span,.shifts-summary b{display:block}.shifts-summary span{font-size:8px;color:var(--bss-color-text-muted)}.shifts-summary b{font-size:18px;margin-top:4px}
+.shifts-operational-card{box-shadow:none}.shifts-operational-card td{padding-top:9px;padding-bottom:9px}
+.shifts-operational-card td .pill{background:transparent;border-color:transparent;padding:3px 0;border-radius:0;font-weight:800}
+.shifts-boundary-note{font-size:9px}
