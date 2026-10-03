@@ -1394,3 +1394,111 @@ button.day:hover{outline:2px solid var(--bss-color-accent-text);outline-offset:1
 .request-search input{
   border-radius:7px;
 }
+
+
+/* Contract-defined attendance period lifecycle — #227 */
+.attendance-period-card{
+  margin-bottom:10px;
+  padding:0;
+  overflow:hidden;
+  border-radius:7px;
+  box-shadow:none;
+}
+.attendance-period-head{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:14px;
+  padding:12px 13px;
+  border-bottom:1px solid var(--bss-color-border);
+}
+.attendance-period-head span:first-child{
+  display:block;
+  font-size:var(--bss-font-size-xs);
+  color:var(--bss-color-text-muted);
+  text-transform:uppercase;
+  letter-spacing:.06em;
+}
+.attendance-period-head h2{
+  margin:3px 0 0;
+  font-size:18px;
+}
+.attendance-period-summary{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  border-bottom:1px solid var(--bss-color-border);
+}
+.attendance-period-summary>div{
+  min-width:0;
+  padding:10px 12px;
+  border-right:1px solid var(--bss-color-border);
+}
+.attendance-period-summary>div:last-child{border-right:0}
+.attendance-period-summary span,
+.attendance-period-summary b{display:block}
+.attendance-period-summary span{
+  font-size:var(--bss-font-size-xs);
+  color:var(--bss-color-text-muted);
+}
+.attendance-period-summary b{
+  margin-top:4px;
+  font-size:13px;
+  overflow-wrap:anywhere;
+}
+.attendance-period-summary .mono{
+  font-family:ui-monospace,SFMono-Regular,Consolas,monospace;
+  font-size:var(--bss-font-size-xs);
+}
+.attendance-period-blockers{
+  padding:11px 13px;
+  border-bottom:1px solid var(--bss-color-border);
+}
+.attendance-period-blockers>b{
+  display:block;
+  margin-bottom:7px;
+  font-size:var(--bss-font-size-sm);
+}
+.attendance-period-blockers>div{
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px 14px;
+}
+.attendance-period-blockers span{
+  font-size:var(--bss-font-size-xs);
+  color:var(--bss-color-text-muted);
+}
+.attendance-period-blockers span b{
+  margin-left:4px;
+  color:var(--bss-color-text);
+}
+.attendance-period-ready{
+  margin:10px 13px;
+  font-size:var(--bss-font-size-xs);
+}
+.attendance-period-reason{
+  margin:0;
+  padding:10px 13px;
+  border-bottom:1px solid var(--bss-color-border);
+  font-size:var(--bss-font-size-xs);
+}
+.attendance-period-reason span{
+  display:block;
+  margin-bottom:3px;
+  color:var(--bss-color-text-muted);
+}
+.attendance-period-actions{
+  margin:0;
+  padding:10px 13px;
+}
+.attendance-period-readonly{
+  padding:10px 13px;
+  border-top:1px solid var(--bss-color-border);
+  font-size:var(--bss-font-size-xs);
+  color:var(--bss-color-text-muted);
+}
+@media(max-width:760px){
+  .attendance-period-summary{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .attendance-period-summary>div{border-bottom:1px solid var(--bss-color-border)}
+  .attendance-period-summary>div:nth-child(2n){border-right:0}
+  .attendance-period-summary>div:nth-last-child(-n+2){border-bottom:0}
+}
