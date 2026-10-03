@@ -313,6 +313,20 @@ test('Attendance polish v2 zadržava semantičku boju samo kao signal',()=>{
   assert.match(styles,/box-shadow:none/);
 });
 
+test('visual pass 2 uklanja dekorativne KPI ikone i koristi jedinstveni enterprise summary strip',()=>{
+  const admin=boot('admin');
+  admin.window.navigate('attendance');
+  assert.equal(admin.document.querySelectorAll('.attendance-operational-kpis .attendance-op-kpi').length,5);
+  assert.equal(admin.document.querySelectorAll('.attendance-op-icon').length,0);
+  assert.match(admin.document.querySelector('.attendance-operational-kpis').textContent,/Prisutni/);
+  admin.window.navigate('terminal');
+  assert.equal(admin.document.querySelectorAll('.terminal-operational-kpis>button').length,4);
+  assert.match(styles,/Owner visual review pass 2 — enterprise summary grammar/);
+  assert.match(styles,/\.attendance-operational-kpis\{[\s\S]*?grid-template-columns:repeat\(5,minmax\(0,1fr\)\)/);
+  assert.match(styles,/\.terminal-operational-kpis\{[\s\S]*?grid-template-columns:repeat\(4,minmax\(0,1fr\)\)/);
+  assert.match(styles,/\.attendance-op-icon\{display:none!important\}/);
+});
+
 test('Attendance operational checkpoint odvaja status i anomaliju uz dnevni KPI strip',()=>{
   const {window,document}=boot('admin');
   window.navigate('attendance');
