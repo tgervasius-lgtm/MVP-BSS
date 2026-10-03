@@ -270,3 +270,11 @@ button.day:hover{outline:2px solid var(--bss-color-accent-text);outline-offset:1
 .terminal-operational-kpis>button:hover{background:var(--bss-color-bg-hover)}
 .terminal-operational-layout>.card{box-shadow:none}.terminal-health-grid .pill{background:transparent;border-color:transparent;padding:3px 0}
 .terminal-rule-status .pill{background:transparent;border-color:transparent;padding:3px 0}
+
+
+/* Visual Design Gate — access operational checkpoint */
+.access-summary>button{box-shadow:none;border-radius:8px;background:var(--bss-color-bg-surface)}
+.access-summary>button:hover{background:var(--bss-color-bg-hover)}
+.access-operational-card{box-shadow:none}.access-operational-card td small{display:block;margin-top:3px;font-size:8px;color:var(--bss-color-text-muted)}
+.access-operational-card td .pill{background:transparent;border-color:transparent;padding:3px 0;border-radius:0;font-weight:800}
+.access-secondary-grid>.card{box-shadow:none}.access-boundary-note{font-size:9px}
