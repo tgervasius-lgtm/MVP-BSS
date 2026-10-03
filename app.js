@@ -810,7 +810,9 @@ function attendanceLivePanel(records){
 function viewAttendance(){
   const records=filteredAttendanceRecords(),counts=attendanceViewCounts(),viewTitle={all:'Svi zapisi',review:'Za provjeru',active:'Aktivni danas'}[attendanceView],operational=BSS_VIEWS.attendanceOperational.render({visibleWorkers:visibleWorkers(),attendanceFilters,records:state.records,today:DEMO_TODAY,
     shiftById,plannedShiftMinutes,recordMinutes,pendingCorrectionFor,escapeHtml,formatMinutes,formatSignedMinutes,pill,isoLabel});
+  const periodLifecycleHtml=typeof globalThis.attendancePeriodPanel==='function'?globalThis.attendancePeriodPanel(attendanceFilters.month):'';
   return `${title(currentRole==='manager'?'Evidencija mojeg tima':'Evidencija dolazaka',isoToDate(DEMO_TODAY).toLocaleDateString('hr-HR',{weekday:'long',day:'numeric',month:'long',year:'numeric'}),'<span class="pill gray">Dnevni operativni pregled</span>')}
+    ${periodLifecycleHtml}
     ${operational.kpis}
     ${operational.table}
     <section class="attendance-history-heading"><div><h2>Povijest evidencije</h2><p>Mjesečni zapisi, filtri i dokazni detalji.</p></div></section>
@@ -833,9 +835,10 @@ function openAttendanceRecord(id){
   const worker=workerById(record.workerId),shift=shiftById(worker?.shiftId),worked=recordMinutes(record,record.date===DEMO_TODAY),planned=plannedShiftMinutes(record.workerId),balance=record.end?recordMinutes(record)-planned:null;
   const correction=state.corrections.find(item=>item.workerId===record.workerId&&item.date===record.date);
   const correctionBlock=correction?`<div class="notice ${correction.status==='Na čekanju'?'':'info'}"><b>Korekcija: ${escapeHtml(correction.status)}</b><br>${escapeHtml(correction.oldStart||'—')} – ${escapeHtml(correction.oldEnd||'—')} → ${escapeHtml(correction.newStart||'—')} – ${escapeHtml(correction.newEnd||'—')} · ${escapeHtml(correction.reason)}</div>`:'<div class="muted-box">Za ovaj zapis nema poslanog zahtjeva za korekciju.</div>';
+  const extraActions=typeof globalThis.attendanceRecordExtraActions==='function'?globalThis.attendanceRecordExtraActions(record):'';
   const workerAction=currentRole==='worker'?`<button class="btn" data-bss-action="startCorrectionFromRecord(${record.id})">Zatraži korekciju</button>`:['admin','manager'].includes(currentRole)?'<button class="btn" data-bss-action="openCorrectionsFromRecord()">Otvori korekcije</button>':'';
   const modal=$('#modal');
-  modal.innerHTML=`<div class="modal-card attendance-record-modal"><div class="modal-head"><div><div class="eyebrow">Detalj evidencije</div><h2>${escapeHtml(worker?.name||'Nepoznat radnik')}</h2><div class="small-muted">${escapeHtml(worker?.dept||'—')} · ${escapeHtml(isoLabel(record.date))}</div></div><button class="close-btn" aria-label="Zatvori" data-bss-action="closeModal()">×</button></div><div class="record-detail-status">${pill(record.status)}<span>${escapeHtml(shift?.name||'Bez smjene')} · ${escapeHtml(shift?`${shift.start} – ${shift.end}`:'Bez plana')}</span></div><div class="record-detail-grid"><div><span>Dolazak</span><b>${escapeHtml(record.start||'—')}</b></div><div><span>Odlazak</span><b>${escapeHtml(record.end||'—')}</b></div><div><span>Pauza</span><b>${record.breakMinutes?`${record.breakMinutes} min`:'—'}</b></div><div><span>Evidentirano</span><b>${record.end||record.date===DEMO_TODAY?formatMinutes(worked):'—'}</b></div><div><span>Plan smjene</span><b>${formatMinutes(planned)}</b></div><div><span>Saldo</span><b class="${balance===null?'neutral':balance<0?'negative':'positive'}">${balance===null?'U tijeku':formatSignedMinutes(balance)}</b></div></div><div class="record-source"><span>Izvor zapisa</span><b>${record.status==='Ispravljeno'?'Odobrena korekcija':'RFID / Terminal 01'}</b></div>${correctionBlock}<div class="btns">${workerAction}<button class="btn secondary" data-bss-action="closeModal()">Zatvori</button></div></div>`;
+  modal.innerHTML=`<div class="modal-card attendance-record-modal"><div class="modal-head"><div><div class="eyebrow">Detalj evidencije</div><h2>${escapeHtml(worker?.name||'Nepoznat radnik')}</h2><div class="small-muted">${escapeHtml(worker?.dept||'—')} · ${escapeHtml(isoLabel(record.date))}</div></div><button class="close-btn" aria-label="Zatvori" data-bss-action="closeModal()">×</button></div><div class="record-detail-status">${pill(record.status)}<span>${escapeHtml(shift?.name||'Bez smjene')} · ${escapeHtml(shift?`${shift.start} – ${shift.end}`:'Bez plana')}</span></div><div class="record-detail-grid"><div><span>Dolazak</span><b>${escapeHtml(record.start||'—')}</b></div><div><span>Odlazak</span><b>${escapeHtml(record.end||'—')}</b></div><div><span>Pauza</span><b>${record.breakMinutes?`${record.breakMinutes} min`:'—'}</b></div><div><span>Evidentirano</span><b>${record.end||record.date===DEMO_TODAY?formatMinutes(worked):'—'}</b></div><div><span>Plan smjene</span><b>${formatMinutes(planned)}</b></div><div><span>Saldo</span><b class="${balance===null?'neutral':balance<0?'negative':'positive'}">${balance===null?'U tijeku':formatSignedMinutes(balance)}</b></div></div><div class="record-source"><span>Izvor zapisa</span><b>${record.status==='Ispravljeno'?'Odobrena korekcija':'RFID / Terminal 01'}</b></div>${correctionBlock}<div class="btns">${workerAction}${extraActions}<button class="btn secondary" data-bss-action="closeModal()">Zatvori</button></div></div>`;
   showModal(modal);
 }
 function openCorrectionsFromRecord(){ closeModal();navigate('corrections'); }
@@ -1612,7 +1615,8 @@ function viewReports(){
   reportFilters=normalizeReportFilters(reportFilters);
   const scopedWorkers=reportScopeWorkers().filter(worker=>reportFilters.department==='Svi'||worker.dept===reportFilters.department),data=getReportData();
   return BSS_VIEWS.reportsOperational.render({
-    currentRole,reportFilters,scopedWorkers,data,REPORT_TYPE_CONFIG,state,title,escapeHtml,departmentOptions,reportPreview,reportHistoryView
+    currentRole,reportFilters,scopedWorkers,data,REPORT_TYPE_CONFIG,state,title,escapeHtml,departmentOptions,reportPreview,reportHistoryView,
+    periodLifecycleHtml:typeof globalThis.attendancePeriodPanel==='function'?globalThis.attendancePeriodPanel(reportFilters.month):''
   });
 }
 function csvContent(data){
