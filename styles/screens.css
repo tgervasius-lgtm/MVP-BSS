@@ -654,3 +654,27 @@ button.day:hover{outline:2px solid var(--bss-color-accent-text);outline-offset:1
   color:var(--bss-color-text);
   border:1px solid var(--bss-color-border);
 }
+
+
+/* Owner visual review — neutral secondary action chrome */
+.table-detail-btn,
+.table-actions button,
+.table-link{
+  border-color:var(--bss-color-border);
+  background:var(--bss-color-bg-surface);
+  color:var(--bss-color-text);
+  box-shadow:none;
+}
+.table-detail-btn:hover,
+.table-actions button:hover,
+.table-link:hover{
+  border-color:var(--bss-color-border-strong);
+  background:var(--bss-color-bg-hover);
+  color:var(--bss-color-text);
+}
+.table-detail-btn.danger,
+.table-actions button.danger{
+  border-color:#fecaca;
+  background:var(--bss-color-danger-soft);
+  color:var(--bss-color-danger);
+}
