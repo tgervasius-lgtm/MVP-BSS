@@ -180,3 +180,7 @@
 
 /* Terminal operational checkpoint */
 @media(max-width:620px){.terminal-summary-card{align-items:flex-start;flex-direction:column}.terminal-summary-card .terminal-live{min-width:0;width:100%}}
+
+
+/* Access operational checkpoint */
+@media(max-width:620px){.access-filter{width:100%;overflow:auto}.access-users-card .card-heading{align-items:flex-start;flex-direction:column}}
