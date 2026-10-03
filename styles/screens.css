@@ -750,3 +750,91 @@ button.day:hover{outline:2px solid var(--bss-color-accent-text);outline-offset:1
   font-size:var(--bss-font-size-xs);
   line-height:var(--bss-line-height-normal);
 }
+
+
+/* Owner visual review — business density and sharpness */
+.home-kpis .kpi-card,
+.attendance-op-kpi,
+.access-summary>button,
+.terminal-operational-kpis>button,
+.mytime-summary-grid>button,
+.vacation-balance-grid>button{
+  border-radius:6px;
+}
+.kpi-card{
+  min-height:78px;
+  padding:10px 11px;
+}
+.kpi-icon{
+  border-radius:5px;
+}
+.alert-item{
+  border-radius:6px;
+  padding:9px 10px;
+}
+.alert-item>span{
+  border-radius:5px;
+  background:var(--bss-color-bg-subtle);
+  border:1px solid var(--bss-color-border);
+  color:var(--bss-color-text-muted);
+}
+.worker-today-card,
+.worker-summary-card,
+.vacation-balance-neutral,
+.worker-detail-card,
+.mytime-summary-card,
+.terminal-summary-card{
+  border-radius:7px;
+}
+.worker-today-grid,
+.vacation-balance-grid,
+.worker-home-operational .worker-home-facts{
+  border-radius:6px;
+}
+.request-tabs button,
+.attendance-tabs button,
+.workers-tabs .tab,
+.view-switch button{
+  border-radius:6px;
+  font-weight:800;
+}
+.request-tabs span,
+.attendance-tabs span{
+  border-radius:5px;
+}
+.table-detail-btn,
+.table-actions button,
+.table-link{
+  border-radius:5px;
+  font-weight:800;
+}
+.record-detail-grid div,
+.leave-request-body>div,
+.leave-conflict,
+.leave-decision{
+  border-radius:6px;
+}
+.leave-request-card,
+.month-card,
+.report-workspace-controls .report-type,
+.export-file,
+.organization-item,
+.holiday-item,
+.invitation-item{
+  border-radius:7px;
+}
+.calendar-controls button,
+.calendar-filter{
+  border-radius:6px;
+}
+.day{border-radius:4px}
+.event-count{border-radius:4px}
+.settings-workspace .settings-tabs{
+  border-radius:6px;
+  padding:3px;
+}
+.settings-workspace .settings-tabs button{
+  border-radius:4px;
+}
+.demo-tools{border-radius:6px}
+.demo-tools .drawer-item{border-radius:4px}
