@@ -49,13 +49,13 @@
   function renderKpis(filter,rows){
     const data=metrics(rows);
     const cards=[
-      ['present','✓',data.present,'Prisutni','Evidentirani danas','green'],
-      ['missing','—',data.missing,'Bez dolaska','Bez današnje prijave','amber'],
-      ['absent','○',data.absent,'Odsutni','Godišnji, bolovanje ili odsutnost','blue'],
-      ['anomaly','!',data.anomaly,'Anomalije','Redovi koji traže pažnju','red'],
-      ['all','Σ',data.total,'Ukupno','Radnici u dopuštenom opsegu','neutral']
+      ['present',data.present,'Prisutni','Evidentirani danas'],
+      ['missing',data.missing,'Bez dolaska','Bez današnje prijave'],
+      ['absent',data.absent,'Odsutni','Godišnji, bolovanje ili odsutnost'],
+      ['anomaly',data.anomaly,'Anomalije','Redovi koji traže pažnju'],
+      ['all',data.total,'Ukupno','Radnici u dopuštenom opsegu']
     ];
-    return `<section class="attendance-operational-kpis" aria-label="Dnevni attendance pokazatelji">${cards.map(([key,icon,value,label,detail,tone])=>`<button class="attendance-op-kpi ${tone} ${filter===key?'active':''}" data-bss-action="setAttendanceDailyFilter('${key}')" aria-pressed="${filter===key}"><span class="attendance-op-icon" aria-hidden="true">${icon}</span><span><b>${value}</b><strong>${label}</strong><small>${detail}</small></span></button>`).join('')}</section>`;
+    return `<section class="attendance-operational-kpis" aria-label="Dnevni attendance pokazatelji">${cards.map(([key,value,label,detail])=>`<button class="attendance-op-kpi ${filter===key?'active':''}" data-bss-action="setAttendanceDailyFilter('${key}')" aria-pressed="${filter===key}"><span>${label}</span><b>${value}</b><small>${detail}</small></button>`).join('')}</section>`;
   }
 
   function statusHtml(status,pill){
@@ -90,7 +90,7 @@
     </tr>`).join('');
     const data=metrics(filtered);
     return `<section class="card table-card attendance-operational-card" id="attendanceDaily" tabindex="-1">
-      <div class="table-card-heading"><div><h2>Dnevna evidencija</h2><p>${escapeHtml(isoLabel(today))} · status i anomalija prikazani su odvojeno.</p></div><span class="pill gray">${filtered.length} redaka</span></div>
+      <div class="table-card-heading"><div><h2>Dnevna evidencija</h2><p>${escapeHtml(isoLabel(today))} · status i anomalija prikazani su odvojeno.</p></div></div>
       <div class="table-wrap"><table class="attendance-operational-table"><thead><tr><th>Šifra</th><th>Ime i prezime</th><th>Odjel</th><th>Planirano</th><th>Dolazak</th><th>Odlazak</th><th>Odrađeno</th><th>Saldo</th><th>Status</th><th>Anomalija</th><th></th></tr></thead><tbody>${body||'<tr><td colspan="11"><div class="empty-state">Nema radnika za odabrani dnevni filtar.</div></td></tr>'}</tbody></table></div>
       <div class="table-summary"><span>${filtered.length} prikazano · ${data.anomaly} anomalija</span><span>Izvorni attendance zapisi ostaju nepromijenjeni.</span></div>
     </section>`;

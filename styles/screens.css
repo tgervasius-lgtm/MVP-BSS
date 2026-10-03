@@ -1101,3 +1101,296 @@ button.day:hover{outline:2px solid var(--bss-color-accent-text);outline-offset:1
     justify-content:space-between;
   }
 }
+
+
+/* Owner visual review pass 2 — enterprise summary grammar */
+.attendance-operational-kpis,
+.terminal-operational-kpis{
+  display:grid;
+  gap:0;
+  margin-bottom:10px;
+  padding:0;
+  overflow:hidden;
+  border:1px solid var(--bss-color-border);
+  border-radius:7px;
+  background:var(--bss-color-bg-surface);
+  box-shadow:none;
+}
+.attendance-operational-kpis{
+  grid-template-columns:repeat(5,minmax(0,1fr));
+}
+.terminal-operational-kpis{
+  grid-template-columns:repeat(4,minmax(0,1fr));
+}
+.attendance-op-kpi,
+.terminal-operational-kpis>button{
+  min-height:76px;
+  padding:11px 12px;
+  display:block;
+  text-align:left;
+  border:0;
+  border-right:1px solid var(--bss-color-border);
+  border-radius:0;
+  background:var(--bss-color-bg-surface);
+  color:var(--bss-color-text);
+  box-shadow:none;
+}
+.attendance-op-kpi:last-child,
+.terminal-operational-kpis>button:last-child{border-right:0}
+.attendance-op-kpi:hover,
+.terminal-operational-kpis>button:hover{
+  background:var(--bss-color-bg-hover);
+}
+.attendance-op-kpi.active{
+  background:var(--bss-color-bg-subtle);
+  box-shadow:inset 0 -2px 0 var(--bss-color-accent-text);
+}
+.attendance-op-kpi>span,
+.attendance-op-kpi>b,
+.attendance-op-kpi>small,
+.terminal-operational-kpis>button>span,
+.terminal-operational-kpis>button>b,
+.terminal-operational-kpis>button>small{
+  display:block;
+}
+.attendance-op-kpi>span,
+.terminal-operational-kpis>button>span{
+  font-size:var(--bss-font-size-xs);
+  color:var(--bss-color-text-muted);
+}
+.attendance-op-kpi>b,
+.terminal-operational-kpis>button>b{
+  margin-top:4px;
+  font-size:20px;
+  letter-spacing:-.03em;
+}
+.attendance-op-kpi>small,
+.terminal-operational-kpis>button>small{
+  margin-top:3px;
+  font-size:var(--bss-font-size-xs);
+  line-height:var(--bss-line-height-normal);
+  color:var(--bss-color-text-muted);
+}
+.attendance-op-icon{display:none!important}
+
+@media(max-width:900px){
+  .attendance-operational-kpis{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+  .attendance-op-kpi{
+    border-bottom:1px solid var(--bss-color-border);
+  }
+  .attendance-op-kpi:nth-child(2n){border-right:0}
+  .attendance-op-kpi:last-child{
+    grid-column:1/-1;
+    border-bottom:0;
+  }
+  .terminal-operational-kpis{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+  .terminal-operational-kpis>button{
+    border-bottom:1px solid var(--bss-color-border);
+  }
+  .terminal-operational-kpis>button:nth-child(2n){border-right:0}
+  .terminal-operational-kpis>button:nth-last-child(-n+2){border-bottom:0}
+}
+
+
+/* Owner visual review pass 2 — secondary enterprise summary strips */
+.approval-summary,
+.audit-summary,
+.shifts-summary,
+.access-summary{
+  display:grid;
+  gap:0;
+  margin-bottom:10px;
+  padding:0;
+  overflow:hidden;
+  border:1px solid var(--bss-color-border);
+  border-radius:7px;
+  background:var(--bss-color-bg-surface);
+  box-shadow:none;
+}
+.approval-summary,
+.audit-summary,
+.access-summary{
+  grid-template-columns:repeat(4,minmax(0,1fr));
+}
+.shifts-summary{
+  grid-template-columns:repeat(2,minmax(0,1fr));
+}
+.approval-summary>div,
+.audit-summary>div,
+.shifts-summary>div,
+.access-summary>button{
+  min-height:70px;
+  padding:11px 12px;
+  border:0;
+  border-right:1px solid var(--bss-color-border);
+  border-radius:0;
+  background:var(--bss-color-bg-surface);
+  box-shadow:none;
+}
+.approval-summary>div:last-child,
+.audit-summary>div:last-child,
+.shifts-summary>div:last-child,
+.access-summary>button:last-child{border-right:0}
+.approval-summary span,
+.approval-summary b,
+.audit-summary span,
+.audit-summary b,
+.shifts-summary span,
+.shifts-summary b,
+.access-summary>button span,
+.access-summary>button b{display:block}
+.approval-summary span,
+.audit-summary span,
+.shifts-summary span,
+.access-summary>button span{
+  font-size:var(--bss-font-size-xs);
+  color:var(--bss-color-text-muted);
+}
+.approval-summary b,
+.audit-summary b,
+.shifts-summary b,
+.access-summary>button b{
+  margin-top:4px;
+  font-size:20px;
+  letter-spacing:-.03em;
+}
+.access-summary>button:hover{background:var(--bss-color-bg-hover)}
+.access-summary>button.active{
+  background:var(--bss-color-bg-subtle);
+  box-shadow:inset 0 -2px 0 var(--bss-color-accent-text);
+}
+
+@media(max-width:760px){
+  .approval-summary,
+  .audit-summary,
+  .access-summary{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+  .approval-summary>div,
+  .audit-summary>div,
+  .access-summary>button{
+    border-bottom:1px solid var(--bss-color-border);
+  }
+  .approval-summary>div:nth-child(2n),
+  .audit-summary>div:nth-child(2n),
+  .access-summary>button:nth-child(2n){border-right:0}
+  .approval-summary>div:nth-last-child(-n+2),
+  .audit-summary>div:nth-last-child(-n+2),
+  .access-summary>button:nth-last-child(-n+2){border-bottom:0}
+}
+
+
+/* Owner visual review pass 2 — personal/admin summary consistency */
+.mytime-summary-card{
+  padding:0;
+  overflow:hidden;
+  border-radius:7px;
+}
+.mytime-summary-head{
+  padding:12px 13px;
+  border-bottom:1px solid var(--bss-color-border);
+}
+.mytime-summary-grid{
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:0;
+  margin-top:0;
+  border-bottom:1px solid var(--bss-color-border);
+}
+.mytime-summary-grid>button{
+  min-height:70px;
+  padding:11px 12px;
+  border:0;
+  border-right:1px solid var(--bss-color-border);
+  border-radius:0;
+}
+.mytime-summary-grid>button:last-child{border-right:0}
+.mytime-summary-grid>button:disabled{opacity:.6}
+.mytime-summary-grid span{font-size:var(--bss-font-size-xs)}
+.mytime-summary-grid b{
+  margin-top:4px;
+  font-size:20px;
+  letter-spacing:-.03em;
+}
+.mytime-shift-row{
+  margin:0;
+  padding:10px 13px;
+  border-top:0;
+  font-size:var(--bss-font-size-xs);
+}
+
+.settings-workspace .admin-kpis{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:0;
+  margin-bottom:10px;
+  padding:0;
+  overflow:hidden;
+  border:1px solid var(--bss-color-border);
+  border-radius:7px;
+  background:var(--bss-color-bg-surface);
+  box-shadow:none;
+}
+.settings-workspace .admin-kpis>button{
+  min-height:70px;
+  padding:11px 12px;
+  text-align:left;
+  border:0;
+  border-right:1px solid var(--bss-color-border);
+  border-radius:0;
+  background:var(--bss-color-bg-surface);
+}
+.settings-workspace .admin-kpis>button:last-child{border-right:0}
+.settings-workspace .admin-kpis>button:hover{background:var(--bss-color-bg-hover)}
+.settings-workspace .admin-kpis>button span,
+.settings-workspace .admin-kpis>button b{display:block}
+.settings-workspace .admin-kpis>button span{
+  font-size:var(--bss-font-size-xs);
+  color:var(--bss-color-text-muted);
+}
+.settings-workspace .admin-kpis>button b{
+  margin-top:4px;
+  font-size:20px;
+  letter-spacing:-.03em;
+}
+
+@media(max-width:760px){
+  .mytime-summary-grid,
+  .settings-workspace .admin-kpis{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+  .mytime-summary-grid>button,
+  .settings-workspace .admin-kpis>button{
+    border-bottom:1px solid var(--bss-color-border);
+  }
+  .mytime-summary-grid>button:nth-child(2n),
+  .settings-workspace .admin-kpis>button:nth-child(2n){border-right:0}
+  .mytime-summary-grid>button:nth-last-child(-n+2),
+  .settings-workspace .admin-kpis>button:nth-last-child(-n+2){border-bottom:0}
+}
+
+
+/* Owner visual review pass 2 — calendar and leave surface sharpness */
+.leave-calendar-card .month-card,
+.shared-leave-calendar .month-card{
+  border-radius:7px;
+  box-shadow:none;
+}
+.month-view .day{
+  border-radius:5px;
+}
+.leave-request-card{
+  border-radius:7px;
+  box-shadow:none;
+}
+.leave-request-body>div,
+.leave-conflict,
+.leave-decision{
+  border-radius:6px;
+}
+.request-search input{
+  border-radius:7px;
+}

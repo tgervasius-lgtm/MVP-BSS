@@ -16,7 +16,7 @@
         ${requestTabs(scoped)}
         <div class="request-search"><input id="requestSearch" aria-label="Traži zahtjeve" placeholder="Ime, odjel, vrsta ili napomena" value="${escapeHtml(requestSearch)}"><button class="btn" data-bss-action="applyRequestSearch()">Traži</button><button class="btn secondary" data-bss-action="clearRequestFilters()">Očisti</button></div>
       </section>
-      <section class="card table-card approval-table-card"><div class="table-card-heading"><div><h2>Zahtjevi</h2><p>${isApprover?'Najprije riješi stavke na čekanju.':'Povijest zahtjeva i odluka.'}</p></div><span class="pill gray">${requests.length} prikazano</span></div>${requestTable(requests,isApprover)}</section>
+      <section class="card table-card approval-table-card"><div class="table-card-heading"><div><h2>Zahtjevi</h2><p>${isApprover?'Najprije riješi stavke na čekanju.':'Povijest zahtjeva i odluka.'}</p></div></div>${requestTable(requests,isApprover)}</section>
       ${isWorker?vacationRequestForm():''}
       <div class="btns approval-links"><button class="btn secondary" data-bss-action="navigate('vacations')">${isWorker?'Moj godišnji':'Godišnji'}</button><button class="btn secondary" data-bss-action="navigate('sharedLeave')">Kalendar</button></div>`;
   }
@@ -45,7 +45,7 @@
     const subtitle=isWorker?'Izvorni zapis ostaje nepromijenjen do odobrenja.':'Kontrolirane promjene s dokaznim tragom.';
     return `${title(heading,subtitle)}
       ${summary}
-      <section class="card table-card approval-table-card corrections-operational-card"><div class="table-card-heading"><div><h2>Korekcije vremena</h2><p>Izvorno → predloženo → odluka; audit trag ostaje sačuvan.</p></div><span class="pill gray">${pending} na čekanju</span></div><div class="table-wrap"><table class="compact-table corrections-table"><thead><tr><th>Radnik</th><th>Datum</th><th>Izvorno</th><th>Predloženo</th><th>Razlog</th><th>Status</th><th>Radnja</th></tr></thead><tbody>${rows||'<tr><td colspan="7"><div class="empty-state">Nema korekcija u tvojem opsegu.</div></td></tr>'}</tbody></table></div></section>
+      <section class="card table-card approval-table-card corrections-operational-card"><div class="table-card-heading"><div><h2>Korekcije vremena</h2><p>Izvorno → predloženo → odluka; audit trag ostaje sačuvan.</p></div></div><div class="table-wrap"><table class="compact-table corrections-table"><thead><tr><th>Radnik</th><th>Datum</th><th>Izvorno</th><th>Predloženo</th><th>Razlog</th><th>Status</th><th>Radnja</th></tr></thead><tbody>${rows||'<tr><td colspan="7"><div class="empty-state">Nema korekcija u tvojem opsegu.</div></td></tr>'}</tbody></table></div></section>
       ${isWorker?correctionForm():''}`;
   }
 

@@ -313,6 +313,20 @@ test('Attendance polish v2 zadržava semantičku boju samo kao signal',()=>{
   assert.match(styles,/box-shadow:none/);
 });
 
+test('visual pass 2 uklanja dekorativne KPI ikone i koristi jedinstveni enterprise summary strip',()=>{
+  const admin=boot('admin');
+  admin.window.navigate('attendance');
+  assert.equal(admin.document.querySelectorAll('.attendance-operational-kpis .attendance-op-kpi').length,5);
+  assert.equal(admin.document.querySelectorAll('.attendance-op-icon').length,0);
+  assert.match(admin.document.querySelector('.attendance-operational-kpis').textContent,/Prisutni/);
+  admin.window.navigate('terminal');
+  assert.equal(admin.document.querySelectorAll('.terminal-operational-kpis>button').length,4);
+  assert.match(styles,/Owner visual review pass 2 — enterprise summary grammar/);
+  assert.match(styles,/\.attendance-operational-kpis\{[\s\S]*?grid-template-columns:repeat\(5,minmax\(0,1fr\)\)/);
+  assert.match(styles,/\.terminal-operational-kpis\{[\s\S]*?grid-template-columns:repeat\(4,minmax\(0,1fr\)\)/);
+  assert.match(styles,/\.attendance-op-icon\{display:none!important\}/);
+});
+
 test('Attendance operational checkpoint odvaja status i anomaliju uz dnevni KPI strip',()=>{
   const {window,document}=boot('admin');
   window.navigate('attendance');
@@ -516,6 +530,59 @@ test('kalendar koristi jednu period kontrolu bez duplog mjeseca iznad sadržaja'
   assert.equal(worker.document.querySelectorAll('.calendar-card-toolbar').length,1);
   assert.match(styles,/Owner visual review — calendar controls deduplicated/);
   assert.match(styles,/\.month-view>\.month-card>h3\{display:none\}/);
+});
+
+test('visual pass 2 zadržava oštriji calendar i leave surface treatment',()=>{
+  assert.match(styles,/Owner visual review pass 2 — calendar and leave surface sharpness/);
+  assert.match(styles,/\.leave-calendar-card \.month-card,[\s\S]*?border-radius:7px/);
+  assert.match(styles,/\.month-view \.day\{[\s\S]*?border-radius:5px/);
+  assert.match(styles,/\.leave-request-card\{[\s\S]*?border-radius:7px/);
+  assert.match(styles,/\.leave-request-body>div,[\s\S]*?border-radius:6px/);
+});
+
+test('visual pass 2 uklanja dupli count i iz attendance/request headinga',()=>{
+  const admin=boot('admin');
+  admin.window.navigate('attendance');
+  assert.equal(admin.document.querySelector('.attendance-operational-card .table-card-heading .pill'),null);
+  admin.window.navigate('requests');
+  assert.equal(admin.document.querySelector('.approval-table-card .table-card-heading .pill'),null);
+  assert.ok(admin.document.querySelector('.request-tabs button.active'));
+});
+
+test('visual pass 2 uklanja ponovljene brojeve iz summary i table headinga',()=>{
+  const admin=boot('admin');
+  admin.window.navigate('corrections');
+  assert.equal(admin.document.querySelector('.corrections-operational-card .table-card-heading .pill'),null);
+  admin.window.navigate('audit');
+  assert.equal(admin.document.querySelector('.audit-evidence-card .table-card-heading .pill'),null);
+  admin.window.navigate('shifts');
+  assert.equal(admin.document.querySelector('.shifts-operational-card .table-card-heading .pill'),null);
+  assert.equal(admin.document.querySelectorAll('.shifts-summary>div').length,4);
+});
+
+test('visual pass 2 usklađuje moje sate i postavke s enterprise summary grammarom',()=>{
+  const worker=boot('worker');
+  worker.window.navigate('mytime');
+  assert.equal(worker.document.querySelectorAll('.mytime-summary-grid>button').length,4);
+  const admin=boot('admin');
+  admin.window.navigate('settings');
+  assert.equal(admin.document.querySelectorAll('.settings-workspace .admin-kpis>button').length,4);
+  assert.match(styles,/Owner visual review pass 2 — personal\/admin summary consistency/);
+  assert.match(styles,/\.mytime-summary-grid\{[\s\S]*?grid-template-columns:repeat\(4,minmax\(0,1fr\)\)/);
+  assert.match(styles,/\.settings-workspace \.admin-kpis\{[\s\S]*?border-radius:7px/);
+});
+
+test('visual pass 2 usklađuje korekcije, audit i prava pristupa s enterprise summary grammarom',()=>{
+  const admin=boot('admin');
+  admin.window.navigate('corrections');
+  assert.equal(admin.document.querySelectorAll('.approval-summary>div').length,4);
+  admin.window.navigate('audit');
+  assert.equal(admin.document.querySelectorAll('.audit-summary>div').length,4);
+  admin.window.navigate('roles');
+  assert.equal(admin.document.querySelectorAll('.access-summary>button').length,4);
+  assert.match(styles,/Owner visual review pass 2 — secondary enterprise summary strips/);
+  assert.match(styles,/\.approval-summary,[\s\S]*?\.access-summary\{[\s\S]*?border-radius:7px/);
+  assert.match(styles,/\.access-summary>button\.active\{[\s\S]*?box-shadow:inset 0 -2px 0 var\(--bss-color-accent-text\)/);
 });
 
 test('Zahtjevi uklanjaju duplicirani sažetak, a korekcije čuvaju jedini operativni sažetak',()=>{
