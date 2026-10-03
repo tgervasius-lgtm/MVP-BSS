@@ -258,3 +258,16 @@
     font-weight:800;
   }
 }
+
+
+/* Owner visual review — keep sharpness on compact layouts */
+@media(max-width:959px){
+  .card{border-radius:8px}
+  .stat,.kpi-card{border-radius:7px}
+  .form input,.form select,.form textarea,.filter-bar input,.filter-bar select{border-radius:7px}
+  .bottom-nav{border-radius:10px}
+  .modal-card{border-radius:12px 12px 0 0}
+}
+@media(min-width:620px) and (max-width:959px){
+  .modal-card{border-radius:12px}
+}
