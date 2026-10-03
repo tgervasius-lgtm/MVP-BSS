@@ -90,7 +90,7 @@
     </tr>`).join('');
     const data=metrics(filtered);
     return `<section class="card table-card attendance-operational-card" id="attendanceDaily" tabindex="-1">
-      <div class="table-card-heading"><div><h2>Dnevna evidencija</h2><p>${escapeHtml(isoLabel(today))} · status i anomalija prikazani su odvojeno.</p></div><span class="pill gray">${filtered.length} redaka</span></div>
+      <div class="table-card-heading"><div><h2>Dnevna evidencija</h2><p>${escapeHtml(isoLabel(today))} · status i anomalija prikazani su odvojeno.</p></div></div>
       <div class="table-wrap"><table class="attendance-operational-table"><thead><tr><th>Šifra</th><th>Ime i prezime</th><th>Odjel</th><th>Planirano</th><th>Dolazak</th><th>Odlazak</th><th>Odrađeno</th><th>Saldo</th><th>Status</th><th>Anomalija</th><th></th></tr></thead><tbody>${body||'<tr><td colspan="11"><div class="empty-state">Nema radnika za odabrani dnevni filtar.</div></td></tr>'}</tbody></table></div>
       <div class="table-summary"><span>${filtered.length} prikazano · ${data.anomaly} anomalija</span><span>Izvorni attendance zapisi ostaju nepromijenjeni.</span></div>
     </section>`;
