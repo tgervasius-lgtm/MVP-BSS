@@ -418,6 +418,14 @@ test('svaki KPI i kompaktni brojčani sažetak ima drill-down bez slijepih karti
   }
 });
 
+test('user-facing business copy zadržava najmanje xs tipografsku skalu',()=>{
+  assert.match(styles,/Owner visual readability sweep v2/);
+  assert.match(styles,/\.table-card-heading p,[\s\S]*?font-size:var\(--bss-font-size-xs\)/);
+  assert.match(styles,/\.table-actions button,[\s\S]*?font-size:var\(--bss-font-size-xs\)/);
+  assert.match(styles,/\.terminal-identity,[\s\S]*?font-size:var\(--bss-font-size-xs\)/);
+  assert.match(styles,/\.settings-workspace \.settings-tabs button,[\s\S]*?font-size:var\(--bss-font-size-xs\)/);
+});
+
 test('sekundarne tablične akcije koriste neutralni enterprise chrome',()=>{
   assert.match(styles,/Owner visual review — neutral secondary action chrome/);
   assert.match(styles,/\.table-detail-btn,[\s\S]*?background:var\(--bss-color-bg-surface\)/);
