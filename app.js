@@ -1147,7 +1147,9 @@ function updateVacationRequestPreview(){
 }
 function viewRequests(){
   const isApprover=['admin','manager'].includes(currentRole),isWorker=currentRole==='worker',scoped=scopedLeaveRequests(),requests=filteredLeaveRequests(),counts=requestStatusCounts(scoped);
-  return `${title(isWorker?'Moji zahtjevi':currentRole==='manager'?'Zahtjevi mojeg tima':'Zahtjevi za odsutnost',isWorker?'':'Odluke i statusi zahtjeva.',pill(`${counts['Na čekanju']} na čekanju`))}<div class="card request-control-card">${requestTabs(scoped)}<div class="request-search"><input id="requestSearch" aria-label="Traži zahtjeve" placeholder="Ime, odjel, vrsta ili napomena" value="${escapeHtml(requestSearch)}"><button class="btn" data-bss-action="applyRequestSearch()">Traži</button><button class="btn secondary" data-bss-action="clearRequestFilters()">Očisti</button></div></div>${isApprover?'<div class="notice">Preklapanje je upozorenje, ne automatska zabrana.</div>':''}<section class="card table-card"><div class="table-card-heading"><div><h2>Zahtjevi</h2></div>${pill(`${requests.length} zahtjeva`)}</div>${requestTable(requests,isApprover)}</section>${isWorker?vacationRequestForm():''}<div class="btns"><button class="btn secondary" data-bss-action="navigate('vacations')">Moj godišnji</button><button class="btn secondary" data-bss-action="navigate('sharedLeave')">Zajednički godišnji</button></div>`;
+  return BSS_VIEWS.approvalsOperational.requests({
+    currentRole,isApprover,isWorker,scoped,requests,counts,requestSearch,title,requestTabs,requestTable,vacationRequestForm,escapeHtml
+  });
 }
 function submitVacationRequest(){
   if(currentRole!=='worker')return;
@@ -1383,13 +1385,9 @@ function submitCorrection(){
 function viewCorrections(){
   const isWorker=currentRole==='worker',isApprover=['admin','manager'].includes(currentRole);
   const corrections=state.corrections.filter(correctionVisible).sort((a,b)=>b.date.localeCompare(a.date));
-  const rows=corrections.map(correction=>{
-    const worker=workerById(correction.workerId),values=correctionValues(correction);
-    const controls=isApprover&&correction.status==='Na čekanju'?`<div class="table-actions"><button data-bss-action="updateCorrection(${correction.id},'Odobreno')">Odobri</button><button class="danger" data-bss-action="updateCorrection(${correction.id},'Odbijeno')">Odbij</button></div>`:isWorker&&correction.status==='Na čekanju'?`<button class="table-detail-btn danger" data-bss-action="cancelCorrection(${correction.id})">Poništi</button>`:'—';
-    return `<tr data-correction-id="${correction.id}"><td><b>${escapeHtml(worker?.name||'Nepoznat radnik')}</b><br><span class="small-muted">${escapeHtml(worker?.dept||'—')}</span></td><td>${escapeHtml(isoLabel(correction.date))}</td><td>${escapeHtml(values.oldValue)}</td><td><b>${escapeHtml(values.newValue)}</b></td><td>${escapeHtml(correction.reason)}</td><td>${pill(correction.status)}</td><td>${controls}</td></tr>`;
-  }).join('');
-  const form=isWorker?correctionForm():'';
-  return `${title(isWorker?'Moje korekcije':currentRole==='manager'?'Korekcije mojeg tima':'Korekcije vremena',isWorker?'Izvorni zapis ostaje do odobrenja.':'Odluke ostaju u audit tragu.',pill(`${corrections.filter(correction=>correction.status==='Na čekanju').length} na čekanju`))}<section class="card table-card"><div class="table-card-heading"><div><h2>Korekcije</h2></div>${pill(`${corrections.length} zahtjeva`)}</div><div class="table-wrap"><table class="compact-table corrections-table"><thead><tr><th>Radnik</th><th>Datum</th><th>Izvorno</th><th>Predloženo</th><th>Razlog</th><th>Status</th><th>Radnja</th></tr></thead><tbody>${rows||'<tr><td colspan="7"><div class="empty-state">Nema korekcija u tvojem opsegu.</div></td></tr>'}</tbody></table></div></section>${form}`;
+  return BSS_VIEWS.approvalsOperational.corrections({
+    currentRole,isWorker,isApprover,corrections,workerById,correctionValues,escapeHtml,isoLabel,pill,correctionForm,title
+  });
 }
 function updateCorrection(id,status){
   if(!['admin','manager'].includes(currentRole))return;
