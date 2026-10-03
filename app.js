@@ -1921,6 +1921,7 @@ function viewAudit(){
     entries,modules,total:state.audit.length,auditFilters,title,pill,escapeHtml
   });
 }
+const SETTINGS_TABS=['overview','company','organization','holidays'];
 function setSettingsTab(tab){ if(SETTINGS_TABS.includes(tab)){settingsTab=tab;render();} }
 function settingsTabs(){
   const labels={overview:'Pregled',company:'Tvrtka',organization:'Organizacija',holidays:'Blagdani'};
