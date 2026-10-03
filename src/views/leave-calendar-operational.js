@@ -6,7 +6,7 @@
   }
 
   function vacations(context){
-    const {currentRole,calendarYear,calendarMonth,calendarMode,vacationDepartment,requests,isAdmin,balanceWorkers,personalBalance,departmentSummary,title,pill,escapeHtml,departmentList,calendarMonthCard,vacationBalanceVisual,requestTable,vacationBalanceSummary}=context;
+    const {currentRole,calendarYear,calendarMonth,calendarMode,vacationDepartment,requests,isAdmin,balanceWorkers,personalBalance,departmentSummary,title,escapeHtml,departmentList,calendarMonthCard,vacationBalanceVisual,requestTable,vacationBalanceSummary}=context;
     root.calendarMode=calendarMode;
     const titleText=currentRole==='worker'?'Moj godišnji':currentRole==='manager'?'Godišnji mojeg tima':currentRole==='accountant'?'Odobrene odsutnosti':'Godišnji';
     const subtitle=currentRole==='worker'?'Pregled godišnjeg i zahtjeva.':isAdmin?'Planirane odsutnosti i kapacitet po odjelima.':'Odobrena razdoblja u dopuštenom opsegu.';
@@ -26,7 +26,7 @@
   }
 
   function shared(context){
-    const {currentRole,calendarYear,calendarMonth,calendarMode,requests,title,escapeHtml,calendarMonthCard,sharedLeaveScopeControl,workerById,isoLabel}=context;
+    const {calendarYear,calendarMonth,calendarMode,requests,title,escapeHtml,calendarMonthCard,sharedLeaveScopeControl,workerById,isoLabel}=context;
     root.calendarMode=calendarMode;
     const label=calendarMode==='year'?String(calendarYear):new Date(calendarYear,calendarMonth,1).toLocaleDateString('hr-HR',{month:'long',year:'numeric'});
     const calendar=calendarMode==='year'
