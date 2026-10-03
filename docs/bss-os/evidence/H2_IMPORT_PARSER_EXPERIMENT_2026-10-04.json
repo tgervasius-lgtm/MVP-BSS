@@ -1,0 +1,47 @@
+{
+  "experiment": "H2-0 synthetic parser reconnaissance; NOT runtime/hostile-file/capacity certification",
+  "observedAt": "2026-10-03T23:32:49.485Z",
+  "node": "v24.19.0",
+  "exceljs": "4.4.0",
+  "platform": "linux",
+  "arch": "x64",
+  "availableParallelism": 8,
+  "repetitions": 3,
+  "isolation": {
+    "oneFreshChildPerSample": true,
+    "childWallTimeoutMs": 10000,
+    "v8OldSpaceMiB": 128,
+    "totalRssHardLimit": false,
+    "database": "UNAVAILABLE / NOT EXERCISED",
+    "targetDeployment": "NOT EXERCISED"
+  },
+  "scriptSha256": "c13cbfe0407a11049fcaa68c8ca2902ac31958271d979c53afba617551ba4ac7",
+  "lockfileSha256": "feaf75e6c46e423d48ffd7f3e71d04dd25880b190142ac55d9ef8205c34271c7",
+  "findings": {
+    "defaultCsvLeadingZeroPreserved": false,
+    "lexicalCsvPreservesLeadingZero": true,
+    "formulaObjectRequiresExplicitRejection": true,
+    "corruptXlsxRejected": true,
+    "hostileArchiveBoundsProven": false
+  },
+  "observations": [
+    {"format": "csv", "repetition": 1, "rows": 100, "inputBytes": 7637, "inputSha256": "3abd848a9fb4013fbcb9dd2c268f843706b3cb233ad3307a56299f4ace332ec5", "parsedSha256": "bf7ae1091b8de67d9085fa05498b72bab22b8d5c127d0e239bc868920d8a9167", "firstCodePreserved": true, "parseAndScanMs": 14.74, "rssBeforeMiB": 54.96, "peakProcessRssMiB": 59.21, "processWallMs": 201.64},
+    {"format": "csv", "repetition": 2, "rows": 100, "inputBytes": 7637, "inputSha256": "3abd848a9fb4013fbcb9dd2c268f843706b3cb233ad3307a56299f4ace332ec5", "parsedSha256": "bf7ae1091b8de67d9085fa05498b72bab22b8d5c127d0e239bc868920d8a9167", "firstCodePreserved": true, "parseAndScanMs": 12.21, "rssBeforeMiB": 55.59, "peakProcessRssMiB": 59.59, "processWallMs": 190.89},
+    {"format": "csv", "repetition": 3, "rows": 100, "inputBytes": 7637, "inputSha256": "3abd848a9fb4013fbcb9dd2c268f843706b3cb233ad3307a56299f4ace332ec5", "parsedSha256": "bf7ae1091b8de67d9085fa05498b72bab22b8d5c127d0e239bc868920d8a9167", "firstCodePreserved": true, "parseAndScanMs": 12.15, "rssBeforeMiB": 54.64, "peakProcessRssMiB": 59.26, "processWallMs": 191.56},
+    {"format": "xlsx", "repetition": 1, "rows": 100, "inputBytes": 9760, "inputSha256": "10e23a0b4d173f0c25805d4f43f15bb192c71f8bc37821863e2adb67c69d9125", "parsedSha256": "bf7ae1091b8de67d9085fa05498b72bab22b8d5c127d0e239bc868920d8a9167", "firstCodePreserved": true, "parseAndScanMs": 37.01, "rssBeforeMiB": 54.91, "peakProcessRssMiB": 59.23, "processWallMs": 230.33},
+    {"format": "xlsx", "repetition": 2, "rows": 100, "inputBytes": 9760, "inputSha256": "10e23a0b4d173f0c25805d4f43f15bb192c71f8bc37821863e2adb67c69d9125", "parsedSha256": "bf7ae1091b8de67d9085fa05498b72bab22b8d5c127d0e239bc868920d8a9167", "firstCodePreserved": true, "parseAndScanMs": 35.78, "rssBeforeMiB": 54.68, "peakProcessRssMiB": 59.03, "processWallMs": 224.93},
+    {"format": "xlsx", "repetition": 3, "rows": 100, "inputBytes": 9760, "inputSha256": "10e23a0b4d173f0c25805d4f43f15bb192c71f8bc37821863e2adb67c69d9125", "parsedSha256": "bf7ae1091b8de67d9085fa05498b72bab22b8d5c127d0e239bc868920d8a9167", "firstCodePreserved": true, "parseAndScanMs": 30.84, "rssBeforeMiB": 55.48, "peakProcessRssMiB": 62.11, "processWallMs": 210.44},
+    {"format": "csv", "repetition": 1, "rows": 1000, "inputBytes": 77839, "inputSha256": "e8e0fc90453a0d7f8f02ab2d7ffd7260bdf14aa36a410e19825b22e2ce970a29", "parsedSha256": "4cd6e2a57a6d9ef22a75e2fc85edf137d9edd5033225fbd854feb3e934815ad7", "firstCodePreserved": true, "parseAndScanMs": 23.25, "rssBeforeMiB": 55.79, "peakProcessRssMiB": 65.18, "processWallMs": 211.2},
+    {"format": "csv", "repetition": 2, "rows": 1000, "inputBytes": 77839, "inputSha256": "e8e0fc90453a0d7f8f02ab2d7ffd7260bdf14aa36a410e19825b22e2ce970a29", "parsedSha256": "4cd6e2a57a6d9ef22a75e2fc85edf137d9edd5033225fbd854feb3e934815ad7", "firstCodePreserved": true, "parseAndScanMs": 29.74, "rssBeforeMiB": 54.94, "peakProcessRssMiB": 71.07, "processWallMs": 221.19},
+    {"format": "csv", "repetition": 3, "rows": 1000, "inputBytes": 77839, "inputSha256": "e8e0fc90453a0d7f8f02ab2d7ffd7260bdf14aa36a410e19825b22e2ce970a29", "parsedSha256": "4cd6e2a57a6d9ef22a75e2fc85edf137d9edd5033225fbd854feb3e934815ad7", "firstCodePreserved": true, "parseAndScanMs": 20.73, "rssBeforeMiB": 56.18, "peakProcessRssMiB": 65.79, "processWallMs": 205.82},
+    {"format": "xlsx", "repetition": 1, "rows": 1000, "inputBytes": 38388, "inputSha256": "341776ae1c9e352ca4f3aeb489e8017c038230f4542035d3d095f3cea8a3debf", "parsedSha256": "4cd6e2a57a6d9ef22a75e2fc85edf137d9edd5033225fbd854feb3e934815ad7", "firstCodePreserved": true, "parseAndScanMs": 64.02, "rssBeforeMiB": 56.54, "peakProcessRssMiB": 69.57, "processWallMs": 257.26},
+    {"format": "xlsx", "repetition": 2, "rows": 1000, "inputBytes": 38388, "inputSha256": "341776ae1c9e352ca4f3aeb489e8017c038230f4542035d3d095f3cea8a3debf", "parsedSha256": "4cd6e2a57a6d9ef22a75e2fc85edf137d9edd5033225fbd854feb3e934815ad7", "firstCodePreserved": true, "parseAndScanMs": 73.97, "rssBeforeMiB": 55.63, "peakProcessRssMiB": 70.49, "processWallMs": 268.33},
+    {"format": "xlsx", "repetition": 3, "rows": 1000, "inputBytes": 38388, "inputSha256": "341776ae1c9e352ca4f3aeb489e8017c038230f4542035d3d095f3cea8a3debf", "parsedSha256": "4cd6e2a57a6d9ef22a75e2fc85edf137d9edd5033225fbd854feb3e934815ad7", "firstCodePreserved": true, "parseAndScanMs": 68.98, "rssBeforeMiB": 54.75, "peakProcessRssMiB": 68.51, "processWallMs": 282.16},
+    {"format": "csv", "repetition": 1, "rows": 5000, "inputBytes": 397839, "inputSha256": "7b73c28da7765546e16080a514b7556b2a3c2a300a86fab97c2cd1ada30f531f", "parsedSha256": "9463e90041fe8609bdc0b8f2653dc5ecc24b6c268f6c4ed435d8708770fe3469", "firstCodePreserved": true, "parseAndScanMs": 99.71, "rssBeforeMiB": 55.27, "peakProcessRssMiB": 100.36, "processWallMs": 303.41},
+    {"format": "csv", "repetition": 2, "rows": 5000, "inputBytes": 397839, "inputSha256": "7b73c28da7765546e16080a514b7556b2a3c2a300a86fab97c2cd1ada30f531f", "parsedSha256": "9463e90041fe8609bdc0b8f2653dc5ecc24b6c268f6c4ed435d8708770fe3469", "firstCodePreserved": true, "parseAndScanMs": 96.01, "rssBeforeMiB": 55.2, "peakProcessRssMiB": 100.22, "processWallMs": 306.09},
+    {"format": "csv", "repetition": 3, "rows": 5000, "inputBytes": 397839, "inputSha256": "7b73c28da7765546e16080a514b7556b2a3c2a300a86fab97c2cd1ada30f531f", "parsedSha256": "9463e90041fe8609bdc0b8f2653dc5ecc24b6c268f6c4ed435d8708770fe3469", "firstCodePreserved": true, "parseAndScanMs": 83.35, "rssBeforeMiB": 54.96, "peakProcessRssMiB": 99.22, "processWallMs": 303.58},
+    {"format": "xlsx", "repetition": 1, "rows": 5000, "inputBytes": 163061, "inputSha256": "eccfb18d17dd13d8c36e58e8c3733ef0a8a4959ecccd4a6c1b9c83129c6699e5", "parsedSha256": "9463e90041fe8609bdc0b8f2653dc5ecc24b6c268f6c4ed435d8708770fe3469", "firstCodePreserved": true, "parseAndScanMs": 200.2, "rssBeforeMiB": 55.46, "peakProcessRssMiB": 116.66, "processWallMs": 404.59},
+    {"format": "xlsx", "repetition": 2, "rows": 5000, "inputBytes": 163061, "inputSha256": "eccfb18d17dd13d8c36e58e8c3733ef0a8a4959ecccd4a6c1b9c83129c6699e5", "parsedSha256": "9463e90041fe8609bdc0b8f2653dc5ecc24b6c268f6c4ed435d8708770fe3469", "firstCodePreserved": true, "parseAndScanMs": 204.86, "rssBeforeMiB": 54.83, "peakProcessRssMiB": 117.55, "processWallMs": 391.1},
+    {"format": "xlsx", "repetition": 3, "rows": 5000, "inputBytes": 163061, "inputSha256": "eccfb18d17dd13d8c36e58e8c3733ef0a8a4959ecccd4a6c1b9c83129c6699e5", "parsedSha256": "9463e90041fe8609bdc0b8f2653dc5ecc24b6c268f6c4ed435d8708770fe3469", "firstCodePreserved": true, "parseAndScanMs": 212.61, "rssBeforeMiB": 55.21, "peakProcessRssMiB": 113.73, "processWallMs": 401.28}
+  ]
+}
