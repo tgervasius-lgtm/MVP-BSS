@@ -1945,7 +1945,7 @@ function settingsHolidays(){
 }
 function viewSettings(){
   const content={overview:settingsOverview,company:settingsCompany,organization:settingsOrganization,holidays:settingsHolidays}[settingsTab]();
-  return `${title('Postavke i administracija','Tvrtka, organizacija i radni kalendar.',pill(APP_STAGE))}${settingsTabs()}${content}`;
+  return `<div class="settings-workspace">${title('Postavke','Tvrtka, organizacija i radni kalendar.')}${settingsTabs()}<div class="settings-content">${content}</div></div>`;
 }
 function isValidOib(oib){
   if(!/^\d{11}$/.test(oib))return false;

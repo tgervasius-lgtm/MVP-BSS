@@ -807,6 +807,20 @@ test('odobrena korekcija mijenja zapis i stvara audit događaj',()=>{
   assert.match(state().audit[0].action,/Odobrena korekcija/);
 });
 
+test('Postavke operational checkpoint zadržava četiri administrativna taba i postojeće forme',()=>{
+  const {window,document}=boot('admin');
+  window.navigate('settings');
+  assert.equal(document.querySelector('.section-title h1').textContent,'Postavke');
+  assert.equal(document.querySelectorAll('.settings-tabs button').length,4);
+  assert.ok(document.querySelector('.settings-workspace'));
+  window.setSettingsTab('company');
+  assert.ok(document.querySelector('#setOib'));
+  window.setSettingsTab('organization');
+  assert.ok(document.querySelector('[data-bss-action="openDepartmentModal()"]'));
+  window.setSettingsTab('holidays');
+  assert.ok(document.querySelector('[data-bss-action="openHolidayModal()"]'));
+});
+
 test('Sprint 6 daje administratoru cjelovit pregled konfiguracije',()=>{
   const {window,document,state}=boot('admin');
   window.navigate('settings');
