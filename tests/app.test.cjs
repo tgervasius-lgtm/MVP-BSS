@@ -358,7 +358,7 @@ test('UX/UI Cleanup v1.1 koristi tablice i kompaktne informacijske sažetke bez 
   assert.equal(worker.document.querySelectorAll('.worker-home-facts>button[data-bss-action]').length,4);
   assert.equal(worker.document.querySelector('.worker-home-summary'),null);
   worker.window.navigate('mytime');
-  assert.ok(worker.document.querySelector('.time-summary-visual'));
+  assert.ok(worker.document.querySelector('.mytime-summary-card'));
   assert.ok(worker.document.querySelector('button.time-donut[data-bss-action]'));
   assert.equal(worker.document.querySelectorAll('.data-summary-metrics>button[data-bss-action]').length,2);
   assert.match(worker.document.querySelector('.time-donut').getAttribute('aria-label'),/Odrađeno.*planiranih.*Saldo/);
