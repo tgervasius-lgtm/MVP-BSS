@@ -24,7 +24,8 @@ const coreSources = [
   'src/views/attendance-operational.js',
   'src/views/workers-operational.js',
   'src/views/navigation-operational.js',
-  'src/views/approvals-operational.js'
+  'src/views/approvals-operational.js',
+  'src/views/reports-operational.js'
 ].map(path=>fs.readFileSync(path,'utf8'));
 const styleEntry = fs.readFileSync('styles.css','utf8');
 const styleLayerPaths = [
@@ -1179,6 +1180,16 @@ test('voditelj ima samo čitanje na operativnom ekranu terminala',()=>{
   assert.equal(state().terminal.online,true);
   window.restoreTerminal();
   assert.equal(state().terminal.syncRuns.length,1);
+});
+
+test('Reports operational workspace stavlja preview i kriterije ispred sekundarnih panela',()=>{
+  const {window,document}=boot('admin');
+  window.navigate('reports');
+  assert.ok(document.querySelector('.report-workspace-controls'));
+  assert.equal(document.querySelectorAll('.report-metrics>div').length,4);
+  assert.ok(document.querySelector('.report-preview .report-table'));
+  assert.ok(document.querySelector('.report-secondary-grid .report-export'));
+  assert.match(document.querySelector('.report-boundary').textContent,/Ne izračunava plaću/);
 });
 
 test('Sprint 4 nudi pet poslovnih izvještaja iz istog skupa podataka',()=>{
