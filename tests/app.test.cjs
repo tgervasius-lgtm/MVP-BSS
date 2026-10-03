@@ -281,7 +281,7 @@ test('UX/UI Cleanup v1 svodi dashboard na četiri KPI-ja i tablični dnevni preg
   assert.match(document.querySelector('.side-brand').textContent,/BSS/);
   assert.match(document.querySelector('.side-brand').textContent,/Bognar Smart Systems/);
   assert.match(document.querySelector('.side-footer').textContent,/People\. Work\. Progress\./);
-  assert.equal(document.querySelectorAll('.dashboard-kpis .kpi-card').length,4);
+  assert.equal(document.querySelectorAll('.home-summary-strip .home-summary-item').length,4);
   assert.equal(document.querySelector('[data-kpi="present"] .kpi-value').textContent,'3');
   assert.equal(document.querySelector('[data-kpi="absent"] .kpi-value').textContent,'3');
   assert.ok(document.querySelector('[data-kpi="review"]'));
@@ -348,7 +348,7 @@ test('UX/UI Cleanup v1.1 koristi tablice i kompaktne informacijske sažetke bez 
   assert.ok(admin.document.querySelector('.vacation-balance-table'));
 
   const manager=boot('manager');
-  assert.equal(manager.document.querySelectorAll('.dashboard-kpis .kpi-card').length,4);
+  assert.equal(manager.document.querySelectorAll('.home-summary-strip .home-summary-item').length,4);
   assert.ok(manager.document.querySelector('.workers-table'));
 
   const worker=boot('worker');
@@ -403,7 +403,7 @@ test('svaki KPI i kompaktni brojčani sažetak ima drill-down bez slijepih karti
   assert.match(document.querySelector('.request-tabs button.active').textContent,/Na čekanju/);
 
   const summarySelectors=[
-    '.dashboard-kpis>.kpi-card','.worker-today-grid>*','.worker-summary-row','.attendance-operational-kpis>.attendance-op-kpi',
+    '.home-summary-strip>.home-summary-item','.worker-today-grid>*','.worker-summary-row','.attendance-operational-kpis>.attendance-op-kpi',
     '.data-summary-metrics>*','.vacation-balance-grid>*','.admin-kpis>*','.terminal-kpis>*'
   ].join(',');
   for(const role of ['admin','manager','worker','accountant']){
@@ -576,11 +576,11 @@ test('login auth shell koristi neutralni enterprise treatment bez promjene login
   assert.match(styles,/background:#17212b/);
 });
 
-test('Početna operational checkpoint uklanja hero treatment i čuva role drill-down akcije',()=>{
+test('Početna operational checkpoint koristi enterprise workspace grammar i čuva drill-down akcije',()=>{
   const admin=boot('admin');
   admin.window.navigate('home');
   assert.equal(admin.document.querySelector('.dashboard-hero'),null);
-  assert.equal(admin.document.querySelectorAll('.home-kpis .kpi-card').length,4);
+  assert.equal(admin.document.querySelectorAll('.home-summary-strip .home-summary-item').length,4);
   assert.ok(admin.document.querySelector('[data-kpi="review"]'));
   const worker=boot('worker');
   assert.doesNotMatch(worker.document.querySelector('#content').textContent,/Marko Marić|Petra Novak|Ana Kovač/);
@@ -589,6 +589,20 @@ test('Početna operational checkpoint uklanja hero treatment i čuva role drill-
   assert.match(accountant.document.querySelector('#content').textContent,/Samo čitanje/);
 });
 
+
+test('Home usvaja Reports enterprise grammar bez gubitka operativnih akcija',()=>{
+  const admin=boot('admin');
+  admin.window.navigate('home');
+  assert.ok(admin.document.querySelector('.home-workspace-head'));
+  assert.match(admin.document.querySelector('.home-workspace-scope').textContent,/Cijela tvrtka/);
+  assert.equal(admin.document.querySelectorAll('.home-summary-strip .home-summary-item').length,4);
+  assert.equal(admin.document.querySelectorAll('.home-queue-row[data-bss-action]').length>0,true);
+  assert.ok(admin.document.querySelector('.home-operations-card'));
+  assert.equal(admin.document.querySelectorAll('.home-operations-card .home-panel-section').length,2);
+  assert.match(styles,/Owner visual review — Reports grammar adopted on Home/);
+  assert.match(styles,/\.home-summary-strip\{[\s\S]*?grid-template-columns:repeat\(4,minmax\(0,1fr\)\)/);
+  assert.match(styles,/\.home-queue-row\{[\s\S]*?border-bottom:1px solid var\(--bss-color-border\)/);
+});
 
 test('owner readability sweep koristi frozen Design System tipografsku skalu za poslovni tekst',()=>{
   assert.match(styles,/Owner visual readability sweep/);
