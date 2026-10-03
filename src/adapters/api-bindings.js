@@ -51,7 +51,7 @@
     ];
   }
   function attendancePeriodPanel(month){
-    if(!BSS_API_ACTIVE||!['admin','manager','accountant'].includes(currentRole))return'';
+    if(!root.BSS_API_ACTIVE||!['admin','manager','accountant'].includes(currentRole))return'';
     const parts=periodMonthParts(month);if(!parts)return'';
     const period=state.attendancePeriodMonth===parts.key?state.attendancePeriod:null;
     if(!period)return `<section class="card attendance-period-card"><div class="attendance-period-head"><div><span>Mjesečni period</span><h2>${escapeHtml(reportMonthLabel(parts.key))}</h2></div><span class="pill gray">Nije učitano</span></div><p class="small-muted">Period state nije dostupan u ovom prikazu. Osvježi filtre ili pokušaj ponovno.</p></section>`;
@@ -101,7 +101,7 @@
     }finally{apiLoading=false;}
   }
   function attendanceRecordExtraActions(record){
-    if(!BSS_API_ACTIVE||currentRole!=='admin'||!record?.apiId)return'';
+    if(!root.BSS_API_ACTIVE||currentRole!=='admin'||!record?.apiId)return'';
     return `<button class="btn secondary" data-bss-action="openAttendanceRecalculation(${record.id})">Ponovno izračunaj</button>`;
   }
   function openAttendanceRecalculation(id){
