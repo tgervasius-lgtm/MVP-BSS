@@ -282,8 +282,8 @@ test('UX/UI Cleanup v1 svodi dashboard na četiri KPI-ja i tablični dnevni preg
   assert.match(document.querySelector('.side-brand').textContent,/Bognar Smart Systems/);
   assert.match(document.querySelector('.side-footer').textContent,/People\. Work\. Progress\./);
   assert.equal(document.querySelectorAll('.home-summary-strip .home-summary-item').length,4);
-  assert.equal(document.querySelector('[data-kpi="present"] .kpi-value').textContent,'3');
-  assert.equal(document.querySelector('[data-kpi="absent"] .kpi-value').textContent,'3');
+  assert.equal(document.querySelector('[data-kpi="present"] b').textContent,'3');
+  assert.equal(document.querySelector('[data-kpi="absent"] b').textContent,'3');
   assert.ok(document.querySelector('[data-kpi="review"]'));
   assert.ok(document.querySelector('[data-kpi="pending"]'));
   assert.equal(document.querySelector('.weekly-chart'),null);
