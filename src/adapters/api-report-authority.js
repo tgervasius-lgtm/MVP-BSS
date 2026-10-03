@@ -44,7 +44,7 @@
   }
 
   async function loadPreview({renderLoading=false,renderAfter=true}={}){
-    if(!root.BSS_API_ACTIVE||!allowed())return false;
+    if(!allowed())return false;
     const body=requestBody();
     previewLoading=true;previewError='';
     if(renderLoading)render();
