@@ -184,3 +184,7 @@
 
 /* Access operational checkpoint */
 @media(max-width:620px){.access-filter{width:100%;overflow:auto}.access-users-card .card-heading{align-items:flex-start;flex-direction:column}}
+
+
+/* Audit operational checkpoint */
+@media(min-width:620px){.audit-summary{grid-template-columns:repeat(4,minmax(0,1fr))}}
