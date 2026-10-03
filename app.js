@@ -833,10 +833,7 @@ function attendanceLivePanel(records){
   }).join('')||'<div class="empty-state compact">Nema aktivnih prijava za odabrane filtre.</div>'}</div></section>`;
 }
 function viewAttendance(){
-  const records=filteredAttendanceRecords();
-  const counts=attendanceViewCounts();
-  const viewTitle={all:'Svi zapisi',review:'Za provjeru',active:'Aktivni danas'}[attendanceView];
-  const operational=BSS_VIEWS.attendanceOperational.render({visibleWorkers:visibleWorkers(),attendanceFilters,records:state.records,today:DEMO_TODAY,
+  const records=filteredAttendanceRecords(),counts=attendanceViewCounts(),viewTitle={all:'Svi zapisi',review:'Za provjeru',active:'Aktivni danas'}[attendanceView],operational=BSS_VIEWS.attendanceOperational.render({visibleWorkers:visibleWorkers(),attendanceFilters,records:state.records,today:DEMO_TODAY,
     shiftById,plannedShiftMinutes,recordMinutes,pendingCorrectionFor,escapeHtml,formatMinutes,formatSignedMinutes,pill,isoLabel});
   return `${title(currentRole==='manager'?'Evidencija mojeg tima':'Evidencija dolazaka',isoToDate(DEMO_TODAY).toLocaleDateString('hr-HR',{weekday:'long',day:'numeric',month:'long',year:'numeric'}),'<span class="pill gray">Dnevni operativni pregled</span>')}
     ${operational.kpis}
