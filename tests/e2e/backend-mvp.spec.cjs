@@ -138,7 +138,10 @@ async function assertTerminalRotation(page){
       const data=await response.json();data.deviceCredential='';return response.ok;
     },process.env.TERMINAL_ACTIVATION_CODE);
     expect(paired).toBe(true);
-    await page.reload();await expect(page.locator('#content .screen')).toBeVisible();
+    await page.waitForLoadState('networkidle');
+    await page.reload();
+    await page.waitForFunction(()=>window.BSS_API_ACTIVE===true);
+    await expect(page.locator('#content .screen')).toBeVisible();
     await page.evaluate(()=>window.navigate('terminal'));
     await page.getByRole('button',{name:'Rotiraj vjerodajnicu',exact:true}).click();
     await page.locator('#terminalRotationReason').selectOption('normal_rotation');
@@ -152,6 +155,9 @@ async function assertTerminalRotation(page){
     await expect(page.locator('#terminalCredential')).toHaveAttribute('type','text');
     await page.getByRole('button',{name:'Zatvori i ukloni prikaz',exact:true}).click();
     expect(await page.locator('#terminalCredential').evaluate(element=>element.value.length===0)).toBe(true);
-    await page.reload();await expect(page.locator('#content .screen')).toBeVisible();
+    await page.waitForLoadState('networkidle');
+    await page.reload();
+    await page.waitForFunction(()=>window.BSS_API_ACTIVE===true);
+    await expect(page.locator('#content .screen')).toBeVisible();
     await expect(page.locator('#terminalCredential')).toHaveCount(0);
 }
