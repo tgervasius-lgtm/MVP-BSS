@@ -418,6 +418,13 @@ test('svaki KPI i kompaktni brojčani sažetak ima drill-down bez slijepih karti
   }
 });
 
+test('sekundarne tablične akcije koriste neutralni enterprise chrome',()=>{
+  assert.match(styles,/Owner visual review — neutral secondary action chrome/);
+  assert.match(styles,/\.table-detail-btn,[\s\S]*?background:var\(--bss-color-bg-surface\)/);
+  assert.match(styles,/\.table-actions button:hover,[\s\S]*?background:var\(--bss-color-bg-hover\)/);
+  assert.match(styles,/\.table-detail-btn\.danger,[\s\S]*?background:var\(--bss-color-danger-soft\)/);
+});
+
 test('operativni filteri koriste neutralni sivo-bijeli active treatment',()=>{
   assert.match(styles,/Owner visual review — neutral operational filters/);
   assert.match(styles,/\.request-tabs button\.active,[\s\S]*?background:var\(--bss-color-bg-subtle\)/);
