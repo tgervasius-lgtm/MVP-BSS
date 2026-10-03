@@ -209,9 +209,6 @@ button.day:hover{outline:2px solid var(--bss-color-accent-text);outline-offset:1
 
 
 /* Visual Design Gate — workers operational checkpoint */
-.workers-summary{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:10px}
-.workers-summary>div{padding:12px 13px;border:1px solid var(--bss-color-border);border-radius:8px;background:var(--bss-color-bg-surface)}
-.workers-summary span,.workers-summary b{display:block}.workers-summary span{font-size:9px;color:var(--bss-color-text-muted)}.workers-summary b{font-size:20px;margin-top:4px;letter-spacing:-.03em}
 .workers-control-card{padding:11px}
 .workers-toolbar{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}
 .workers-toolbar input{width:100%;border:1px solid var(--bss-color-border);border-radius:8px;background:var(--bss-color-bg-surface);color:var(--bss-color-text);padding:10px 11px}
