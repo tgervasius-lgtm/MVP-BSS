@@ -86,3 +86,53 @@
 }
 @media(prefers-contrast:more){:root{--bss-color-border:#9fb9ac;--bss-color-text-muted:#48665a}.card,.table-wrap,.btn.secondary{border-width:2px}.pill{border-width:2px}}
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+
+
+/* Visual Design Gate 2026-10-03 — desktop light enterprise shell */
+@media(min-width:960px){
+  .app-shell{grid-template-columns:232px minmax(0,1fr)}
+  .desktop-sidebar{
+    background:var(--bss-color-bg-surface);
+    color:var(--bss-color-text);
+    border-right:1px solid var(--bss-color-border);
+    padding:18px 12px;
+  }
+  .side-brand{padding:2px 8px 18px}
+  .side-brand .mini-logo{
+    width:36px;height:36px;border-radius:9px;
+    background:#17212b;color:#fff;border-color:#17212b;
+  }
+  .side-brand b{font-size:15px;color:var(--bss-color-text);letter-spacing:-.01em}
+  .side-brand span{color:var(--bss-color-text-muted);letter-spacing:0;text-transform:none;font-size:9px}
+  .side-brand .version-chip{display:none}
+  .side-role{
+    margin:0 4px 12px;padding:10px 11px;border-radius:8px;
+    background:var(--bss-color-bg-subtle);
+    border:1px solid var(--bss-color-border);
+    color:var(--bss-color-text-muted)
+  }
+  .side-role b{color:var(--bss-color-text)}
+  .desktop-nav{gap:2px}
+  .desktop-nav .drawer-item{
+    min-height:38px;padding:9px 10px;border-radius:7px;
+    color:var(--bss-color-text-muted);background:transparent
+  }
+  .desktop-nav .drawer-item:hover{background:var(--bss-color-bg-hover);color:var(--bss-color-text)}
+  .desktop-nav .drawer-item.active{
+    background:var(--bss-color-accent-soft);color:var(--bss-color-accent-text)
+  }
+  .desktop-nav .drawer-item.active:before{
+    left:0;top:8px;bottom:8px;width:2px;background:var(--bss-color-accent-text)
+  }
+  .desktop-nav .nav-group-label{
+    color:var(--bss-color-text-muted);padding:11px 10px 4px
+  }
+  .desktop-nav .nav-count{background:var(--bss-color-warning-soft);color:var(--bss-color-warning)}
+  .side-footer{
+    border-top:1px solid var(--bss-color-border);
+    margin-top:auto;padding:14px 8px 2px;color:var(--bss-color-text-muted)
+  }
+  .topbar{padding:11px 22px;min-height:64px}
+  .content{padding:24px 28px 36px}
+  .section-title h1{font-size:27px;letter-spacing:-.035em}
+}
