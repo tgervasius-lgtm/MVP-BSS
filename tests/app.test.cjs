@@ -557,6 +557,18 @@ test('Sprint 2 evidencija povezuje dnevni operativni roster i dokaznu povijest',
   assert.ok(window.filteredAttendanceRecords().every(record=>record.date==='2026-07-10'&&!record.end));
 });
 
+test('Moji sati operational checkpoint zadržava mjesečni filter i correction flow',()=>{
+  const {window,document}=boot('worker');
+  window.navigate('mytime');
+  assert.equal(document.querySelectorAll('.mytime-summary-grid>button').length,4);
+  assert.ok(document.querySelector('#myTimeMonth'));
+  assert.ok(document.querySelector('#myTimeRecords'));
+  assert.ok(document.querySelector('#corrDate'));
+  assert.ok(document.querySelector('[data-bss-action="submitCorrection()"]'));
+  window.setMyTimeReview(true);
+  assert.match(document.querySelector('#content').textContent,/Zapisi za provjeru/);
+});
+
 test('detalj zapisa prikazuje smjenu, saldo i kontrolirani put korekcije',()=>{
   const {window,document}=boot('admin');
   window.navigate('attendance');
