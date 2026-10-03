@@ -443,7 +443,7 @@ const NAV_ITEMS = {
     ['vacations','▦','Godišnji tima'],['sharedLeave','◎','Zajednički godišnji'],['requests','□','Zahtjevi'],['corrections','✎','Korekcije'],['reports','⇩','Izvještaji'],['terminal','◉','Terminali']
   ],
   worker: [
-    ['home','⌂','Početna'],['mytime','◷','Moji sati'],['vacations','▦','Moj godišnji'],['sharedLeave','◎','Zajednički godišnji'],['requests','□','Moji zahtjevi'],['corrections','✎','Moje korekcije']
+    ['home','⌂','Početna'],['mytime','◷','Moji sati'],['vacations','▦','Moj godišnji'],['sharedLeave','◎','Kalendar'],['requests','□','Moji zahtjevi'],['corrections','✎','Moje korekcije']
   ],
   accountant: [
     ['home','⌂','Početna'],['reports','⇩','Izvještaji'],['sharedLeave','◎','Zajednički godišnji']
@@ -505,7 +505,7 @@ function topCopy(){
     shifts: ['Smjene','Rasporedi i pravila evidencije'],
     requests: ['Zahtjevi','Godišnji odmor i slobodni dani'],
     vacations: ['Kalendar godišnjih','Odsutnosti i raspoloživi dani'],
-    sharedLeave: ['Zajednički godišnji','Samo odobrena razdoblja u dopuštenom opsegu'],
+    sharedLeave: ['Kalendar','Odobreni godišnji u dopuštenom opsegu'],
     corrections: ['Korekcije vremena','Kontrolirane izmjene zapisa'],
     reports: ['Izvještaji','CSV i pravi XLSX export'],
     terminal: ['Terminali','Status uređaja i sinkronizacije'],
@@ -555,10 +555,10 @@ function roleOptions(){
 }
 function desktopSidebar(){
   return `<aside class="desktop-sidebar">
-    <div class="side-brand"><div class="mini-logo">B</div><div><b>BSS Smart Systems</b><span>Evidencija vremena</span></div><span class="version-chip">v${APP_VERSION}</span></div>
+    <div class="side-brand"><div class="mini-logo">B</div><div><b>BSS</b><span>Bognar Smart Systems</span></div></div>
     <div class="side-role"><b>${escapeHtml(currentWorker().name)}</b>${escapeHtml(role().label)}${state.demoMode?' · demo prikaz':''}</div>
     <nav class="desktop-nav" aria-label="Glavna navigacija">${navList(true)}</nav>
-    <div class="side-footer"><span class="system-light ${state.terminal.online?'online':'offline'}"></span>${state.terminal.online?'Terminal povezan':'Terminal nije povezan'}<br>${escapeHtml(state.company.name)} · ${APP_STAGE}</div>
+    <div class="side-footer"><span class="system-light ${state.terminal.online?'online':'offline'}"></span>${state.terminal.online?'Terminal povezan':'Terminal nije povezan'}<br>People. Work. Progress.</div>
   </aside>`;
 }
 function shell(){
