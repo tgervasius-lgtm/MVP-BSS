@@ -1281,7 +1281,7 @@ function viewVacations(){
   const departmentSummary=['admin','manager'].includes(currentRole)?departmentLeaveSummary(requests):[];
   return BSS_VIEWS.leaveCalendarOperational.vacations({
     currentRole,calendarYear,calendarMonth,calendarMode,vacationDepartment,requests,isAdmin,balanceWorkers,personalBalance,departmentSummary,
-    title,pill,escapeHtml,departmentList,calendarMonthCard,vacationBalanceVisual,requestTable,vacationBalanceSummary
+    title,escapeHtml,departmentList,calendarMonthCard,vacationBalanceVisual,requestTable,vacationBalanceSummary
   });
 }
 const SHARED_LEAVE_VISIBILITY=['team','department','organization'];
@@ -1333,7 +1333,7 @@ function sharedLeaveScopeControl(){
 function viewSharedLeave(){
   const requests=sharedLeaveRequests().filter(request=>request.start.slice(0,4)<=String(calendarYear)&&request.end.slice(0,4)>=String(calendarYear));
   return BSS_VIEWS.leaveCalendarOperational.shared({
-    currentRole,calendarYear,calendarMonth,calendarMode,requests,title,escapeHtml,calendarMonthCard,sharedLeaveScopeControl,workerById,isoLabel
+    calendarYear,calendarMonth,calendarMode,requests,title,escapeHtml,calendarMonthCard,sharedLeaveScopeControl,workerById,isoLabel
   });
 }
 function correctionValues(correction){
