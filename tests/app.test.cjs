@@ -473,9 +473,9 @@ test('login auth shell koristi neutralni enterprise treatment bez promjene login
   assert.ok(document.querySelector('#loginEmail'));
   assert.ok(document.querySelector('#loginPassword'));
   assert.ok(document.querySelector('.primary-login'));
-  assert.match(layoutsCss,/enterprise auth shell/);
-  assert.match(layoutsCss,/background:#f5f7fa/);
-  assert.match(layoutsCss,/background:#17212b/);
+  assert.match(styles,/enterprise auth shell/);
+  assert.match(styles,/background:#f5f7fa/);
+  assert.match(styles,/background:#17212b/);
 });
 
 test('desktop navigacija prikazuje samo primarne Admin stavke i puni izbornik ostaje u draweru',()=>{
