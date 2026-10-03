@@ -1278,7 +1278,7 @@ test('Design Foundation v1.0 je prihvaćen nakon Visual Design Gatea pod zamrznu
   assert.match(designFoundationDoc,/Employee terminal UX/);
   assert.match(designFoundationDoc,/Web\/PWA terminal administration/);
   assert.match(designFoundationDoc,/Acceptance of this document means \*\*DESIGN FOUNDATION ACCEPTED \/ HARDENED\*\*/);
-  assert.match(designFoundationDoc,/would not mean implementation is complete/);
+  assert.match(designFoundationDoc,/does not mean implementation is complete/);
   assert.match(designFoundationDoc,/MUST NOT be marked ACCEPTED.*Visual Design Gate/);
   assert.match(designFoundationDoc,/AI-generated mockups.*IDEA \/ RESEARCH only/);
   assert.match(designFoundationDoc,/not generic placeholder dashboards or prose-only descriptions/);
