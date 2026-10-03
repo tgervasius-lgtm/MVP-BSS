@@ -504,6 +504,20 @@ test('desktop navigacija prikazuje samo primarne Admin stavke i puni izbornik os
   for(const label of ['Smjene','Godišnji','Korekcije','Terminali','Prava pristupa','Audit log','Postavke']) assert.match(drawer,new RegExp(label));
 });
 
+test('Detalj radnika operational checkpoint zadržava profile RFID i access granice',()=>{
+  const admin=boot('admin');
+  admin.window.openWorker(1);
+  assert.ok(admin.document.querySelector('.worker-detail-workspace'));
+  assert.equal(admin.document.querySelectorAll('.worker-detail-tabs .tab').length,4);
+  assert.ok(admin.document.querySelector('.worker-detail-grid'));
+  admin.window.setWorkerDetailTab('RFID kartica');
+  assert.match(admin.document.querySelector('.worker-rfid-card').textContent,/RFID UID/);
+  const manager=boot('manager');
+  manager.window.openWorker(1);
+  assert.equal(manager.document.querySelectorAll('.worker-detail-tabs .tab').length,3);
+  assert.doesNotMatch(manager.document.querySelector('.worker-detail-workspace').textContent,/Korisnički pristup/);
+});
+
 test('Radnici operational lista skriva RFID iz glavne tablice ali ga zadržava u detalju radnika',()=>{
   const {window,document}=boot('admin');
   window.navigate('workers');
