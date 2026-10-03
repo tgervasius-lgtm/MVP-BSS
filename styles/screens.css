@@ -1282,3 +1282,92 @@ button.day:hover{outline:2px solid var(--bss-color-accent-text);outline-offset:1
   .audit-summary>div:nth-last-child(-n+2),
   .access-summary>button:nth-last-child(-n+2){border-bottom:0}
 }
+
+
+/* Owner visual review pass 2 — personal/admin summary consistency */
+.mytime-summary-card{
+  padding:0;
+  overflow:hidden;
+  border-radius:7px;
+}
+.mytime-summary-head{
+  padding:12px 13px;
+  border-bottom:1px solid var(--bss-color-border);
+}
+.mytime-summary-grid{
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:0;
+  margin-top:0;
+  border-bottom:1px solid var(--bss-color-border);
+}
+.mytime-summary-grid>button{
+  min-height:70px;
+  padding:11px 12px;
+  border:0;
+  border-right:1px solid var(--bss-color-border);
+  border-radius:0;
+}
+.mytime-summary-grid>button:last-child{border-right:0}
+.mytime-summary-grid>button:disabled{opacity:.6}
+.mytime-summary-grid span{font-size:var(--bss-font-size-xs)}
+.mytime-summary-grid b{
+  margin-top:4px;
+  font-size:20px;
+  letter-spacing:-.03em;
+}
+.mytime-shift-row{
+  margin:0;
+  padding:10px 13px;
+  border-top:0;
+  font-size:var(--bss-font-size-xs);
+}
+
+.settings-workspace .admin-kpis{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:0;
+  margin-bottom:10px;
+  padding:0;
+  overflow:hidden;
+  border:1px solid var(--bss-color-border);
+  border-radius:7px;
+  background:var(--bss-color-bg-surface);
+  box-shadow:none;
+}
+.settings-workspace .admin-kpis>button{
+  min-height:70px;
+  padding:11px 12px;
+  text-align:left;
+  border:0;
+  border-right:1px solid var(--bss-color-border);
+  border-radius:0;
+  background:var(--bss-color-bg-surface);
+}
+.settings-workspace .admin-kpis>button:last-child{border-right:0}
+.settings-workspace .admin-kpis>button:hover{background:var(--bss-color-bg-hover)}
+.settings-workspace .admin-kpis>button span,
+.settings-workspace .admin-kpis>button b{display:block}
+.settings-workspace .admin-kpis>button span{
+  font-size:var(--bss-font-size-xs);
+  color:var(--bss-color-text-muted);
+}
+.settings-workspace .admin-kpis>button b{
+  margin-top:4px;
+  font-size:20px;
+  letter-spacing:-.03em;
+}
+
+@media(max-width:760px){
+  .mytime-summary-grid,
+  .settings-workspace .admin-kpis{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+  .mytime-summary-grid>button,
+  .settings-workspace .admin-kpis>button{
+    border-bottom:1px solid var(--bss-color-border);
+  }
+  .mytime-summary-grid>button:nth-child(2n),
+  .settings-workspace .admin-kpis>button:nth-child(2n){border-right:0}
+  .mytime-summary-grid>button:nth-last-child(-n+2),
+  .settings-workspace .admin-kpis>button:nth-last-child(-n+2){border-bottom:0}
+}
