@@ -17,6 +17,7 @@
     'toggleAccessUser','toggleCard','toggleDemoMode','toggleDepartment','toggleHoliday','toggleJobPosition','toggleShift',
     'toggleTheme','toggleWorkerActive','updateCorrection','updateCorrectionPreview','updateReportDepartment',
     'openTerminalEvent','submitTerminalReconciliation','reloadTerminalEvents',
+    'openTerminalRotation','submitTerminalRotation','changeTerminalRotationReason','revealTerminalCredential','copyTerminalCredential',
     'updateVacationRequestPreview'
   ]);
   const allowedActions=new Set(actionNames);

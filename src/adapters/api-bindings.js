@@ -82,6 +82,7 @@
     finally{apiLoading=false;}
   }
   async function apiLogout(){
+    root.BSSTerminalCredential?.clear();
     try{await BSS_API.post('/auth/logout');}catch{/* Lokalni prikaz se zatvara i ako je sesija već istekla. */}
     logged=false;sessionContext=null;dashboardSummary=null;state=createApiState();screen='home';apiError='';render();
   }
@@ -291,7 +292,7 @@
   function apiViewTerminal(){
     const terminal=state.terminal,events=terminal.recentEvents||[];
     if(!terminal.apiId)return `${title('Terminali','Uparivanje sigurnog RFID terminala.',pill('Nije uparen'))}<section class="card"><h2>Nema uparenog terminala</h2><p>Administrator može upariti uređaj jednokratnim aktivacijskim kodom.</p>${currentRole==='admin'?'<button class="btn" data-bss-action="pairTerminal()">Upari terminal</button>':''}</section>`;
-    return `${title('Status terminala','Heartbeat i sinkronizirani RFID događaji iz backend API-ja.',pill(terminal.online?'Online':'Offline'))}<section class="card terminal-hero"><div><div class="eyebrow">${escapeHtml(terminal.location)}</div><h2>${escapeHtml(terminal.name)}</h2><p>Zadnji heartbeat: ${escapeHtml(terminal.lastHeartbeat)}</p></div>${currentRole==='admin'?`<button class="btn red" data-bss-action="revokeTerminal()">Opozovi terminal</button>`:''}</section><section class="card table-card"><div class="table-card-heading"><h2>Sinkronizirani događaji</h2>${pill(`${events.length} događaja`)}</div>${root.BSSTerminalReconciliation?.tableHtml(events)||terminalEventsTable(events,'Još nema terminalskih događaja.')}</section>`;
+    return `${title('Status terminala','Heartbeat i sinkronizirani RFID događaji iz backend API-ja.',pill(terminal.online?'Online':'Offline'))}<section class="card terminal-hero"><div><div class="eyebrow">${escapeHtml(terminal.location)}</div><h2>${escapeHtml(terminal.name)}</h2><p>Zadnji heartbeat: ${escapeHtml(terminal.lastHeartbeat)}</p></div>${currentRole==='admin'?`<button class="btn red" data-bss-action="revokeTerminal()">Opozovi terminal</button>`:''}</section>${root.BSSTerminalCredential?.controlsHtml()||''}<section class="card table-card"><div class="table-card-heading"><h2>Sinkronizirani događaji</h2>${pill(`${events.length} događaja`)}</div>${root.BSSTerminalReconciliation?.tableHtml(events)||terminalEventsTable(events,'Još nema terminalskih događaja.')}</section>`;
   }
   function apiPairTerminal(){
     if(currentRole!=='admin')return;const modal=$('#modal');
@@ -323,6 +324,8 @@
 
   root.BSSTerminalReconciliation?.configure({refresh:refreshApi});
 
+  root.BSSTerminalCredential?.configure({refresh:refreshApi});
+
   function installApiBindings(){
     root.BSS_API_ACTIVE=true;
     Object.assign(root,{
@@ -347,6 +350,7 @@
     saveJobPosition:()=>toast('Radna mjesta nisu zaseban MVP entitet.'),toggleJobPosition:()=>toast('Radna mjesta nisu zaseban MVP entitet.'),
     viewShifts:apiViewShifts,viewRoles:apiViewRoles,viewSettings:apiViewSettings,viewSharedLeave:apiViewSharedLeave,showSharedLeaveDay:apiShowSharedLeaveDay,viewTerminal:apiViewTerminal,pairTerminal:apiPairTerminalSubmit,revokeTerminal:apiRevokeTerminal,
     openTerminalEvent:root.BSSTerminalReconciliation?.open,submitTerminalReconciliation:root.BSSTerminalReconciliation?.submit,reloadTerminalEvents:root.BSSTerminalReconciliation?.reload,
+    openTerminalRotation:root.BSSTerminalCredential?.open,submitTerminalRotation:root.BSSTerminalCredential?.submit,changeTerminalRotationReason:root.BSSTerminalCredential?.changeReason,revealTerminalCredential:root.BSSTerminalCredential?.reveal,copyTerminalCredential:root.BSSTerminalCredential?.copy,
     simulateTerminalOffline:disabledDemoAction,restoreTerminal:disabledDemoAction,simulateRfid:disabledDemoAction,
     toggleTerminalConnection:disabledDemoAction,syncOfflineQueue:disabledDemoAction,toggleDemoMode:disabledDemoAction,resetDemo:disabledDemoAction
     });

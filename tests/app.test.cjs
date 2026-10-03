@@ -1909,7 +1909,7 @@ test('aplikacija povezuje vodič i offline predmemorira cijeli Design System',()
   for(const asset of ['design-system/index.html','design-system/tokens.css','design-system/guide.css','design-system/guide.js']){
     assert.match(serviceWorker,new RegExp(asset.replaceAll('.','\\.')));
   }
-  assert.match(serviceWorker,/bss-backend-mvp-v1-r4/);
+  assert.match(serviceWorker,/bss-backend-mvp-v1-r5/);
 });
 
 test('Brand Book v1.0 pokriva svih devet dogovorenih područja',()=>{
@@ -1973,7 +1973,7 @@ test('aplikacija povezuje Brand Book i cijeli paket radi offline',()=>{
     'bss-presentation-cover.svg','bss-terminal-label.svg',
     'BSS_BRAND-BOOK_v1.0_11.07.2026.pdf'
   ]) assert.match(serviceWorker,new RegExp(asset.replaceAll('.','\\.')));
-  assert.match(serviceWorker,/bss-backend-mvp-v1-r4/);
+  assert.match(serviceWorker,/bss-backend-mvp-v1-r5/);
   assert.match(serviceWorker,/path\.includes\('\/brand-book'\)/);
 });
 
@@ -2074,11 +2074,11 @@ test('Backend MVP učitava API adaptere prije aplikacije i sprema shell za offli
   ]){
     assert.match(serviceWorker,new RegExp(asset.replaceAll('.','\\.')));
   }
-  assert.match(serviceWorker,/bss-backend-mvp-v1-r4/);
+  assert.match(serviceWorker,/bss-backend-mvp-v1-r5/);
 });
 
 test('cache invalidation hotfix osvježava app shell i odmah preuzima otvorene klijente',()=>{
-  assert.match(serviceWorker,/const CACHE_NAME = 'bss-backend-mvp-v1-r4'/);
+  assert.match(serviceWorker,/const CACHE_NAME = 'bss-backend-mvp-v1-r5'/);
   assert.match(serviceWorker,/new Request\(asset,\{cache:'reload'\}\)/);
   assert.match(serviceWorker,/new Request\(request,\{cache:'no-store'\}\)/);
   assert.match(serviceWorker,/new Request\(request,\{cache:'no-cache'\}\)/);
@@ -2600,4 +2600,93 @@ test('terminal reconciliation respects role, refreshed competing decision and ev
   await h.module.open(h.item.syncEventId);assert.equal(h.document.querySelector('#terminalResolution'),null);
   assert.ok(h.context.BSSCore.views.events.parse(`openTerminalEvent('${h.item.syncEventId}')`));
   assert.ok(h.context.BSSCore.views.events.parse('submitTerminalReconciliation()'));
+});
+
+
+function terminalRotationHarness(role='admin',request=null){
+  const dom=new JSDOM('<div id="modal"></div>');
+  const terminal={apiId:'10000000-0000-4000-8000-000000000001',revision:'7',statusCode:'offline',name:'Testni terminal',location:'Ulaz'};
+  const result=()=>({terminal:{id:terminal.apiId,revision:'8',status:'offline'},deviceCredential:'synthetic-one-time-test-value',acknowledgementKey:{id:'20000000-0000-4000-8000-000000000002',version:2,derivation:'BSS-TERMINAL-ACK-KEY-V1'}});
+  const copied=[],calls=[];
+  const context=vm.createContext({document:dom.window.document,Element:dom.window.Element,BSS_API_ACTIVE:true,logged:true,currentRole:role,screen:'terminal',state:{terminal},navigator:{clipboard:{writeText:async value=>copied.push(value)}},BSS_API:{request:async(...args)=>{calls.push(args);return request?request(...args):result();}},$:selector=>dom.window.document.querySelector(selector),escapeHtml:value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char])),showModal:modal=>{context.BSSTerminalCredential.clear();modal.classList.add('open');},toast:message=>{context.message=message;}});
+  vm.runInContext(fs.readFileSync('src/adapters/api-terminal-credential.js','utf8'),context);
+  const module=context.BSSTerminalCredential;let refreshes=0;
+  module.configure({refresh:async()=>{refreshes++;return true;}});
+  const fill=(reason='normal_rotation')=>{dom.window.document.querySelector('#terminalRotationReason').value=reason;module.changeReason();dom.window.document.querySelector('#terminalRotationConfirm').checked=true;};
+  return{context,module,terminal,result,calls,copied,fill,document:dom.window.document,refreshes:()=>refreshes};
+}
+
+test('terminal rotation sends explicit reason and If-Match once without session replay; secret remains transient',async()=>{
+  for(const reason of ['normal_rotation','suspected_compromise']){
+    const h=terminalRotationHarness();await h.module.open();h.fill(reason);await h.module.submit();
+    assert.equal(h.calls.length,1);assert.equal(h.calls[0][0],`/terminals/${h.terminal.apiId}/credentials/rotate`);
+    const options=h.calls[0][1];assert.equal(options.body.reason,reason);assert.equal(options.headers['If-Match'],'"7"');assert.equal(options.retrySession,false);
+    const field=h.document.querySelector('#terminalCredential');assert.equal(field.type,'password');assert.equal(field.value,'synthetic-one-time-test-value');
+    assert.equal(JSON.stringify(h.context.state).includes(field.value),false);
+    assert.equal(h.document.querySelector('#modal').innerHTML.includes(field.value),false);
+    h.module.reveal();assert.equal(field.type,'text');await h.module.copy();assert.deepEqual(h.copied,['synthetic-one-time-test-value']);
+    h.module.clear();assert.equal(field.value,'');assert.equal(field.type,'password');await h.module.copy();assert.equal(h.copied.length,1);
+    assert.equal(h.terminal.revision,'8');
+  }
+});
+
+test('terminal rotation requires explicit confirmation and changing reason cancels that confirmation',async()=>{
+  const h=terminalRotationHarness();await h.module.open();await h.module.submit();assert.equal(h.calls.length,0);
+  h.fill();h.document.querySelector('#terminalRotationReason').value='suspected_compromise';h.module.changeReason();
+  assert.equal(h.document.querySelector('#terminalRotationConfirm').checked,false);await h.module.submit();assert.equal(h.calls.length,0);
+});
+
+test('terminal rotation prevents duplicate submissions and discards a late credential after dialog dismissal',async()=>{
+  let release;const h=terminalRotationHarness('admin',()=>new Promise(resolve=>{release=()=>resolve(h.result());}));
+  await h.module.open();h.fill();const first=h.module.submit();await h.module.submit();assert.equal(h.calls.length,1);
+  h.module.clear();release();await first;
+  assert.equal(h.document.querySelector('#terminalCredential'),null);assert.match(h.module.controlsHtml(),/prikaz je zatvoren/);
+});
+
+test('terminal rotation fails closed for other roles, revoked devices and missing revisions',async()=>{
+  for(const role of ['manager','worker','accountant']){
+    const h=terminalRotationHarness(role);await h.module.open();await h.module.submit();assert.equal(h.module.controlsHtml(),'');assert.equal(h.calls.length,0);
+  }
+  const h=terminalRotationHarness();h.terminal.statusCode='revoked';await h.module.open();assert.equal(h.document.querySelector('#terminalRotationReason'),null);
+  h.terminal.statusCode='offline';h.terminal.revision='0';await h.module.open();assert.equal(h.calls.length,0);assert.equal(h.module.controlsHtml(),'');
+});
+
+test('terminal rotation handles stale revision, expiry and ambiguous timeout without automatic retry or error echo',async()=>{
+  for(const error of [{code:'STALE_REVISION',status:409},{status:401},{status:429},new Error('sensitive-server-value')]){
+    const h=terminalRotationHarness('admin',async()=>{throw error;});await h.module.open();h.fill();await h.module.submit();await h.module.submit();
+    assert.equal(h.calls.length,1);assert.equal(h.refreshes(),2);assert.equal(h.document.querySelector('#terminalCredential'),null);
+    assert.equal(h.module.controlsHtml().includes('sensitive-server-value'),false);
+    if(!error.status)assert.match(h.module.controlsHtml(),/Ishod rotacije nije poznat/);
+    if(error.code==='STALE_REVISION')assert.match(h.module.controlsHtml(),/u međuvremenu promijenjen/);
+  }
+});
+
+test('terminal rotation rejects mismatched response and registers the actual UI actions',async()=>{
+  const h=terminalRotationHarness('admin',async()=>({...h.result(),terminal:{...h.result().terminal,id:'wrong-id'}}));
+  await h.module.open();h.fill();await h.module.submit();assert.equal(h.document.querySelector('#terminalCredential'),null);assert.match(h.module.controlsHtml(),/Ishod rotacije nije poznat/);
+  vm.runInContext(fs.readFileSync('src/views/events.js','utf8'),h.context);
+  for(const action of ['openTerminalRotation','submitTerminalRotation','changeTerminalRotationReason','revealTerminalCredential','copyTerminalCredential'])assert.ok(h.context.BSSCore.views.events.parse(`${action}()`));
+});
+
+test('render, modal replacement, closing and API logout clear terminal credential references',async()=>{
+  const app=boot();const credentialSource=fs.readFileSync('src/adapters/api-terminal-credential.js','utf8');app.evaluate(credentialSource);
+  let cleared=0;app.window.BSSTerminalCredential={clear:()=>{cleared++;}};
+  app.window.render();app.window.showModal(app.document.querySelector('#modal'));app.window.closeModal();app.window.navigate('terminal');
+  assert.equal(cleared,4);
+  const bindings=fs.readFileSync('src/adapters/api-bindings.js','utf8');
+  assert.match(bindings,/async function apiLogout\(\)\{\s*root\.BSSTerminalCredential\?\.clear\(\);\s*try\{await BSS_API\.post/);
+});
+
+test('failed session refresh consumes its response body and never replays the protected request',async()=>{
+  let protectedCalls=0,refreshCalls=0,consumed=0;
+  const api=loadAdapter(apiAdapterSource,{fetch:async url=>{
+    if(String(url).endsWith('/auth/refresh')){
+      refreshCalls++;
+      return{ok:false,status:401,text:async()=>{consumed++;return'{"code":"UNAUTHENTICATED"}';}};
+    }
+    protectedCalls++;
+    return{ok:false,status:401,json:async()=>({code:'UNAUTHENTICATED',message:'Prijava je potrebna.'})};
+  }}).api;
+  await assert.rejects(api.get('/workers'),error=>error.status===401&&error.code==='UNAUTHENTICATED');
+  assert.equal(protectedCalls,1);assert.equal(refreshCalls,1);assert.equal(consumed,1);
 });

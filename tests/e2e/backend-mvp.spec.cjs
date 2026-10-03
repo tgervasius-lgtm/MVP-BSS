@@ -3,19 +3,26 @@ const {randomUUID}=require('node:crypto');
 const {test,expect}=require('@playwright/test');
 const {AxeBuilder}=require('@axe-core/playwright');
 
+// This full-stack file handles disposable credentials: never record browser artifacts.
+test.use({trace:'off',screenshot:'off',video:'off'});
+
 const adminEmail=process.env.BSS_BOOTSTRAP_ADMIN_EMAIL;
 const adminPassword=process.env.BSS_BOOTSTRAP_ADMIN_PASSWORD;
 
 function trackErrors(page){
-  const errors=[];
+  const errors=[],pending=new Map();
+  Object.defineProperty(errors,'pending',{value:pending});
+  page.on('request',request=>{if(new URL(request.url()).pathname.startsWith('/api/'))pending.set(request,null);});
+  page.on('requestfinished',request=>pending.delete(request));
   page.on('pageerror',error=>errors.push(`page: ${error.message}`));
   page.on('console',message=>{
     if(message.type()==='error'&&!message.text().startsWith('Failed to load resource:')){
       errors.push(`console: ${message.text()}`);
     }
   });
-  page.on('requestfailed',request=>errors.push(`request: ${request.url()} · ${request.failure()?.errorText||'failed'}`));
+  page.on('requestfailed',request=>{pending.delete(request);errors.push(`request: ${request.url()} · ${request.failure()?.errorText||'failed'}`);});
   page.on('response',response=>{
+    if(pending.has(response.request()))pending.set(response.request(),response.status());
     if(response.status()>=500)errors.push(`response: ${response.status()} · ${response.url()}`);
   });
   return errors;
@@ -42,7 +49,9 @@ test('full-stack prije autentikacije posluĹľuje login ljusku stvarnog backenda
   await expect(page.locator('#loginIdentity')).toHaveCount(0);
 });
 
-test('stvarni PostgreSQL backend prijavljuje administratora i otvara svaki ugovoreni ekran',async({page})=>{
+test.describe('administratorski ekran i terminalska sigurnost',()=>{
+// Do not capture one-time credentials, including disposable test credentials.
+test('stvarni PostgreSQL backend prijavljuje administratora i otvara svaki ugovoreni ekran',async({page},testInfo)=>{
   const errors=trackErrors(page);
   const response=await page.goto('/');
   expect(response?.headers()['cache-control']).toContain('no-store');
@@ -73,7 +82,10 @@ test('stvarni PostgreSQL backend prijavljuje administratora i otvara svaki ugovo
     .filter(item=>['serious','critical'].includes(item.impact));
   expect(violations).toEqual([]);
   await assertTerminalReconciliationDetail(page);
+  if(testInfo.project.name==='desktop-chromium')await assertTerminalRotation(page,errors.pending);
   expect(errors).toEqual([]);
+});
+
 });
 
 test('radnik spremljen kroz UI odmah dolazi iz stvarnog API-ja i PostgreSQL baze',async({page},testInfo)=>{
@@ -122,3 +134,34 @@ async function assertTerminalReconciliationDetail(page){
   await expect(page.getByRole('dialog')).not.toBeVisible();
 }
 
+
+// Shared E2E tenant exposes one selected terminal: run the mutation only on desktop.
+async function assertTerminalRotation(page,pending){
+    const paired=await page.evaluate(async activationCode=>{
+      const response=await fetch('/api/v1/terminals/pair',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:'E2E rotation terminal',location:'Isolated test',activationCode})});
+      const data=await response.json();data.deviceCredential='';return response.ok;
+    },process.env.TERMINAL_ACTIVATION_CODE);
+    expect(paired).toBe(true);
+    await expect.poll(()=>[...pending].map(([request,status])=>({path:new URL(request.url()).pathname,status})),{message:'API requests must finish before explicit reload'}).toEqual([]);
+    await page.reload();
+    await page.waitForFunction(()=>window.BSS_API_ACTIVE===true);
+    await expect(page.locator('#content .screen')).toBeVisible();
+    await page.evaluate(()=>window.navigate('terminal'));
+    await page.getByRole('button',{name:'Rotiraj vjerodajnicu',exact:true}).click();
+    await page.locator('#terminalRotationReason').selectOption('normal_rotation');
+    await expect(page.locator('#terminalRotationConfirm')).not.toBeChecked();
+    await page.locator('#terminalRotationConfirm').check();
+    await page.getByRole('button',{name:'Potvrdi rotaciju',exact:true}).click();
+    await expect(page.getByRole('heading',{name:'Vjerodajnica je rotirana'})).toBeVisible();
+    await expect(page.locator('#terminalCredential')).toHaveAttribute('type','password');
+    expect(await page.locator('#terminalCredential').evaluate(element=>element.value.length>20)).toBe(true);
+    await page.getByRole('button',{name:'Prikaži tajnu',exact:true}).click();
+    await expect(page.locator('#terminalCredential')).toHaveAttribute('type','text');
+    await page.getByRole('button',{name:'Zatvori i ukloni prikaz',exact:true}).click();
+    expect(await page.locator('#terminalCredential').evaluate(element=>element.value.length===0)).toBe(true);
+    await expect.poll(()=>[...pending].map(([request,status])=>({path:new URL(request.url()).pathname,status})),{message:'API requests must finish before explicit reload'}).toEqual([]);
+    await page.reload();
+    await page.waitForFunction(()=>window.BSS_API_ACTIVE===true);
+    await expect(page.locator('#content .screen')).toBeVisible();
+    await expect(page.locator('#terminalCredential')).toHaveCount(0);
+}
