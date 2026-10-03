@@ -1,7 +1,7 @@
 # BSS OS Control Board
 
 Last reviewed: 2026-09-20
-Operating phase: `DESIGN FOUNDATION PHASE B / #156 — PROPOSAL MERGED / NOT ACCEPTED; VISUAL DESIGN GATE + OWNER ACCEPTANCE PENDING`
+Operating phase: `POST-DESIGN-FOUNDATION / CONTRACT-GAP RECONCILIATION + OM-01 ACTIVATION`
 
 Protected-main evidence baseline on 2026-09-20, before this #166 documentation refresh: `b71710890de1f36c3b9aff6fd38f0e846963f41c`. PR #164 is MERGED and #163 is CLOSED/COMPLETED; PR #165 is MERGED and #162 is CLOSED/COMPLETED; PR #161 merged the proposal at `4fac30bb7112d765e4f3eefd717f5f0f041086a0`. Later CI-maintenance PRs #104/#169 advanced `main` without accepting the Design Foundation. #156 remains OPEN. This refresh does not authorize a general development restart; the design/product gate sequence below remains subject to explicit BSS OS activation.
 
@@ -129,7 +129,7 @@ Roadmap v4.9 originally routed the accepted execution order through:
 1. AUDIT A;
 2. #131 — freeze the BSS v1 Product Contract before Design Foundation.
 
-AUDIT A then found four concrete BLACK/GATE defects. Applying the accepted gap-audit/reopen rule inserted #143, #145, #144 and #146 before a targeted AUDIT A recheck; this preserves rather than rewrites the historical v4.9 route. All four issues are merged/closed, #133 records the targeted recheck as PASS on `b904eca`, and BSS v1 Product Contract v1.0 is explicitly owner-approved and frozen. PR #155 then integrated the frozen contract into protected `main` at `29b00c0`; #131 is CLOSED/COMPLETED. #156 Phase A is complete; #157 reconciliation is CLOSED/COMPLETED and PR #158 merged at the historical baseline `02a76abe48e750932fbf3002d1ef2dd10ed8881a`. PR #161 is MERGED and `BSS_DESIGN_FOUNDATION_V1.md` exists, with proposal status `PROPOSED / NOT ACCEPTED`; the Visual Design Gate and explicit owner/BSS OS acceptance are mandatory before Design Foundation can become ACCEPTED. Figma and Storybook remain `CANDIDATE / INACTIVE`, and proposal status authorizes no frontend implementation.
+AUDIT A then found four concrete BLACK/GATE defects. Applying the accepted gap-audit/reopen rule inserted #143, #145, #144 and #146 before a targeted AUDIT A recheck; this preserves rather than rewrites the historical v4.9 route. All four issues are merged/closed, #133 records the targeted recheck as PASS on `b904eca`, and BSS v1 Product Contract v1.0 is explicitly owner-approved and frozen. PR #155 then integrated the frozen contract into protected `main` at `29b00c0`; #131 is CLOSED/COMPLETED. #156 Phase A is complete; #157 reconciliation is CLOSED/COMPLETED and PR #158 merged at the historical baseline `02a76abe48e750932fbf3002d1ef2dd10ed8881a`. PR #161 remains the historical proposal merge. Visual Design Gate owner review completed on 03.10.2026; PR #183 is MERGED and `BSS_DESIGN_FOUNDATION_V1.md` v1.0 is now `ACCEPTED / HARDENED`. Issue #156 is CLOSED/COMPLETED. Later focused frontend visual implementation, including #223/#224, does not imply all contract-defined gaps are implemented and does not promote Staging/Pilot/Production readiness. Figma and Storybook remain `CANDIDATE / INACTIVE`. OM-01 Operations Foundation architecture is activated as #225.
 
 The global A-V ownership map, H1-H11 hardening routes, formal AUDIT A-D gates, Production Readiness Evidence Track, decision maturity/reversibility rules and cost/vendor activation discipline are codified in `docs/bss-os/MASTER_ROADMAP.md`. Mutable plan limits and paid triggers are tracked in `docs/bss-os/TOOL_SERVICE_COST_REGISTER.md`. These documents do not convert governance hardening into implementation or readiness evidence.
 
@@ -144,7 +144,7 @@ The global A-V ownership map, H1-H11 hardening routes, formal AUDIT A-D gates, P
 - #115 retains the repository-level Dependabot settings follow-up without being placed ahead of the accepted critical path.
 - PR #28: compare against current `main`, split useful hardware/API/QA/container/handoff work into focused PRs and close the historical draft.
 - PR #30: reconstruct Preview Portal from current `main`; do not merge the old 146-commit branch wholesale.
-- Staging and later readiness work retain their existing evidence gates and are not placed ahead of the current `Visual Design Gate -> explicit owner/BSS OS Design Foundation acceptance` gate.
+- Staging and later readiness work retain their existing evidence gates. The Design Foundation acceptance gate is complete; current work is contract-defined implementation-gap reconciliation plus OM-01 architecture before Production-like Staging / AUDIT B.
 
 ## Active legacy pull request portfolio
 
