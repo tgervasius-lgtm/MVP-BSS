@@ -532,6 +532,14 @@ test('kalendar koristi jednu period kontrolu bez duplog mjeseca iznad sadržaja'
   assert.match(styles,/\.month-view>\.month-card>h3\{display:none\}/);
 });
 
+test('visual pass 2 zadržava oštriji calendar i leave surface treatment',()=>{
+  assert.match(styles,/Owner visual review pass 2 — calendar and leave surface sharpness/);
+  assert.match(styles,/\.leave-calendar-card \.month-card,[\s\S]*?border-radius:7px/);
+  assert.match(styles,/\.month-view \.day\{[\s\S]*?border-radius:5px/);
+  assert.match(styles,/\.leave-request-card\{[\s\S]*?border-radius:7px/);
+  assert.match(styles,/\.leave-request-body>div,[\s\S]*?border-radius:6px/);
+});
+
 test('visual pass 2 uklanja dupli count i iz attendance/request headinga',()=>{
   const admin=boot('admin');
   admin.window.navigate('attendance');
