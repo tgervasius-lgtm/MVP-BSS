@@ -1276,24 +1276,14 @@ function vacationBalanceVisual(balance,year){
 }
 function viewVacations(){
   const requests=calendarRequests().filter(request=>request.start.slice(0,4)<=String(calendarYear)&&request.end.slice(0,4)>=String(calendarYear));
-  const isAdmin=currentRole==='admin';
-  const titleText=currentRole==='worker'?'Moj godišnji kalendar':currentRole==='manager'?'Kalendar mojeg tima':currentRole==='accountant'?'Odobrene odsutnosti':'Godišnji kalendar cijele firme';
-  const subtitle=currentRole==='worker'?'':isAdmin?'Svi radnici uz filtar odjela.':'Odobrena razdoblja u dopuštenom opsegu.';
-  const label=calendarMode==='year'?String(calendarYear):new Date(calendarYear,calendarMonth,1).toLocaleDateString('hr-HR',{month:'long',year:'numeric'});
-  const calendar=calendarMode==='year'?`<div class="year-calendar">${Array.from({length:12},(_,month)=>calendarMonthCard(calendarYear,month,requests)).join('')}</div>`:`<div class="month-view">${calendarMonthCard(calendarYear,calendarMonth,requests,true)}</div>`;
-  const balanceWorkers=['accountant','worker'].includes(currentRole)?[]:visibleWorkers().filter(worker=>worker.active&&(vacationDepartment==='Svi'||worker.dept===vacationDepartment));
+  const isAdmin=currentRole==='admin',balanceWorkers=['accountant','worker'].includes(currentRole)?[]:visibleWorkers().filter(worker=>worker.active&&(vacationDepartment==='Svi'||worker.dept===vacationDepartment));
   const personalBalance=currentRole==='worker'?vacationBalanceSummary(currentWorker().id,calendarYear):null;
-  const pendingVisible=currentRole!=='accountant';
   const departmentSummary=['admin','manager'].includes(currentRole)?departmentLeaveSummary(requests):[];
-  return `${title(titleText,subtitle,`${pill(String(calendarYear))}<button class="btn secondary" data-bss-action="navigate('sharedLeave')">Zajednički godišnji</button>`)}
-    <div class="card"><div class="calendar-toolbar"><div class="calendar-controls"><button data-bss-action="changeCalendarPeriod(-1)" aria-label="Prethodno">‹</button><b>${escapeHtml(label)}</b><button data-bss-action="changeCalendarPeriod(1)" aria-label="Sljedeće">›</button></div><div class="view-switch"><button class="${calendarMode==='month'?'active':''}" data-bss-action="setCalendarMode('month')">Mjesec</button><button class="${calendarMode==='year'?'active':''}" data-bss-action="setCalendarMode('year')">Godina</button></div>${isAdmin?`<select class="calendar-filter" data-bss-change="setVacationDepartment(this.value)"><option value="Svi" ${vacationDepartment==='Svi'?'selected':''}>Svi odjeli</option>${departmentList().map(dept=>`<option ${vacationDepartment===dept?'selected':''}>${escapeHtml(dept)}</option>`).join('')}</select>`:''}</div></div>
-    ${personalBalance?vacationBalanceVisual(personalBalance,calendarYear):''}
-    ${departmentSummary.length?`<section class="card table-card"><div class="table-card-heading"><div><h2>Kapacitet po odjelima</h2></div></div><div class="table-wrap"><table class="compact-table department-capacity-table"><thead><tr><th>Odjel</th><th>Radnici</th><th>Odobreni dani</th><th>Na čekanju</th><th>Preklapanja</th><th>Detalji</th></tr></thead><tbody>${departmentSummary.map(item=>`<tr><td><b>${escapeHtml(item.department)}</b></td><td>${item.workers}</td><td>${item.approvedDays}</td><td>${item.pending}</td><td><b class="${item.conflicts?'negative':'positive'}">${item.conflicts}</b></td><td><button class="table-detail-btn" data-bss-action="setVacationDepartment('${escapeHtml(item.department)}')">Prikaži</button></td></tr>`).join('')}</tbody></table></div></section>`:''}
-    <div class="card calendar-card">${calendar}<div class="calendar-legend"><span><i class="legend-dot approved"></i>Odobreno</span>${pendingVisible?'<span><i class="legend-dot pending"></i>Na čekanju</span>':''}<span><i class="legend-dot mixed"></i>Više statusa</span></div></div>
-    ${balanceWorkers.length?`<section class="card table-card"><div class="table-card-heading"><div><h2>Stanje godišnjeg odmora ${calendarYear}.</h2></div></div><div class="table-wrap"><table class="compact-table vacation-balance-table"><thead><tr><th>Radnik</th><th>Fond</th><th>Odobreno</th><th>Rezervirano</th><th>Preostalo</th><th>Dostupno</th><th>Detalji</th></tr></thead><tbody>${balanceWorkers.map(worker=>{const balance=vacationBalanceSummary(worker.id,calendarYear);return `<tr><td><b>${escapeHtml(worker.name)}</b><br><span class="small-muted">${escapeHtml(worker.dept)}</span></td><td>${balance.allowance}</td><td>${balance.used}</td><td>${balance.reserved}</td><td>${balance.remaining}</td><td><b>${balance.available}</b></td><td><button class="table-detail-btn" data-bss-action="openWorker(${worker.id})">Otvori</button></td></tr>`;}).join('')}</tbody></table></div></section>`:''}
-    <section class="card table-card"><div class="table-card-heading"><div><h2>${currentRole==='worker'?'Moja aktivna razdoblja':'Planirane odsutnosti'}</h2></div>${pill(`${requests.length} razdoblja`)}</div>${requestTable(requests.slice().sort((a,b)=>a.start.localeCompare(b.start)),false)}</section>${currentRole==='worker'?'<button class="btn block" data-bss-action="navigate(\'requests\')">Pošalji novi zahtjev</button>':''}`;
+  return BSS_VIEWS.leaveCalendarOperational.vacations({
+    currentRole,calendarYear,calendarMonth,calendarMode,vacationDepartment,requests,isAdmin,balanceWorkers,personalBalance,departmentSummary,
+    title,pill,escapeHtml,departmentList,calendarMonthCard,vacationBalanceVisual,requestTable,vacationBalanceSummary
+  });
 }
-
 const SHARED_LEAVE_VISIBILITY=['team','department','organization'];
 function sharedLeaveVisibility(){
   return SHARED_LEAVE_VISIBILITY.includes(state.sharedLeaveVisibility)?state.sharedLeaveVisibility:'department';
@@ -1342,15 +1332,10 @@ function sharedLeaveScopeControl(){
 }
 function viewSharedLeave(){
   const requests=sharedLeaveRequests().filter(request=>request.start.slice(0,4)<=String(calendarYear)&&request.end.slice(0,4)>=String(calendarYear));
-  const label=calendarMode==='year'?String(calendarYear):new Date(calendarYear,calendarMonth,1).toLocaleDateString('hr-HR',{month:'long',year:'numeric'});
-  const calendar=calendarMode==='year'?`<div class="year-calendar shared-year-calendar">${Array.from({length:12},(_,month)=>calendarMonthCard(calendarYear,month,requests,false,'showSharedLeaveDay',true)).join('')}</div>`:`<div class="month-view">${calendarMonthCard(calendarYear,calendarMonth,requests,true,'showSharedLeaveDay',true)}</div>`;
-  return `${title('Zajednički kalendar godišnjih','Samo odobreni godišnji odmori.',`${pill('Frontend demo')} ${pill(String(calendarYear))}`)}
-    <section class="card shared-leave-scope-card">${sharedLeaveScopeControl()}<p>Samo ime i odobreno razdoblje. Bez bolovanja, napomena i drugih privatnih podataka.</p></section>
-    <div class="card"><div class="calendar-toolbar"><div class="calendar-controls"><button data-bss-action="changeCalendarPeriod(-1)" aria-label="Prethodno">‹</button><b>${escapeHtml(label)}</b><button data-bss-action="changeCalendarPeriod(1)" aria-label="Sljedeće">›</button></div><div class="view-switch"><button class="${calendarMode==='month'?'active':''}" data-bss-action="setCalendarMode('month')">Mjesec</button><button class="${calendarMode==='year'?'active':''}" data-bss-action="setCalendarMode('year')">Godina</button></div></div></div>
-    <section class="card calendar-card shared-leave-calendar">${calendar}<div class="calendar-legend"><span><i class="legend-dot approved"></i>Odobreni godišnji</span></div></section>
-    <section class="card table-card" id="sharedLeaveDetails" tabindex="-1"><div class="table-card-heading"><div><h2>Odobrena razdoblja</h2></div>${pill(`${requests.length} razdoblja`)}</div><div class="table-wrap"><table class="compact-table shared-leave-table"><thead><tr><th>Zaposlenik</th><th>Od</th><th>Do</th></tr></thead><tbody>${requests.map(request=>`<tr><td><b>${escapeHtml(workerById(request.workerId)?.name||'Radnik')}</b></td><td>${escapeHtml(isoLabel(request.start))}</td><td>${escapeHtml(isoLabel(request.end))}</td></tr>`).join('')||'<tr><td colspan="3"><div class="empty-state">Nema odobrenih godišnjih u dopuštenom opsegu.</div></td></tr>'}</tbody></table></div></section>`;
+  return BSS_VIEWS.leaveCalendarOperational.shared({
+    currentRole,calendarYear,calendarMonth,calendarMode,requests,title,escapeHtml,calendarMonthCard,sharedLeaveScopeControl,workerById,isoLabel
+  });
 }
-
 function correctionValues(correction){
   const oldValue=`${correction.oldStart||'—'} – ${correction.oldEnd||'—'}`;
   const newValue=`${correction.newStart||'—'} – ${correction.newEnd||'—'}`;
