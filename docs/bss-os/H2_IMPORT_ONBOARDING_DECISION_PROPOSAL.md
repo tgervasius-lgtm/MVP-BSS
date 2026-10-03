@@ -32,16 +32,16 @@ Reproduce from the repository root after the existing backend dependencies are i
 node backend/scripts/experiments/worker-import-capacity.mjs
 ```
 
-The [raw observation record](evidence/H2_IMPORT_PARSER_EXPERIMENT_2026-10-04.json) contains script/lockfile hashes, 18 measurements, fixture hashes and runtime identity. All fixtures are generated synthetic employees at `example.invalid`; temporary files are removed. Three fresh child processes per row-count/format avoid counting fixture generation as parser memory. Parsing and scanning are measured after module loading; process wall time also includes child startup/module loading. Peak RSS is the whole child process, not an allocation delta or a hard memory bound. This single exploratory sample does not establish percentiles, sustained throughput or a service SLA.
+The [raw observation record](evidence/H2_IMPORT_PARSER_EXPERIMENT_2026-10-04.json) contains script/lockfile hashes, 18 measurements, fixture hashes and runtime identity. All fixtures are generated synthetic employees at `example.invalid` and sent to children through bounded stdin; no temporary fixture files or CLI input paths are used. Three fresh child processes per row-count/format avoid counting fixture generation as parser memory. Parsing and scanning are measured after module loading; process wall time also includes child startup/module loading. Peak RSS is the whole child process, not an allocation delta or a hard memory bound. This single exploratory sample does not establish percentiles, sustained throughput or a service SLA.
 
 | Format / data rows | Input bytes | Parse + scan range (ms) | Maximum process wall (ms) | Maximum peak RSS (MiB) |
 |---|---:|---:|---:|---:|
-| CSV / 100 | 7,637 | 12.15–14.74 | 201.64 | 59.59 |
-| CSV / 1,000 | 77,839 | 20.73–29.74 | 221.19 | 71.07 |
-| CSV / 5,000 | 397,839 | 83.35–99.71 | 306.09 | 100.36 |
-| XLSX / 100 | 9,760 | 30.84–37.01 | 230.33 | 62.11 |
-| XLSX / 1,000 | 38,388 | 64.02–73.97 | 282.16 | 70.49 |
-| XLSX / 5,000 | 163,061 | 200.20–212.61 | 404.59 | 117.55 |
+| CSV / 100 | 7,637 | 12.94–14.86 | 207.70 | 60.00 |
+| CSV / 1,000 | 77,839 | 28.95–31.21 | 224.18 | 73.42 |
+| CSV / 5,000 | 397,839 | 61.64–82.81 | 293.02 | 100.29 |
+| XLSX / 100 | 9,760 | 31.74–37.28 | 232.95 | 62.40 |
+| XLSX / 1,000 | 38,388 | 71.72–76.25 | 277.25 | 69.87 |
+| XLSX / 5,000 | 163,061 | 195.05–218.88 | 412.70 | 123.38 |
 
 Runtime: Node `v24.19.0`, ExcelJS `4.4.0`, Linux x64, eight reported available CPUs. CI uses other Node versions; the deployment runtime/hardware was not exercised. Each exploratory child had a ten-second kill timeout and 128 MiB V8 old-space setting. **V8 old-space is not a total RSS limit.** This experiment is not the future upload sandbox.
 
