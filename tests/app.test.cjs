@@ -1436,6 +1436,8 @@ test('contract gap #232 veže službeni report preview i export verification na 
   assert.match(source,/reportHistoryAuthorityAction/);
   assert.match(styles,/Contract gap #232 — authoritative reports and export verification/);
   assert.match(html,/src\/adapters\/api-report-authority\.js/);
+  assert.match(serviceWorker,/src\/adapters\/api-attendance-lifecycle\.js/);
+  assert.match(serviceWorker,/src\/adapters\/api-report-authority\.js/);
 });
 
 test('server-authoritative report preview ne koristi lokalni preview kao fallback uspjeha u API modu',()=>{
