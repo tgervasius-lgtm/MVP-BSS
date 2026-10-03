@@ -28,7 +28,8 @@ const coreSources = [
   'src/views/reports-operational.js',
   'src/views/leave-calendar-operational.js',
   'src/views/home-operational.js',
-  'src/views/terminal-operational.js'
+  'src/views/terminal-operational.js',
+  'src/views/access-operational.js'
 ].map(path=>fs.readFileSync(path,'utf8'));
 const styleEntry = fs.readFileSync('styles.css','utf8');
 const styleLayerPaths = [
@@ -929,6 +930,16 @@ test('korisničke uloge, reset i blokiranje imaju zaštitne granice i audit trag
   for(const checkbox of document.querySelectorAll('.accessDept')) checkbox.checked=checkbox.value==='Proizvodnja';
   window.saveAccessUser(2);
   assert.equal(evaluate('JSON.stringify(ROLE_CONFIG.manager.departments)'),'["Proizvodnja"]');
+});
+
+test('Prava pristupa operational checkpoint zadržava sigurnosne akcije i role evidence',()=>{
+  const {window,document}=boot('admin');
+  window.navigate('roles');
+  assert.equal(document.querySelectorAll('.access-summary>button').length,4);
+  assert.equal(document.querySelectorAll('.permission-table tbody tr').length,4);
+  assert.ok(document.querySelector('[data-bss-action^="openAccessModal("]'));
+  assert.ok(document.querySelector('[data-bss-action^="sendPasswordReset("]'));
+  assert.match(document.querySelector('.access-boundary-note').textContent,/backendu/);
 });
 
 test('pozivnica provjerava email i odjel te se može poništiti bez slanja emaila',()=>{
