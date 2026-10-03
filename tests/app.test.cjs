@@ -1238,12 +1238,14 @@ test('Design System v1.0 ima jedinstvene primitive i semantičke tokene za obje 
   assert.match(designSystemDoc,/Refactor v1 R5 dovršio je prijelaz na semantičke/);
 });
 
-test('Design Foundation v1.0 ostaje prijedlog pod zamrznutim Product Contract autoritetom',()=>{
+test('Design Foundation v1.0 je prihvaćen nakon Visual Design Gatea pod zamrznutim Product Contract autoritetom',()=>{
   assert.match(designFoundationDoc,/Name \| BSS v1 Design Foundation/);
   assert.match(designFoundationDoc,/Version \| 1\.0/);
-  assert.match(designFoundationDoc,/Status \| \*\*PROPOSED \/ NOT ACCEPTED\*\*/);
+  assert.match(designFoundationDoc,/Status \| \*\*ACCEPTED \/ HARDENED\*\*/);
   assert.match(designFoundationDoc,/BSS_V1_PRODUCT_CONTRACT\.md.*ACCEPTED \/ FROZEN/);
   assert.match(productContractDoc,/\| Status \| \*\*ACCEPTED \/ FROZEN\*\* \|/);
+  assert.match(designFoundationDoc,/Visual Design Gate acceptance — 03\.10\.2026/);
+  assert.match(designFoundationDoc,/Shared approved-leave calendar visibility is already part of the frozen Product Contract/);
 
   for(const role of ['Admin','Voditelj','Radnik','Knjigovodstvo']) {
     assert.match(designFoundationDoc,new RegExp(`\\*\\*${role}\\*\\*`));
@@ -1275,8 +1277,8 @@ test('Design Foundation v1.0 ostaje prijedlog pod zamrznutim Product Contract au
   assert.match(designFoundationDoc,/Neither tool is product authority/);
   assert.match(designFoundationDoc,/Employee terminal UX/);
   assert.match(designFoundationDoc,/Web\/PWA terminal administration/);
-  assert.match(designFoundationDoc,/Acceptance of this document would mean only \*\*DESIGN FOUNDATION ACCEPTED\*\*/);
-  assert.match(designFoundationDoc,/would not mean implementation is complete/);
+  assert.match(designFoundationDoc,/Acceptance of this document means \*\*DESIGN FOUNDATION ACCEPTED \/ HARDENED\*\*/);
+  assert.match(designFoundationDoc,/does not mean implementation is complete/);
   assert.match(designFoundationDoc,/MUST NOT be marked ACCEPTED.*Visual Design Gate/);
   assert.match(designFoundationDoc,/AI-generated mockups.*IDEA \/ RESEARCH only/);
   assert.match(designFoundationDoc,/not generic placeholder dashboards or prose-only descriptions/);
