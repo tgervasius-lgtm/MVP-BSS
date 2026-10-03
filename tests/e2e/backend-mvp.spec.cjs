@@ -10,14 +10,17 @@ const adminEmail=process.env.BSS_BOOTSTRAP_ADMIN_EMAIL;
 const adminPassword=process.env.BSS_BOOTSTRAP_ADMIN_PASSWORD;
 
 function trackErrors(page){
-  const errors=[];
+  const errors=[],pending=new Set();
+  Object.defineProperty(errors,'pending',{value:pending});
+  page.on('request',request=>{if(new URL(request.url()).pathname.startsWith('/api/'))pending.add(request);});
+  page.on('requestfinished',request=>pending.delete(request));
   page.on('pageerror',error=>errors.push(`page: ${error.message}`));
   page.on('console',message=>{
     if(message.type()==='error'&&!message.text().startsWith('Failed to load resource:')){
       errors.push(`console: ${message.text()}`);
     }
   });
-  page.on('requestfailed',request=>errors.push(`request: ${request.url()} · ${request.failure()?.errorText||'failed'}`));
+  page.on('requestfailed',request=>{pending.delete(request);errors.push(`request: ${request.url()} · ${request.failure()?.errorText||'failed'}`);});
   page.on('response',response=>{
     if(response.status()>=500)errors.push(`response: ${response.status()} · ${response.url()}`);
   });
@@ -78,7 +81,7 @@ test('stvarni PostgreSQL backend prijavljuje administratora i otvara svaki ugovo
     .filter(item=>['serious','critical'].includes(item.impact));
   expect(violations).toEqual([]);
   await assertTerminalReconciliationDetail(page);
-  if(testInfo.project.name==='desktop-chromium')await assertTerminalRotation(page);
+  if(testInfo.project.name==='desktop-chromium')await assertTerminalRotation(page,errors.pending);
   expect(errors).toEqual([]);
 });
 
@@ -132,13 +135,13 @@ async function assertTerminalReconciliationDetail(page){
 
 
 // Shared E2E tenant exposes one selected terminal: run the mutation only on desktop.
-async function assertTerminalRotation(page){
+async function assertTerminalRotation(page,pending){
     const paired=await page.evaluate(async activationCode=>{
       const response=await fetch('/api/v1/terminals/pair',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:'E2E rotation terminal',location:'Isolated test',activationCode})});
       const data=await response.json();data.deviceCredential='';return response.ok;
     },process.env.TERMINAL_ACTIVATION_CODE);
     expect(paired).toBe(true);
-    await page.waitForLoadState('networkidle');
+    await expect.poll(()=>[...pending].map(request=>new URL(request.url()).pathname),{message:'API requests must finish before explicit reload'}).toEqual([]);
     await page.reload();
     await page.waitForFunction(()=>window.BSS_API_ACTIVE===true);
     await expect(page.locator('#content .screen')).toBeVisible();
@@ -155,7 +158,7 @@ async function assertTerminalRotation(page){
     await expect(page.locator('#terminalCredential')).toHaveAttribute('type','text');
     await page.getByRole('button',{name:'Zatvori i ukloni prikaz',exact:true}).click();
     expect(await page.locator('#terminalCredential').evaluate(element=>element.value.length===0)).toBe(true);
-    await page.waitForLoadState('networkidle');
+    await expect.poll(()=>[...pending].map(request=>new URL(request.url()).pathname),{message:'API requests must finish before explicit reload'}).toEqual([]);
     await page.reload();
     await page.waitForFunction(()=>window.BSS_API_ACTIVE===true);
     await expect(page.locator('#content .screen')).toBeVisible();
