@@ -283,3 +283,44 @@ button.day:hover{outline:2px solid var(--bss-color-accent-text);outline-offset:1
 /* Visual Design Gate — audit operational checkpoint */
 .audit-summary{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:10px}.audit-summary>div{padding:11px 12px;border:1px solid var(--bss-color-border);border-radius:8px;background:var(--bss-color-bg-surface)}.audit-summary span,.audit-summary b{display:block}.audit-summary span{font-size:8px;color:var(--bss-color-text-muted)}.audit-summary b{font-size:18px;margin-top:4px}
 .audit-control-card{padding:11px}.audit-evidence-card{margin-top:10px;box-shadow:none}.audit-evidence-card td{padding-top:9px;padding-bottom:9px}
+
+
+/* Visual Design Gate — settings operational checkpoint */
+.settings-workspace .settings-tabs{
+  display:flex;gap:4px;margin:0 0 10px;padding:4px;
+  width:max-content;max-width:100%;overflow:auto;
+  border:1px solid var(--bss-color-border);border-radius:8px;
+  background:var(--bss-color-bg-surface);
+}
+.settings-workspace .settings-tabs button{
+  min-height:34px;padding:7px 10px;border-radius:6px;
+  background:transparent;color:var(--bss-color-text-muted);
+  font-size:9px;font-weight:800;
+}
+.settings-workspace .settings-tabs button.active{
+  background:var(--bss-color-bg-subtle);color:var(--bss-color-text);
+  box-shadow:inset 0 0 0 1px var(--bss-color-border-strong);
+}
+.settings-workspace .admin-kpis>button{
+  background:var(--bss-color-bg-surface);box-shadow:none;border-radius:8px;
+}
+.settings-workspace .admin-two-column>.card,
+.settings-workspace .organization-layout>.card,
+.settings-workspace .holiday-list,
+.settings-workspace .configuration-list{box-shadow:none}
+.settings-workspace .configuration-list button{
+  border-radius:7px;background:transparent;
+}
+.settings-workspace .configuration-list button:hover{background:var(--bss-color-bg-hover)}
+.settings-workspace .organization-item,
+.settings-workspace .holiday-item{
+  border-radius:7px;background:var(--bss-color-bg-surface);
+}
+.settings-workspace .organization-item .pill,
+.settings-workspace .holiday-item .pill{
+  background:transparent;border-color:transparent;padding:3px 0;border-radius:0;font-weight:800;
+}
+.settings-workspace .form input,
+.settings-workspace .form select,
+.settings-workspace .form textarea{border-radius:8px}
+.settings-workspace .notice.info{font-size:9px}
