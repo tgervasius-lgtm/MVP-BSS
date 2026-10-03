@@ -18,3 +18,7 @@ A desktop full-stack browser test creates a disposable terminal through the test
 ## Recovery and readiness
 
 Reverting UI code cannot undo a committed rotation. Preserve encrypted key history and audit; recover with the approved secure credential transfer/rotation process. No mutation is executed against a real customer or hardware terminal by this implementation task. Staging, hardware 9C, Pilot and production claims remain outside this package.
+
+## Existing API response cleanup discovered by the browser test
+
+The required reload check exposed an unfinished `/auth/refresh` response with HTTP 401 already received. `src/adapters/api.js` was byte-identical to main when a new focused regression reproduced that failed refresh bodies were never consumed. The adapter now drains the failed response body, preserves the original authorization failure and never replays the protected request after a failed refresh. No refresh policy, token lifecycle, RBAC, rate limit or server behavior is changed. The browser test continues to assert that API requests finish and reports any failed request; it does not ignore navigation aborts.

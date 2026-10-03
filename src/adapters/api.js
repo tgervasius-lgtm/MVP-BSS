@@ -48,6 +48,9 @@
       const rotate=async()=>{
         if(refreshVersion()!==observedVersion)return{ok:true,status:204};
         const response=await fetchWithTimeout(`${base}/auth/refresh`,{method:'POST',credentials:'include',headers:{Accept:'application/json'}});
+        // Consume an unsuccessful response so its fetch cannot remain open until navigation.
+        // Keep the original authorization failure; never replay after a failed refresh.
+        if(!response.ok)await response.text?.();
         if(response.ok)markRefresh();
         return response;
       };

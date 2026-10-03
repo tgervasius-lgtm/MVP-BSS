@@ -2676,3 +2676,17 @@ test('render, modal replacement, closing and API logout clear terminal credentia
   const bindings=fs.readFileSync('src/adapters/api-bindings.js','utf8');
   assert.match(bindings,/async function apiLogout\(\)\{\s*root\.BSSTerminalCredential\?\.clear\(\);\s*try\{await BSS_API\.post/);
 });
+
+test('failed session refresh consumes its response body and never replays the protected request',async()=>{
+  let protectedCalls=0,refreshCalls=0,consumed=0;
+  const api=loadAdapter(apiAdapterSource,{fetch:async url=>{
+    if(String(url).endsWith('/auth/refresh')){
+      refreshCalls++;
+      return{ok:false,status:401,text:async()=>{consumed++;return'{"code":"UNAUTHENTICATED"}';}};
+    }
+    protectedCalls++;
+    return{ok:false,status:401,json:async()=>({code:'UNAUTHENTICATED',message:'Prijava je potrebna.'})};
+  }}).api;
+  await assert.rejects(api.get('/workers'),error=>error.status===401&&error.code==='UNAUTHENTICATED');
+  assert.equal(protectedCalls,1);assert.equal(refreshCalls,1);assert.equal(consumed,1);
+});
