@@ -418,6 +418,13 @@ test('svaki KPI i kompaktni brojčani sažetak ima drill-down bez slijepih karti
   }
 });
 
+test('operativni filteri koriste neutralni sivo-bijeli active treatment',()=>{
+  assert.match(styles,/Owner visual review — neutral operational filters/);
+  assert.match(styles,/\.request-tabs button\.active,[\s\S]*?background:var\(--bss-color-bg-subtle\)/);
+  assert.match(styles,/\.workers-tabs \.tab\.active,[\s\S]*?border-color:var\(--bss-color-border-strong\)/);
+  assert.match(styles,/\.view-switch button\.active,[\s\S]*?color:var\(--bss-color-text\)/);
+});
+
 test('statični sažeci vizualno se razlikuju od interaktivnih kontrola',()=>{
   assert.match(styles,/Owner visual review — interaction affordance clarity/);
   assert.match(styles,/\.approval-summary>div,[\s\S]*?background:var\(--bss-color-bg-subtle\)/);
