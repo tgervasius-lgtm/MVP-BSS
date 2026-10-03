@@ -5,10 +5,6 @@
   const reportType={summary:'monthly_summary',attendance:'attendance_journal',exceptions:'exceptions',vacations:'approved_absences',corrections:'correction_log'};
   const typeCode={'Godišnji odmor':'annual_leave','Slobodan dan':'free_day'};
   const visibilityLabel={team:'Tim',department:'Odjel',organization:'Cijela organizacija'};
-  const baseViewReports=root.viewReports;
-  const baseOpenAttendanceRecord=root.openAttendanceRecord;
-  const baseApplyReportFilters=root.applyReportFilters;
-  let apiAttendancePeriod=null,apiAttendancePeriodEtag='',apiPeriodMonth='',periodIdempotencySequence=0;
 
   function revisionHeaders(value){return{'If-Match':`"${String(value||'0')}"`};}
   function apiMessage(error){
@@ -33,12 +29,7 @@
     state=hydrated.state;dashboardSummary=hydrated.dashboard;currentRole=hydrated.role;
     ROLE_CONFIG[currentRole].userId=hydrated.selfWorkerId||0;
     if(currentRole==='manager')ROLE_CONFIG.manager.departments=state.departments.map(item=>item.name);
-    if(['admin','manager','accountant'].includes(currentRole)){
-      const month=apiPeriodMonth||CURRENT_MONTH;
-      const [year,monthNumber]=month.split('-').map(Number);
-      const period=await BSS_API.getWithMeta(`/attendance-periods/${year}/${monthNumber}`);
-      apiAttendancePeriod=period.data;apiAttendancePeriodEtag=period.etag||period.data.revision;apiPeriodMonth=month;
-    }else{apiAttendancePeriod=null;apiAttendancePeriodEtag='';apiPeriodMonth='';}
+    await root.BSSAttendanceLifecycle?.hydrate();
     logged=true;apiError='';
     return hydrated;
   }
@@ -183,120 +174,6 @@
     await mutateApi(()=>BSS_API.post(`/correction-requests/${correction.apiId}/cancel`,undefined,revisionHeaders(correction.revision)),'Korekcija je poništena.');
   }
 
-  function periodStatusLabel(status){
-    return({open:'Otvoreno',review:'U pregledu',finalized:'Finalizirano',closed:'Zatvoreno'})[status]||status||'Nepoznato';
-  }
-  function periodActionLabel(action){
-    return({review:'Pokreni pregled',finalize:'Finaliziraj mjesec',close:'Zatvori mjesec',reopen:'Ponovno otvori'})[action]||action;
-  }
-  function periodIdempotencyKey(action){
-    const unique=root.crypto?.randomUUID?.()||`${Date.now()}-${++periodIdempotencySequence}`;
-    return `bss-period-${action}-${unique}`;
-  }
-  function periodHeaders(action){
-    return {...revisionHeaders(apiAttendancePeriod?.revision||apiAttendancePeriodEtag||'0'),'Idempotency-Key':periodIdempotencyKey(action)};
-  }
-  async function apiLoadAttendancePeriod(month=apiPeriodMonth||CURRENT_MONTH){
-    if(!['admin','manager','accountant'].includes(currentRole)||!/^[0-9]{4}-[0-9]{2}$/.test(month||''))return false;
-    apiLoading=true;
-    try{
-      const [year,monthNumber]=month.split('-').map(Number);
-      const result=await BSS_API.getWithMeta(`/attendance-periods/${year}/${monthNumber}`);
-      apiAttendancePeriod=result.data;apiAttendancePeriodEtag=result.etag||result.data.revision;apiPeriodMonth=month;
-      render();return true;
-    }catch(error){apiError=apiMessage(error);render();toast(apiError);return false;}
-    finally{apiLoading=false;}
-  }
-  function periodBlockerRows(period){
-    const unresolved=period?.unresolved||{};
-    return [
-      ['Aktivni zapisi',Number(unresolved.active||0)],
-      ['Nepotpuni zapisi',Number(unresolved.incomplete||0)],
-      ['Korekcije na čekanju',Number(unresolved.pendingCorrections||0)],
-      ['Terminalska usklađenja',Number(unresolved.reconciliationRequired||0)]
-    ];
-  }
-  function apiPeriodLifecycleCard(){
-    if(!['admin','manager','accountant'].includes(currentRole)||!apiAttendancePeriod)return'';
-    const period=apiAttendancePeriod,blocked=Number(period.unresolved?.total||0)>0,admin=currentRole==='admin';
-    const actions=[];
-    if(admin&&period.status==='open')actions.push(['review',false]);
-    if(admin&&period.status==='review')actions.push(['finalize',blocked]);
-    if(admin&&period.status==='finalized')actions.push(['close',false],['reopen',false]);
-    if(admin&&period.status==='closed')actions.push(['reopen',false]);
-    const blockerRows=periodBlockerRows(period);
-    const checksum=period.datasetChecksumSha256?period.datasetChecksumSha256.slice(0,12)+'…':'Nije zaključan';
-    return `<section class="card period-lifecycle-card" aria-label="Mjesečni lifecycle evidencije">
-      <div class="period-lifecycle-head"><div><span>Mjesečni lifecycle</span><h2>${escapeHtml(monthDisplay(apiPeriodMonth))}</h2><p>Server-authoritative stanje za finalizaciju i reproducibilne izvještaje.</p></div><label>Mjesec<input id="apiPeriodMonth" type="month" value="${escapeHtml(apiPeriodMonth)}" data-bss-change="loadAttendancePeriod(this.value)"></label></div>
-      <div class="period-lifecycle-strip"><div><span>Status</span><b>${escapeHtml(periodStatusLabel(period.status))}</b></div><div><span>Revizija</span><b>${escapeHtml(period.revision)}</b></div><div><span>Otvoreni blocker-i</span><b>${Number(period.unresolved?.total||0)}</b></div><div><span>Dataset checksum</span><b class="period-checksum">${escapeHtml(checksum)}</b></div></div>
-      <div class="period-lifecycle-body">
-        <div class="period-blocker-list">${blockerRows.map(([label,value])=>`<div><span>${escapeHtml(label)}</span><b class="${value?'negative':'positive'}">${value}</b></div>`).join('')}</div>
-        <div class="period-provenance"><span>Provenance</span><b>${escapeHtml(period.provenanceStatus||'none')}</b><small>${period.datasetVersion?`Dataset ${escapeHtml(period.datasetVersion)}`:'Dataset nastaje tek pri finalizaciji.'}</small>${period.lastReason?`<small>Zadnji razlog: ${escapeHtml(period.lastReason)}</small>`:''}</div>
-      </div>
-      ${admin?`<div class="btns period-lifecycle-actions">${actions.map(([action,disabled])=>`<button class="btn ${action==='reopen'?'secondary':''}" data-bss-action="openPeriodTransition('${action}')" ${disabled?'disabled':''}>${escapeHtml(periodActionLabel(action))}</button>`).join('')||'<span class="small-muted">Za trenutno stanje nema nove tranzicije.</span>'}</div>`:'<div class="notice info period-readonly">Lifecycle je samo za čitanje. Tranzicije su Admin-only i server ih dodatno autorizira.</div>'}
-      ${blocked&&period.status==='review'?'<div class="notice danger">Finalizacija je blokirana dok server prijavljuje neriješene attendance, korekcijske ili terminalske stavke.</div>':''}
-    </section>`;
-  }
-  function apiViewReports(){
-    return `${apiPeriodLifecycleCard()}${baseViewReports()}`;
-  }
-  async function apiApplyReportFilters(){
-    baseApplyReportFilters();
-    if(['admin','manager','accountant'].includes(currentRole))await apiLoadAttendancePeriod(reportFilters.month);
-  }
-  function apiOpenPeriodTransition(action){
-    if(currentRole!=='admin'||!apiAttendancePeriod)return;
-    const allowed=(apiAttendancePeriod.status==='open'&&action==='review')||(apiAttendancePeriod.status==='review'&&action==='finalize')||(apiAttendancePeriod.status==='finalized'&&['close','reopen'].includes(action))||(apiAttendancePeriod.status==='closed'&&action==='reopen');
-    if(!allowed)return toast('Ta tranzicija nije dopuštena iz trenutačnog stanja.');
-    if(action==='finalize'&&Number(apiAttendancePeriod.unresolved?.total||0)>0)return toast('Finalizacija je blokirana neriješenim stavkama.');
-    const modal=$('#modal');
-    modal.innerHTML=`<div class="modal-card"><div class="modal-head"><div><div class="eyebrow">Attendance period</div><h2>${escapeHtml(periodActionLabel(action))}</h2><div class="small-muted">${escapeHtml(monthDisplay(apiPeriodMonth))} · ${escapeHtml(periodStatusLabel(apiAttendancePeriod.status))} · revizija ${escapeHtml(apiAttendancePeriod.revision)}</div></div><button class="close-btn" aria-label="Zatvori" data-bss-action="closeModal()">×</button></div><div class="notice info">Ranije finalizirani datasetovi i artefakti ostaju nepromijenjeni. Server provjerava lifecycle, blockere, ovlasti i reviziju.</div><label>Razlog<textarea id="periodTransitionReason" rows="3" minlength="3" maxlength="1000" placeholder="Zašto se stanje mijenja?"></textarea></label><div class="btns"><button class="btn" data-bss-action="submitPeriodTransition('${action}')">Potvrdi</button><button class="btn secondary" data-bss-action="closeModal()">Odustani</button></div></div>`;
-    showModal(modal);
-  }
-  async function apiSubmitPeriodTransition(action){
-    if(currentRole!=='admin'||!apiAttendancePeriod)return;
-    const reason=$('#periodTransitionReason')?.value.trim()||'';
-    if(reason.length<3)return toast('Upiši razlog od najmanje 3 znaka.');
-    const [year,monthNumber]=apiPeriodMonth.split('-').map(Number);
-    await mutateApi(async()=>{
-      apiAttendancePeriod=await BSS_API.post(`/attendance-periods/${year}/${monthNumber}/${action}`,{reason},periodHeaders(action));
-      apiAttendancePeriodEtag=apiAttendancePeriod.revision;
-    },`${periodActionLabel(action)} — spremljeno.`);
-  }
-  async function apiOpenAttendanceRecalculation(recordId){
-    if(currentRole!=='admin')return;
-    const record=state.records.find(item=>item.id===Number(recordId));
-    if(!record?.apiId)return;
-    if(record.status==='Ispravljeno')return toast('Ispravljeni zapis se ne preračunava ponovno.');
-    const month=record.date.slice(0,7),[year,monthNumber]=month.split('-').map(Number);
-    apiLoading=true;
-    try{
-      const period=await BSS_API.getWithMeta(`/attendance-periods/${year}/${monthNumber}`);
-      if(['finalized','closed'].includes(period.data.status))return toast('Mjesec je zaključan. Prvo je potreban kontrolirani Admin reopen.');
-      const modal=$('#modal');
-      modal.innerHTML=`<div class="modal-card"><div class="modal-head"><div><div class="eyebrow">Kontrolirani preračun</div><h2>${escapeHtml(isoLabel(record.date))}</h2><div class="small-muted">Revizija zapisa ${escapeHtml(record.revision)} · calculationVersion attendance-v1</div></div><button class="close-btn" aria-label="Zatvori" data-bss-action="closeModal()">×</button></div><div class="record-detail-grid"><div><span>Dolazak</span><b>${escapeHtml(record.start||'—')}</b></div><div><span>Odlazak</span><b>${escapeHtml(record.end||'—')}</b></div><div><span>Status</span><b>${escapeHtml(record.status)}</b></div><div><span>Period</span><b>${escapeHtml(periodStatusLabel(period.data.status))}</b></div></div><div class="notice info">Preračun koristi postojeće nepromjenjive terminalske dokaze. Sirovi RFID događaji se ne prepisuju; server sprema before/after, razlog i audit provenance.</div><label>Razlog<textarea id="attendanceRecalculationReason" rows="3" minlength="3" maxlength="1000" placeholder="Zašto je potreban preračun?"></textarea></label><div class="btns"><button class="btn" data-bss-action="submitAttendanceRecalculation(${record.id})">Preračunaj</button><button class="btn secondary" data-bss-action="closeModal()">Odustani</button></div></div>`;
-      showModal(modal);
-    }catch(error){toast(apiMessage(error));}
-    finally{apiLoading=false;}
-  }
-  async function apiSubmitAttendanceRecalculation(recordId){
-    if(currentRole!=='admin')return;
-    const record=state.records.find(item=>item.id===Number(recordId)),reason=$('#attendanceRecalculationReason')?.value.trim()||'';
-    if(!record?.apiId||reason.length<3)return toast('Upiši razlog od najmanje 3 znaka.');
-    await mutateApi(()=>BSS_API.post(`/attendance/${record.apiId}/recalculations`,{calculationVersion:'attendance-v1',reason},revisionHeaders(record.revision)),'Attendance zapis je preračunat iz nepromjenjivih dokaza.');
-  }
-  function apiOpenAttendanceRecord(id){
-    baseOpenAttendanceRecord(id);
-    if(currentRole!=='admin')return;
-    const record=state.records.find(item=>item.id===Number(id)),container=$('#modal .btns');
-    if(!record?.apiId||!container||record.status==='Ispravljeno')return;
-    const button=document.createElement('button');
-    button.className='btn secondary';
-    button.textContent='Kontrolirani preračun';
-    button.setAttribute('data-bss-action',`openAttendanceRecalculation(${record.id})`);
-    container.prepend(button);
-  }
-
   async function apiDownloadReport(format){
     if(!['admin','manager','accountant'].includes(currentRole)||!['csv','xlsx','pdf'].includes(format))return;
     reportFilters=normalizeReportFilters(reportFilters);const bounds=monthBounds(reportFilters.month),department=departmentByName(reportFilters.department),worker=reportFilters.workerId==='Svi'?null:workerById(reportFilters.workerId);
@@ -435,14 +312,21 @@
     toast('Demo simulator je isključen; produkcijski podaci dolaze isključivo iz backend API-ja.');
   }
 
+  root.BSSAttendanceLifecycle?.configure({
+    revisionHeaders,apiMessage,mutateApi,
+    baseViewReports:root.viewReports,
+    baseOpenAttendanceRecord:root.openAttendanceRecord,
+    baseApplyReportFilters:root.applyReportFilters
+  });
+
   function installApiBindings(){
     root.BSS_API_ACTIVE=true;
     Object.assign(root,{
     login:apiLogin,acceptInvitation:apiAcceptInvitation,logout:apiLogout,openWorkerModal:apiOpenWorkerModal,saveWorker:apiSaveWorker,toggleWorkerActive:apiToggleWorker,toggleCard:apiToggleCard,
     saveShift:apiSaveShift,toggleShift:()=>toast('Smjena s povijesnim zapisima ne deaktivira se u MVP-u.'),submitVacationRequest:apiSubmitVacation,decideRequest:apiDecideRequest,cancelVacationRequest:apiCancelVacation,
     submitCorrection:apiSubmitCorrection,updateCorrection:apiUpdateCorrection,cancelCorrection:apiCancelCorrection,downloadReport:apiDownloadReport,
-    viewReports:apiViewReports,applyReportFilters:apiApplyReportFilters,loadAttendancePeriod:apiLoadAttendancePeriod,openPeriodTransition:apiOpenPeriodTransition,submitPeriodTransition:apiSubmitPeriodTransition,
-    openAttendanceRecord:apiOpenAttendanceRecord,openAttendanceRecalculation:apiOpenAttendanceRecalculation,submitAttendanceRecalculation:apiSubmitAttendanceRecalculation,
+    viewReports:root.BSSAttendanceLifecycle?.viewReports,applyReportFilters:root.BSSAttendanceLifecycle?.applyReportFilters,loadAttendancePeriod:root.BSSAttendanceLifecycle?.load,openPeriodTransition:root.BSSAttendanceLifecycle?.openTransition,submitPeriodTransition:root.BSSAttendanceLifecycle?.submitTransition,
+    openAttendanceRecord:root.BSSAttendanceLifecycle?.openRecord,openAttendanceRecalculation:root.BSSAttendanceLifecycle?.openRecalculation,submitAttendanceRecalculation:root.BSSAttendanceLifecycle?.submitRecalculation,
     saveAccessUser:apiSaveAccess,toggleAccessUser:apiToggleAccess,sendInvitation:apiSendInvitation,sendPasswordReset:()=>toast('Reset lozinke nije dio zaključanog MVP ugovora.'),resendInvitation:()=>toast('Ponovno slanje pozivnice nije dio zaključanog MVP ugovora.'),cancelInvitation:()=>toast('Poništavanje pozivnice nije dio zaključanog MVP ugovora.'),
     saveSettings:apiSaveSettings,openDepartmentModal:apiOpenDepartmentModal,saveDepartment:apiSaveDepartment,toggleDepartment:apiToggleDepartment,openHolidayModal:apiOpenHolidayModal,saveHoliday:apiSaveHoliday,toggleHoliday:apiToggleHoliday,setSharedLeaveVisibility:apiSetSharedLeaveVisibility,
     saveJobPosition:()=>toast('Radna mjesta nisu zaseban MVP entitet.'),toggleJobPosition:()=>toast('Radna mjesta nisu zaseban MVP entitet.'),
