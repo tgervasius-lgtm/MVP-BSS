@@ -532,6 +532,15 @@ test('kalendar koristi jednu period kontrolu bez duplog mjeseca iznad sadržaja'
   assert.match(styles,/\.month-view>\.month-card>h3\{display:none\}/);
 });
 
+test('visual pass 2 uklanja dupli count i iz attendance/request headinga',()=>{
+  const admin=boot('admin');
+  admin.window.navigate('attendance');
+  assert.equal(admin.document.querySelector('.attendance-operational-card .table-card-heading .pill'),null);
+  admin.window.navigate('requests');
+  assert.equal(admin.document.querySelector('.approval-table-card .table-card-heading .pill'),null);
+  assert.ok(admin.document.querySelector('.request-tabs button.active'));
+});
+
 test('visual pass 2 uklanja ponovljene brojeve iz summary i table headinga',()=>{
   const admin=boot('admin');
   admin.window.navigate('corrections');
