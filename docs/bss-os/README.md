@@ -32,6 +32,7 @@ BSS OS is the governance layer for product, software, hardware, operations, fina
 | External developers and vendors | `docs/bss-os/EXTERNAL_DEVELOPER_VENDOR_MANAGEMENT_PACK.md` |
 | Release, change and product communication | `docs/bss-os/RELEASE_CHANGE_PRODUCT_COMMUNICATION_OS.md` |
 | Infrastructure proposal | `docs/bss-os/ADR-001-INFRASTRUCTURE-BASELINE.md` |
+| Operations Foundation / pre-Staging architecture | `docs/bss-os/OPERATIONS_FOUNDATION_V1.md` |
 | Pilot readiness | `docs/bss-os/PILOT_READINESS_PACKAGE.md` |
 | Pilot success and post-pilot review | `docs/bss-os/PILOT_SUCCESS_POST_PILOT_REVIEW_PACK.md` |
 | Pilot installation and acceptance | `docs/bss-os/PILOT_INSTALLATION_ACCEPTANCE_PACK.md` |
