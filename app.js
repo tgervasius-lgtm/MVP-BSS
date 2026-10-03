@@ -435,18 +435,18 @@ function saveAndRender(message){ saveState(); render(); if(message) toast(messag
 const NAV_ITEMS = {
   admin: [
     ['home','⌂','Početna'],['attendance','◴','Evidencija'],['workers','☷','Radnici'],['shifts','↺','Smjene'],
-    ['vacations','▦','Godišnji'],['sharedLeave','◎','Zajednički godišnji'],['requests','□','Zahtjevi'],['corrections','✎','Korekcije'],['reports','⇩','Izvještaji'],
+    ['vacations','▦','Godišnji'],['sharedLeave','◎','Kalendar'],['requests','□','Zahtjevi'],['corrections','✎','Korekcije'],['reports','⇩','Izvještaji'],
     ['terminal','◉','Terminali'],['roles','♙','Prava pristupa'],['audit','☰','Audit log'],['settings','⚙','Postavke']
   ],
   manager: [
     ['home','⌂','Početna'],['attendance','◴','Evidencija tima'],['workers','☷','Moj tim'],['shifts','↺','Smjene'],
-    ['vacations','▦','Godišnji tima'],['sharedLeave','◎','Zajednički godišnji'],['requests','□','Zahtjevi'],['corrections','✎','Korekcije'],['reports','⇩','Izvještaji'],['terminal','◉','Terminali']
+    ['vacations','▦','Godišnji tima'],['sharedLeave','◎','Kalendar'],['requests','□','Zahtjevi'],['corrections','✎','Korekcije'],['reports','⇩','Izvještaji'],['terminal','◉','Terminali']
   ],
   worker: [
     ['home','⌂','Početna'],['mytime','◷','Moji sati'],['vacations','▦','Moj godišnji'],['sharedLeave','◎','Kalendar'],['requests','□','Moji zahtjevi'],['corrections','✎','Moje korekcije']
   ],
   accountant: [
-    ['home','⌂','Početna'],['reports','⇩','Izvještaji'],['sharedLeave','◎','Zajednički godišnji']
+    ['home','⌂','Početna'],['reports','⇩','Izvještaji'],['sharedLeave','◎','Kalendar']
   ]
 };
 const DEMO_NAV = {
@@ -534,6 +534,18 @@ function bottomNavigation(){
   const items = (NAV_ITEMS[currentRole] || []).filter(item=>picks.includes(item[0]));
   return `<nav class="bottom-nav" aria-label="Glavna navigacija" style="grid-template-columns:repeat(${items.length},1fr)">${items.map(item=>navButton(item,'bottom')).join('')}</nav>`;
 }
+function primaryDesktopNavItems(){
+  const primaryIds={
+    admin:['home','attendance','workers','sharedLeave','requests','reports'],
+    manager:['home','attendance','workers','sharedLeave','requests','reports'],
+    worker:['home','mytime','vacations','sharedLeave','requests'],
+    accountant:['home','reports','sharedLeave']
+  }[currentRole]||['home'];
+  return (NAV_ITEMS[currentRole]||[]).filter(item=>primaryIds.includes(item[0]));
+}
+function desktopPrimaryNav(){
+  return primaryDesktopNavItems().map(item=>navButton(item)).join('');
+}
 function navGroup(id){
   if(['home','attendance','mytime'].includes(id))return 'Pregled';
   if(['workers','worker','shifts','vacations','sharedLeave'].includes(id))return 'Ljudi i rasporedi';
@@ -557,7 +569,8 @@ function desktopSidebar(){
   return `<aside class="desktop-sidebar">
     <div class="side-brand"><div class="mini-logo">B</div><div><b>BSS</b><span>Bognar Smart Systems</span></div></div>
     <div class="side-role"><b>${escapeHtml(currentWorker().name)}</b>${escapeHtml(role().label)}${state.demoMode?' · demo prikaz':''}</div>
-    <nav class="desktop-nav" aria-label="Glavna navigacija">${navList(true)}</nav>
+    <nav class="desktop-nav desktop-nav-primary" aria-label="Primarna navigacija">${desktopPrimaryNav()}</nav>
+    <button class="desktop-more" data-bss-action="openDrawer()" aria-controls="drawer" aria-expanded="false"><span aria-hidden="true">•••</span><span>Više</span></button>
     <div class="side-footer"><span class="system-light ${state.terminal.online?'online':'offline'}"></span>${state.terminal.online?'Terminal povezan':'Terminal nije povezan'}<br>People. Work. Progress.</div>
   </aside>`;
 }
@@ -931,22 +944,46 @@ function filteredWorkers(){
     return tabMatch && shiftMatch && searchMatch;
   });
 }
-function workerTable(workers,isAdmin=currentRole==='admin'){
-  const columns=isAdmin?6:5;
+function workerTable(workers){
   const body=workers.map(worker=>{
     const shift=shiftById(worker.shiftId);
-    return `<tr data-worker-id="${worker.id}"><td><div class="table-person"><span class="avatar">${escapeHtml(initials(worker.name))}</span><span><b>${escapeHtml(worker.name)}</b><small>${escapeHtml(worker.jobTitle)} · ${escapeHtml(worker.email)}</small></span></div></td><td>${escapeHtml(worker.dept)}</td><td><b>${escapeHtml(shift?.name||'Bez smjene')}</b><br><span class="small-muted">${escapeHtml(shift?`${shift.start} – ${shift.end}`:'Nema rasporeda')}</span></td>${isAdmin?`<td><b>${escapeHtml(worker.card||'Nije dodijeljena')}</b><br><span class="small-muted">${escapeHtml(worker.cardStatus)}</span></td>`:''}<td>${pill(worker.active?worker.status:'Neaktivan')}</td><td><button class="table-detail-btn" data-bss-action="openWorker(${worker.id})" aria-label="Otvori radnika ${escapeHtml(worker.name)}">Otvori</button></td></tr>`;
+    return `<tr data-worker-id="${worker.id}">
+      <td class="worker-code">R-${String(worker.id).padStart(3,'0')}</td>
+      <td><button class="worker-name-link" data-bss-action="openWorker(${worker.id})"><b>${escapeHtml(worker.name)}</b><small>${escapeHtml(worker.email)}</small></button></td>
+      <td>${escapeHtml(worker.dept)}</td>
+      <td>${escapeHtml(worker.jobTitle||'—')}</td>
+      <td><b>${escapeHtml(shift?.name||'Bez smjene')}</b><small>${escapeHtml(shift?`${shift.start} – ${shift.end}`:'Nema rasporeda')}</small></td>
+      <td>${pill(worker.active?worker.status:'Neaktivan')}</td>
+      <td><button class="table-detail-btn" data-bss-action="openWorker(${worker.id})" aria-label="Otvori radnika ${escapeHtml(worker.name)}">Otvori</button></td>
+    </tr>`;
   }).join('');
-  return `<div class="table-wrap"><table class="compact-table workers-table"><thead><tr><th>Radnik</th><th>Odjel</th><th>Smjena</th>${isAdmin?'<th>RFID kartica</th>':''}<th>Status</th><th>Detalji</th></tr></thead><tbody>${body||`<tr><td colspan="${columns}"><div class="empty-state">Nema radnika za odabrani filtar.</div></td></tr>`}</tbody></table></div>`;
+  return `<div class="table-wrap"><table class="compact-table workers-table"><thead><tr><th>Šifra</th><th>Ime i prezime</th><th>Odjel</th><th>Radno mjesto</th><th>Smjena</th><th>Status</th><th></th></tr></thead><tbody>${body||'<tr><td colspan="7"><div class="empty-state">Nema radnika za odabrani filtar.</div></td></tr>'}</tbody></table></div>`;
+}
+function workerOperationalSummary(){
+  const scoped=visibleWorkers();
+  const active=scoped.filter(worker=>worker.active);
+  const present=active.filter(worker=>['Prisutan','Kasni'].includes(worker.status)).length;
+  const away=active.filter(worker=>['Odsutna','Godišnji','Bolovanje'].includes(worker.status)).length;
+  const inactive=scoped.filter(worker=>!worker.active).length;
+  return `<section class="workers-summary" aria-label="Sažetak radnika">
+    <div><span>Aktivni</span><b>${active.length}</b></div>
+    <div><span>Prisutni</span><b>${present}</b></div>
+    <div><span>Odsutni danas</span><b>${away}</b></div>
+    <div><span>Neaktivni</span><b>${inactive}</b></div>
+  </section>`;
 }
 function viewWorkers(){
-  const workers = filteredWorkers();
-  const isAdmin = currentRole==='admin';
-  const tabs = isAdmin ? ['Svi','Prisutni','Odsutni danas','Godišnji','Neaktivni'] : ['Svi','Prisutni','Odsutni danas','Godišnji'];
+  const workers=filteredWorkers(),isAdmin=currentRole==='admin';
+  const tabs=isAdmin?['Svi','Prisutni','Odsutni danas','Godišnji','Neaktivni']:['Svi','Prisutni','Odsutni danas','Godišnji'];
   const shiftLabel=workerShiftFilter==='Svi'?'':shiftById(workerShiftFilter)?.name||'';
-  return `${title(isAdmin?'Radnici':'Moj tim',isAdmin?'Profili, smjene i RFID kartice.':'Radnici u dodijeljenim odjelima.',isAdmin?'<button class="btn" data-bss-action="openWorkerModal()">Dodaj radnika</button>':'')}
-    <div class="card"><div class="filter-bar" style="grid-template-columns:minmax(0,1fr) auto"><input id="workerSearch" placeholder="Traži po imenu, odjelu ili radnom mjestu" value="${escapeHtml(workerSearch)}"><button class="btn" data-bss-action="applyWorkerSearch()">Traži</button></div><div class="tabs">${tabs.map(tab=>`<button class="tab ${workerListTab===tab?'active':''}" data-bss-action="setWorkerTab('${tab}')">${tab}</button>`).join('')}</div>${shiftLabel?`<button class="active-filter" data-bss-action="openWorkerStatus('Svi')">Smjena: ${escapeHtml(shiftLabel)} · ukloni filtar ×</button>`:''}</div>
-    <div class="card table-card"><div class="table-card-heading"><div><h2>${isAdmin?'Popis radnika':'Radnici u mojem opsegu'}</h2></div>${pill(`${workers.length} radnika`)}</div>${workerTable(workers,isAdmin)}</div>`;
+  return `${title(isAdmin?'Radnici':'Moj tim',isAdmin?'Zaposlenici i operativni status.':'Radnici u dodijeljenim odjelima.',isAdmin?'<button class="btn" data-bss-action="openWorkerModal()">Dodaj radnika</button>':'')}
+    ${workerOperationalSummary()}
+    <section class="card workers-control-card">
+      <div class="workers-toolbar"><input id="workerSearch" aria-label="Traži radnike" placeholder="Traži po imenu, odjelu ili radnom mjestu" value="${escapeHtml(workerSearch)}"><button class="btn" data-bss-action="applyWorkerSearch()">Traži</button></div>
+      <div class="tabs workers-tabs">${tabs.map(tab=>`<button class="tab ${workerListTab===tab?'active':''}" data-bss-action="setWorkerTab('${tab}')">${tab}</button>`).join('')}</div>
+      ${shiftLabel?`<button class="active-filter" data-bss-action="openWorkerStatus('Svi')">Smjena: ${escapeHtml(shiftLabel)} · ukloni filtar ×</button>`:''}
+    </section>
+    <section class="card table-card workers-operational-card"><div class="table-card-heading"><div><h2>${isAdmin?'Popis radnika':'Radnici u mojem opsegu'}</h2><p>RFID i pristup nalaze se u detalju radnika.</p></div><span class="pill gray">${workers.length} radnika</span></div>${workerTable(workers)}</section>`;
 }
 function openWorker(id){
   if(!workerVisible(id) && currentRole!=='admin') return;
