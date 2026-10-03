@@ -74,7 +74,7 @@
   }
 
   async function hydrate(api,session,today){
-    const role=session.user.role,year=today.slice(0,4),range=dateRange(year),timeZone=session.organization.timezone;
+    const role=session.user.role,year=today.slice(0,4),month=Number(today.slice(5,7)),range=dateRange(year),timeZone=session.organization.timezone;
     const clientIds=new Map();let sequence=0;
     const id=value=>{
       if(!value)return 0;
@@ -102,7 +102,7 @@
       });
     }
     if(role==='admin')Object.assign(tasks,{organization:api.get('/organization'),users:getAllPages(api,'/users'),audit:getAllPages(api,'/audit-events',range)});
-    if(['admin','manager','accountant'].includes(role))tasks.reports=getAllPages(api,'/report-exports');
+    if(['admin','manager','accountant'].includes(role)){tasks.reports=getAllPages(api,'/report-exports');tasks.attendancePeriod=api.get(`/attendance-periods/${year}/${month}`);}
 
     const keys=Object.keys(tasks),results=await Promise.allSettled(Object.values(tasks));
     const data=Object.fromEntries(keys.map((key,index)=>[key,settledValue(results[index],null)]));
@@ -173,7 +173,7 @@
     const organization=data.organization||session.organization;
     const company={name:organization.name,oib:organization.taxIdentifier||'',address:'',timezone:organization.timezone,workTime:'',contactEmail:'',phone:'',defaultVacationAllowance:20,revision:organization.revision};
     const holidays=(data.holidays?.data||[]).map(item=>({id:id(item.id),apiId:item.id,date:item.date,name:item.name,type:'Neradni dan',protected:false,active:true,revision:item.revision}));
-    const state={version:9,demoMode:false,sharedLeaveVisibility:data.approvedLeave?.visibility||'department',sharedLeaveEntries:data.approvedLeave?.items||[],company,departments,jobPositions:[],holidays,holidayRevision:data.holidays?.etag||'0',shifts,workers,accessUsers:users,invitations:[],security:{inviteValidityHours:72,passwordResetValidityMinutes:30,sessionMinutes:480},records,requests,corrections,audit,terminal,lastScan:null,lastReport:reportHistory[0]?`${reportHistory[0].format} · ${reportHistory[0].time}`:'Nije još generiran',reportHistory,leaveBalances:data.leaveBalances?.items||[],dashboard:data.dashboard};
+    const state={version:9,demoMode:false,sharedLeaveVisibility:data.approvedLeave?.visibility||'department',sharedLeaveEntries:data.approvedLeave?.items||[],company,departments,jobPositions:[],holidays,holidayRevision:data.holidays?.etag||'0',shifts,workers,accessUsers:users,invitations:[],security:{inviteValidityHours:72,passwordResetValidityMinutes:30,sessionMinutes:480},records,requests,corrections,audit,terminal,lastScan:null,lastReport:reportHistory[0]?`${reportHistory[0].format} · ${reportHistory[0].time}`:'Nije još generiran',reportHistory,leaveBalances:data.leaveBalances?.items||[],dashboard:data.dashboard,attendancePeriod:data.attendancePeriod||null,attendancePeriodMonth:`${year}-${String(month).padStart(2,'0')}`};
     return {state,role,session,dashboard:data.dashboard,selfWorkerId:id(session.effectiveScope.selfWorkerId)};
   }
 
