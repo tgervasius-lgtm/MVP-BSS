@@ -43,8 +43,28 @@
 
   function worker(context){
     const {worker,shift,ownRequests,todayRecord,title,pill,escapeHtml,formatMinutes,recordMinutes,vacationRemaining}=context;
-    return `${title(`Pozdrav, ${worker.name.split(' ')[0]}`,'',pill(worker.status))}
-      <section class="card worker-home-card worker-home-operational"><div class="worker-home-status"><h2>${['Prisutan','Kasni'].includes(worker.status)?'Trenutačno si prijavljen':'Trenutačno nisi prijavljen'}</h2><p>${escapeHtml(shift?.name||'Bez smjene')} · ${escapeHtml(shift?.start||'—')} – ${escapeHtml(shift?.end||'—')}</p></div><div class="worker-home-facts"><button data-bss-action="navigate('mytime')"><span>Današnja prijava</span><b>${escapeHtml(todayRecord?.start||'—')}</b></button><button data-bss-action="navigate('mytime')"><span>Evidentirano danas</span><b>${formatMinutes(todayRecord?recordMinutes(todayRecord,true):0)}</b></button><button data-bss-action="navigate('vacations')"><span>Preostali godišnji</span><b>${vacationRemaining(worker.id)} dana</b></button><button data-bss-action="openPendingRequests()"><span>Otvoreni zahtjevi</span><b>${ownRequests.filter(request=>request.status==='Na čekanju').length}</b></button></div><div class="worker-home-links"><button class="btn secondary" data-bss-action="navigate('sharedLeave')">Kalendar</button><button class="btn secondary" data-bss-action="navigate('requests')">Zahtjevi</button></div></section>`;
+    const isPresent=['Prisutan','Kasni'].includes(worker.status);
+    const checkIn=todayRecord?.start||worker.todayStart||'—';
+    const recorded=todayRecord?formatMinutes(recordMinutes(todayRecord,true)):'—';
+    const pending=ownRequests.filter(request=>request.status==='Na čekanju').length;
+    const shiftLabel=`${escapeHtml(shift?.name||'Bez smjene')} · ${escapeHtml(shift?.start||'—')} – ${escapeHtml(shift?.end||'—')}`;
+    return `${title(`Pozdrav, ${worker.name.split(' ')[0]}`,`Danas · ${shift?.name||'Bez smjene'}`,pill(worker.status))}
+      <div class="worker-home-workspace">
+        <section class="card worker-today-card">
+          <div class="worker-today-head"><div><span class="worker-kicker">Današnja evidencija</span><h2>${isPresent?'Radni dan je u tijeku':'Nema aktivne prijave'}</h2><p>${shiftLabel}</p></div><span class="worker-presence-dot ${isPresent?'online':''}" aria-hidden="true"></span></div>
+          <div class="worker-today-grid">
+            <button data-bss-action="navigate('mytime')"><span>Prijava</span><b>${escapeHtml(checkIn)}</b><small>Otvori moje sate</small></button>
+            <button data-bss-action="navigate('mytime')"><span>Evidentirano danas</span><b>${escapeHtml(recorded)}</b><small>Pregled evidencije</small></button>
+          </div>
+          <div class="worker-home-links"><button class="btn secondary" data-bss-action="navigate('mytime')">Moji sati</button><button class="btn secondary" data-bss-action="navigate('sharedLeave')">Kalendar</button></div>
+        </section>
+        <aside class="card worker-summary-card">
+          <div class="worker-summary-head"><span class="worker-kicker">Moj pregled</span><h2>Odsutnosti i zahtjevi</h2></div>
+          <button class="worker-summary-row" data-bss-action="navigate('vacations')"><span><b>Preostali godišnji</b><small>Raspoloživo za planiranje</small></span><strong>${vacationRemaining(worker.id)} dana</strong></button>
+          <button class="worker-summary-row" data-bss-action="openPendingRequests()"><span><b>Otvoreni zahtjevi</b><small>Zahtjevi koji čekaju odluku</small></span><strong>${pending}</strong></button>
+          <button class="btn block" data-bss-action="navigate('requests')">Moji zahtjevi</button>
+        </aside>
+      </div>`;
   }
 
   function accountant(context){
