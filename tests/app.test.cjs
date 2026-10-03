@@ -1423,16 +1423,19 @@ test('izbornik i modal podržavaju Escape, aria stanje i imenovani dijalog',()=>
 
 test('contract gap #227 veže attendance lifecycle i recalculation na postojeći API bez role proširenja',()=>{
   const bindings=fs.readFileSync('src/adapters/api-bindings.js','utf8');
-  assert.match(bindings,/\/attendance-periods\/\$\{year\}\/\$\{monthNumber\}/);
-  assert.match(bindings,/\/attendance-periods\/\$\{year\}\/\$\{monthNumber\}\/\$\{action\}/);
-  assert.match(bindings,/Idempotency-Key/);
-  assert.match(bindings,/revisionHeaders\(apiAttendancePeriod\?\.revision/);
-  assert.match(bindings,/currentRole!=='admin'\|\|!apiAttendancePeriod/);
-  assert.match(bindings,/\/attendance\/\$\{record\.apiId\}\/recalculations/);
-  assert.match(bindings,/calculationVersion:'attendance-v1'/);
-  assert.match(bindings,/Ispravljeni zapis se ne preračunava ponovno/);
-  assert.match(bindings,/Mjesec je zaključan\. Prvo je potreban kontrolirani Admin reopen/);
-  assert.match(bindings,/Lifecycle je samo za čitanje\. Tranzicije su Admin-only/);
+  const lifecycle=fs.readFileSync('src/adapters/api-attendance-lifecycle.js','utf8');
+  assert.match(lifecycle,/\/attendance-periods\/\$\{year\}\/\$\{monthNumber\}/);
+  assert.match(lifecycle,/\/attendance-periods\/\$\{year\}\/\$\{monthNumber\}\/\$\{action\}/);
+  assert.match(lifecycle,/Idempotency-Key/);
+  assert.match(lifecycle,/callbacks\.revisionHeaders\(period\?\.revision/);
+  assert.match(lifecycle,/currentRole!=='admin'\|\|!period/);
+  assert.match(lifecycle,/\/attendance\/\$\{record\.apiId\}\/recalculations/);
+  assert.match(lifecycle,/calculationVersion:'attendance-v1'/);
+  assert.match(lifecycle,/Ispravljeni zapis se ne preračunava ponovno/);
+  assert.match(lifecycle,/Mjesec je zaključan\. Prvo je potreban kontrolirani Admin reopen/);
+  assert.match(lifecycle,/Lifecycle je samo za čitanje\. Tranzicije su Admin-only/);
+  assert.match(bindings,/BSSAttendanceLifecycle\?\.configure/);
+  assert.match(html,/src\/adapters\/api-attendance-lifecycle\.js/);
   assert.match(styles,/Contract gap #227 — attendance period lifecycle/);
   const screenApiMap=JSON.parse(fs.readFileSync('backend/contracts/frontend-screen-api-map-v1.json','utf8'));
   assert.ok(screenApiMap.screens.find(item=>item.id==='attendance').operations.includes('recalculateAttendanceDay'));
