@@ -1,4 +1,4 @@
-/* global BSS_API, BSS_API_ACTIVE, reportFilters, normalizeReportFilters, monthBounds, departmentByName, workerById, REPORT_TYPE_CONFIG, currentRole, render, toast, escapeHtml, formatMinutes, formatSignedMinutes, state, $, showModal */
+/* global BSS_API, normalizeReportFilters, monthBounds, departmentByName, workerById, REPORT_TYPE_CONFIG, currentRole, render, toast, escapeHtml, formatMinutes, formatSignedMinutes, $, showModal */
 (function registerReportAuthority(root){
   'use strict';
 
@@ -14,8 +14,9 @@
   function allowed(){return ['admin','manager','accountant'].includes(currentRole);}
 
   function normalized(){
-    reportFilters=normalizeReportFilters(reportFilters);
-    return reportFilters;
+    const filters=normalizeReportFilters(callbacks.getReportFilters());
+    callbacks.setReportFilters(filters);
+    return filters;
   }
 
   function requestBody(){
@@ -79,7 +80,7 @@
     if(previewError)return `<section class="card report-authoritative-state danger"><b>Službeni preview nije dostupan</b><span>${escapeHtml(previewError)}</span><button class="btn secondary" data-bss-action="reloadReportPreview()">Pokušaj ponovno</button></section>`;
     if(!preview)return '<section class="card report-authoritative-state"><b>Službeni preview nije učitan</b><span>Lokalni prikaz se ne predstavlja kao službeni report dataset.</span><button class="btn secondary" data-bss-action="reloadReportPreview()">Učitaj preview</button></section>';
 
-    const columns=preview.columns||[],rows=preview.rows||[],config=REPORT_TYPE_CONFIG[reportFilters.type]||{};
+    const filters=callbacks.getReportFilters(),columns=preview.columns||[],rows=preview.rows||[],config=REPORT_TYPE_CONFIG[filters.type]||{};
     const body=rows.map(row=>`<tr>${columns.map(column=>`<td>${cell(row?.[column.key])}</td>`).join('')}</tr>`).join('');
     const dataset=preview.datasetVersion||'—';
     return `<div class="card table-card report-preview report-authoritative-preview" data-authoritative-preview="true">
@@ -103,29 +104,32 @@
 
   async function applyFilters(log=true){
     if(!allowed())return;
-    reportFilters=normalizeReportFilters({
+    const current=callbacks.getReportFilters();
+    const next=normalizeReportFilters({
       month:$('#reportMonth')?.value,
       department:$('#reportDept')?.value,
       workerId:$('#reportWorker')?.value,
-      type:reportFilters.type
+      type:current.type
     });
-    await root.BSSAttendanceLifecycle?.load(reportFilters.month);
+    callbacks.setReportFilters(next);
+    await root.BSSAttendanceLifecycle?.load(next.month);
     const ok=await loadPreview({renderLoading:true,renderAfter:false});
     render();
     if(log)toast(ok?'Službeni preview izvještaja je ažuriran.':'Službeni preview nije moguće učitati.');
   }
 
   async function updateDepartment(department){
-    const month=$('#reportMonth')?.value||reportFilters.month;
-    reportFilters=normalizeReportFilters({...reportFilters,month,department,workerId:'Svi'});
-    await root.BSSAttendanceLifecycle?.load(reportFilters.month);
+    const current=callbacks.getReportFilters(),month=$('#reportMonth')?.value||current.month;
+    const next=normalizeReportFilters({...current,month,department,workerId:'Svi'});
+    callbacks.setReportFilters(next);
+    await root.BSSAttendanceLifecycle?.load(next.month);
     await loadPreview({renderLoading:true,renderAfter:false});
     render();
   }
 
   async function setType(type){
     if(!REPORT_TYPE_CONFIG[type])return;
-    reportFilters=normalizeReportFilters({...reportFilters,type});
+    callbacks.setReportFilters(normalizeReportFilters({...callbacks.getReportFilters(),type}));
     await loadPreview({renderLoading:true,renderAfter:false});
     render();
   }
