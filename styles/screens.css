@@ -623,3 +623,37 @@ button.day:hover{outline:2px solid var(--bss-color-accent-text);outline-offset:1
   outline:3px solid var(--bss-color-focus);
   outline-offset:2px;
 }
+
+
+/* Owner visual review — neutral operational filters */
+.request-tabs button,
+.attendance-tabs button,
+.workers-tabs .tab,
+.view-switch button{
+  background:var(--bss-color-bg-surface);
+  color:var(--bss-color-text-muted);
+  border-color:var(--bss-color-border);
+  box-shadow:none;
+}
+.request-tabs button.active,
+.attendance-tabs button.active,
+.workers-tabs .tab.active,
+.view-switch button.active{
+  background:var(--bss-color-bg-subtle);
+  color:var(--bss-color-text);
+  border-color:var(--bss-color-border-strong);
+  box-shadow:inset 0 0 0 1px var(--bss-color-border-strong);
+}
+.request-tabs button:hover,
+.attendance-tabs button:hover,
+.workers-tabs .tab:hover,
+.view-switch button:hover{
+  background:var(--bss-color-bg-hover);
+  color:var(--bss-color-text);
+}
+.request-tabs button.active span,
+.attendance-tabs button.active span{
+  background:var(--bss-color-bg-surface);
+  color:var(--bss-color-text);
+  border:1px solid var(--bss-color-border);
+}
