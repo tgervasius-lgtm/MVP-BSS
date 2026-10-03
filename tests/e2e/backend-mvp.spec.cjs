@@ -72,6 +72,7 @@ test('stvarni PostgreSQL backend prijavljuje administratora i otvara svaki ugovo
   const violations=(await new AxeBuilder({page}).withTags(['wcag2a','wcag2aa']).analyze()).violations
     .filter(item=>['serious','critical'].includes(item.impact));
   expect(violations).toEqual([]);
+  await assertTerminalReconciliationDetail(page);
   expect(errors).toEqual([]);
 });
 
@@ -101,9 +102,7 @@ test('radnik spremljen kroz UI odmah dolazi iz stvarnog API-ja i PostgreSQL baze
   expect(errors).toEqual([]);
 });
 
-test('sintetički terminalski detalj koristi registrirane akcije, fokus i validaciju bez backend mutacije',async({page})=>{
-  const errors=trackErrors(page);
-  await login(page);
+async function assertTerminalReconciliationDetail(page){
   await page.evaluate(()=>{
     window.navigate('terminal');
     window.BSS_API_ACTIVE=true;
@@ -121,5 +120,5 @@ test('sintetički terminalski detalj koristi registrirane akcije, fokus i valida
   expect((await new AxeBuilder({page}).withTags(['wcag2a','wcag2aa']).analyze()).violations.filter(item=>['serious','critical'].includes(item.impact))).toEqual([]);
   await page.keyboard.press('Escape');
   await expect(page.getByRole('dialog')).not.toBeVisible();
-  expect(errors).toEqual([]);
-});
+}
+
