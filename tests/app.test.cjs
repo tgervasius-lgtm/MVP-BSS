@@ -25,7 +25,8 @@ const coreSources = [
   'src/views/workers-operational.js',
   'src/views/navigation-operational.js',
   'src/views/approvals-operational.js',
-  'src/views/reports-operational.js'
+  'src/views/reports-operational.js',
+  'src/views/leave-calendar-operational.js'
 ].map(path=>fs.readFileSync(path,'utf8'));
 const styleEntry = fs.readFileSync('styles.css','utf8');
 const styleLayerPaths = [
@@ -407,12 +408,22 @@ test('svaki KPI i kompaktni brojčani sažetak ima drill-down bez slijepih karti
   }
 });
 
+test('Kalendar operational checkpoint zadržava privacy-minimized podatke i jednostavan naziv',()=>{
+  const worker=boot('worker');
+  worker.window.navigate('sharedLeave');
+  assert.equal(worker.document.querySelector('.section-title h1').textContent,'Kalendar');
+  assert.match(worker.document.querySelector('.calendar-privacy-card').textContent,/samo ime zaposlenika i odobreni datumi godišnjeg/i);
+  assert.equal(worker.document.querySelectorAll('.shared-leave-table th').length,3);
+  assert.doesNotMatch(worker.document.querySelector('.shared-leave-table').textContent,/bolovanje|razlog|napomena|saldo/i);
+  assert.equal(worker.document.querySelector('.scope-switch'),null);
+});
+
 test('zajednički godišnji je frontend demo za sve uloge i prikazuje samo odobrene minimalne podatke',()=>{
   for(const role of ['admin','manager','worker','accountant']){
     const app=boot(role);
     assert.ok(app.window.allowedScreens().includes('sharedLeave'));
     app.window.navigate('sharedLeave');
-    assert.match(app.document.querySelector('.section-title h1').textContent,/Zajednički kalendar godišnjih/);
+    assert.equal(app.document.querySelector('.section-title h1').textContent,'Kalendar');
     assert.equal(app.evaluate("sharedLeaveRequests().every(request=>request.type==='Godišnji odmor'&&request.status==='Odobreno')"),true);
     const text=app.document.querySelector('#content').textContent;
     assert.doesNotMatch(text,/Obiteljski odmor|Privatne obveze|Glavni godišnji|Bolovanje/);
