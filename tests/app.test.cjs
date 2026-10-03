@@ -1432,9 +1432,9 @@ test('contract gap #227 veže attendance lifecycle i recalculation na postojeći
   assert.match(lifecycle,/\/attendance\/\$\{record\.apiId\}\/recalculations/);
   assert.match(lifecycle,/calculationVersion:'attendance-v1'/);
   assert.match(lifecycle,/Ispravljeni zapis se ne preračunava ponovno/);
-  assert.match(lifecycle,/currentPeriod\.data\.status!==\'open\'/);
+  assert.match(lifecycle,/currentPeriod\.data\.status!=='open'/);
   assert.match(lifecycle,/Preračun je dopušten samo u otvorenom periodu/);
-  assert.match(lifecycle,/if\(record\.status===\'Ispravljeno\'\)/);
+  assert.match(lifecycle,/if\(record\.status==='Ispravljeno'\)/);
   assert.match(lifecycle,/Lifecycle je samo za čitanje\. Tranzicije su Admin-only/);
   assert.match(bindings,/BSSAttendanceLifecycle\?\.configure/);
   assert.match(html,/src\/adapters\/api-attendance-lifecycle\.js/);
