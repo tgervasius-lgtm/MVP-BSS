@@ -1371,3 +1371,26 @@ button.day:hover{outline:2px solid var(--bss-color-accent-text);outline-offset:1
   .mytime-summary-grid>button:nth-last-child(-n+2),
   .settings-workspace .admin-kpis>button:nth-last-child(-n+2){border-bottom:0}
 }
+
+
+/* Owner visual review pass 2 — calendar and leave surface sharpness */
+.leave-calendar-card .month-card,
+.shared-leave-calendar .month-card{
+  border-radius:7px;
+  box-shadow:none;
+}
+.month-view .day{
+  border-radius:5px;
+}
+.leave-request-card{
+  border-radius:7px;
+  box-shadow:none;
+}
+.leave-request-body>div,
+.leave-conflict,
+.leave-decision{
+  border-radius:6px;
+}
+.request-search input{
+  border-radius:7px;
+}
