@@ -3,7 +3,7 @@
 
   const primaryByRole=Object.freeze({
     admin:Object.freeze(['home','attendance','workers','sharedLeave','requests','reports']),
-    manager:Object.freeze(['home','attendance','workers','sharedLeave','requests','reports']),
+    manager:Object.freeze(['home','attendance','workers','vacations','requests']),
     worker:Object.freeze(['home','mytime','vacations','sharedLeave','requests']),
     accountant:Object.freeze(['home','reports','sharedLeave'])
   });
