@@ -333,3 +333,19 @@ button.day:hover{outline:2px solid var(--bss-color-accent-text);outline-offset:1
 .shifts-operational-card{box-shadow:none}.shifts-operational-card td{padding-top:9px;padding-bottom:9px}
 .shifts-operational-card td .pill{background:transparent;border-color:transparent;padding:3px 0;border-radius:0;font-weight:800}
 .shifts-boundary-note{font-size:9px}
+
+
+/* Visual Design Gate — my time operational checkpoint */
+.mytime-summary-card{padding:13px 14px;margin-bottom:10px;box-shadow:none;border-radius:9px}
+.mytime-summary-head{display:flex;justify-content:space-between;align-items:flex-start;gap:14px}
+.mytime-summary-head span{font-size:8px;text-transform:uppercase;letter-spacing:.06em;color:var(--bss-color-text-muted)}
+.mytime-summary-head h2{margin:3px 0 0;font-size:18px}
+.mytime-summary-head label{display:grid;gap:4px;font-size:8px;color:var(--bss-color-text-muted)}
+.mytime-summary-head input{min-width:150px;border:1px solid var(--bss-color-border);border-radius:7px;padding:8px;background:var(--bss-color-bg-surface);color:var(--bss-color-text)}
+.mytime-summary-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:12px}
+.mytime-summary-grid>button{padding:10px 11px;border:1px solid var(--bss-color-border);border-radius:8px;background:var(--bss-color-bg-surface);text-align:left}
+.mytime-summary-grid>button:hover:not(:disabled){background:var(--bss-color-bg-hover)}
+.mytime-summary-grid>button:disabled{cursor:default;opacity:.65}
+.mytime-summary-grid span,.mytime-summary-grid b{display:block}.mytime-summary-grid span{font-size:8px;color:var(--bss-color-text-muted)}.mytime-summary-grid b{font-size:17px;margin-top:3px}
+.mytime-shift-row{display:flex;justify-content:space-between;gap:12px;margin-top:10px;padding-top:9px;border-top:1px solid var(--bss-color-border);font-size:9px}.mytime-shift-row span{color:var(--bss-color-text-muted)}.mytime-shift-row b{text-align:right}
+#myTimeRecords{box-shadow:none}.correction-form-card{box-shadow:none}
