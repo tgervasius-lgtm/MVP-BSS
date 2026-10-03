@@ -1046,3 +1046,58 @@ button.day:hover{outline:2px solid var(--bss-color-accent-text);outline-offset:1
   .home-summary-item:nth-child(2){border-right:0}
   .home-summary-item:nth-child(n+3){border-top:1px solid var(--bss-color-border)}
 }
+
+
+/* Owner visual review — calendar controls deduplicated */
+.calendar-card-toolbar{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  margin-bottom:12px;
+  padding-bottom:10px;
+  border-bottom:1px solid var(--bss-color-border);
+}
+.calendar-period-control{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  min-width:0;
+}
+.calendar-period-control b{
+  min-width:120px;
+  font-size:14px;
+  text-transform:none;
+}
+.calendar-period-control button{
+  width:32px;
+  height:32px;
+  border:1px solid var(--bss-color-border);
+  border-radius:6px;
+  background:var(--bss-color-bg-surface);
+  color:var(--bss-color-accent-text);
+  font-size:18px;
+  font-weight:850;
+}
+.calendar-period-control button:hover{
+  background:var(--bss-color-bg-hover);
+  border-color:var(--bss-color-border-strong);
+}
+.calendar-card-actions{
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+.month-view>.month-card>h3{display:none}
+.leave-calendar-card .month-view,
+.shared-leave-calendar .month-view{margin-top:0}
+
+@media(max-width:760px){
+  .calendar-card-toolbar{
+    align-items:stretch;
+    flex-direction:column;
+  }
+  .calendar-card-actions{
+    justify-content:space-between;
+  }
+}
