@@ -251,3 +251,12 @@ button.day:hover{outline:2px solid var(--bss-color-accent-text);outline-offset:1
 .leave-capacity-card{margin-bottom:10px}.vacation-balance-table td small{display:block;margin-top:3px;font-size:8px;color:var(--bss-color-text-muted)}
 .shared-leave-table td,.vacation-balance-table td,.department-capacity-table td{padding-top:9px;padding-bottom:9px}
 .shared-leave-scope-card{box-shadow:none}
+
+
+/* Visual Design Gate — operational home checkpoint */
+.home-kpis .kpi-card{box-shadow:none;border-radius:8px;background:var(--bss-color-bg-surface)}
+.home-kpis .kpi-card .kpi-icon{background:transparent!important;color:var(--bss-color-text-muted)!important}
+.home-kpis .kpi-card.green,.home-kpis .kpi-card.red,.home-kpis .kpi-card.blue,.home-kpis .kpi-card.amber{background:var(--bss-color-bg-surface)}
+.home-operational-layout{margin-top:10px}.home-actions-card .alert-item{border-radius:7px;background:transparent}.home-actions-card .alert-item:hover{background:var(--bss-color-bg-hover)}
+.home-activity-card{box-shadow:none}.worker-home-operational,.accountant-home-operational{box-shadow:none;border-radius:10px}
+.worker-home-links{display:flex;gap:8px;margin-top:12px}

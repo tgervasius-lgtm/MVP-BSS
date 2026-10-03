@@ -172,3 +172,7 @@
 
 /* Leave/calendar operational checkpoint */
 @media(max-width:520px){.calendar-workspace-toolbar .calendar-toolbar{align-items:stretch;flex-direction:column}.calendar-workspace-toolbar .calendar-filter{max-width:none;width:100%}}
+
+
+/* Operational home checkpoint */
+@media(max-width:520px){.worker-home-links{display:grid;grid-template-columns:1fr 1fr}}

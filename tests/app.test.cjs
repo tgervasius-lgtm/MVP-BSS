@@ -26,7 +26,8 @@ const coreSources = [
   'src/views/navigation-operational.js',
   'src/views/approvals-operational.js',
   'src/views/reports-operational.js',
-  'src/views/leave-calendar-operational.js'
+  'src/views/leave-calendar-operational.js',
+  'src/views/home-operational.js'
 ].map(path=>fs.readFileSync(path,'utf8'));
 const styleEntry = fs.readFileSync('styles.css','utf8');
 const styleLayerPaths = [
@@ -476,6 +477,19 @@ test('login auth shell koristi neutralni enterprise treatment bez promjene login
   assert.match(styles,/enterprise auth shell/);
   assert.match(styles,/background:#f5f7fa/);
   assert.match(styles,/background:#17212b/);
+});
+
+test('Početna operational checkpoint uklanja hero treatment i čuva role drill-down akcije',()=>{
+  const admin=boot('admin');
+  admin.window.navigate('home');
+  assert.equal(admin.document.querySelector('.dashboard-hero'),null);
+  assert.equal(admin.document.querySelectorAll('.home-kpis .kpi-card').length,4);
+  assert.ok(admin.document.querySelector('[data-kpi="review"]'));
+  const worker=boot('worker');
+  assert.doesNotMatch(worker.document.querySelector('#content').textContent,/Marko Marić|Petra Novak|Ana Kovač/);
+  assert.match(worker.document.querySelector('.worker-home-operational').textContent,/Kalendar/);
+  const accountant=boot('accountant');
+  assert.match(accountant.document.querySelector('#content').textContent,/Samo čitanje/);
 });
 
 test('desktop navigacija prikazuje samo primarne Admin stavke i puni izbornik ostaje u draweru',()=>{
@@ -1986,7 +2000,7 @@ test('screen registry zaključava sve BSS ekrane i sigurno vraća početni prika
   ]);
   assert.equal(evaluate("BSS_CORE.views.registry.has('reports')"),true);
   assert.equal(evaluate("BSS_CORE.views.registry.has('__proto__')"),false);
-  assert.match(evaluate("BSS_CORE.views.registry.render('nepoznato',globalThis)"),/Operativni dashboard/);
+  assert.match(evaluate("BSS_CORE.views.registry.render('nepoznato',globalThis)"),/Početna/);
 });
 
 test('event registry parsira samo dopuštene akcije bez evala',()=>{
