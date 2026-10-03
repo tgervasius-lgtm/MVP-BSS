@@ -168,3 +168,7 @@
 @media(min-width:620px){.report-metrics{grid-template-columns:repeat(4,minmax(0,1fr))}}
 @media(min-width:960px){.report-secondary-grid{grid-template-columns:minmax(0,1fr) minmax(300px,.72fr);align-items:start}}
 @media(max-width:520px){.report-workspace-title{display:block}.report-scope{text-align:left;min-width:0;margin-top:10px}.report-workspace-head .report-boundary{display:block}.report-workspace-head .report-boundary span{display:block;text-align:left;margin-top:4px}}
+
+
+/* Leave/calendar operational checkpoint */
+@media(max-width:520px){.calendar-workspace-toolbar .calendar-toolbar{align-items:stretch;flex-direction:column}.calendar-workspace-toolbar .calendar-filter{max-width:none;width:100%}}
