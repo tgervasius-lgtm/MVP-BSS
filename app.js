@@ -1614,7 +1614,8 @@ function viewReports(){
   return BSS_VIEWS.reportsOperational.render({
     currentRole,reportFilters,scopedWorkers,data,REPORT_TYPE_CONFIG,state,title,escapeHtml,departmentOptions,reportPreview,reportHistoryView,
     authoritativePreviewHtml:typeof globalThis.authoritativeReportPreviewHtml==='function'?globalThis.authoritativeReportPreviewHtml():'',
-    authoritativeMetricsHtml:typeof globalThis.authoritativeReportMetricsHtml==='function'?globalThis.authoritativeReportMetricsHtml():''
+    authoritativeMetricsHtml:typeof globalThis.authoritativeReportMetricsHtml==='function'?globalThis.authoritativeReportMetricsHtml():'',
+    authoritativeHasRows:typeof globalThis.authoritativeReportHasRows==='function'?globalThis.authoritativeReportHasRows():null
   });
 }
 function csvContent(data){
