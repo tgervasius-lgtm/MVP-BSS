@@ -13,7 +13,7 @@ updates:
       development-dependencies:
         dependency-type: development
     commit-message:
-      prefix: "deps"
+      prefix: "chore(deps)"
 
   - package-ecosystem: npm
     directory: /backend
@@ -28,7 +28,7 @@ updates:
       development-dependencies:
         dependency-type: development
     commit-message:
-      prefix: "deps-backend"
+      prefix: "chore(deps-backend)"
 
   - package-ecosystem: github-actions
     directory: /
