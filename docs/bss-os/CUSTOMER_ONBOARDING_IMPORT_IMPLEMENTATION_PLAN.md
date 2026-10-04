@@ -1,6 +1,6 @@
 # Customer onboarding and employee import — implementation preparation
 
-Status: **PROPOSED / PREPARED / RUNTIME NOT IMPLEMENTED**
+Status: **FRAMEWORK ACCEPTED / H2-1 BACKEND IN PROGRESS / CUSTOMER FLOW NOT IMPLEMENTED**
 
 Reviewed: 2026-10-04 (Europe/Warsaw)
 
@@ -130,4 +130,4 @@ Each slice is complete only with reviewed contract/data/code/UI ownership as app
 
 H2-0 begins with measured D1 options and the D2/D3 decision record, followed by the proposed API/schema review. Preserve #68 sales, #62 Pilot, #59 infrastructure, #64/#66 privacy/legal, #95 identity, #97 recovery, #132 hardware and #133 roadmap ownership. Runtime work, customer-data processing and policy acceptance remain separate from this preparation PR.
 
-The [H2-0 decision proposal](H2_IMPORT_ONBOARDING_DECISION_PROPOSAL.md) now provides synthetic parser measurements, concrete candidate D1/D2 values, the D3 authority boundary and a separate proposed OpenAPI artifact. Its status is **AWAITING DECISION REVIEW**, not an accepted policy or implementation. Target-runtime, PostgreSQL, hostile-file and cleanup evidence remain required before the dependent runtime activation.
+The [H2-0 framework](H2_IMPORT_ONBOARDING_DECISION_PROPOSAL.md) was explicitly accepted by the owner on 2026-10-04 and merged through #241 (`b260428c34143db1cd0b17b1ec214a2fa64e2fed`). The owner authorized backend implementation. [H2-1a](H2_IMPORT_BACKEND_FOUNDATION.md) isolates the private staging/atomic-commit foundation for review; it is not registered in the server and does not implement the proposed HTTP contract. File parsing/containment, source mapping, upload admission, deployment-wide monitored cleanup and all customer-facing flows remain separate work. Target-runtime/privacy/backup evidence and actual D3 operator identities remain activation gates.

@@ -24,6 +24,18 @@ function checksum(sql: string): string {
   return createHash("sha256").update(sql).digest("hex");
 }
 
+// Keep the 012 recovery test aimed at 012 as new additive migrations arrive.
+// Every later migration must actually roll back; no ledger rows are skipped.
+async function downThrough012(client: InstanceType<typeof Client>): Promise<void> {
+  for (;;) {
+    const latest = await client.query<{ version: string }>("SELECT version FROM bss_schema_migrations ORDER BY version DESC LIMIT 1");
+    const version = latest.rows[0]?.version;
+    assert.ok(version && version >= "012_");
+    await migrateDown(client);
+    if (version.startsWith("012_")) return;
+  }
+}
+
 async function applyThrough011(client: InstanceType<typeof Client>): Promise<void> {
   await client.query(`CREATE TABLE bss_schema_migrations (
     version text PRIMARY KEY,
@@ -200,7 +212,7 @@ test("#146 migration 012 is safe under the production-like migrator role", { ski
         attendance_month_locks: true, audit_events: true, report_exports: true
       });
 
-      await migrateDown(beforeEvidence.client);
+      await downThrough012(beforeEvidence.client);
       assert.equal((await beforeEvidence.client.query(
         "SELECT 1 FROM bss_schema_migrations WHERE version = '012_deterministic_attendance_periods'"
       )).rowCount, 0);
@@ -273,7 +285,7 @@ test("#146 migration 012 is safe under the production-like migrator role", { ski
           }
         });
 
-        await assert.rejects(migrateDown(harness.client), /Refusing to remove deterministic attendance-period provenance/);
+        await assert.rejects(downThrough012(harness.client), /Refusing to remove deterministic attendance-period provenance/);
         assert.equal((await harness.client.query(
           "SELECT 1 FROM bss_schema_migrations WHERE version = '012_deterministic_attendance_periods'"
         )).rowCount, 1);
