@@ -10,12 +10,14 @@
     'openHolidayModal','openInviteModal','openJobPositionModal','openPendingRequests','openRequestDecision','openResetDemoDialog',
     'openShiftModal','openShiftWorkers','openVacationRequestStatus','openWorker','openWorkerModal','openWorkerStatus','pairTerminal','refreshWorkerJobOptions','resendInvitation','revokeTerminal',
     'resetDemo','restoreTerminal','saveAccessUser','saveDepartment','saveHoliday','saveJobPosition','saveSettings',
-    'saveShift','saveWorker','sendInvitation','sendPasswordReset','setAccessStatusFilter','setAttendanceView',
+    'saveShift','saveWorker','sendInvitation','sendPasswordReset','setAccessStatusFilter','setAttendanceDailyFilter','setAttendanceView',
     'setCalendarMode','setMyTimeMonth','setMyTimeReview','setReportType','setRequestStatusFilter','setSettingsTab',
     'setSharedLeaveVisibility','setVacationDepartment','setWorkerDetailTab','setWorkerTab','showSharedLeaveDay','showVacationDay','simulateTerminalOffline',
     'startCorrectionFromRecord','submitCorrection','submitVacationRequest','switchRole','toggleAccessDepartmentFields',
     'toggleAccessUser','toggleCard','toggleDemoMode','toggleDepartment','toggleHoliday','toggleJobPosition','toggleShift',
     'toggleTheme','toggleWorkerActive','updateCorrection','updateCorrectionPreview','updateReportDepartment',
+    'openTerminalEvent','submitTerminalReconciliation','reloadTerminalEvents',
+    'openTerminalRotation','submitTerminalRotation','changeTerminalRotationReason','revealTerminalCredential','copyTerminalCredential',
     'updateVacationRequestPreview'
   ]);
   const allowedActions=new Set(actionNames);

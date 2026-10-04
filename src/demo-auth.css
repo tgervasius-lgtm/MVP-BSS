@@ -1,31 +1,35 @@
+
 .demo-credentials{
   display:grid;
   grid-template-columns:repeat(2,minmax(0,1fr));
-  gap:10px;
-  padding:12px 14px;
-  border:1px solid rgba(255,255,255,.28);
-  border-radius:14px;
-  background:rgba(7,68,61,.2);
+  gap:12px;
+  padding:14px;
+  border:1px solid var(--bss-color-border);
+  border-radius:10px;
+  background:var(--bss-color-bg-subtle);
+  color:var(--bss-color-text);
 }
 .demo-credentials div{
   display:grid;
-  gap:3px;
+  gap:4px;
   min-width:0;
 }
 .demo-credentials span{
-  font-size:12px;
-  opacity:.78;
+  font-size:var(--bss-font-size-xs);
+  color:var(--bss-color-text-muted);
 }
 .demo-credentials b{
-  font-size:14px;
+  font-size:13px;
   overflow-wrap:anywhere;
 }
 .demo-credentials p{
   grid-column:1/-1;
   margin:2px 0 0;
-  font-size:12px;
-  line-height:1.45;
-  opacity:.82;
+  padding-top:10px;
+  border-top:1px solid var(--bss-color-border);
+  font-size:var(--bss-font-size-xs);
+  line-height:var(--bss-line-height-normal);
+  color:var(--bss-color-text-muted);
 }
 @media (max-width:520px){
   .demo-credentials{grid-template-columns:1fr}

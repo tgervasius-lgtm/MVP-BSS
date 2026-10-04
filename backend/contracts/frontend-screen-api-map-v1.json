@@ -1,8 +1,8 @@
 {
   "contract": "BSS post-freeze frontend screen ownership to Backend MVP API v1.4",
   "readiness": "RECONCILED_WITH_EXPLICIT_UI_GAPS",
-  "contractReviewedAt": "2026-09-02",
-  "contractReviewStatus": "ISSUE_157_RECONCILED_BSS_OS_REVIEW_REQUIRED",
+  "contractReviewedAt": "2026-10-04",
+  "contractReviewStatus": "POST_TERMINAL_MERGE_RECONCILED_WITH_EXPLICIT_GAPS",
   "productAuthority": {
     "file": "BSS_V1_PRODUCT_CONTRACT.md",
     "version": "1.0",
@@ -13,10 +13,10 @@
     "status": "HISTORICAL_FRONTEND_V1_REFERENCE",
     "authority": "NOT_CURRENT_PRODUCT_AUTHORITY"
   },
-  "repositoryBaseline": "29b00c0f63af0b3ffbd2d828550c882b9096fd05",
+  "repositoryBaseline": "e6d191c0933d3e32dce68ef874a9b8af722a64d8",
   "openapi": {
     "file": "openapi/bss-mvp-api-v1.yaml",
-    "sha256": "9eefb5f272dbef12f52ff631c350a001153923fd38f936627c4529884d6cc91f",
+    "sha256": "62a649b1f63ee571d1f43b9be5bbe145810159fe13fb71f556ec82bcf6788d6a",
     "version": "1.4.0",
     "status": "MVP_IMPLEMENTED",
     "paths": 52,
@@ -35,82 +35,156 @@
       "id": "home",
       "status": "current",
       "classification": "CURRENT_KEEP",
-      "operations": ["getDashboardSummary"]
+      "operations": [
+        "getDashboardSummary"
+      ]
     },
     {
       "id": "attendance",
       "status": "current",
       "classification": "CURRENT_BUT_UPDATE",
-      "operations": ["listAttendance", "listWorkers", "listShifts", "listDepartments"],
-      "note": "Admin-only recalculation/provenance and period readiness remain explicit UI gaps."
+      "operations": [
+        "listAttendance",
+        "listWorkers",
+        "listShifts",
+        "listDepartments",
+        "recalculateAttendanceDay"
+      ],
+      "note": "Admin-only recalculation/provenance is implemented in API mode with revision-aware, reasoned recalculation; period lifecycle ownership remains on Reports."
     },
     {
       "id": "mytime",
       "status": "current",
       "classification": "CURRENT_KEEP",
-      "operations": ["getWorkerAttendance", "createCorrectionRequest"]
+      "operations": [
+        "getWorkerAttendance",
+        "createCorrectionRequest"
+      ]
     },
     {
       "id": "workers",
       "status": "current",
       "classification": "CURRENT_BUT_UPDATE",
-      "operations": ["listWorkers", "createWorker", "updateWorker", "activateWorker", "deactivateWorker", "listDepartments", "listShifts", "listWorkerRfidCards", "assignWorkerRfidCard", "blockRfidCard"],
+      "operations": [
+        "listWorkers",
+        "createWorker",
+        "updateWorker",
+        "activateWorker",
+        "deactivateWorker",
+        "listDepartments",
+        "listShifts",
+        "listWorkerRfidCards",
+        "assignWorkerRfidCard",
+        "blockRfidCard"
+      ],
       "note": "Worker + department + shift + RFID is authoritative; legacy Job Position presentation is superseded."
     },
     {
       "id": "worker",
       "status": "current",
       "classification": "CURRENT_BUT_UPDATE",
-      "operations": ["getWorker", "getWorkerAttendance", "listLeaveRequests", "listLeaveBalances", "listWorkerRfidCards", "assignWorkerRfidCard", "blockRfidCard"],
+      "operations": [
+        "getWorker",
+        "getWorkerAttendance",
+        "listLeaveRequests",
+        "listLeaveBalances",
+        "listWorkerRfidCards",
+        "assignWorkerRfidCard",
+        "blockRfidCard"
+      ],
       "note": "Legacy Job Position presentation is not a current product entity or permission scope."
     },
     {
       "id": "shifts",
       "status": "current",
       "classification": "CURRENT_KEEP",
-      "operations": ["listShifts", "createShift", "updateShift"]
+      "operations": [
+        "listShifts",
+        "createShift",
+        "updateShift"
+      ]
     },
     {
       "id": "requests",
       "status": "current",
       "classification": "CURRENT_BUT_UPDATE",
-      "operations": ["listLeaveRequests", "createLeaveRequest", "listLeaveBalances", "approveLeaveRequest", "rejectLeaveRequest", "cancelOwnLeaveRequest"],
+      "operations": [
+        "listLeaveRequests",
+        "createLeaveRequest",
+        "listLeaveBalances",
+        "approveLeaveRequest",
+        "rejectLeaveRequest",
+        "cancelOwnLeaveRequest"
+      ],
       "note": "Finalized/closed-period recovery requires the governed Admin reopen path and is not a complete current UI pattern."
     },
     {
       "id": "vacations",
       "status": "current",
       "classification": "CURRENT_BUT_UPDATE",
-      "operations": ["listLeaveRequests", "listLeaveBalances", "listHolidays"],
+      "operations": [
+        "listLeaveRequests",
+        "listLeaveBalances",
+        "listHolidays"
+      ],
       "note": "Current navigation is Admin/Voditelj/Radnik. Accountant approved/minimized leave belongs to reporting/shared-calendar ownership."
     },
     {
       "id": "sharedLeave",
       "status": "current",
       "classification": "CURRENT_KEEP",
-      "operations": ["listApprovedLeaveCalendar", "getOrganization", "updateOrganization"],
+      "operations": [
+        "listApprovedLeaveCalendar",
+        "getOrganization",
+        "updateOrganization"
+      ],
       "note": "Privacy-minimized approved annual leave only; no sickness, reason, notes, balances or other private data."
     },
     {
       "id": "corrections",
       "status": "current",
       "classification": "CURRENT_BUT_UPDATE",
-      "operations": ["listCorrectionRequests", "createCorrectionRequest", "approveCorrectionRequest", "rejectCorrectionRequest", "cancelOwnCorrectionRequest"],
+      "operations": [
+        "listCorrectionRequests",
+        "createCorrectionRequest",
+        "approveCorrectionRequest",
+        "rejectCorrectionRequest",
+        "cancelOwnCorrectionRequest"
+      ],
       "note": "Finalized/closed periods fail closed; late recovery requires Admin period reopen and a new immutable finalized version."
     },
     {
       "id": "reports",
       "status": "current",
       "classification": "CURRENT_BUT_UPDATE",
-      "operations": ["listReportExports", "createReportExport", "getReportExport", "downloadReportExport"],
-      "note": "The current preview is rendered from client-side state. Server-authoritative preview, period lifecycle, locked-period provenance selection and export verification remain explicit UI gaps."
+      "operations": [
+        "listReportExports",
+        "createReportExport",
+        "getReportExport",
+        "downloadReportExport",
+        "getAttendancePeriod",
+        "startAttendancePeriodReview",
+        "finalizeAttendancePeriod",
+        "closeAttendancePeriod",
+        "reopenAttendancePeriod",
+        "createReportPreview",
+        "verifyReportExport"
+      ],
+      "note": "Attendance-period lifecycle, server-authoritative preview and stored export verification are implemented in API mode under server-enforced role/data scope. Explicit locked periodVersionId selection remains a separate boundary and is not claimed by this change."
     },
     {
       "id": "terminal",
       "status": "current",
       "classification": "CURRENT_BUT_UPDATE",
-      "operations": ["listTerminals", "pairTerminal", "revokeTerminal", "listTerminalSyncEvents"],
-      "note": "Credential rotation and Admin-only reconciliation remain UI gaps; ingestion and heartbeat are device protocol operations, not screen actions."
+      "operations": [
+        "listTerminals",
+        "pairTerminal",
+        "revokeTerminal",
+        "listTerminalSyncEvents",
+        "resolveTerminalEventReconciliation",
+        "rotateTerminalCredential"
+      ],
+      "note": "Admin-only reconciliation preserves raw evidence with authoritative read-back. Credential rotation uses revision confirmation and a transient one-time secret. Ingestion and heartbeat remain device protocol operations."
     },
     {
       "id": "terminalDemo",
@@ -130,19 +204,33 @@
       "id": "roles",
       "status": "current",
       "classification": "CURRENT_KEEP",
-      "operations": ["listUsers", "inviteUser", "updateUser"]
+      "operations": [
+        "listUsers",
+        "inviteUser",
+        "updateUser"
+      ]
     },
     {
       "id": "audit",
       "status": "current",
       "classification": "CURRENT_KEEP",
-      "operations": ["listAuditEvents"]
+      "operations": [
+        "listAuditEvents"
+      ]
     },
     {
       "id": "settings",
       "status": "current",
       "classification": "CURRENT_BUT_UPDATE",
-      "operations": ["getOrganization", "updateOrganization", "listDepartments", "createDepartment", "updateDepartment", "listHolidays", "replaceHolidaysForYear"],
+      "operations": [
+        "getOrganization",
+        "updateOrganization",
+        "listDepartments",
+        "createDepartment",
+        "updateDepartment",
+        "listHolidays",
+        "replaceHolidaysForYear"
+      ],
       "note": "Legacy Job Position controls are superseded; onboarding/import are separate Product Contract gaps."
     }
   ],
@@ -151,14 +239,19 @@
       "id": "invitation-acceptance",
       "status": "current",
       "classification": "CURRENT_KEEP",
-      "operations": ["acceptInvitation"],
+      "operations": [
+        "acceptInvitation"
+      ],
       "note": "Authentication entry pattern; not a registered business screen."
     },
     {
       "id": "terminal-device-protocol",
       "status": "current",
       "classification": "CURRENT_KEEP",
-      "operations": ["ingestTerminalEventBatch", "terminalHeartbeat"],
+      "operations": [
+        "ingestTerminalEventBatch",
+        "terminalHeartbeat"
+      ],
       "note": "Terminal protocol surface; not a web UI capability."
     },
     {
@@ -171,61 +264,36 @@
   ],
   "contractDefinedUiGaps": [
     {
-      "id": "attendance-recalculation-provenance",
-      "status": "contract-defined-gap",
-      "operations": ["recalculateAttendanceDay"],
-      "roles": ["admin"],
-      "prospectiveOwner": "attendance-recovery-pattern"
-    },
-    {
-      "id": "attendance-period-lifecycle",
-      "status": "contract-defined-gap",
-      "operations": ["getAttendancePeriod", "startAttendancePeriodReview", "finalizeAttendancePeriod", "closeAttendancePeriod", "reopenAttendancePeriod"],
-      "roles": ["admin", "manager", "accountant"],
-      "note": "Admin alone transitions. Manager reads scoped state; Accountant reads state. No worker access.",
-      "prospectiveOwner": "period-control-pattern"
-    },
-    {
-      "id": "report-server-preview",
-      "status": "contract-defined-gap",
-      "operations": ["createReportPreview"],
-      "roles": ["admin", "manager", "accountant"],
-      "prospectiveOwner": "reports-preview-pattern"
-    },
-    {
-      "id": "report-export-verification",
-      "status": "contract-defined-gap",
-      "operations": ["verifyReportExport"],
-      "roles": ["admin", "manager", "accountant"],
-      "prospectiveOwner": "reports-verification-pattern"
-    },
-    {
-      "id": "terminal-credential-rotation",
-      "status": "contract-defined-gap",
-      "operations": ["rotateTerminalCredential"],
-      "roles": ["admin"],
-      "prospectiveOwner": "terminal-security-pattern"
-    },
-    {
-      "id": "terminal-event-reconciliation",
-      "status": "contract-defined-gap",
-      "operations": ["resolveTerminalEventReconciliation"],
-      "roles": ["admin"],
-      "prospectiveOwner": "terminal-recovery-pattern"
-    },
-    {
       "id": "customer-onboarding",
       "status": "contract-defined-gap",
       "operations": [],
-      "roles": ["admin"],
+      "roles": [
+        "admin"
+      ],
       "note": "Frozen v1 scope; no current registered screen or OpenAPI operation."
     },
     {
       "id": "employee-import",
       "status": "contract-defined-gap",
       "operations": [],
-      "roles": ["admin"],
+      "roles": [
+        "admin"
+      ],
       "note": "Frozen Admin-only create/preview/validate/review/atomic-commit/cancel scope; no current registered screen or OpenAPI operation."
+    },
+    {
+      "id": "report-locked-version-selection",
+      "status": "contract-defined-gap",
+      "operations": [
+        "getAttendancePeriod",
+        "createReportExport"
+      ],
+      "roles": [
+        "admin",
+        "manager",
+        "accountant"
+      ],
+      "note": "Existing API supports a named immutable periodVersionId; complete explicit selection for official export remains a separate UI gap. Report preview/verification completion does not close it."
     }
   ],
   "authorizationBoundary": {
