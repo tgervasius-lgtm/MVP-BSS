@@ -3,9 +3,9 @@ import hashlib
 import json
 import os
 import re
-from pathlib import Path
 from urllib.parse import urlsplit
 
+from .paths import session_file
 from .protocol import encode, uuid_value
 
 
@@ -27,7 +27,11 @@ def validate(config):
         value = config.get(key)
         if not isinstance(value, str) or not 32 <= len(value) <= 256 or "\n" in value:
             raise ValueError("Nedostaje valjana testna vjerodajnica.")
-    cards = config.get("cards")
+    validate_cards(config.get("cards"))
+    return config
+
+
+def validate_cards(cards):
     if not isinstance(cards, list) or not 1 <= len(cards) <= 30:
         raise ValueError("Nedostaje popis testnih kartica.")
     for card in cards:
@@ -36,11 +40,10 @@ def validate(config):
             raise ValueError("Neispravan zapis testne kartice.")
     if len({card["hash"] for card in cards}) != len(cards):
         raise ValueError("Ponovljena testna kartica.")
-    return config
 
 
 def load(path):
-    path = Path(path)
+    path = session_file(path, "config.json")
     if path.is_symlink() or path.stat().st_size > 16384:
         raise ValueError("Neispravna konfiguracijska datoteka.")
     if os.name != "nt" and path.stat().st_mode & 0o077:

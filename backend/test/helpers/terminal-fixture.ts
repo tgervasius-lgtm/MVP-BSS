@@ -38,15 +38,14 @@ export async function terminalFixture(databaseUrl: string, port = 0, frontend = 
     const service = new PgMvpService(appPool, config);
     const department = (await owner.query<{id: string}>("SELECT id FROM departments WHERE organization_id=$1", [actor.organizationId])).rows[0]!.id;
     const shift = (await owner.query<{id: string}>("SELECT id FROM shifts WHERE organization_id=$1", [actor.organizationId])).rows[0]!.id;
-    const cards: Array<{hash: string; label: string}> = [];
-    const workers = [];
-    for (const [index, uid] of ["04112233", "04AABBCC"].entries()) {
+    const seededWorkers = await Promise.all(["04112233", "04AABBCC"].map(async (uid, index) => {
       const worker = await service.createWorker(actor, { code: `T-${index + 1}`, name: `Testni radnik ${index + 1}`,
         departmentId: department, shiftId: shift, email: null, annualLeaveAllowance: 20 }, "terminal-bench-worker");
       await service.assignWorkerRfidCard(actor, worker.id, {uid}, "terminal-bench-card");
-      cards.push({hash: hashRfidUid(uid, config.rfidUidPepper).toString("hex"), label: worker.name});
-      workers.push(worker);
-    }
+      return {worker, card: {hash: hashRfidUid(uid, config.rfidUidPepper).toString("hex"), label: worker.name}};
+    }));
+    const cards = seededWorkers.map(entry => entry.card);
+    const workers = seededWorkers.map(entry => entry.worker);
     const paired = await service.pairTerminal(actor, {name: "Laptop simulator", location: "Testni stol",
       activationCode: config.terminalActivationCode}, "terminal-bench-pair");
     app = await buildApp({config, authService: auth, phaseAService: service, logger: false});

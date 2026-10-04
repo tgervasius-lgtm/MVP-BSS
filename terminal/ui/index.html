@@ -9,11 +9,11 @@
     <header><strong>BSS <span>Terminal</span></strong><span id="connection">Povezivanje…</span></header>
     <div class="clock"><time id="time">--:--</time><p id="date"></p></div>
     <h1>Evidencija radnog vremena</h1>
-    <div class="actions" role="group" aria-label="Vrsta događaja">
+    <fieldset class="actions" aria-label="Vrsta događaja">
       <button id="arrival" type="button" aria-pressed="true">Dolazak</button>
       <button id="departure" type="button" aria-pressed="false">Odlazak</button>
-    </div>
-    <p id="feedback" role="status" aria-live="polite">Odaberite događaj i prislonite testnu karticu.</p>
+    </fieldset>
+    <output id="feedback" aria-live="polite">Odaberite događaj i prislonite testnu karticu.</output>
     <footer><span>TESTNI UREĐAJ · SINTETIČKI PODACI</span><span id="queue">Na čekanju: 0</span></footer>
   </main>
   <section class="simulator" aria-labelledby="sim-title">
@@ -23,6 +23,6 @@
       <button id="network" type="button" aria-pressed="false">Isključi sinkronizaciju</button></div>
     <label class="clock-toggle"><input id="trusted" type="checkbox"> Simuliraj pouzdan sat testnog uređaja</label>
     <p>Bez ove opcije događaj ide na administratorsku provjeru vremena. Stvarni RTC/NTP i RFID čitač provjeravaju se na uređaju.</p>
-    <p id="result" role="status">Još nema događaja.</p>
+    <output id="result">Još nema događaja.</output>
   </section>
 </body></html>

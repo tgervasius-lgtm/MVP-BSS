@@ -94,7 +94,7 @@ jobs:
           BSS_E2E_FULLSTACK: "false"
 
       - name: Terminal simulator browser and axe
-        run: npx playwright test --config=terminal/playwright.config.cjs --reporter=line
+        run: ./node_modules/.bin/playwright test --config=terminal/playwright.config.cjs --reporter=line
 
       - name: Terminal screen evidence
         if: always()

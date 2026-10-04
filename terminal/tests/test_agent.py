@@ -8,13 +8,15 @@ import tempfile
 import threading
 import time
 import unittest
+from contextlib import closing
 from pathlib import Path
 from unittest.mock import patch
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 from uuid import uuid4
 
-from terminal.config import identity, validate
+from terminal.config import identity, load, validate
+from terminal.paths import session_directory, session_file
 from terminal.protocol import EVENT_PATH, hash_card, receipt
 from terminal.server import make_server
 from terminal.store import Store
@@ -33,10 +35,11 @@ def config():
 
 class TestAgent(unittest.TestCase):
     def setUp(self):
-        self.temp = tempfile.TemporaryDirectory()
+        self.temp = tempfile.TemporaryDirectory(prefix="bss-terminal-unit-")
+        self.state_path = Path(self.temp.name) / "state"
         self.addCleanup(self.temp.cleanup)
         self.cfg = config()
-        self.store = Store(self.temp.name, self.cfg)
+        self.store = Store(self.state_path, self.cfg)
         self.addCleanup(lambda: self.store.close())
 
     def capture(self, **kwargs):
@@ -49,7 +52,7 @@ class TestAgent(unittest.TestCase):
         observations = []
 
         def inspect(stage):
-            with sqlite3.connect(Path(self.temp.name) / "queue.sqlite3") as other:
+            with closing(sqlite3.connect(self.state_path / "queue.sqlite3")) as other:
                 row = other.execute("SELECT status,payload FROM events").fetchone()
                 observations.append((stage, row))
 
@@ -78,7 +81,7 @@ class TestAgent(unittest.TestCase):
     def test_debounce_restart_and_monotonic_sequence(self):
         event = self.capture()
         self.store.close()
-        self.store = Store(self.temp.name, self.cfg)
+        self.store = Store(self.state_path, self.cfg)
         self.assertEqual(self.capture(), event)
         second = self.store.capture(UID, "check_out", str(uuid4()))
         self.assertEqual(second["sequence"], 2)
@@ -88,29 +91,29 @@ class TestAgent(unittest.TestCase):
         self.store.close()
         for stage, expected in [("before_event_commit", {}), ("after_event_commit", {"interrupted": 1}),
                                 ("after_receipt_commit", {"queued": 1})]:
-            with self.subTest(stage=stage), tempfile.TemporaryDirectory() as directory:
+            with self.subTest(stage=stage), tempfile.TemporaryDirectory(prefix="bss-terminal-unit-") as directory:
                 cfg_path = Path(directory) / "config.json"
                 cfg_path.write_text(json.dumps(self.cfg))
                 script = (
                     "import json,os,sys; from terminal.store import Store; from uuid import uuid4; "
                     "s=Store(sys.argv[1],json.load(open(sys.argv[2])),fault=lambda x:os._exit(71) if x==sys.argv[3] else None); "
                     "s.capture('04112233','check_in',str(uuid4()))")
-                result = subprocess.run([sys.executable, "-c", script, directory, str(cfg_path), stage], check=False)
+                result = subprocess.run([sys.executable, "-c", script, str(Path(directory) / "state"), str(cfg_path), stage], check=False)
                 self.assertEqual(result.returncode, 71)
-                recovered = Store(directory, self.cfg)
+                recovered = Store(Path(directory) / "state", self.cfg)
                 self.assertEqual(recovered.snapshot()["counts"], expected)
                 recovered.close()
-        self.store = Store(self.temp.name, self.cfg)
+        self.store = Store(self.state_path, self.cfg)
 
     def test_identity_binding_and_single_writer(self):
         with self.assertRaises(OSError):
-            Store(self.temp.name, self.cfg)
+            Store(self.state_path, self.cfg)
         self.store.close()
         changed = {**self.cfg, "apiOrigin": "http://127.0.0.1:9999"}
         self.assertNotEqual(identity(changed), identity(self.cfg))
         with self.assertRaises(ValueError):
-            Store(self.temp.name, changed)
-        self.store = Store(self.temp.name, self.cfg)
+            Store(self.state_path, changed)
+        self.store = Store(self.state_path, self.cfg)
 
     def test_storage_full_unknown_card_and_clock_rollback_fail_closed(self):
         with patch("terminal.store.shutil.disk_usage") as disk:
@@ -209,6 +212,52 @@ class TestAgent(unittest.TestCase):
         with urlopen(request) as response:
             self.assertEqual(response.status, 200)
         self.assertTrue(sender.paused)
+
+    def test_cli_session_and_fixed_file_boundaries(self):
+        directory = Path(self.temp.name)
+        cfg_path = directory / "config.json"
+        cfg_path.write_text(json.dumps(self.cfg), encoding="utf-8")
+        cfg_path.chmod(0o600)
+        self.assertEqual(load(cfg_path), self.cfg)
+        self.assertEqual(session_directory(directory.name), directory)
+        for name in ("../outside", str(directory), "unrelated-session", "file:queue?mode=memory"):
+            with self.assertRaises(ValueError):
+                session_directory(name)
+        for path in (directory / "secrets.json", directory / ".." / "config.json",
+                     Path("config.json"), directory / "state" / "config.json"):
+            with self.assertRaises(ValueError):
+                load(path)
+        with self.assertRaises(ValueError):
+            session_file(directory / "file:queue?mode=memory", "state")
+        result = subprocess.run([sys.executable, "-m", "terminal", "--session", "../outside"],
+                                capture_output=True, text=True, check=False)
+        self.assertEqual(result.returncode, 1)
+        self.assertNotIn("Traceback", result.stderr)
+
+    def test_session_rejects_linked_files_and_shared_permissions(self):
+        # Windows link/ACL qualification remains a separate physical deployment task.
+        if os.name == "nt":
+            self.assertEqual(session_file(self.state_path, "state"), self.state_path)
+            return
+        directory = Path(self.temp.name)
+        target = directory / "target.json"
+        target.write_text(json.dumps(self.cfg))
+        (directory / "config.json").symlink_to(target)
+        with self.assertRaises(ValueError):
+            load(directory / "config.json")
+        self.store.close()
+        (self.state_path / "agent.lock").unlink()
+        (self.state_path / "agent.lock").symlink_to(target)
+        with self.assertRaises(ValueError):
+            Store(self.state_path, self.cfg)
+        (self.state_path / "agent.lock").unlink()
+        self.store = Store(self.state_path, self.cfg)
+        directory.chmod(0o755)
+        try:
+            with self.assertRaises(ValueError):
+                session_directory(directory.name)
+        finally:
+            directory.chmod(0o700)
 
     def test_production_and_remote_configuration_rejected(self):
         for changes in [{"mode": "production"}, {"apiOrigin": "http://example.com:80"},

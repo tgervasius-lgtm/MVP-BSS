@@ -1,6 +1,6 @@
 """Single ordered background sender; transport failures never acknowledge data."""
 import json
-import random
+import secrets
 import threading
 import time
 from urllib.error import HTTPError
@@ -65,21 +65,8 @@ class Sync:
                 self.state = "paused"
                 return
             rows = self.store.pending()
-            if rows:
-                events = [json.loads(row["payload"]) for row in rows]
-                batch = {"batchId": str(uuid4()), "sentAt": utc_now(), "events": events}
-                try:
-                    response = self.transport.post(EVENT_PATH, batch)
-                    validate_response(batch, response)
-                    self.store.complete(rows, response)
-                    self.state = "online"
-                except Exception as error:
-                    # Never log remote bodies, request signatures, credentials or UIDs.
-                    code = "SYNC_AUTH_REQUIRED" if isinstance(error, HTTPError) and error.code in (401, 403) else "SYNC_RETRY"
-                    delay = 60 if code == "SYNC_AUTH_REQUIRED" else min(60, 2 ** min(rows[0]["attempts"] + 1, 6)) + random.random()
-                    self.store.retry(rows, delay, code)
-                    self.state = "auth_error" if code == "SYNC_AUTH_REQUIRED" else "offline"
-                    return
+            if rows and not self._send(rows):
+                return
             if time.monotonic() - self.last_heartbeat >= 60:
                 self.last_heartbeat = time.monotonic()
                 snapshot = self.store.snapshot()
@@ -90,6 +77,23 @@ class Sync:
                     self.state = "online"
                 except Exception:
                     self.state = "offline"
+
+    def _send(self, rows):
+        events = [json.loads(row["payload"]) for row in rows]
+        batch = {"batchId": str(uuid4()), "sentAt": utc_now(), "events": events}
+        try:
+            response = self.transport.post(EVENT_PATH, batch)
+            validate_response(batch, response)
+            self.store.complete(rows, response)
+            self.state = "online"
+            return True
+        except Exception as error:
+            # Never log remote bodies, request signatures, credentials or UIDs.
+            code = "SYNC_AUTH_REQUIRED" if isinstance(error, HTTPError) and error.code in (401, 403) else "SYNC_RETRY"
+            delay = 60 if code == "SYNC_AUTH_REQUIRED" else min(60, 2 ** min(rows[0]["attempts"] + 1, 6)) + secrets.randbelow(1000) / 1000
+            self.store.retry(rows, delay, code)
+            self.state = "auth_error" if code == "SYNC_AUTH_REQUIRED" else "offline"
+            return False
 
     def run(self):
         while not self.stop.is_set():

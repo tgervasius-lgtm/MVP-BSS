@@ -76,4 +76,4 @@ function clock() {
   element('time').textContent = date.toLocaleTimeString('hr-HR', {hour:'2-digit',minute:'2-digit'});
   element('date').textContent = date.toLocaleDateString('hr-HR', {weekday:'long',day:'numeric',month:'long',year:'numeric'});
 }
-clock(); refresh(); setInterval(clock, 1000); setInterval(refresh, 1500);
+clock(); void refresh(); setInterval(clock, 1000); setInterval(() => { void refresh(); }, 1500);

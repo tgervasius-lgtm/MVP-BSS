@@ -5,10 +5,10 @@ import shutil
 import sqlite3
 import threading
 import time
-from pathlib import Path
 from uuid import uuid4
 
 from .config import identity, validate
+from .paths import session_file
 from .protocol import encode, hash_card, receipt, utc_now, uuid_value
 
 
@@ -17,7 +17,7 @@ class Store:
         self.config = validate(config)
         self.now, self.fault = now, fault
         self.lock = threading.RLock()
-        self.directory = Path(directory)
+        self.directory = session_file(directory, "state")
         if self.directory.is_symlink():
             raise ValueError("Red zahtijeva vlastitu lokalnu mapu.")
         self.directory.mkdir(mode=0o700, parents=True, exist_ok=True)
@@ -30,7 +30,7 @@ class Store:
         try:
             self._lock_process()
             self.db = sqlite3.connect(self.directory / "queue.sqlite3", isolation_level=None,
-                                      check_same_thread=False, timeout=0.25)
+                                      check_same_thread=False, timeout=0.25, uri=False)
             self.db.row_factory = sqlite3.Row
             if self.db.execute("PRAGMA journal_mode=WAL").fetchone()[0] != "wal":
                 raise RuntimeError("WAL nije dostupan.")
@@ -95,13 +95,9 @@ class Store:
         if card_hash not in {card["hash"] for card in self.config["cards"]}:
             raise ValueError("Kartica nije na testnom popisu.")
         with self.lock:
-            existing = self.db.execute("SELECT * FROM events WHERE request_id=?", (request_id,)).fetchone()
-            if existing:
-                if existing["card_hash"] != card_hash or existing["event_type"] != event_type:
-                    raise ValueError("Identifikator pokušaja već je iskorišten.")
-                if existing["status"] in ("preparing", "interrupted"):
-                    raise ValueError("Prethodni upis prekinut; potrebna je provjera.")
-                return json.loads(existing["payload"])
+            existing = self._previous_attempt(card_hash, event_type, request_id)
+            if existing is not None:
+                return existing
             previous = self.db.execute("SELECT * FROM events ORDER BY sequence DESC LIMIT 1").fetchone()
             if (previous and previous["card_hash"] == card_hash and previous["event_type"] == event_type
                     and 0 <= time.time() - previous["created_at"] < 2
@@ -137,6 +133,16 @@ class Store:
             self.db.execute("UPDATE events SET payload=?,status='queued' WHERE sequence=?", (encode(event), event["sequence"]))
             self.fault("after_receipt_commit")
             return event
+
+    def _previous_attempt(self, card_hash, event_type, request_id):
+        existing = self.db.execute("SELECT * FROM events WHERE request_id=?", (request_id,)).fetchone()
+        if existing is None:
+            return None
+        if existing["card_hash"] != card_hash or existing["event_type"] != event_type:
+            raise ValueError("Identifikator pokušaja već je iskorišten.")
+        if existing["status"] in ("preparing", "interrupted"):
+            raise ValueError("Prethodni upis prekinut; potrebna je provjera.")
+        return json.loads(existing["payload"])
 
     def pending(self):
         with self.lock:

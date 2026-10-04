@@ -39,7 +39,7 @@ service and starts Fastify at `http://127.0.0.1:4180`. It prints the private ses
 and the exact command for a **second shell at repository root**:
 
 ```sh
-python3 -m terminal --config "PRIVATE_SESSION/config.json" --state "PRIVATE_SESSION/state"
+python3 -m terminal --session "bss-terminal-bench-SESSION_ID"
 ```
 
 On Windows replace `python3` with `py -3`. Open `http://127.0.0.1:8765`.
@@ -48,7 +48,10 @@ The bench admin credentials are in `PRIVATE_SESSION/admin-login.json`; use them 
 the local BSS page (`http://127.0.0.1:4180`) to inspect attendance and terminal history.
 Do not share this file, config, state directory, or screenshots containing credentials.
 
-POSIX config permissions must be 0600 and queue directory 0700. The program sets a
+Use the exact session name printed by the launcher. The CLI accepts only its private
+`bss-terminal-bench-*` session directly under the local user temp directory, with fixed
+`config.json` and `state` names; arbitrary paths and symbolic links are rejected.
+POSIX config permissions must be 0600 and session/queue directories 0700. The program sets a
 private umask. On Windows keep the fixture in your private local user temp directory;
 Windows ACL qualification is still required before any real employee/device data.
 
@@ -58,7 +61,7 @@ Windows ACL qualification is still required before any real employee/device data
    **Prisloni testnu karticu**. Local storage confirmation precedes background sync.
 2. Select Odlazak and tap. Inspect both events and the worker's attendance in BSS.
 3. Disable synchronization; capture another worker's event. Queue depth increases.
-   Stop/restart only Python with the same config/state path; pending evidence remains.
+   Stop/restart only Python with the same session name; pending evidence remains.
 4. Re-enable synchronization and allow retry backoff (at most about 61 seconds).
    No extra attendance is created when the same event is resent after a lost response.
    The automated PostgreSQL probe explicitly tests that response-loss boundary.
