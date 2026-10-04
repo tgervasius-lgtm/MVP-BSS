@@ -1,0 +1,1184 @@
+openapi: 3.1.0
+info:
+  title: BSS H2 import/onboarding candidate contract
+  version: 0.1.0-proposed
+  description: REVIEW ARTIFACT ONLY. No listed operation is implemented. D1/D2/D3 and target-runtime/DB/privacy
+    evidence remain prerequisites. The implemented authoritative contract is openapi/bss-mvp-api-v1.yaml. No tenant-creation
+    or go-live-approval endpoint is exposed here; that operator identity boundary requires separate review.
+  license:
+    name: Proprietary
+    identifier: LicenseRef-Proprietary
+x-bss-status: PROPOSED_NOT_IMPLEMENTED
+x-bss-owner-issue: 237
+x-bss-baseline: 600b6f8117f8392f519b2c1adbb7cbb4ecf5bf09
+servers:
+- url: /api/v1
+  description: Proposed same-origin prefix; operations not yet available
+tags:
+- name: Worker imports
+  description: Admin-only create-only atomic import proposal.
+- name: Onboarding
+  description: Admin status/evidence proposal; explicit internal approval remains separate.
+security:
+- sessionCookie: []
+paths:
+  /worker-import-policy:
+    get:
+      tags:
+      - Worker imports
+      operationId: getWorkerImportPolicy
+      summary: Read published import limits and lifecycle
+      description: Available before upload. Display approved active policy and lifecycle notice. Proposed/disabled
+        policy cannot enable upload.
+      x-bss-roles:
+      - admin
+      x-bss-status: PROPOSED_NOT_IMPLEMENTED
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Policy'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '403':
+          $ref: '#/components/responses/Error403'
+        '429':
+          $ref: '#/components/responses/Error429'
+  /worker-imports:
+    get:
+      tags:
+      - Worker imports
+      operationId: listWorkerImports
+      summary: Recover recent tenant import sessions
+      description: Recover recent tenant import sessions
+      x-bss-roles:
+      - admin
+      x-bss-status: PROPOSED_NOT_IMPLEMENTED
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionPage'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '403':
+          $ref: '#/components/responses/Error403'
+        '429':
+          $ref: '#/components/responses/Error429'
+        '422':
+          $ref: '#/components/responses/Error422'
+      parameters:
+      - $ref: '#/components/parameters/Limit'
+      - $ref: '#/components/parameters/Cursor'
+    post:
+      tags:
+      - Worker imports
+      operationId: createWorkerImport
+      summary: Upload and stage one bounded file
+      description: 'No worker writes. Reserve tenant quota/idempotency, parse outside the API event loop, then privately
+        stage. Same-key same-input returns 200 original session, in-progress creation returns 409; new creation
+        returns 201. Fingerprint includes checksum, format, delimiter and policy version. File with row errors is
+        a recoverable session, not a partially committed batch. Same-origin browser mutation; no client-supplied
+        tenant, role or actor authority. Return Cache-Control: no-store, private.'
+      x-bss-roles:
+      - admin
+      x-bss-status: PROPOSED_NOT_IMPLEMENTED
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Session'
+          headers:
+            ETag:
+              schema:
+                type: string
+              description: Quoted current positive revision.
+        '401':
+          $ref: '#/components/responses/Error401'
+        '403':
+          $ref: '#/components/responses/Error403'
+        '429':
+          $ref: '#/components/responses/Error429'
+        '409':
+          $ref: '#/components/responses/Error409'
+        '413':
+          $ref: '#/components/responses/Error413'
+        '415':
+          $ref: '#/components/responses/Error415'
+        '422':
+          $ref: '#/components/responses/Error422'
+        '503':
+          $ref: '#/components/responses/Error503'
+        '200':
+          description: 'Same creation identity and payload: original session, without new staging or worker writes.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Session'
+          headers:
+            ETag:
+              schema:
+                type: string
+              description: Quoted current positive revision.
+      parameters:
+      - $ref: '#/components/parameters/Idempotency'
+      - name: policyVersion
+        in: query
+        required: true
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 80
+      - name: format
+        in: query
+        required: true
+        schema:
+          type: string
+          enum:
+          - csv
+          - xlsx
+      - name: delimiter
+        in: query
+        schema:
+          type: string
+          enum:
+          - ','
+          - ;
+        description: Required for CSV, forbidden for XLSX. No heuristic delimiter switching.
+      requestBody:
+        required: true
+        description: Single raw file body, at most proposed 1 MiB. Authenticate/authorize and validate Origin before
+          accepting/buffering bytes. Enforce streaming byte count and timeout even without Content-Length. No raw
+          body/request payload logs.
+        content:
+          text/csv:
+            schema:
+              type: string
+              format: binary
+            x-bss-max-bytes-proposed: 1048576
+          application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+            schema:
+              type: string
+              format: binary
+            x-bss-max-bytes-proposed: 1048576
+  /worker-imports/{importId}:
+    parameters:
+    - $ref: '#/components/parameters/ImportId'
+    get:
+      tags:
+      - Worker imports
+      operationId: getWorkerImport
+      summary: Read current session and durable result
+      description: Read current session and durable result
+      x-bss-roles:
+      - admin
+      x-bss-status: PROPOSED_NOT_IMPLEMENTED
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Session'
+          headers:
+            ETag:
+              schema:
+                type: string
+              description: Quoted current positive revision.
+        '401':
+          $ref: '#/components/responses/Error401'
+        '403':
+          $ref: '#/components/responses/Error403'
+        '429':
+          $ref: '#/components/responses/Error429'
+        '404':
+          $ref: '#/components/responses/Error404'
+  /worker-imports/{importId}/rows:
+    parameters:
+    - $ref: '#/components/parameters/ImportId'
+    get:
+      tags:
+      - Worker imports
+      operationId: getWorkerImportRows
+      summary: Read one revision-bound private preview page
+      description: Read one revision-bound private preview page
+      x-bss-roles:
+      - admin
+      x-bss-status: PROPOSED_NOT_IMPLEMENTED
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PreviewPage'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '403':
+          $ref: '#/components/responses/Error403'
+        '429':
+          $ref: '#/components/responses/Error429'
+        '404':
+          $ref: '#/components/responses/Error404'
+        '409':
+          $ref: '#/components/responses/Error409'
+        '410':
+          $ref: '#/components/responses/Error410'
+        '422':
+          $ref: '#/components/responses/Error422'
+      parameters:
+      - $ref: '#/components/parameters/PreviewRevision'
+      - $ref: '#/components/parameters/Limit'
+      - $ref: '#/components/parameters/Cursor'
+  /worker-imports/{importId}/mapping:
+    parameters:
+    - $ref: '#/components/parameters/ImportId'
+    patch:
+      tags:
+      - Worker imports
+      operationId: mapWorkerImport
+      summary: Replace mapping and revalidate every row
+      description: 'Full replacement of mapping only; source bytes/rows are immutable. Revision advances, old approval/checksum
+        invalidated. Active reference checks and canonical field/uniqueness validation decide INVALID or READY.
+        Lock/expiry checks apply. Same-origin browser mutation; no client-supplied tenant, role or actor authority.
+        Return Cache-Control: no-store, private.'
+      x-bss-roles:
+      - admin
+      x-bss-status: PROPOSED_NOT_IMPLEMENTED
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Session'
+          headers:
+            ETag:
+              schema:
+                type: string
+              description: Quoted current positive revision.
+        '401':
+          $ref: '#/components/responses/Error401'
+        '403':
+          $ref: '#/components/responses/Error403'
+        '429':
+          $ref: '#/components/responses/Error429'
+        '404':
+          $ref: '#/components/responses/Error404'
+        '409':
+          $ref: '#/components/responses/Error409'
+        '422':
+          $ref: '#/components/responses/Error422'
+        '503':
+          $ref: '#/components/responses/Error503'
+      parameters:
+      - $ref: '#/components/parameters/Revision'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Mapping'
+  /worker-imports/{importId}/commit:
+    parameters:
+    - $ref: '#/components/parameters/ImportId'
+    post:
+      tags:
+      - Worker imports
+      operationId: commitWorkerImport
+      summary: Approve and atomically create all workers
+      description: 'Reauthorize, resolve exact committed replay before checking current revision, lock READY session,
+        revalidate references and every row, insert workers/history/audit/result and purge staging in one transaction.
+        Any conflict rolls back all worker writes. Original successful replay remains valid after later configuration
+        changes. New approvals bind current preview. Uncertain response requires GET or same-key same-payload retry.
+        Same-origin browser mutation; no client-supplied tenant, role or actor authority. Return Cache-Control:
+        no-store, private.'
+      x-bss-roles:
+      - admin
+      x-bss-status: PROPOSED_NOT_IMPLEMENTED
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommitResult'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '403':
+          $ref: '#/components/responses/Error403'
+        '429':
+          $ref: '#/components/responses/Error429'
+        '404':
+          $ref: '#/components/responses/Error404'
+        '409':
+          $ref: '#/components/responses/Error409'
+        '422':
+          $ref: '#/components/responses/Error422'
+        '503':
+          $ref: '#/components/responses/Error503'
+      parameters:
+      - $ref: '#/components/parameters/Revision'
+      - $ref: '#/components/parameters/Idempotency'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Approval'
+  /worker-imports/{importId}/cancel:
+    parameters:
+    - $ref: '#/components/parameters/ImportId'
+    post:
+      tags:
+      - Worker imports
+      operationId: cancelWorkerImport
+      summary: Cancel an uncommitted session and purge staging
+      description: 'Lock same session as commit. COMMITTED returns conflict and is never undone. A lost cancellation
+        response is recovered by GET; do not assume a repeated stale mutation succeeded. Terminal states are not
+        mutable. Same-origin browser mutation; no client-supplied tenant, role or actor authority. Return Cache-Control:
+        no-store, private.'
+      x-bss-roles:
+      - admin
+      x-bss-status: PROPOSED_NOT_IMPLEMENTED
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Session'
+          headers:
+            ETag:
+              schema:
+                type: string
+              description: Quoted current positive revision.
+        '401':
+          $ref: '#/components/responses/Error401'
+        '403':
+          $ref: '#/components/responses/Error403'
+        '429':
+          $ref: '#/components/responses/Error429'
+        '404':
+          $ref: '#/components/responses/Error404'
+        '409':
+          $ref: '#/components/responses/Error409'
+        '422':
+          $ref: '#/components/responses/Error422'
+        '503':
+          $ref: '#/components/responses/Error503'
+      parameters:
+      - $ref: '#/components/parameters/Revision'
+  /onboarding:
+    get:
+      tags:
+      - Onboarding
+      operationId: getOnboarding
+      summary: Read resumable onboarding status
+      description: Existing provisioned tenant only. No tenant creation or profile promotion. Compute current blockers
+        and revalidation state; referenced external evidence is not trusted automatically. Missing onboarding identity
+        returns 404.
+      x-bss-roles:
+      - admin
+      x-bss-status: PROPOSED_NOT_IMPLEMENTED
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Onboarding'
+          headers:
+            ETag:
+              schema:
+                type: string
+              description: Quoted current positive revision.
+        '401':
+          $ref: '#/components/responses/Error401'
+        '403':
+          $ref: '#/components/responses/Error403'
+        '429':
+          $ref: '#/components/responses/Error429'
+        '404':
+          $ref: '#/components/responses/Error404'
+        '503':
+          $ref: '#/components/responses/Error503'
+  /onboarding/evidence:
+    patch:
+      tags:
+      - Onboarding
+      operationId: recordOnboardingEvidence
+      summary: Record unverified setup evidence references
+      description: 'Append to existing tenant onboarding, at most 100 retained submitted references in this candidate.
+        No arbitrary documents/credentials or automatic URL fetching. Submitted records cannot set VERIFIED, READY
+        or GO_LIVE_APPROVED. Existing authoritative API state decides software prerequisites. Actual identity verification
+        is blocked on D3. Same-origin browser mutation; no client-supplied tenant, role or actor authority. Return
+        Cache-Control: no-store, private.'
+      x-bss-roles:
+      - admin
+      x-bss-status: PROPOSED_NOT_IMPLEMENTED
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Onboarding'
+          headers:
+            ETag:
+              schema:
+                type: string
+              description: Quoted current positive revision.
+        '401':
+          $ref: '#/components/responses/Error401'
+        '403':
+          $ref: '#/components/responses/Error403'
+        '429':
+          $ref: '#/components/responses/Error429'
+        '404':
+          $ref: '#/components/responses/Error404'
+        '409':
+          $ref: '#/components/responses/Error409'
+        '422':
+          $ref: '#/components/responses/Error422'
+        '503':
+          $ref: '#/components/responses/Error503'
+      parameters:
+      - $ref: '#/components/parameters/Revision'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EvidenceWrite'
+  /onboarding/evaluate:
+    post:
+      tags:
+      - Onboarding
+      operationId: evaluateOnboarding
+      summary: Recompute readiness and blockers
+      description: 'Persist a versioned evaluation against authoritative current configuration and trusted evidence.
+        Missing/unverifiable external gates remain blocking. No approval mutation and no pilot/production activation.
+        Same current config may still yield new revision; replay through GET after uncertainty. Same-origin browser
+        mutation; no client-supplied tenant, role or actor authority. Return Cache-Control: no-store, private.'
+      x-bss-roles:
+      - admin
+      x-bss-status: PROPOSED_NOT_IMPLEMENTED
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Onboarding'
+          headers:
+            ETag:
+              schema:
+                type: string
+              description: Quoted current positive revision.
+        '401':
+          $ref: '#/components/responses/Error401'
+        '403':
+          $ref: '#/components/responses/Error403'
+        '429':
+          $ref: '#/components/responses/Error429'
+        '404':
+          $ref: '#/components/responses/Error404'
+        '409':
+          $ref: '#/components/responses/Error409'
+        '422':
+          $ref: '#/components/responses/Error422'
+        '503':
+          $ref: '#/components/responses/Error503'
+      parameters:
+      - $ref: '#/components/parameters/Revision'
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: bss_session
+  parameters:
+    ImportId:
+      name: importId
+      in: path
+      required: true
+      schema: &id001
+        type: string
+        format: uuid
+    Revision:
+      name: If-Match
+      in: header
+      required: true
+      schema:
+        type: string
+        pattern: ^(?:W/)?(?:"[1-9][0-9]{0,18}"|[1-9][0-9]{0,18})$
+      description: Reviewed session/onboarding revision. Missing or malformed is 422; stale is 409. Positive bigint
+        bounded as in current revision helper.
+    Idempotency:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema:
+        type: string
+        minLength: 8
+        maxLength: 128
+        pattern: ^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$
+      description: Scoped to verified tenant and operation. Same canonical payload returns original result; different
+        input conflicts. Create and commit keys have separate namespaces.
+    Limit:
+      name: limit
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 50
+    Cursor:
+      name: cursor
+      in: query
+      schema:
+        type: string
+        maxLength: 1024
+      description: Opaque server cursor bound to tenant/resource/filter/revision; reject altered or stale cursor.
+    PreviewRevision:
+      name: revision
+      in: query
+      required: true
+      schema: &id004
+        type: string
+        pattern: ^[1-9][0-9]{0,18}$
+        description: Positive bigint revision; maximum 9223372036854775807.
+      description: Every preview page binds the reviewed revision. Revision mismatch is 409.
+  schemas:
+    Problem:
+      $ref: ../../../openapi/bss-mvp-api-v1.yaml#/components/schemas/Problem
+    Policy:
+      type: object
+      additionalProperties: false
+      required:
+      - version
+      - approvalStatus
+      - uploadEnabled
+      - maxUploadBytes
+      - maxRows
+      - maxColumns
+      - formats
+      - csvDelimiters
+      - sessionTtlSeconds
+      - cleanupDeadlineSeconds
+      - maxNonterminalSessions
+      - maxPreviewRows
+      - lifecycleNotice
+      properties:
+        version:
+          type: string
+          maxLength: 80
+        approvalStatus:
+          type: string
+          enum:
+          - PROPOSED
+          - APPROVED
+        uploadEnabled:
+          type: boolean
+        maxUploadBytes:
+          type: integer
+          minimum: 1
+          example: 1048576
+        maxRows:
+          type: integer
+          minimum: 1
+          example: 1000
+        maxColumns:
+          type: integer
+          minimum: 5
+          maximum: 6
+          example: 6
+        formats:
+          type: array
+          items:
+            type: string
+            enum:
+            - csv
+            - xlsx
+          minItems: 2
+          maxItems: 2
+          uniqueItems: true
+        csvDelimiters:
+          type: array
+          items:
+            type: string
+            enum:
+            - ','
+            - ;
+          minItems: 2
+          maxItems: 2
+          uniqueItems: true
+        sessionTtlSeconds:
+          type: integer
+          minimum: 1
+          example: 86400
+        cleanupDeadlineSeconds:
+          type: integer
+          minimum: 1
+          example: 300
+        maxNonterminalSessions:
+          type: integer
+          minimum: 1
+          example: 2
+        maxPreviewRows:
+          type: integer
+          minimum: 1
+          maximum: 100
+          example: 100
+        lifecycleNotice:
+          type: string
+          minLength: 1
+          maxLength: 4000
+      description: Candidate shape. PROPOSED or disabled policy never permits upload. Notice must explain active
+        storage, backups, durable result and offboarding. Numeric examples are unapproved recommendations.
+    Counts:
+      type: object
+      additionalProperties: false
+      required:
+      - total
+      - valid
+      - blocked
+      properties:
+        total:
+          type: integer
+          minimum: 0
+          maximum: 1000
+        valid:
+          type: integer
+          minimum: 0
+          maximum: 1000
+        blocked:
+          type: integer
+          minimum: 0
+          maximum: 1000
+    CommitResult:
+      type: object
+      additionalProperties: false
+      required:
+      - commitId
+      - sessionId
+      - fileChecksum
+      - previewChecksum
+      - schemaVersion
+      - parserVersion
+      - policyVersion
+      - uploaderId
+      - approvedBy
+      - approvedAt
+      - committedAt
+      - createdCount
+      - counts
+      - errors
+      - createdWorkerIds
+      properties:
+        commitId: *id001
+        sessionId: *id001
+        fileChecksum: &id002
+          type: string
+          pattern: ^[a-f0-9]{64}$
+        previewChecksum: *id002
+        schemaVersion:
+          type: string
+          maxLength: 80
+        parserVersion:
+          type: string
+          maxLength: 80
+        policyVersion:
+          type: string
+          maxLength: 80
+        uploaderId: *id001
+        approvedBy: *id001
+        approvedAt: &id003
+          type: string
+          format: date-time
+        committedAt: *id003
+        createdCount:
+          type: integer
+          minimum: 1
+          maximum: 1000
+        counts:
+          $ref: '#/components/schemas/Counts'
+        errors:
+          type: array
+          items:
+            $ref: '#/components/schemas/RowError'
+          maxItems: 0
+        createdWorkerIds:
+          type: array
+          items: *id001
+          minItems: 1
+          maxItems: 1000
+          uniqueItems: true
+      description: Immutable minimal result. No uploaded names/emails or raw values; count equals number of IDs.
+        Retain under approved worker/audit lifecycle, independently of staging.
+    Session:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - state
+      - revision
+      - uploaderId
+      - createdAt
+      - expiresAt
+      - fileChecksum
+      - policyVersion
+      - schemaVersion
+      - parserVersion
+      - counts
+      properties:
+        id: *id001
+        state:
+          type: string
+          enum:
+          - PARSING
+          - NEEDS_MAPPING
+          - INVALID
+          - READY
+          - COMMITTED
+          - CANCELLED
+          - EXPIRED
+          - FAILED
+        revision: *id004
+        uploaderId: *id001
+        createdAt: *id003
+        expiresAt: *id003
+        fileChecksum: *id002
+        policyVersion:
+          type: string
+          maxLength: 80
+        schemaVersion:
+          type: string
+          maxLength: 80
+        parserVersion:
+          type: string
+          maxLength: 80
+        sourceHeaders:
+          type: array
+          items:
+            type: string
+            minLength: 1
+            maxLength: 80
+          minItems: 5
+          maxItems: 6
+        counts:
+          $ref: '#/components/schemas/Counts'
+        mapping:
+          $ref: '#/components/schemas/Mapping'
+        previewChecksum: *id002
+        result:
+          $ref: '#/components/schemas/CommitResult'
+      description: Mapping/checksum exist only after validation; result exists only for COMMITTED. Purged sessions
+        omit sourceHeaders and mapping. READY requires valid=total>0 and blocked=0.
+    ValueBinding:
+      type: object
+      additionalProperties: false
+      required:
+      - sourceValue
+      - targetId
+      properties:
+        sourceValue:
+          type: string
+          minLength: 1
+          maxLength: 1024
+        targetId: *id001
+    Mapping:
+      type: object
+      additionalProperties: false
+      required:
+      - columns
+      - departments
+      - shifts
+      properties:
+        columns:
+          type: object
+          additionalProperties: false
+          required:
+          - code
+          - name
+          - department
+          - shift
+          - annualLeaveAllowance
+          properties:
+            code:
+              type: integer
+              minimum: 1
+              maximum: 6
+            name:
+              type: integer
+              minimum: 1
+              maximum: 6
+            email:
+              type: integer
+              minimum: 1
+              maximum: 6
+            department:
+              type: integer
+              minimum: 1
+              maximum: 6
+            shift:
+              type: integer
+              minimum: 1
+              maximum: 6
+            annualLeaveAllowance:
+              type: integer
+              minimum: 1
+              maximum: 6
+        departments:
+          type: array
+          items:
+            $ref: '#/components/schemas/ValueBinding'
+          maxItems: 1000
+        shifts:
+          type: array
+          items:
+            $ref: '#/components/schemas/ValueBinding'
+          maxItems: 1000
+      description: Column indexes are 1-based, distinct and cover every source column. Bind each distinct source
+        department/shift value exactly once to an existing active tenant ID. No source value may be silently defaulted,
+        ignored or mapped outside this tenant.
+    RowError:
+      type: object
+      additionalProperties: false
+      required:
+      - field
+      - code
+      properties:
+        field:
+          type: string
+          enum:
+          - code
+          - name
+          - email
+          - department
+          - shift
+          - annualLeaveAllowance
+        code:
+          type: string
+          enum:
+          - REQUIRED
+          - INVALID_FORMAT
+          - TOO_LONG
+          - DUPLICATE_IN_FILE
+          - DUPLICATE_IN_TENANT
+          - REFERENCE_MISSING
+          - REFERENCE_INACTIVE
+          - REFERENCE_AMBIGUOUS
+          - UNSUPPORTED_CELL
+    PreviewRow:
+      type: object
+      additionalProperties: false
+      required:
+      - rowNumber
+      - values
+      - disposition
+      - errors
+      properties:
+        rowNumber:
+          type: integer
+          minimum: 2
+          maximum: 1001
+        values:
+          type: object
+          additionalProperties: false
+          required: []
+          properties:
+            code:
+              type: string
+              maxLength: 1024
+            name:
+              type: string
+              maxLength: 1024
+            email:
+              type: string
+              maxLength: 1024
+            department:
+              type: string
+              maxLength: 1024
+            shift:
+              type: string
+              maxLength: 1024
+            annualLeaveAllowance:
+              type: string
+              maxLength: 1024
+        disposition:
+          type: string
+          enum:
+          - CREATE
+          - BLOCKED
+        errors:
+          type: array
+          items:
+            $ref: '#/components/schemas/RowError'
+          maxItems: 6
+      description: Authorized private preview may show invalid candidate values. CREATE requires frozen code/name/email/allowance
+        rules and active unique mappings. Plain text only; no formulas/HTML execution. Never emit these values to
+        logs/audit.
+    SessionPage:
+      type: object
+      additionalProperties: false
+      required:
+      - items
+      - nextCursor
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Session'
+          maxItems: 100
+        nextCursor:
+          type:
+          - string
+          - 'null'
+          maxLength: 1024
+    PreviewPage:
+      type: object
+      additionalProperties: false
+      required:
+      - revision
+      - previewChecksum
+      - counts
+      - items
+      - nextCursor
+      properties:
+        revision: *id004
+        previewChecksum: *id002
+        counts:
+          $ref: '#/components/schemas/Counts'
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/PreviewRow'
+          maxItems: 100
+        nextCursor:
+          type:
+          - string
+          - 'null'
+          maxLength: 1024
+    Approval:
+      type: object
+      additionalProperties: false
+      required:
+      - approved
+      - previewChecksum
+      properties:
+        approved:
+          type: boolean
+          const: true
+        previewChecksum: *id002
+    EvidenceReference:
+      type: object
+      additionalProperties: false
+      required:
+      - step
+      - reference
+      properties:
+        step:
+          type: string
+          enum:
+          - COMPANY_SETUP
+          - PEOPLE_IMPORT
+          - ACCESS_SETUP
+          - TERMINAL_SETUP
+          - DRY_RUN
+        reference:
+          type: string
+          minLength: 1
+          maxLength: 500
+        note:
+          type: string
+          maxLength: 1000
+      description: Opaque approved-register reference, not uploaded document contents or a URL to fetch. No automatic
+        URL resolution. Submitted reference is UNVERIFIED; cannot certify readiness.
+    EvidenceWrite:
+      type: object
+      additionalProperties: false
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/EvidenceReference'
+          minItems: 1
+          maxItems: 20
+      description: Append bounded evidence references with optimistic revision. No actor/status/verification fields
+        accepted.
+    Blocker:
+      type: object
+      additionalProperties: false
+      required:
+      - step
+      - code
+      - message
+      properties:
+        step:
+          type: string
+          enum: &id005
+          - DRAFT
+          - COMPANY_SETUP
+          - PEOPLE_IMPORT
+          - ACCESS_SETUP
+          - TERMINAL_SETUP
+          - DRY_RUN
+          - READY_FOR_GO_LIVE
+          - GO_LIVE_APPROVED
+        code:
+          type: string
+          maxLength: 80
+        message:
+          type: string
+          maxLength: 500
+    Onboarding:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - revision
+      - profile
+      - stage
+      - contractVersion
+      - configurationChecksum
+      - evaluatedAt
+      - readyForGoLive
+      - revalidationRequired
+      - blockers
+      - submittedEvidence
+      properties:
+        id: *id001
+        revision: *id004
+        profile:
+          type: string
+          enum:
+          - DEMO
+          - INTERNAL
+          - PILOT
+          - PRODUCTION
+        stage:
+          type: string
+          enum: *id005
+        contractVersion:
+          type: string
+          maxLength: 80
+        configurationChecksum: *id002
+        evaluatedAt: *id003
+        readyForGoLive:
+          type: boolean
+        revalidationRequired:
+          type: boolean
+        blockers:
+          type: array
+          items:
+            $ref: '#/components/schemas/Blocker'
+          maxItems: 100
+        submittedEvidence:
+          type: array
+          items:
+            $ref: '#/components/schemas/EvidenceReference'
+          maxItems: 100
+        approval:
+          type: object
+          additionalProperties: false
+          required:
+          - decisionId
+          - actorReference
+          - approvedAt
+          - configurationChecksum
+          properties:
+            decisionId: *id001
+            actorReference:
+              type: string
+              maxLength: 200
+            approvedAt: *id003
+            configurationChecksum: *id002
+      description: Server owned profile/stage/evaluation. Historical approval is optional and immutable, never client-submitted.
+        Current blockers/revalidationRequired may coexist with a historical approval. External evidence cannot verify
+        itself.
+  responses:
+    Error401:
+      description: UNAUTHENTICATED. Current identity is required.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    Error403:
+      description: FORBIDDEN. Admin role required; mutations require approved Origin.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    Error429:
+      description: RATE_LIMITED. Tenant admission limit; respect Retry-After.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+      headers:
+        Retry-After:
+          schema:
+            type: integer
+            minimum: 1
+          description: Seconds before a bounded retry; never change a commit key merely to retry.
+    Error422:
+      description: VALIDATION_FAILED. Invalid fields, missing revision/key, unsafe file, malformed mapping or noncommittable
+        rows.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    Error409:
+      description: CONFLICT or STALE_REVISION. State, policy, revision, checksum or replay mismatch; no partial
+        worker writes.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    Error413:
+      description: PAYLOAD_TOO_LARGE. Raw/decompressed/row/cell limit exceeded; never accept a truncated subset.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    Error415:
+      description: UNSUPPORTED_MEDIA_TYPE. Unsupported or mismatched content/container.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    Error503:
+      description: IMPORT_UNAVAILABLE. Disabled/unapproved policy, parser capacity/timeout or dependency unavailable.
+        Resolve uncertain commits by read-back.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+      headers:
+        Retry-After:
+          schema:
+            type: integer
+            minimum: 1
+          description: Seconds before a bounded retry; never change a commit key merely to retry.
+    Error404:
+      description: NOT_FOUND. Missing or foreign-tenant resource.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    Error410:
+      description: IMPORT_DATA_PURGED. Preview values no longer retained; metadata/result may still be readable.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Problem'
