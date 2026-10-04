@@ -1,6 +1,6 @@
 # H2-0 — employee import and onboarding decision proposal
 
-Status: **PROPOSED / OWNER REVIEW REQUIRED / NO RUNTIME ACTIVATION**
+Status: **D1/D2/D3 FRAMEWORK ACCEPTED / NO RUNTIME ACTIVATION**
 
 Prepared: 2026-10-04 (Europe/Warsaw). Owner: [#237](https://github.com/tgervasius-lgtm/MVP-BSS/issues/237).
 
@@ -8,7 +8,7 @@ Reviewed software baseline: `600b6f8117f8392f519b2c1adbb7cbb4ecf5bf09` (merged #
 
 Authority: [frozen Product Contract](../../BSS_V1_PRODUCT_CONTRACT.md), sections 11–12, and the [implementation plan](CUSTOMER_ONBOARDING_IMPORT_IMPLEMENTATION_PLAN.md).
 
-This is a concrete recommendation for review, not an accepted policy or implemented API. A documentation merge does not approve D1/D2/D3. Record explicit owner acceptance and applicable technical/privacy review before the dependent runtime slice. No live records, infrastructure, new service, paid run, scheduled automation, production deployment or new customer role is introduced here.
+Owner acceptance was explicitly recorded on 2026-10-04 (Europe/Warsaw) in the working conversation and [#237](https://github.com/tgervasius-lgtm/MVP-BSS/issues/237), together with authorization to merge #241 and start the backend. #241 merged as `b260428c34143db1cd0b17b1ec214a2fa64e2fed`. This accepts the D1/D2 values and D3 responsibility boundary as the implementation framework. It does not prove containment/capacity, privacy/backup controls, assign the actual operator/reviewer identities, implement the proposed HTTP contract, or authorize customer-data activation. The original measured evidence below retains its stated limitations. [H2-1a](H2_IMPORT_BACKEND_FOUNDATION.md) tracks the inactive persistence slice.
 
 ## 1. Parallel work and scope
 
@@ -152,12 +152,12 @@ Migration/recovery review must include clean installation and upgrade, all index
 
 ## 9. Review and acceptance sequence
 
-1. Owner records acceptance or alternatives for D1/D2 and assigns D3 responsibilities. Numeric values remain PROPOSED until that record exists.
+1. D1/D2 values and D3 responsibility boundary accepted on 2026-10-04 as recorded above. Actual operator/reviewer identities remain to be assigned under #95/#59/#62.
 2. Technical/privacy review settles total-memory containment, backup/staging lifecycle, actual identity boundary and target-runtime capacity. Missing deployment evidence is not replaced by this local benchmark.
 3. Review candidate schemas, exact error/status behavior, cancellation/replay/expiry and table constraints. Then add implemented operations to authoritative OpenAPI alongside H2-1 runtime and meaningful contract/PG tests.
 4. Implement H2-1 with synthetic fixtures; leave customer processing disabled until environment/privacy gates pass. H2-2 uses proven API; H2-3/H2-4 depend on D3.
 
-The experiment and spec lint may pass while H2-0 is still **AWAITING DECISION REVIEW**. #237 stays open and onboarding/import stay unimplemented in the feature registry.
+H2-0 is **ACCEPTED AS FRAMEWORK**. #237 stays open; complete onboarding/import remain unimplemented. Each code slice needs its own verification and explicit high-risk merge approval.
 
 ## 10. Sources and recovery
 
