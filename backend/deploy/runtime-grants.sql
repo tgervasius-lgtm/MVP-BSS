@@ -28,6 +28,10 @@ GRANT UPDATE ON TABLE
 TO :"runtime_role";
 GRANT DELETE ON TABLE holidays, user_department_scopes, terminal_request_nonces TO :"runtime_role";
 REVOKE ALL PRIVILEGES ON TABLE bss_schema_migrations FROM :"runtime_role";
+-- H2-1a is an inactive persistence foundation. Do not let the broad SELECT
+-- grant above expose private staging before the ingestion/cleanup gate exists.
+REVOKE ALL PRIVILEGES ON TABLE worker_import_sessions, worker_import_staging,
+  worker_import_commits, worker_import_commit_workers FROM :"runtime_role";
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO :"runtime_role";
 GRANT EXECUTE ON FUNCTION bss_auth_lookup(text) TO :"runtime_role";
 GRANT EXECUTE ON FUNCTION bss_session_lookup(bytea) TO :"runtime_role";
