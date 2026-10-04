@@ -31,6 +31,41 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  static-compatibility:
+    name: Static compatibility (${{ matrix.os }}, Node ${{ matrix.node }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            node: "22.13.0"
+            require-case-insensitive: "false"
+          - os: windows-latest
+            node: "22"
+            require-case-insensitive: "true"
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - name: Node.js compatibility runtime
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - name: Install locked dependencies without lifecycle scripts
+        run: npm ci --ignore-scripts
+      - name: Rebuild required esbuild binary explicitly
+        run: npm rebuild esbuild --foreground-scripts
+      - name: Verify static file security and native filesystem compatibility
+        run: npm run test:static
+        env:
+          BSS_REQUIRE_CASE_INSENSITIVE: ${{ matrix.require-case-insensitive }}
+
   quality:
     runs-on: ubuntu-latest
     timeout-minutes: 15

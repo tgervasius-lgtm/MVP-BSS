@@ -1,7 +1,23 @@
 # BSS OS Control Board
 
-Last reviewed: 2026-09-01
-Operating phase: `PRODUCT CONTRACT REVIEW / #131`
+Last reviewed: 2026-10-04 (post-terminal merge evidence; historical milestones retain their original dates)
+Operating phase: `POST-TERMINAL-UI / REMAINING CONTRACT GAPS + MINIMUM OPERATIONS PREPARATION`
+
+Current reviewed protected-main baseline: `e6d191c0933d3e32dce68ef874a9b8af722a64d8`. PR #228 merged attendance-period lifecycle/recalculation UI; #233 merged authoritative report preview/export verification; #235/#236 merged terminal reconciliation/read-back and one-time credential rotation. Issue #234 is CLOSED/COMPLETED. OM-01 architecture is ACCEPTED / HARDENED through merged #229; #225 is CLOSED/COMPLETED for architecture only.
+
+The final #236 candidate passed 160 frontend, 62 backend unit/contract, 9 PostgreSQL tests (0 skipped) and 6 full-stack browser scenarios. Its tree is identical to the reviewed main tree; all 10 triggered post-merge checks passed, including fresh backend/PostgreSQL checks. See [#234 evidence](https://github.com/tgervasius-lgtm/MVP-BSS/issues/234). These counts are dated repository evidence, not a new release/environment audit.
+
+Remaining explicit implementation work includes customer onboarding, atomic employee import (#237), and explicit locked `periodVersionId` selection for official exports. Staging, Hardware 9C, Pilot and Commercial Production remain NOT PASS.
+
+| Completed package | Merged evidence | Remaining boundary |
+|---|---|---|
+| Attendance period lifecycle / recalculation | #228, `cd2aee0` | Staging validation and later operational recovery evidence |
+| Report preview / export verification | #233, `d13f9e3` | Explicit locked period-version selection remains open |
+| OM-01 architecture | #229, `9ac82a4`; #225 completed; #231 superseded | No operations implementation, provisioning or spend implied |
+| Terminal reconciliation | #235, `7dfdf8c` | Immutable decisions cannot be undone by reverting UI |
+| Terminal credential rotation | #236, `e6d191c`; #234 completed | Real device installation/custody and physical qualification remain separate |
+
+Next focused implementation owner: #237; see [Customer onboarding/import implementation plan](CUSTOMER_ONBOARDING_IMPORT_IMPLEMENTATION_PLAN.md). The plan is PROPOSED / NOT IMPLEMENTED. Sales #68, Pilot #62 and infrastructure #59 retain their existing responsibilities. The report-version selection gap stays separate from H2. No automatic new vendor, recurring spend, live data, merge or deployment is authorized by this status refresh.
 
 ## Executive state
 
@@ -17,7 +33,7 @@ Operating phase: `PRODUCT CONTRACT REVIEW / #131`
 | Codex operating instructions | DONE / EVOLVING | Maintain | `AGENTS.md v3` is authoritative after #130/PR #138 synchronized the proven automation foundation |
 | Development automation foundation | DONE / EVOLVING | Maintain | #126/PR #134 preflight/verification, #125/PR #135 Playwright-mode reconciliation and #127/PR #137 issue-driven profiles are merged and proven; local wrappers complement rather than replace GitHub gates |
 | PR #31 retirement | DONE | P1 | Unique useful controls extracted/rejected with evidence and historical PR #31 closed without merge |
-| Dependabot repository security settings | OPEN / EXTERNAL | P1 | Dependabot alerts/security updates enabled and verified through issue #115 |
+| Dependabot repository security settings | COMPLETED / EXTERNAL CONFIGURATION | Maintain | #115 is CLOSED/COMPLETED; its 2026-08-08 closure records the settings verification. This refresh confirms tracker state, not a fresh settings inspection |
 | Independent code analysis | ACTIVE / AUTOMATED | P1 | SonarQube Cloud governance closed through #117/PR #140; Trivy Phase 1 is merged and passing on protected `main` through #129/PR #141, and #139 remains a non-blocking parallel PowerShell follow-up |
 | PR #28 retirement | OPEN | P1 | Hardware/API/QA/container/handoff work split from current `main` without wholesale merge |
 | Preview Portal | OPEN / RECONSTRUCTION | P1 | Reconstructed from stable `main`, externally accessible and clearly isolated from production |
@@ -116,7 +132,7 @@ PR #141 was squash-merged into protected `main` as `3888fac174a4ae09ede056549e84
 - findings remain non-blocking (`exit-code 0`) during Phase 1, while scanner/integrity/execution failures still fail the job;
 - no ignore file, accepted-debt suppression, container change, product-code change or required-ruleset change is included.
 
-The local, PR-level and protected-main GitHub Actions evidence match. Zero supported configuration targets remains applicability evidence, not proof that BSS configuration or repository security is safe. Issue #129 is open only for this focused post-merge documentation synchronization. Phase 1 findings remain non-blocking; any Phase 2 blocking policy requires separate BSS OS approval and baseline-aware regression handling.
+The local, PR-level and protected-main GitHub Actions evidence match. Zero supported configuration targets remains applicability evidence, not proof that BSS configuration or repository security is safe. Issue #129 is CLOSED/COMPLETED; its historical post-merge synchronization is not an active blocker. Phase 1 findings remain non-blocking; any Phase 2 blocking policy requires separate BSS OS approval and baseline-aware regression handling.
 
 Detailed provenance, scan contract, counts, classification, evidence limits and rollback are recorded in `docs/security/TRIVY_BASELINE.md`.
 
@@ -127,7 +143,7 @@ Roadmap v4.9 originally routed the accepted execution order through:
 1. AUDIT A;
 2. #131 — freeze the BSS v1 Product Contract before Design Foundation.
 
-AUDIT A then found four concrete BLACK/GATE defects. Applying the accepted gap-audit/reopen rule inserted #143, #145, #144 and #146 before a targeted AUDIT A recheck; this preserves rather than rewrites the historical v4.9 route. All four issues are now merged/closed, #133 records the targeted recheck as PASS on `b904eca`, and BSS v1 Product Contract v1.0 is explicitly owner-approved and frozen. Repository integration remains separate.
+AUDIT A then found four concrete BLACK/GATE defects. Applying the accepted gap-audit/reopen rule inserted #143, #145, #144 and #146 before a targeted AUDIT A recheck; this preserves rather than rewrites the historical v4.9 route. All four issues are merged/closed, #133 records the targeted recheck as PASS on `b904eca`, and BSS v1 Product Contract v1.0 is explicitly owner-approved and frozen. PR #155 then integrated the frozen contract into protected `main` at `29b00c0`; #131 is CLOSED/COMPLETED. #156 Phase A is complete; #157 reconciliation is CLOSED/COMPLETED and PR #158 merged at the historical baseline `02a76abe48e750932fbf3002d1ef2dd10ed8881a`. PR #161 remains the historical proposal merge. Visual Design Gate owner review completed on 03.10.2026; PR #183 is MERGED and `BSS_DESIGN_FOUNDATION_V1.md` v1.0 is now `ACCEPTED / HARDENED`. Issue #156 is CLOSED/COMPLETED. Later focused frontend visual implementation, including #223/#224, does not imply all contract-defined gaps are implemented and does not promote Staging/Pilot/Production readiness. Figma and Storybook remain `CANDIDATE / INACTIVE`. OM-01 Operations Foundation architecture is ACCEPTED / HARDENED and merged through #229; #225 is CLOSED/COMPLETED for architecture only.
 
 The global A-V ownership map, H1-H11 hardening routes, formal AUDIT A-D gates, Production Readiness Evidence Track, decision maturity/reversibility rules and cost/vendor activation discipline are codified in `docs/bss-os/MASTER_ROADMAP.md`. Mutable plan limits and paid triggers are tracked in `docs/bss-os/TOOL_SERVICE_COST_REGISTER.md`. These documents do not convert governance hardening into implementation or readiness evidence.
 
@@ -139,10 +155,10 @@ The global A-V ownership map, H1-H11 hardening routes, formal AUDIT A-D gates, P
 ### Later routed work
 
 - Trivy Phase 1 is merged and automated through #129/PR #141. It must continue to complement, not duplicate or replace, Sonar, CodeQL, Gitleaks, dependency audits or SBOM generation, with explicit severity/failure policy and no silent scanner suppression.
-- #115 retains the repository-level Dependabot settings follow-up without being placed ahead of the accepted critical path.
+- #115 is CLOSED/COMPLETED with its dated repository-settings verification. Recheck configuration when a concrete change or release gate requires it; do not recreate the completed task from stale text.
 - PR #28: compare against current `main`, split useful hardware/API/QA/container/handoff work into focused PRs and close the historical draft.
 - PR #30: reconstruct Preview Portal from current `main`; do not merge the old 146-commit branch wholesale.
-- Staging and later readiness work retain their existing evidence gates and are not placed ahead of the current `#131 review -> explicit BSS OS approval/freeze -> Design Foundation` gate.
+- Staging and later readiness work retain their existing evidence gates. The Design Foundation acceptance gate is complete; current work is the remaining contract-defined implementation gaps (#237 and locked report-version selection) plus activation of minimum capabilities from the accepted OM-01 architecture before Production-like Staging / AUDIT B.
 
 ## Active legacy pull request portfolio
 
@@ -157,11 +173,16 @@ PR #27 and PR #31 are closed as superseded. Neither is an active integration tar
 
 Mandatory execution critical path under accepted BSS MASTER ROADMAP v4.9:
 
-1. Complete the focused #131 repository/PR workflow for frozen `BSS_V1_PRODUCT_CONTRACT.md` v1.0.
-2. Preserve implementation/readiness gaps and versioned change control without silent scope changes.
-3. Activate formal Design Foundation through its applicable controls.
+1. Visual Design Gate is completed and owner-accepted through PR #183; preserve Figma/Storybook as `CANDIDATE / INACTIVE` until separately accepted.
+2. Preserve the accepted Design Foundation and its focused frozen-scope implementation authorization; new material scope changes still require a separate decision.
+3. Activate roadmap-ordered contract-defined implementation gaps only after Design Foundation acceptance and the applicable BSS OS decision.
+4. Proceed to Production-like Staging and `AUDIT B` without treating merged documentation or implementation as environment evidence.
+5. Reach Pilot readiness only with applicable software evidence plus Hardware 9C and `AUDIT C`.
+6. Run a controlled Pilot.
+7. After Pilot, perform Post-Pilot hardening, require `PRG GO`, then `AUDIT D PASS`.
+8. Commercial Production remains blocked until the accepted Commercial gate is satisfied.
 
-AUDIT A targeted recheck is `PASS`; the BSS v1 Product Contract is `ACCEPTED / FROZEN` by explicit owner approval on 01.09.2026. Issue #131 remains open for the focused PR workflow. #139 and Hardware #132 remain parallel and non-blocking. Trivy Phase 1 is merged through #129/PR #141; #115, PR #28, Preview, staging, later hardware readiness and later readiness work retain their existing routing without acquiring implementation or readiness claims from the contract freeze.
+AUDIT A targeted recheck is `PASS`; the BSS v1 Product Contract is `ACCEPTED / FROZEN`, integrated by merged PR #155, and #131 is CLOSED/COMPLETED. #156 Phase A and #157 reconciliation are complete; PR #158 and PR #161 are merged into the protected-main evidence baseline stated above. The Design Foundation is `ACCEPTED / HARDENED` through PR #183 and #156 is CLOSED/COMPLETED. Production-like Staging is `NOT IMPLEMENTED / NOT EVIDENCE PROVEN`; Hardware 9C, Pilot and Commercial Production remain `NOT PASS`. #139 and Hardware #132 remain parallel and non-blocking. Trivy Phase 1 is merged through #129/PR #141; #115 is completed. PR #28, Preview, staging, later hardware readiness and later readiness work retain their existing routing without acquiring readiness claims from design acceptance or repository implementation.
 
 ## Management rule
 

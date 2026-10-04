@@ -29,6 +29,8 @@
     state=hydrated.state;dashboardSummary=hydrated.dashboard;currentRole=hydrated.role;
     ROLE_CONFIG[currentRole].userId=hydrated.selfWorkerId||0;
     if(currentRole==='manager')ROLE_CONFIG.manager.departments=state.departments.map(item=>item.name);
+    await root.BSSAttendanceLifecycle?.hydrate();
+    await root.BSSReportAuthority?.hydrate();
     logged=true;apiError='';
     return hydrated;
   }
@@ -80,6 +82,7 @@
     finally{apiLoading=false;}
   }
   async function apiLogout(){
+    root.BSSTerminalCredential?.clear();
     try{await BSS_API.post('/auth/logout');}catch{/* Lokalni prikaz se zatvara i ako je sesija već istekla. */}
     logged=false;sessionContext=null;dashboardSummary=null;state=createApiState();screen='home';apiError='';render();
   }
@@ -289,7 +292,7 @@
   function apiViewTerminal(){
     const terminal=state.terminal,events=terminal.recentEvents||[];
     if(!terminal.apiId)return `${title('Terminali','Uparivanje sigurnog RFID terminala.',pill('Nije uparen'))}<section class="card"><h2>Nema uparenog terminala</h2><p>Administrator može upariti uređaj jednokratnim aktivacijskim kodom.</p>${currentRole==='admin'?'<button class="btn" data-bss-action="pairTerminal()">Upari terminal</button>':''}</section>`;
-    return `${title('Status terminala','Heartbeat i sinkronizirani RFID događaji iz backend API-ja.',pill(terminal.online?'Online':'Offline'))}<section class="card terminal-hero"><div><div class="eyebrow">${escapeHtml(terminal.location)}</div><h2>${escapeHtml(terminal.name)}</h2><p>Zadnji heartbeat: ${escapeHtml(terminal.lastHeartbeat)}</p></div>${currentRole==='admin'?`<button class="btn red" data-bss-action="revokeTerminal()">Opozovi terminal</button>`:''}</section><section class="card table-card"><div class="table-card-heading"><h2>Sinkronizirani događaji</h2>${pill(`${events.length} događaja`)}</div>${terminalEventsTable(events,'Još nema terminalskih događaja.')}</section>`;
+    return `${title('Status terminala','Heartbeat i sinkronizirani RFID događaji iz backend API-ja.',pill(terminal.online?'Online':'Offline'))}<section class="card terminal-hero"><div><div class="eyebrow">${escapeHtml(terminal.location)}</div><h2>${escapeHtml(terminal.name)}</h2><p>Zadnji heartbeat: ${escapeHtml(terminal.lastHeartbeat)}</p></div>${currentRole==='admin'?`<button class="btn red" data-bss-action="revokeTerminal()">Opozovi terminal</button>`:''}</section>${root.BSSTerminalCredential?.controlsHtml()||''}<section class="card table-card"><div class="table-card-heading"><h2>Sinkronizirani događaji</h2>${pill(`${events.length} događaja`)}</div>${root.BSSTerminalReconciliation?.tableHtml(events)||terminalEventsTable(events,'Još nema terminalskih događaja.')}</section>`;
   }
   function apiPairTerminal(){
     if(currentRole!=='admin')return;const modal=$('#modal');
@@ -311,16 +314,43 @@
     toast('Demo simulator je isključen; produkcijski podaci dolaze isključivo iz backend API-ja.');
   }
 
+  root.BSSAttendanceLifecycle?.configure({
+    revisionHeaders,apiMessage,mutateApi,
+    baseViewReports:root.viewReports,
+    baseOpenAttendanceRecord:root.openAttendanceRecord,
+    baseApplyReportFilters:root.applyReportFilters
+  });
+  root.BSSReportAuthority?.configure({apiMessage,getReportFilters:()=>reportFilters,setReportFilters:value=>{reportFilters=value;}});
+
+  root.BSSTerminalReconciliation?.configure({refresh:refreshApi});
+
+  root.BSSTerminalCredential?.configure({refresh:refreshApi});
+
   function installApiBindings(){
     root.BSS_API_ACTIVE=true;
     Object.assign(root,{
     login:apiLogin,acceptInvitation:apiAcceptInvitation,logout:apiLogout,openWorkerModal:apiOpenWorkerModal,saveWorker:apiSaveWorker,toggleWorkerActive:apiToggleWorker,toggleCard:apiToggleCard,
     saveShift:apiSaveShift,toggleShift:()=>toast('Smjena s povijesnim zapisima ne deaktivira se u MVP-u.'),submitVacationRequest:apiSubmitVacation,decideRequest:apiDecideRequest,cancelVacationRequest:apiCancelVacation,
     submitCorrection:apiSubmitCorrection,updateCorrection:apiUpdateCorrection,cancelCorrection:apiCancelCorrection,downloadReport:apiDownloadReport,
+    viewReports:root.BSSAttendanceLifecycle?.viewReports,
+    setReportType:root.BSSReportAuthority?.setType||root.setReportType,
+    applyReportFilters:root.BSSReportAuthority?.applyFilters||root.BSSAttendanceLifecycle?.applyReportFilters,
+    updateReportDepartment:root.BSSReportAuthority?.updateDepartment||root.updateReportDepartment,
+    reloadReportPreview:root.BSSReportAuthority?.reload,
+    verifyReportExport:root.BSSReportAuthority?.verifyExport,
+    openReportVerification:root.BSSReportAuthority?.openVerification,
+    authoritativeReportPreviewHtml:root.BSSReportAuthority?.previewHtml,
+    authoritativeReportMetricsHtml:root.BSSReportAuthority?.metricsHtml,
+    authoritativeReportHasRows:root.BSSReportAuthority?.hasRows,
+    reportHistoryAuthorityAction:root.BSSReportAuthority?.historyAction,
+    loadAttendancePeriod:root.BSSAttendanceLifecycle?.load,openPeriodTransition:root.BSSAttendanceLifecycle?.openTransition,submitPeriodTransition:root.BSSAttendanceLifecycle?.submitTransition,
+    openAttendanceRecord:root.BSSAttendanceLifecycle?.openRecord,openAttendanceRecalculation:root.BSSAttendanceLifecycle?.openRecalculation,submitAttendanceRecalculation:root.BSSAttendanceLifecycle?.submitRecalculation,
     saveAccessUser:apiSaveAccess,toggleAccessUser:apiToggleAccess,sendInvitation:apiSendInvitation,sendPasswordReset:()=>toast('Reset lozinke nije dio zaključanog MVP ugovora.'),resendInvitation:()=>toast('Ponovno slanje pozivnice nije dio zaključanog MVP ugovora.'),cancelInvitation:()=>toast('Poništavanje pozivnice nije dio zaključanog MVP ugovora.'),
     saveSettings:apiSaveSettings,openDepartmentModal:apiOpenDepartmentModal,saveDepartment:apiSaveDepartment,toggleDepartment:apiToggleDepartment,openHolidayModal:apiOpenHolidayModal,saveHoliday:apiSaveHoliday,toggleHoliday:apiToggleHoliday,setSharedLeaveVisibility:apiSetSharedLeaveVisibility,
     saveJobPosition:()=>toast('Radna mjesta nisu zaseban MVP entitet.'),toggleJobPosition:()=>toast('Radna mjesta nisu zaseban MVP entitet.'),
     viewShifts:apiViewShifts,viewRoles:apiViewRoles,viewSettings:apiViewSettings,viewSharedLeave:apiViewSharedLeave,showSharedLeaveDay:apiShowSharedLeaveDay,viewTerminal:apiViewTerminal,pairTerminal:apiPairTerminalSubmit,revokeTerminal:apiRevokeTerminal,
+    openTerminalEvent:root.BSSTerminalReconciliation?.open,submitTerminalReconciliation:root.BSSTerminalReconciliation?.submit,reloadTerminalEvents:root.BSSTerminalReconciliation?.reload,
+    openTerminalRotation:root.BSSTerminalCredential?.open,submitTerminalRotation:root.BSSTerminalCredential?.submit,changeTerminalRotationReason:root.BSSTerminalCredential?.changeReason,revealTerminalCredential:root.BSSTerminalCredential?.reveal,copyTerminalCredential:root.BSSTerminalCredential?.copy,
     simulateTerminalOffline:disabledDemoAction,restoreTerminal:disabledDemoAction,simulateRfid:disabledDemoAction,
     toggleTerminalConnection:disabledDemoAction,syncOfflineQueue:disabledDemoAction,toggleDemoMode:disabledDemoAction,resetDemo:disabledDemoAction
     });
