@@ -1,6 +1,10 @@
 name: BSS dependency inventory
 
 on:
+  pull_request:
+    branches: [main]
+    paths:
+      - .github/workflows/sbom.yml
   push:
     branches: [main]
   schedule:
@@ -48,7 +52,7 @@ jobs:
           node -e "for (const file of ['bss-frontend-sbom.cdx.json','bss-backend-sbom.cdx.json']) { const data=require('./'+file); if (data.bomFormat !== 'CycloneDX' || !Array.isArray(data.components)) throw new Error('Invalid SBOM: '+file); console.log(file+': '+data.components.length+' components'); }"
 
       - name: Upload SBOM artifacts
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: bss-sbom-${{ github.sha }}
           path: |

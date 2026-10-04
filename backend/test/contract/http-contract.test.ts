@@ -882,13 +882,13 @@ test("OpenAPI v1 and the post-freeze screen map preserve ownership and explicit 
     contractGatesBeforeDesignFoundationPhaseB: string[];
   };
   assert.equal(screenMap.readiness, "RECONCILED_WITH_EXPLICIT_UI_GAPS");
-  assert.equal(screenMap.contractReviewStatus, "ISSUE_157_RECONCILED_BSS_OS_REVIEW_REQUIRED");
+  assert.equal(screenMap.contractReviewStatus, "POST_TERMINAL_MERGE_RECONCILED_WITH_EXPLICIT_GAPS");
   assert.deepEqual(screenMap.frontendBaseline, {
     commit: "91323c7cdbbbbf7b965c4926c94a11af6d31bf62",
     status: "HISTORICAL_FRONTEND_V1_REFERENCE",
     authority: "NOT_CURRENT_PRODUCT_AUTHORITY"
   });
-  assert.equal(screenMap.repositoryBaseline, "29b00c0f63af0b3ffbd2d828550c882b9096fd05");
+  assert.equal(screenMap.repositoryBaseline, "e6d191c0933d3e32dce68ef874a9b8af722a64d8");
   assert.equal(screenMap.openapi.version, "1.4.0");
   assert.equal(screenMap.openapi.paths, 52);
   assert.equal(screenMap.openapi.operations, 63);
@@ -906,17 +906,24 @@ test("OpenAPI v1 and the post-freeze screen map preserve ownership and explicit 
     assert.deepEqual(item.operations.filter((operationId) => !operationIds.includes(operationId)), [], `Unknown operation on ${item.id}`);
   }
   const gapsById = new Map(screenMap.contractDefinedUiGaps.map((gap) => [gap.id, gap]));
-  assert.deepEqual(gapsById.get("attendance-recalculation-provenance")?.operations, ["recalculateAttendanceDay"]);
-  assert.deepEqual(gapsById.get("attendance-period-lifecycle")?.operations, [
-    "getAttendancePeriod", "startAttendancePeriodReview", "finalizeAttendancePeriod", "closeAttendancePeriod", "reopenAttendancePeriod"
-  ]);
-  assert.deepEqual(gapsById.get("report-server-preview")?.operations, ["createReportPreview"]);
-  assert.deepEqual(gapsById.get("report-export-verification")?.operations, ["verifyReportExport"]);
-  assert.deepEqual(gapsById.get("attendance-period-lifecycle")?.roles, ["admin", "manager", "accountant"]);
-  assert.deepEqual(gapsById.get("report-server-preview")?.roles, ["admin", "manager", "accountant"]);
-  assert.equal(screenMap.screens.find((screen) => screen.id === "reports")?.operations.includes("verifyReportExport"), false);
-  assert.equal(screenMap.screens.find((screen) => screen.id === "reports")?.operations.includes("createReportPreview"), false);
-  assert.equal(screenMap.screens.find((screen) => screen.id === "attendance")?.operations.includes("recalculateAttendanceDay"), false);
+  assert.equal(gapsById.has("attendance-recalculation-provenance"), false);
+  assert.equal(gapsById.has("attendance-period-lifecycle"), false);
+  assert.equal(gapsById.has("report-server-preview"), false);
+  assert.equal(gapsById.has("report-export-verification"), false);
+  assert.equal(gapsById.has("terminal-event-reconciliation"), false);
+  assert.equal(screenMap.screens.find((screen) => screen.id === "terminal")?.operations.includes("resolveTerminalEventReconciliation"), true);
+  assert.equal(gapsById.has("terminal-credential-rotation"), false);
+  assert.equal(screenMap.screens.find((screen) => screen.id === "terminal")?.operations.includes("rotateTerminalCredential"), true);
+  assert.deepEqual(gapsById.get("report-locked-version-selection")?.operations, ["getAttendancePeriod", "createReportExport"]);
+  const reportsOperations=screenMap.screens.find((screen) => screen.id === "reports")?.operations ?? [];
+  assert.deepEqual(
+    ["getAttendancePeriod", "startAttendancePeriodReview", "finalizeAttendancePeriod", "closeAttendancePeriod", "reopenAttendancePeriod"]
+      .filter((operationId) => !reportsOperations.includes(operationId)),
+    []
+  );
+  assert.equal(reportsOperations.includes("verifyReportExport"), true);
+  assert.equal(reportsOperations.includes("createReportPreview"), true);
+  assert.equal(screenMap.screens.find((screen) => screen.id === "attendance")?.operations.includes("recalculateAttendanceDay"), true);
 });
 
 test("clean-clone developer setup is pinned, secret-safe and reproducible", async () => {
@@ -944,7 +951,7 @@ test("clean-clone developer setup is pinned, secret-safe and reproducible", asyn
   const compose = YAML.parse(composeSource) as { services?: Record<string, ComposeService> };
 
   assert.equal(nodeVersion.trim(), "22");
-  assert.equal(rootPackage.engines?.node, ">=22.9.0");
+  assert.equal(rootPackage.engines?.node, ">=22.13.0");
   assert.equal(rootPackage.engines?.npm, ">=10.0.0");
   for (const script of ["dev", "migrate", "migrate:down", "migrate:prod", "bootstrap", "bootstrap:prod", "start"]) {
     assert.match(backendPackage.scripts?.[script] ?? "", /--env-file-if-exists=\.env/, `Missing optional .env loading on ${script}`);
