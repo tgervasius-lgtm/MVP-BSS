@@ -129,3 +129,5 @@ Each slice is complete only with reviewed contract/data/code/UI ownership as app
 ## 8. Prepared next action
 
 H2-0 begins with measured D1 options and the D2/D3 decision record, followed by the proposed API/schema review. Preserve #68 sales, #62 Pilot, #59 infrastructure, #64/#66 privacy/legal, #95 identity, #97 recovery, #132 hardware and #133 roadmap ownership. Runtime work, customer-data processing and policy acceptance remain separate from this preparation PR.
+
+The [H2-0 decision proposal](H2_IMPORT_ONBOARDING_DECISION_PROPOSAL.md) now provides synthetic parser measurements, concrete candidate D1/D2 values, the D3 authority boundary and a separate proposed OpenAPI artifact. Its status is **AWAITING DECISION REVIEW**, not an accepted policy or implementation. Target-runtime, PostgreSQL, hostile-file and cleanup evidence remain required before the dependent runtime activation.
