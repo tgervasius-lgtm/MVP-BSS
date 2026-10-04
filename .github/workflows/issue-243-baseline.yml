@@ -1,0 +1,43 @@
+name: BSS issue 243 baseline browser comparison
+
+on:
+  push:
+    branches: ['diagnostics/243-browser-baseline']
+
+permissions:
+  contents: read
+
+jobs:
+  standalone-baseline:
+    name: Standalone baseline (${{ matrix.baseline }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - baseline: pre-maintenance
+            ref: df3a071cdd3d89acc7fa006963e7b41978b81900
+          - baseline: post-maintenance-before-fix
+            ref: 87d75fca78405d749599108bb45e377fd4c1a1d5
+    steps:
+      - name: Checkout exact historical baseline
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ matrix.ref }}
+      - name: Node 22
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+      - name: Install locked historical dependencies
+        run: npm ci --ignore-scripts --no-audit
+      - name: Record baseline and browser tool versions
+        run: |
+          git rev-parse HEAD
+          npm ls @playwright/test @axe-core/playwright jsdom
+      - name: Install baseline Chromium
+        run: ./node_modules/.bin/playwright install --with-deps chromium
+      - name: Reproduce standalone failures without suppressions
+        run: npm run test:e2e -- --reporter=line
+        env:
+          BSS_E2E_FULLSTACK: "false"
