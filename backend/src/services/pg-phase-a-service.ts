@@ -8,7 +8,7 @@ import { createOpaqueToken, hashToken } from "../security/tokens.js";
 import { decodeTimelineCursor, decodeUuidCursor, encodeTimelineCursor, encodeUuidCursor } from "./cursors.js";
 import { normalizeDatabaseError } from "./database-errors.js";
 import { datasetVersion } from "./dataset-version.js";
-import { terminalSyncEventView, type TerminalSyncEventRow } from "./terminal-sync-event.js";
+import { terminalSyncHistorySelect, terminalSyncEventView, type TerminalSyncEventRow } from "./terminal-sync-event.js";
 import { lockTerminalEventLifecycle } from "./terminal-event-lock.js";
 import { requireBoundedDateRange, requireValidShiftWindow } from "./validation.js";
 import type {
@@ -954,18 +954,23 @@ export class PgPhaseAService implements PhaseAService {
         await lockTerminalEventLifecycle(client, actor.organizationId);
         const worker = await client.query("SELECT id FROM workers WHERE id = $1 AND status = 'active' FOR UPDATE", [workerId]);
         if (!worker.rows[0]) throw new AppError("NOT_FOUND", "Radnik nije pronađen.");
+        // Transaction start order can differ from lock order. Capture one
+        // replacement boundary after locking; retain explicit caller timing.
+        const timing = await client.query<{ effective_from: string }>(
+          "SELECT COALESCE($1::timestamptz, clock_timestamp())::text AS effective_from", [input.validFrom ?? null]);
+        const effectiveFrom = timing.rows[0]!.effective_from;
         await client.query(
           `UPDATE rfid_cards SET status = 'blocked',
-             valid_to = COALESCE(valid_to, COALESCE($2::timestamptz, transaction_timestamp())),
+             valid_to = COALESCE(valid_to, $2::timestamptz),
              revision = revision + 1
            WHERE worker_id = $1 AND status = 'active'`,
-          [workerId, input.validFrom ?? null]
+          [workerId, effectiveFrom]
         );
         const result = await client.query<RfidRow>(
           `INSERT INTO rfid_cards (organization_id, worker_id, uid_hash, masked_uid, valid_from)
-           VALUES ($1, $2, $3, $4, COALESCE($5::timestamptz, transaction_timestamp()))
+           VALUES ($1, $2, $3, $4, $5::timestamptz)
            RETURNING id, masked_uid, worker_id, status, valid_from, valid_to, revision`,
-          [actor.organizationId, workerId, uidHash, maskedUid, input.validFrom ?? null]
+          [actor.organizationId, workerId, uidHash, maskedUid, effectiveFrom]
         );
         const row = result.rows[0];
         if (!row) throw new Error("RFID assignment returned no row");
@@ -1274,10 +1279,7 @@ export class PgPhaseAService implements PhaseAService {
       if (!terminal.rows[0]) throw new AppError("NOT_FOUND", "Terminal nije pronađen.");
       const cursor = decodeTimelineCursor(filters.cursor);
       const result = await client.query<TerminalSyncEventRow>(
-        `SELECT e.id, e.terminal_id, e.device_event_id, e.sequence, e.worker_id, e.occurred_at,
-           e.acknowledged_at, e.received_at, e.event_type, e.status, e.rejection_code,
-           e.attendance_event_id, e.acknowledgement_verified, e.lifecycle_evidence
-         FROM terminal_sync_events e
+        `${terminalSyncHistorySelect}
          WHERE e.terminal_id = $1 AND e.received_at >= $2::date AND e.received_at < ($3::date + interval '1 day')
            AND ($4::text IS NULL OR e.status = $4) AND ($8::text <> 'manager' OR e.effective_department_id = ANY($9::uuid[]))
            AND ($5::timestamptz IS NULL OR (e.received_at, e.id) < ($5::timestamptz, $6::uuid))

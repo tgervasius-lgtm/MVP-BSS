@@ -3317,7 +3317,7 @@ components:
     TerminalSyncEvent:
       type: object
       additionalProperties: false
-      required: [id, terminalId, deviceEventId, sequence, occurredAt, acknowledgedAt, receivedAt, eventType, status, attendanceEventId, acknowledgementVerified, lifecycleEvidence]
+      required: [id, terminalId, deviceEventId, sequence, occurredAt, acknowledgedAt, receivedAt, eventType, status, attendanceEventId, acknowledgementVerified, lifecycleEvidence, reconciliation]
       properties:
         id:
           type: string
@@ -3359,6 +3359,25 @@ components:
           type: boolean
         lifecycleEvidence:
           $ref: '#/components/schemas/TerminalLifecycleEvidence'
+        reconciliation:
+          description: Admin-only authoritative resolution summary, shared by all deliveries of the same raw receipt. Null when unresolved or for a Manager. Original status and evidence remain immutable. Free-text reason and actor identity are not exposed here.
+          oneOf:
+            - $ref: '#/components/schemas/TerminalEventReconciliationSummary'
+            - type: 'null'
+    TerminalEventReconciliationSummary:
+      type: object
+      additionalProperties: false
+      required: [resolution, attendanceDayId, createdAt]
+      properties:
+        resolution:
+          type: string
+          enum: [accepted, rejected]
+        attendanceDayId:
+          type: [string, 'null']
+          format: uuid
+        createdAt:
+          type: string
+          format: date-time
     TerminalLifecycleEvidence:
       type: object
       additionalProperties: false

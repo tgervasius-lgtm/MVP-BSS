@@ -8,6 +8,7 @@ const html = fs.readFileSync('index.html','utf8');
 const source = fs.readFileSync('app.js','utf8');
 const apiAdapterSource = fs.readFileSync('src/adapters/api.js','utf8');
 const apiStateSource = fs.readFileSync('src/adapters/api-state.js','utf8');
+const reportAuthoritySource = fs.readFileSync('src/adapters/api-report-authority.js','utf8');
 const coreSources = [
   'src/adapters/runtime.js',
   'src/adapters/api.js',
@@ -20,7 +21,17 @@ const coreSources = [
   'src/use-cases/leave.js',
   'src/use-cases/corrections.js',
   'src/views/registry.js',
-  'src/views/events.js'
+  'src/views/events.js',
+  'src/views/attendance-operational.js',
+  'src/views/workers-operational.js',
+  'src/views/navigation-operational.js',
+  'src/views/approvals-operational.js',
+  'src/views/reports-operational.js',
+  'src/views/leave-calendar-operational.js',
+  'src/views/home-operational.js',
+  'src/views/terminal-operational.js',
+  'src/views/access-operational.js',
+  'src/views/audit-operational.js'
 ].map(path=>fs.readFileSync(path,'utf8'));
 const styleEntry = fs.readFileSync('styles.css','utf8');
 const styleLayerPaths = [
@@ -40,6 +51,8 @@ const designGuideHtml = fs.readFileSync('design-system/index.html','utf8');
 const designGuideStyles = fs.readFileSync('design-system/guide.css','utf8');
 const designGuideScript = fs.readFileSync('design-system/guide.js','utf8');
 const designSystemDoc = fs.readFileSync('BSS_DESIGN_SYSTEM_V1.md','utf8');
+const designFoundationDoc = fs.readFileSync('BSS_DESIGN_FOUNDATION_V1.md','utf8');
+const productContractDoc = fs.readFileSync('BSS_V1_PRODUCT_CONTRACT.md','utf8');
 const brandBookHtml = fs.readFileSync('brand-book/index.html','utf8');
 const brandBookStyles = fs.readFileSync('brand-book/brand.css','utf8');
 const brandBookScript = fs.readFileSync('brand-book/brand.js','utf8');
@@ -265,11 +278,13 @@ test('evidencija i RFID simulator su odvojeni',()=>{
 
 test('UX/UI Cleanup v1 svodi dashboard na četiri KPI-ja i tablični dnevni pregled',()=>{
   const {window,document,state} = boot('admin');
-  assert.match(document.querySelector('.version-chip').textContent,/v3\.0/);
-  assert.match(document.querySelector('.side-footer').textContent,/Backend MVP · API v1\.1/);
-  assert.equal(document.querySelectorAll('.dashboard-kpis .kpi-card').length,4);
-  assert.equal(document.querySelector('[data-kpi="present"] .kpi-value').textContent,'3');
-  assert.equal(document.querySelector('[data-kpi="absent"] .kpi-value').textContent,'3');
+  assert.equal(document.querySelector('.version-chip'),null);
+  assert.match(document.querySelector('.side-brand').textContent,/BSS/);
+  assert.match(document.querySelector('.side-brand').textContent,/Bognar Smart Systems/);
+  assert.match(document.querySelector('.side-footer').textContent,/People\. Work\. Progress\./);
+  assert.equal(document.querySelectorAll('.home-summary-strip .home-summary-item').length,4);
+  assert.equal(document.querySelector('[data-kpi="present"] b').textContent,'3');
+  assert.equal(document.querySelector('[data-kpi="absent"] b').textContent,'3');
   assert.ok(document.querySelector('[data-kpi="review"]'));
   assert.ok(document.querySelector('[data-kpi="pending"]'));
   assert.equal(document.querySelector('.weekly-chart'),null);
@@ -279,6 +294,53 @@ test('UX/UI Cleanup v1 svodi dashboard na četiri KPI-ja i tablični dnevni preg
   assert.equal(metrics.active,7);
   assert.ok(metrics.monthMinutes>0);
   assert.ok(metrics.overtime>=0);
+});
+
+test('Visual Design Gate shell checkpoint koristi light enterprise desktop shell',()=>{
+  const {window,document}=boot('admin');
+  assert.equal(document.querySelector('.desktop-sidebar')?.tagName,'ASIDE');
+  assert.match(document.querySelector('.side-brand')?.textContent||'',/Bognar Smart Systems/);
+  assert.match(document.querySelector('.side-footer')?.textContent||'',/People\. Work\. Progress\./);
+  window.switchRole('worker');
+  assert.match(document.querySelector('.desktop-nav')?.textContent||'',/Kalendar/);
+  assert.doesNotMatch(document.querySelector('.desktop-nav')?.textContent||'',/Zajednički godišnji/);
+});
+
+test('Attendance polish v2 zadržava semantičku boju samo kao signal',()=>{
+  assert.match(styles,/Attendance polish v2: restrained enterprise semantics/);
+  assert.match(styles,/background:transparent!important/);
+  assert.match(styles,/td:nth-child\(9\) \.pill/);
+  assert.match(styles,/td:nth-child\(10\) \.pill\.red/);
+  assert.match(styles,/box-shadow:none/);
+});
+
+test('visual pass 2 uklanja dekorativne KPI ikone i koristi jedinstveni enterprise summary strip',()=>{
+  const admin=boot('admin');
+  admin.window.navigate('attendance');
+  assert.equal(admin.document.querySelectorAll('.attendance-operational-kpis .attendance-op-kpi').length,5);
+  assert.equal(admin.document.querySelectorAll('.attendance-op-icon').length,0);
+  assert.match(admin.document.querySelector('.attendance-operational-kpis').textContent,/Prisutni/);
+  admin.window.navigate('terminal');
+  assert.equal(admin.document.querySelectorAll('.terminal-operational-kpis>button').length,4);
+  assert.match(styles,/Owner visual review pass 2 — enterprise summary grammar/);
+  assert.match(styles,/\.attendance-operational-kpis\{[\s\S]*?grid-template-columns:repeat\(5,minmax\(0,1fr\)\)/);
+  assert.match(styles,/\.terminal-operational-kpis\{[\s\S]*?grid-template-columns:repeat\(4,minmax\(0,1fr\)\)/);
+  assert.match(styles,/\.attendance-op-icon\{display:none!important\}/);
+});
+
+test('Attendance operational checkpoint odvaja status i anomaliju uz dnevni KPI strip',()=>{
+  const {window,document}=boot('admin');
+  window.navigate('attendance');
+  assert.equal(document.querySelectorAll('.attendance-operational-kpis .attendance-op-kpi').length,5);
+  for(const label of ['Prisutni','Bez dolaska','Odsutni','Anomalije','Ukupno']) assert.match(document.querySelector('.attendance-operational-kpis').textContent,new RegExp(label));
+  const headers=[...document.querySelectorAll('.attendance-operational-table th')].map(node=>node.textContent.trim());
+  assert.ok(headers.includes('Status'));
+  assert.ok(headers.includes('Anomalija'));
+  assert.ok(headers.includes('Planirano'));
+  assert.equal(document.querySelectorAll('.attendance-operational-table tbody tr').length,7);
+  window.setAttendanceDailyFilter('anomaly');
+  assert.ok(document.querySelectorAll('.attendance-operational-table tbody tr').length>=1);
+  assert.match(document.querySelector('.attendance-history-heading').textContent,/Povijest evidencije/);
 });
 
 test('UX/UI Cleanup v1.1 koristi tablice i kompaktne informacijske sažetke bez promjene funkcija',()=>{
@@ -301,25 +363,31 @@ test('UX/UI Cleanup v1.1 koristi tablice i kompaktne informacijske sažetke bez 
   assert.ok(admin.document.querySelector('.vacation-balance-table'));
 
   const manager=boot('manager');
-  assert.equal(manager.document.querySelectorAll('.dashboard-kpis .kpi-card').length,4);
+  assert.equal(manager.document.querySelectorAll('.home-summary-strip .home-summary-item').length,4);
   assert.ok(manager.document.querySelector('.workers-table'));
 
   const worker=boot('worker');
   const homeText=worker.document.querySelector('#content').textContent;
   assert.doesNotMatch(homeText,/Završeni sati u srpnju|Moji zadnji zapisi|Brze akcije/);
-  assert.ok(worker.document.querySelector('.worker-home-card'));
-  assert.equal(worker.document.querySelectorAll('.worker-home-facts>button[data-bss-action]').length,4);
-  assert.equal(worker.document.querySelector('.worker-home-summary'),null);
+  assert.ok(worker.document.querySelector('.worker-home-workspace'));
+  assert.ok(worker.document.querySelector('.worker-today-card'));
+  assert.equal(worker.document.querySelectorAll('.worker-today-grid>button[data-bss-action]').length,2);
+  assert.equal(worker.document.querySelectorAll('.worker-summary-row[data-bss-action]').length,2);
   worker.window.navigate('mytime');
-  assert.ok(worker.document.querySelector('.time-summary-visual'));
-  assert.ok(worker.document.querySelector('button.time-donut[data-bss-action]'));
-  assert.equal(worker.document.querySelectorAll('.data-summary-metrics>button[data-bss-action]').length,2);
-  assert.match(worker.document.querySelector('.time-donut').getAttribute('aria-label'),/Odrađeno.*planiranih.*Saldo/);
+  assert.ok(worker.document.querySelector('.mytime-summary-card'));
+  assert.ok(worker.document.querySelector('.mytime-summary-grid>button[data-bss-action]'));
+  assert.equal(worker.document.querySelectorAll('.mytime-summary-grid>button[data-bss-action]').length,4);
+  assert.equal(worker.document.querySelector('.time-donut'),null);
+  assert.equal(worker.document.querySelector('.data-summary-metrics'),null);
   assert.equal(worker.document.querySelector('.attendance-kpis'),null);
-  assert.equal(worker.document.querySelector('.mytime-review'),null);
+  let reviewButton=worker.document.querySelector('[data-bss-action="setMyTimeReview(true)"]');
+  assert.ok(reviewButton);
+  assert.equal(reviewButton.disabled,true);
   worker.state().records.find(record=>record.workerId===1&&record.date==='2026-07-09').status='Nepotpun zapis';
   worker.window.render();
-  assert.ok(worker.document.querySelector('.mytime-review'));
+  reviewButton=worker.document.querySelector('[data-bss-action="setMyTimeReview(true)"]');
+  assert.equal(reviewButton.disabled,false);
+  assert.match(reviewButton.textContent,/Za provjeru/);
   assert.equal(worker.document.querySelector('.personal-attendance-table thead').textContent.includes('Radnik'),false);
 });
 
@@ -350,8 +418,8 @@ test('svaki KPI i kompaktni brojčani sažetak ima drill-down bez slijepih karti
   assert.match(document.querySelector('.request-tabs button.active').textContent,/Na čekanju/);
 
   const summarySelectors=[
-    '.dashboard-kpis>.kpi-card','.worker-home-facts>*','.attendance-summary-values>*',
-    '.data-summary-metrics>*','.donut-legend>*','.admin-kpis>*','.terminal-kpis>*'
+    '.home-summary-strip>.home-summary-item','.worker-today-grid>*','.worker-summary-row','.attendance-operational-kpis>.attendance-op-kpi',
+    '.data-summary-metrics>*','.vacation-balance-grid>*','.admin-kpis>*','.terminal-kpis>*'
   ].join(',');
   for(const role of ['admin','manager','worker','accountant']){
     const app=boot(role);
@@ -365,12 +433,68 @@ test('svaki KPI i kompaktni brojčani sažetak ima drill-down bez slijepih karti
   }
 });
 
+test('user-facing business copy zadržava najmanje xs tipografsku skalu',()=>{
+  assert.match(styles,/Owner visual readability sweep v2/);
+  assert.match(styles,/\.table-card-heading p,[\s\S]*?font-size:var\(--bss-font-size-xs\)/);
+  assert.match(styles,/\.table-actions button,[\s\S]*?font-size:var\(--bss-font-size-xs\)/);
+  assert.match(styles,/\.terminal-identity,[\s\S]*?font-size:var\(--bss-font-size-xs\)/);
+  assert.match(styles,/\.settings-workspace \.settings-tabs button,[\s\S]*?font-size:var\(--bss-font-size-xs\)/);
+});
+
+test('sekundarne tablične akcije koriste neutralni enterprise chrome',()=>{
+  assert.match(styles,/Owner visual review — neutral secondary action chrome/);
+  assert.match(styles,/\.table-detail-btn,[\s\S]*?background:var\(--bss-color-bg-surface\)/);
+  assert.match(styles,/\.table-actions button:hover,[\s\S]*?background:var\(--bss-color-bg-hover\)/);
+  assert.match(styles,/\.table-detail-btn\.danger,[\s\S]*?background:var\(--bss-color-danger-soft\)/);
+});
+
+test('operativni filteri koriste neutralni sivo-bijeli active treatment',()=>{
+  assert.match(styles,/Owner visual review — neutral operational filters/);
+  assert.match(styles,/\.request-tabs button\.active,[\s\S]*?background:var\(--bss-color-bg-subtle\)/);
+  assert.match(styles,/\.workers-tabs \.tab\.active,[\s\S]*?border-color:var\(--bss-color-border-strong\)/);
+  assert.match(styles,/\.view-switch button\.active,[\s\S]*?color:var\(--bss-color-text\)/);
+});
+
+test('statični sažeci vizualno se razlikuju od interaktivnih kontrola',()=>{
+  assert.match(styles,/Owner visual review — interaction affordance clarity/);
+  assert.match(styles,/\.approval-summary>div,[\s\S]*?background:var\(--bss-color-bg-subtle\)/);
+  assert.match(styles,/\.access-summary>button\.active\{[\s\S]*?box-shadow:inset/);
+  assert.match(styles,/\.terminal-operational-kpis>button,[\s\S]*?cursor:pointer/);
+});
+
+test('statusni filteri nemaju paralelni dekorativni duplikat',()=>{
+  const requests=boot('admin');
+  requests.window.navigate('requests');
+  assert.equal(requests.document.querySelector('.approval-summary'),null);
+  assert.equal(requests.document.querySelectorAll('.request-tabs').length,1);
+
+  const workers=boot('admin');
+  workers.window.navigate('workers');
+  assert.equal(workers.document.querySelector('.workers-summary'),null);
+  assert.equal(workers.document.querySelectorAll('.workers-tabs').length,1);
+
+  const access=boot('admin');
+  access.window.navigate('roles');
+  assert.equal(access.document.querySelectorAll('.access-summary').length,1);
+  assert.equal(access.document.querySelector('.access-filter'),null);
+});
+
+test('Kalendar operational checkpoint zadržava privacy-minimized podatke i jednostavan naziv',()=>{
+  const worker=boot('worker');
+  worker.window.navigate('sharedLeave');
+  assert.equal(worker.document.querySelector('.section-title h1').textContent,'Kalendar');
+  assert.match(worker.document.querySelector('.calendar-privacy-card').textContent,/samo ime zaposlenika i odobreni datumi godišnjeg/i);
+  assert.equal(worker.document.querySelectorAll('.shared-leave-table th').length,3);
+  assert.doesNotMatch(worker.document.querySelector('.shared-leave-table').textContent,/bolovanje|razlog|napomena|saldo/i);
+  assert.equal(worker.document.querySelector('.scope-switch'),null);
+});
+
 test('zajednički godišnji je frontend demo za sve uloge i prikazuje samo odobrene minimalne podatke',()=>{
   for(const role of ['admin','manager','worker','accountant']){
     const app=boot(role);
     assert.ok(app.window.allowedScreens().includes('sharedLeave'));
     app.window.navigate('sharedLeave');
-    assert.match(app.document.querySelector('.section-title h1').textContent,/Zajednički kalendar godišnjih/);
+    assert.equal(app.document.querySelector('.section-title h1').textContent,'Kalendar');
     assert.equal(app.evaluate("sharedLeaveRequests().every(request=>request.type==='Godišnji odmor'&&request.status==='Odobreno')"),true);
     const text=app.document.querySelector('#content').textContent;
     assert.doesNotMatch(text,/Obiteljski odmor|Privatne obveze|Glavni godišnji|Bolovanje/);
@@ -394,11 +518,262 @@ test('zajednički godišnji je frontend demo za sve uloge i prikazuje samo odobr
   assert.equal(worker.evaluate("sharedLeaveRequests().every(request=>workerById(request.workerId).dept===currentWorker().dept)"),true);
 });
 
+test('kalendar koristi jednu period kontrolu bez duplog mjeseca iznad sadržaja',()=>{
+  const worker=boot('worker');
+  worker.window.navigate('vacations');
+  worker.window.setCalendarMode('month');
+  assert.equal(worker.document.querySelector('.calendar-workspace-toolbar'),null);
+  assert.equal(worker.document.querySelectorAll('.calendar-card-toolbar').length,1);
+  assert.equal(worker.document.querySelectorAll('.calendar-period-control button').length,2);
+  assert.equal(worker.document.querySelector('.month-view>.month-card>h3')?.textContent.trim(),'srpanj 2026');
+  worker.window.navigate('sharedLeave');
+  assert.equal(worker.document.querySelector('.calendar-workspace-toolbar'),null);
+  assert.equal(worker.document.querySelectorAll('.calendar-card-toolbar').length,1);
+  assert.match(styles,/Owner visual review — calendar controls deduplicated/);
+  assert.match(styles,/\.month-view>\.month-card>h3\{display:none\}/);
+});
+
+test('visual pass 2 zadržava oštriji calendar i leave surface treatment',()=>{
+  assert.match(styles,/Owner visual review pass 2 — calendar and leave surface sharpness/);
+  assert.match(styles,/\.leave-calendar-card \.month-card,[\s\S]*?border-radius:7px/);
+  assert.match(styles,/\.month-view \.day\{[\s\S]*?border-radius:5px/);
+  assert.match(styles,/\.leave-request-card\{[\s\S]*?border-radius:7px/);
+  assert.match(styles,/\.leave-request-body>div,[\s\S]*?border-radius:6px/);
+});
+
+test('visual pass 2 uklanja dupli count i iz attendance/request headinga',()=>{
+  const admin=boot('admin');
+  admin.window.navigate('attendance');
+  assert.equal(admin.document.querySelector('.attendance-operational-card .table-card-heading .pill'),null);
+  admin.window.navigate('requests');
+  assert.equal(admin.document.querySelector('.approval-table-card .table-card-heading .pill'),null);
+  assert.ok(admin.document.querySelector('.request-tabs button.active'));
+});
+
+test('visual pass 2 uklanja ponovljene brojeve iz summary i table headinga',()=>{
+  const admin=boot('admin');
+  admin.window.navigate('corrections');
+  assert.equal(admin.document.querySelector('.corrections-operational-card .table-card-heading .pill'),null);
+  admin.window.navigate('audit');
+  assert.equal(admin.document.querySelector('.audit-evidence-card .table-card-heading .pill'),null);
+  admin.window.navigate('shifts');
+  assert.equal(admin.document.querySelector('.shifts-operational-card .table-card-heading .pill'),null);
+  assert.equal(admin.document.querySelectorAll('.shifts-summary>div').length,4);
+});
+
+test('visual pass 2 usklađuje moje sate i postavke s enterprise summary grammarom',()=>{
+  const worker=boot('worker');
+  worker.window.navigate('mytime');
+  assert.equal(worker.document.querySelectorAll('.mytime-summary-grid>button').length,4);
+  const admin=boot('admin');
+  admin.window.navigate('settings');
+  assert.equal(admin.document.querySelectorAll('.settings-workspace .admin-kpis>button').length,4);
+  assert.match(styles,/Owner visual review pass 2 — personal\/admin summary consistency/);
+  assert.match(styles,/\.mytime-summary-grid\{[\s\S]*?grid-template-columns:repeat\(4,minmax\(0,1fr\)\)/);
+  assert.match(styles,/\.settings-workspace \.admin-kpis\{[\s\S]*?border-radius:7px/);
+});
+
+test('visual pass 2 usklađuje korekcije, audit i prava pristupa s enterprise summary grammarom',()=>{
+  const admin=boot('admin');
+  admin.window.navigate('corrections');
+  assert.equal(admin.document.querySelectorAll('.approval-summary>div').length,4);
+  admin.window.navigate('audit');
+  assert.equal(admin.document.querySelectorAll('.audit-summary>div').length,4);
+  admin.window.navigate('roles');
+  assert.equal(admin.document.querySelectorAll('.access-summary>button').length,4);
+  assert.match(styles,/Owner visual review pass 2 — secondary enterprise summary strips/);
+  assert.match(styles,/\.approval-summary,[\s\S]*?\.access-summary\{[\s\S]*?border-radius:7px/);
+  assert.match(styles,/\.access-summary>button\.active\{[\s\S]*?box-shadow:inset 0 -2px 0 var\(--bss-color-accent-text\)/);
+});
+
+test('Zahtjevi uklanjaju duplicirani sažetak, a korekcije čuvaju jedini operativni sažetak',()=>{
+  const admin=boot('admin');
+  admin.window.navigate('requests');
+  assert.equal(admin.document.querySelector('.approval-summary'),null);
+  assert.equal(admin.document.querySelectorAll('.request-tabs button').length,5);
+  assert.match(admin.document.querySelector('.request-tabs button.active').textContent,/Na čekanju/);
+  admin.window.openRequestDecision(1);
+  assert.ok(admin.document.querySelector('#modal').classList.contains('open'));
+  assert.match(admin.document.querySelector('#modal').textContent,/Marko Marić|Obiteljski odmor/);
+  admin.window.closeModal();
+  admin.window.navigate('corrections');
+  assert.equal(admin.document.querySelectorAll('.approval-summary>div').length,4);
+  assert.match(admin.document.querySelector('.corrections-operational-card').textContent,/Izvorno/);
+  assert.match(admin.document.querySelector('.corrections-operational-card').textContent,/Predloženo/);
+  const beforeCorrection=admin.state().corrections.find(item=>item.id===1).status;
+  assert.equal(beforeCorrection,'Na čekanju');
+  admin.window.updateCorrection(1,'Odobreno');
+  assert.equal(admin.state().corrections.find(item=>item.id===1).status,'Odobreno');
+  assert.match(admin.state().audit[0].action,/Odobrena korekcija/);
+});
+
+test('sharpness pass ostaje konzistentan na ekranima i compact layoutu',()=>{
+  assert.match(styles,/Owner visual review — sharpness pass residual cleanup/);
+  assert.match(styles,/\.admin-kpis,[\s\S]*?border-radius:8px/);
+  assert.match(styles,/\.attendance-live-item\{[\s\S]*?border-radius:7px/);
+  assert.match(styles,/Owner visual review — keep sharpness on compact layouts/);
+  assert.match(styles,/@media\(max-width:959px\)\{[\s\S]*?\.card\{border-radius:8px\}/);
+  assert.match(styles,/\.form input,[\s\S]*?border-radius:7px/);
+});
+
+test('enterprise sharpness pass smanjuje soft i pill treatment',()=>{
+  assert.match(styles,/Owner visual review — enterprise sharpness pass/);
+  assert.match(styles,/\.card\{[\s\S]*?border-radius:8px;[\s\S]*?box-shadow:none/);
+  assert.match(styles,/\.pill\{[\s\S]*?border-radius:6px/);
+  assert.match(styles,/\.avatar\{[\s\S]*?background:var\(--bss-color-bg-subtle\)/);
+  assert.match(styles,/Owner visual review — enterprise navigation sharpness/);
+  assert.match(styles,/\.drawer-item\{[\s\S]*?border-radius:6px/);
+  assert.match(styles,/Owner visual review — business density and sharpness/);
+  assert.match(styles,/\.request-tabs button,[\s\S]*?border-radius:6px/);
+  assert.match(styles,/Owner visual review — desktop sharpness override/);
+  assert.match(styles,/\.desktop-nav \.drawer-item\.active\{[\s\S]*?box-shadow:inset 2px 0 0 var\(--bss-color-accent-text\)/);
+});
+
+test('public demo credentials koriste isti neutralni login treatment i tocan CTA copy',()=>{
+  const demoAuthCss=fs.readFileSync('src/demo-auth.css','utf8');
+  const demoAuthJs=fs.readFileSync('src/demo-auth.js','utf8');
+  assert.match(demoAuthCss,/background:var\(--bss-color-bg-subtle\)/);
+  assert.match(demoAuthCss,/font-size:var\(--bss-font-size-xs\)/);
+  assert.match(demoAuthJs,/Odaberi demo ulogu i klikni „Prijavi se”/);
+  assert.doesNotMatch(demoAuthJs,/Uđi u BSS/);
+});
+
+test('login entry point koristi vecu tipografiju i centrirani fokus',()=>{
+  assert.match(styles,/Owner visual review — focused login entry point/);
+  assert.match(styles,/\.login\{[\s\S]*?place-items:center/);
+  assert.match(styles,/\.login-inner\{[\s\S]*?width:min\(480px,100%\)/);
+  assert.match(styles,/\.brand\{[\s\S]*?text-align:center/);
+  assert.match(styles,/\.brand h1\{[\s\S]*?font-size:34px/);
+  assert.match(styles,/\.login \.form input,[\s\S]*?font-size:13px/);
+  assert.match(styles,/\.primary-login\{[\s\S]*?font-size:14px/);
+});
+
+test('login auth shell koristi neutralni enterprise treatment bez promjene login forme',()=>{
+  const {document}=boot('admin',false);
+  assert.match(document.querySelector('.brand').textContent,/Bognar Smart Systems/);
+  assert.ok(document.querySelector('#loginEmail'));
+  assert.ok(document.querySelector('#loginPassword'));
+  assert.ok(document.querySelector('.primary-login'));
+  assert.match(styles,/enterprise auth shell/);
+  assert.match(styles,/background:#f5f7fa/);
+  assert.match(styles,/background:#17212b/);
+});
+
+test('Početna operational checkpoint koristi enterprise workspace grammar i čuva drill-down akcije',()=>{
+  const admin=boot('admin');
+  admin.window.navigate('home');
+  assert.equal(admin.document.querySelector('.dashboard-hero'),null);
+  assert.equal(admin.document.querySelectorAll('.home-summary-strip .home-summary-item').length,4);
+  assert.ok(admin.document.querySelector('[data-kpi="review"]'));
+  const worker=boot('worker');
+  assert.doesNotMatch(worker.document.querySelector('#content').textContent,/Marko Marić|Petra Novak|Ana Kovač/);
+  assert.match(worker.document.querySelector('.worker-home-workspace').textContent,/Kalendar/);
+  const accountant=boot('accountant');
+  assert.match(accountant.document.querySelector('#content').textContent,/Samo čitanje/);
+});
+
+
+test('Home usvaja Reports enterprise grammar bez gubitka operativnih akcija',()=>{
+  const admin=boot('admin');
+  admin.window.navigate('home');
+  assert.ok(admin.document.querySelector('.home-workspace-head'));
+  assert.match(admin.document.querySelector('.home-workspace-scope').textContent,/Cijela tvrtka/);
+  assert.equal(admin.document.querySelectorAll('.home-summary-strip .home-summary-item').length,4);
+  assert.equal(admin.document.querySelectorAll('.home-queue-row[data-bss-action]').length>0,true);
+  assert.ok(admin.document.querySelector('.home-operations-card'));
+  assert.equal(admin.document.querySelectorAll('.home-operations-card .home-panel-section').length,2);
+  assert.match(styles,/Owner visual review — Reports grammar adopted on Home/);
+  assert.match(styles,/\.home-summary-strip\{[\s\S]*?grid-template-columns:repeat\(4,minmax\(0,1fr\)\)/);
+  assert.match(styles,/\.home-queue-row\{[\s\S]*?border-bottom:1px solid var\(--bss-color-border\)/);
+});
+
+test('owner readability sweep koristi frozen Design System tipografsku skalu za poslovni tekst',()=>{
+  assert.match(styles,/Owner visual readability sweep/);
+  assert.match(styles,/worker-today-head p\{[\s\S]*?font-size:var\(--bss-font-size-sm\)/);
+  assert.match(styles,/workers-table td:nth-child\(5\)>small\{[\s\S]*?font-size:var\(--bss-font-size-sm\)/);
+  assert.match(styles,/worker-today-grid span,[\s\S]*?font-size:var\(--bss-font-size-xs\)/);
+  assert.match(styles,/\.pill\{[\s\S]*?font-size:var\(--bss-font-size-xs\)/);
+  assert.match(styles,/th\{[\s\S]*?font-size:var\(--bss-font-size-xs\)/);
+  assert.match(styles,/\.nav-item\{[\s\S]*?font-size:var\(--bss-font-size-xs\)/);
+});
+
+test('owner visual review fixes razdvajaju smjenu, worker facts i demo alate',()=>{
+  const admin=boot('admin');
+  admin.window.navigate('workers');
+  const shiftCell=admin.document.querySelector('.workers-table tbody tr td:nth-child(5)');
+  assert.equal(shiftCell.querySelectorAll('b').length,1);
+  assert.equal(shiftCell.querySelectorAll('small').length,1);
+  admin.window.openDrawer();
+  const demoTools=admin.document.querySelector('.demo-tools');
+  assert.ok(demoTools);
+  assert.equal(demoTools.open,true);
+  assert.ok(demoTools.querySelector('select[data-bss-change]'));
+  assert.match(demoTools.querySelector('summary').textContent,/nije dio korisničkog sučelja/);
+  const worker=boot('worker');
+  assert.ok(worker.document.querySelector('.worker-home-workspace'));
+  assert.equal(worker.document.querySelectorAll('.worker-today-grid>button').length,2);
+  assert.match(worker.document.querySelector('.worker-summary-card').textContent,/Preostali godišnji/);
+});
+
+test('primarna desktop navigacija razlikuje operativni fokus po ulozi',()=>{
+  const admin=boot('admin');
+  const adminPrimary=[...admin.document.querySelectorAll('.desktop-nav-primary .nav-label')].map(node=>node.textContent.trim());
+  assert.deepEqual(adminPrimary,['Početna','Evidencija','Radnici','Kalendar','Zahtjevi','Izvještaji']);
+
+  const manager=boot('manager');
+  const managerPrimary=[...manager.document.querySelectorAll('.desktop-nav-primary .nav-label')].map(node=>node.textContent.trim());
+  assert.deepEqual(managerPrimary,['Početna','Evidencija tima','Moj tim','Godišnji tima','Zahtjevi']);
+
+  const worker=boot('worker');
+  const workerPrimary=[...worker.document.querySelectorAll('.desktop-nav-primary .nav-label')].map(node=>node.textContent.trim());
+  assert.deepEqual(workerPrimary,['Početna','Moji sati','Moj godišnji','Kalendar','Moji zahtjevi']);
+
+  const accountant=boot('accountant');
+  const accountantPrimary=[...accountant.document.querySelectorAll('.desktop-nav-primary .nav-label')].map(node=>node.textContent.trim());
+  assert.deepEqual(accountantPrimary,['Početna','Izvještaji','Kalendar']);
+});
+
+test('desktop navigacija prikazuje samo primarne Admin stavke i puni izbornik ostaje u draweru',()=>{
+  const {document}=boot('admin');
+  const primary=[...document.querySelectorAll('.desktop-nav-primary .drawer-item .nav-label')].map(node=>node.textContent.trim());
+  assert.deepEqual(primary,['Početna','Evidencija','Radnici','Kalendar','Zahtjevi','Izvještaji']);
+  assert.equal(document.querySelectorAll('.desktop-more').length,1);
+  const drawer=document.querySelector('#drawer').textContent;
+  for(const label of ['Smjene','Godišnji','Korekcije','Terminali','Prava pristupa','Audit log','Postavke']) assert.match(drawer,new RegExp(label));
+});
+
+test('Detalj radnika operational checkpoint zadržava profile RFID i access granice',()=>{
+  const admin=boot('admin');
+  admin.window.openWorker(1);
+  assert.ok(admin.document.querySelector('.worker-detail-workspace'));
+  assert.equal(admin.document.querySelectorAll('.worker-detail-tabs .tab').length,4);
+  assert.ok(admin.document.querySelector('.worker-detail-grid'));
+  admin.window.setWorkerDetailTab('RFID kartica');
+  assert.match(admin.document.querySelector('.worker-rfid-card').textContent,/RFID UID/);
+  const manager=boot('manager');
+  manager.window.openWorker(1);
+  assert.equal(manager.document.querySelectorAll('.worker-detail-tabs .tab').length,3);
+  assert.doesNotMatch(manager.document.querySelector('.worker-detail-workspace').textContent,/Korisnički pristup/);
+});
+
+test('Radnici operational lista skriva RFID iz glavne tablice ali ga zadržava u detalju radnika',()=>{
+  const {window,document}=boot('admin');
+  window.navigate('workers');
+  const headers=[...document.querySelectorAll('.workers-table th')].map(node=>node.textContent.trim());
+  assert.deepEqual(headers,['Šifra','Ime i prezime','Odjel','Radno mjesto','Smjena','Status','']);
+  assert.equal(document.querySelector('.workers-summary'),null);
+  assert.equal(document.querySelectorAll('.workers-tabs .tab').length,5);
+  assert.doesNotMatch(document.querySelector('.workers-table').textContent,/RFID kartica/);
+  window.openWorker(1);
+  window.setWorkerDetailTab('RFID kartica');
+  assert.match(document.querySelector('#content').textContent,/RFID UID/);
+});
+
 test('navigacija je grupirana i prikazuje brojače otvorenih stavki',()=>{
   const {document} = boot('admin');
-  const groups=new Set([...document.querySelectorAll('.desktop-nav .nav-group-label')].map(item=>item.textContent));
+  const groups=new Set([...document.querySelectorAll('#drawer .nav-group-label')].map(item=>item.textContent));
   assert.deepEqual(groups,new Set(['Pregled','Ljudi i rasporedi','Odobravanja','Sustav','Demo alati']));
-  const badges=[...document.querySelectorAll('.desktop-nav .nav-count')].map(item=>Number(item.textContent));
+  const badges=[...document.querySelectorAll('#drawer .nav-count')].map(item=>Number(item.textContent));
   assert.ok(badges.length>=2);
   assert.ok(badges.every(value=>value>0));
 });
@@ -409,11 +784,12 @@ test('Demo 3.0 ostaje unutar uskog BSS opsega',()=>{
   assert.doesNotMatch(text,/skladište|gps|geofencing|ai analitika|obračun plaće|otvaranje vrata|crm/);
 });
 
-test('Sprint 2 evidencija povezuje plan, saldo, aktivne zapise i odstupanja',()=>{
+test('Sprint 2 evidencija povezuje dnevni operativni roster i dokaznu povijest',()=>{
   const {window,document,state}=boot('admin');
   window.navigate('attendance');
+  assert.equal(document.querySelectorAll('.attendance-operational-kpis .attendance-op-kpi').length,5);
+  assert.equal(document.querySelectorAll('.attendance-operational-table tbody tr').length,7);
   assert.equal(document.querySelectorAll('.attendance-tabs button').length,3);
-  assert.equal(document.querySelectorAll('.attendance-live-item').length,3);
   assert.equal(document.querySelectorAll('.attendance-table .table-detail-btn').length,22);
   const summary=window.attendanceSummary(state().records);
   assert.equal(summary.records,22);
@@ -432,6 +808,18 @@ test('Sprint 2 evidencija povezuje plan, saldo, aktivne zapise i odstupanja',()=
   window.setAttendanceView('active');
   assert.equal(window.filteredAttendanceRecords().length,3);
   assert.ok(window.filteredAttendanceRecords().every(record=>record.date==='2026-07-10'&&!record.end));
+});
+
+test('Moji sati operational checkpoint zadržava mjesečni filter i correction flow',()=>{
+  const {window,document}=boot('worker');
+  window.navigate('mytime');
+  assert.equal(document.querySelectorAll('.mytime-summary-grid>button').length,4);
+  assert.ok(document.querySelector('#myTimeMonth'));
+  assert.ok(document.querySelector('#myTimeRecords'));
+  assert.ok(document.querySelector('#corrDate'));
+  assert.ok(document.querySelector('[data-bss-action="submitCorrection()"]'));
+  window.setMyTimeReview(true);
+  assert.match(document.querySelector('#content').textContent,/Zapisi za provjeru/);
 });
 
 test('detalj zapisa prikazuje smjenu, saldo i kontrolirani put korekcije',()=>{
@@ -520,9 +908,9 @@ test('administrator ima godišnji pregled, radnik vidi samo sebe',()=>{
   const text = worker.document.querySelector('#content').textContent;
   assert.ok(worker.window.calendarRequests().every(request=>request.workerId===1));
   assert.doesNotMatch(text,/Marko Marić|Petra Novak/);
-  assert.ok(worker.document.querySelector('.vacation-balance-visual button.leave-donut[data-bss-action]'));
-  assert.equal(worker.document.querySelectorAll('.vacation-balance-visual .donut-legend>button[data-bss-action]').length,3);
-  assert.match(worker.document.querySelector('.leave-donut').getAttribute('aria-label'),/Iskorišteno 10, planirano 3, raspoloživo 11/);
+  assert.equal(worker.document.querySelector('.vacation-balance-visual .leave-donut'),null);
+  assert.equal(worker.document.querySelectorAll('.vacation-balance-grid>button[data-bss-action]').length,4);
+  assert.match(worker.document.querySelector('.vacation-balance-visual').getAttribute('aria-label'),/iskorišteno 10, planirano 3, raspoloživo 11/i);
   assert.equal(worker.document.querySelector('.vacation-summary-card'),null);
   assert.equal(worker.document.querySelector('.vacation-balance-table'),null);
   assert.equal(worker.document.querySelector('.personal-requests-table thead').textContent.includes('Radnik'),false);
@@ -684,6 +1072,20 @@ test('odobrena korekcija mijenja zapis i stvara audit događaj',()=>{
   assert.match(state().audit[0].action,/Odobrena korekcija/);
 });
 
+test('Postavke operational checkpoint zadržava četiri administrativna taba i postojeće forme',()=>{
+  const {window,document}=boot('admin');
+  window.navigate('settings');
+  assert.equal(document.querySelector('.section-title h1').textContent,'Postavke');
+  assert.equal(document.querySelectorAll('.settings-tabs button').length,4);
+  assert.ok(document.querySelector('.settings-workspace'));
+  window.setSettingsTab('company');
+  assert.ok(document.querySelector('#setOib'));
+  window.setSettingsTab('organization');
+  assert.ok(document.querySelector('[data-bss-action="openDepartmentModal()"]'));
+  window.setSettingsTab('holidays');
+  assert.ok(document.querySelector('[data-bss-action="openHolidayModal()"]'));
+});
+
 test('Sprint 6 daje administratoru cjelovit pregled konfiguracije',()=>{
   const {window,document,state}=boot('admin');
   window.navigate('settings');
@@ -810,6 +1212,23 @@ test('korisničke uloge, reset i blokiranje imaju zaštitne granice i audit trag
   assert.equal(evaluate('JSON.stringify(ROLE_CONFIG.manager.departments)'),'["Proizvodnja"]');
 });
 
+test('Prava pristupa operational checkpoint zadržava sigurnosne akcije i role evidence',()=>{
+  const {window,document,state}=boot('admin');
+  window.navigate('roles');
+  assert.equal(document.querySelectorAll('.access-summary>button').length,4);
+  assert.equal(document.querySelector('.access-filter'),null);
+  assert.match(document.querySelector('.access-summary>button.active').textContent,/Svi računi/);
+  assert.equal(document.querySelectorAll('.permission-table tbody tr').length,4);
+  window.openAccessModal(1);
+  assert.ok(document.querySelector('#modal').classList.contains('open'));
+  assert.match(document.querySelector('#modal').textContent,/Uredi korisnički pristup/);
+  window.closeModal();
+  window.sendPasswordReset(1);
+  assert.ok(state().accessUsers.find(item=>item.id===1).passwordResetAt);
+  assert.equal(state().audit[0].module,'Prava pristupa');
+  assert.match(document.querySelector('.access-boundary-note').textContent,/backendu/);
+});
+
 test('pozivnica provjerava email i odjel te se može poništiti bez slanja emaila',()=>{
   const {window,document,state}=boot('admin');
   window.navigate('roles');
@@ -870,6 +1289,15 @@ test('postavke tvrtke provjeravaju OIB i sigurnosne rokove prije spremanja',()=>
   assert.equal(state().audit[0].module,'Postavke');
 });
 
+test('Audit operational checkpoint zadržava evidence table i filtre',()=>{
+  const {window,document}=boot('admin');
+  window.navigate('audit');
+  assert.equal(document.querySelectorAll('.audit-summary>div').length,4);
+  assert.ok(document.querySelector('.audit-table'));
+  assert.ok(document.querySelector('#auditModule'));
+  assert.ok(document.querySelector('#auditSearch'));
+});
+
 test('audit trag filtrira administrativne radnje po modulu i tekstu',()=>{
   const {window,document}=boot('admin');
   window.navigate('roles');
@@ -883,6 +1311,17 @@ test('audit trag filtrira administrativne radnje po modulu i tekstu',()=>{
   assert.match(entries[0].textContent,/Prava pristupa.*reset lozinke/s);
   window.clearAuditFilters();
   assert.ok(document.querySelectorAll('.audit-table tbody tr').length>entries.length);
+});
+
+test('Smjene operational checkpoint zadržava tablicu i read-only granicu',()=>{
+  const admin=boot('admin');
+  admin.window.navigate('shifts');
+  assert.equal(admin.document.querySelectorAll('.shifts-summary>div').length,4);
+  assert.ok(admin.document.querySelector('[data-bss-action="openShiftModal()"]'));
+  const manager=boot('manager');
+  manager.window.navigate('shifts');
+  assert.match(manager.document.querySelector('#content').textContent,/Samo čitanje/);
+  assert.equal(manager.document.querySelector('[data-bss-action="openShiftModal()"]'),null);
 });
 
 test('aktivna smjena se ne gasi dok ima radnike, a nova smjena mora imati valjano trajanje',()=>{
@@ -983,6 +1422,57 @@ test('izbornik i modal podržavaju Escape, aria stanje i imenovani dijalog',()=>
   assert.equal(modal.getAttribute('aria-hidden'),'true');
 });
 
+test('contract gap #232 veže službeni report preview i export verification na postojeći API',()=>{
+  assert.match(reportAuthoritySource,/BSS_API\.post\('\/report-previews',body\)/);
+  assert.match(reportAuthoritySource,/sameFilters\(result\.filters,body\)/);
+  assert.match(reportAuthoritySource,/datasetVersion/);
+  assert.match(reportAuthoritySource,/preview\.truncated/);
+  assert.match(reportAuthoritySource,/\/report-exports\/\$\{encodeURIComponent\(id\)\}\/verification/);
+  assert.match(reportAuthoritySource,/artifactChecksumMatches/);
+  assert.match(reportAuthoritySource,/datasetChecksumMatches/);
+  assert.match(reportAuthoritySource,/if\(item\.status!=='ready'/);
+  assert.match(reportAuthoritySource,/\['admin','manager','accountant'\]\.includes\(currentRole\)/);
+  assert.match(source,/authoritativeReportPreviewHtml/);
+  assert.match(source,/reportHistoryAuthorityAction/);
+  assert.match(styles,/Contract gap #232 — authoritative reports and export verification/);
+  assert.match(html,/src\/adapters\/api-report-authority\.js/);
+  assert.match(serviceWorker,/src\/adapters\/api-attendance-lifecycle\.js/);
+  assert.match(serviceWorker,/src\/adapters\/api-report-authority\.js/);
+});
+
+test('server-authoritative report preview ne koristi lokalni preview kao fallback uspjeha u API modu',()=>{
+  assert.match(reportAuthoritySource,/Službeni preview nije dostupan/);
+  assert.match(reportAuthoritySource,/Lokalni prikaz se ne predstavlja kao službeni report dataset/);
+  assert.match(reportAuthoritySource,/Server preview nije vratio isti normalizirani skup kriterija/);
+  assert.match(reportAuthoritySource,/server-authoritative/);
+});
+
+test('contract gap #227 veže attendance lifecycle i recalculation na postojeći API bez role proširenja',()=>{
+  const bindings=fs.readFileSync('src/adapters/api-bindings.js','utf8');
+  const lifecycle=fs.readFileSync('src/adapters/api-attendance-lifecycle.js','utf8');
+  assert.match(lifecycle,/\/attendance-periods\/\$\{year\}\/\$\{monthNumber\}/);
+  assert.match(lifecycle,/\/attendance-periods\/\$\{year\}\/\$\{monthNumber\}\/\$\{action\}/);
+  assert.match(lifecycle,/Idempotency-Key/);
+  assert.match(lifecycle,/callbacks\.revisionHeaders\(period\?\.revision/);
+  assert.match(lifecycle,/currentRole!=='admin'\|\|!period/);
+  assert.match(lifecycle,/\/attendance\/\$\{record\.apiId\}\/recalculations/);
+  assert.match(lifecycle,/calculationVersion:'attendance-v1'/);
+  assert.match(lifecycle,/Ispravljeni zapis se ne preračunava ponovno/);
+  assert.match(lifecycle,/currentPeriod\.data\.status!=='open'/);
+  assert.match(lifecycle,/Preračun je dopušten samo u otvorenom periodu/);
+  assert.match(lifecycle,/if\(record\.status==='Ispravljeno'\)/);
+  assert.match(lifecycle,/Lifecycle je samo za čitanje\. Tranzicije su Admin-only/);
+  assert.match(bindings,/BSSAttendanceLifecycle\?\.configure/);
+  assert.match(html,/src\/adapters\/api-attendance-lifecycle\.js/);
+  assert.match(styles,/Contract gap #227 — attendance period lifecycle/);
+  const screenApiMap=JSON.parse(fs.readFileSync('backend/contracts/frontend-screen-api-map-v1.json','utf8'));
+  assert.ok(screenApiMap.screens.find(item=>item.id==='attendance').operations.includes('recalculateAttendanceDay'));
+  assert.ok(screenApiMap.screens.find(item=>item.id==='reports').operations.includes('reopenAttendancePeriod'));
+  assert.equal(screenApiMap.contractDefinedUiGaps.some(item=>['attendance-recalculation-provenance','attendance-period-lifecycle'].includes(item.id)),false);
+  assert.doesNotMatch(screenMap,/\| Attendance recalculation\/provenance \|/);
+  assert.doesNotMatch(screenMap,/\| Period lifecycle i blocker recovery \|/);
+});
+
 test('produkcijski runtime ne vraća poslovne mock podatke u lokalnu pohranu',()=>{
   assert.match(source,/function loadState\(\)\{ return createApiState\(\); \}/);
   assert.match(source,/function saveState\(\)\{ \/\* Poslovni podaci spremaju se isključivo preko API-ja\. \*\/ \}/);
@@ -1003,6 +1493,19 @@ test('mobilni, desktop, animacijski i PWA završni sloj imaju zaštitna pravila'
   assert.equal(manifest.lang,'hr');
   assert.ok(manifest.categories.includes('business'));
   assert.ok(manifest.categories.includes('productivity'));
+});
+
+test('Terminal operational checkpoint zadržava integrity evidence i kontrole',()=>{
+  const admin=boot('admin');
+  admin.window.navigate('terminal');
+  assert.match(admin.document.querySelector('.terminal-summary-card').textContent,/BSS-T01.*Ulaz proizvodnje/s);
+  assert.equal(admin.document.querySelectorAll('.terminal-operational-kpis>button').length,4);
+  assert.match(admin.document.querySelector('.terminal-rule').textContent,/jedinstveni ID/);
+  assert.ok(admin.document.querySelector('[data-terminal-controls]'));
+  const manager=boot('manager');
+  manager.window.navigate('terminal');
+  assert.equal(manager.document.querySelector('[data-terminal-controls]'),null);
+  assert.match(manager.document.querySelector('.terminal-readonly').textContent,/bez prava upravljanja/);
 });
 
 test('Sprint 5 prikazuje identitet, dijagnostiku i događaje terminala',()=>{
@@ -1096,6 +1599,16 @@ test('voditelj ima samo čitanje na operativnom ekranu terminala',()=>{
   assert.equal(state().terminal.online,true);
   window.restoreTerminal();
   assert.equal(state().terminal.syncRuns.length,1);
+});
+
+test('Reports operational workspace stavlja preview i kriterije ispred sekundarnih panela',()=>{
+  const {window,document}=boot('admin');
+  window.navigate('reports');
+  assert.ok(document.querySelector('.report-workspace-controls'));
+  assert.equal(document.querySelectorAll('.report-metrics>div').length,4);
+  assert.ok(document.querySelector('.report-preview .report-table'));
+  assert.ok(document.querySelector('.report-secondary-grid .report-export'));
+  assert.match(document.querySelector('.report-boundary').textContent,/Ne izračunava plaću/);
 });
 
 test('Sprint 4 nudi pet poslovnih izvještaja iz istog skupa podataka',()=>{
@@ -1236,6 +1749,73 @@ test('Design System v1.0 ima jedinstvene primitive i semantičke tokene za obje 
   assert.match(designSystemDoc,/Refactor v1 R5 dovršio je prijelaz na semantičke/);
 });
 
+test('Design Foundation v1.0 je prihvaćen nakon Visual Design Gatea pod zamrznutim Product Contract autoritetom',()=>{
+  assert.match(designFoundationDoc,/Name \| BSS v1 Design Foundation/);
+  assert.match(designFoundationDoc,/Version \| 1\.0/);
+  assert.match(designFoundationDoc,/Status \| \*\*ACCEPTED \/ HARDENED\*\*/);
+  assert.match(designFoundationDoc,/BSS_V1_PRODUCT_CONTRACT\.md.*ACCEPTED \/ FROZEN/);
+  assert.match(productContractDoc,/\| Status \| \*\*ACCEPTED \/ FROZEN\*\* \|/);
+  assert.match(designFoundationDoc,/Visual Design Gate acceptance — 03\.10\.2026/);
+  assert.match(designFoundationDoc,/Shared approved-leave calendar visibility is already part of the frozen Product Contract/);
+
+  for(const role of ['Admin','Voditelj','Radnik','Knjigovodstvo']) {
+    assert.match(designFoundationDoc,new RegExp(`\\*\\*${role}\\*\\*`));
+  }
+  for(const screen of [
+    'home','attendance','mytime','workers','worker','shifts','requests','vacations',
+    'sharedLeave','corrections','reports','terminal','terminalDemo','flow','roles',
+    'audit','settings'
+  ]) assert.match(designFoundationDoc,new RegExp('\\| `' + screen + '` \\|'));
+  for(const gap of [
+    'attendance-recalculation','period-lifecycle','report-server-preview',
+    'report-export-verification','terminal-reconciliation',
+    'terminal-credential-rotation','customer-onboarding','employee-import',
+    'locked-period-recovery'
+  ]) assert.match(designFoundationDoc,new RegExp('\\| `' + gap + '` \\|'));
+  for(const classification of [
+    'CURRENT UI','TARGET DESIGN FOUNDATION','CONTRACT-DEFINED GAP',
+    'DEMO/PREVIEW-ONLY','OUT-OF-SCOPE','FUTURE CANDIDATE'
+  ]) assert.match(designFoundationDoc,new RegExp(classification.replace('/','\\/')));
+  for(const state of [
+    'Loading','Empty','Success','Validation','Permission denied','Not found',
+    'Conflict / stale revision','Offline / degraded','Reconciliation required',
+    'Blocked finalization','Destructive confirmation','Recovery / reopen',
+    'Unavailable / legacy-unavailable'
+  ]) assert.match(designFoundationDoc,new RegExp(`\\*\\*${state.replaceAll('/','\\/')}\\*\\*`,'i'));
+
+  assert.match(designFoundationDoc,/Figma:\s+CANDIDATE \/ INACTIVE/i);
+  assert.match(designFoundationDoc,/Storybook:\s+CANDIDATE \/ INACTIVE/i);
+  assert.match(designFoundationDoc,/Neither tool is product authority/);
+  assert.match(designFoundationDoc,/Employee terminal UX/);
+  assert.match(designFoundationDoc,/Web\/PWA terminal administration/);
+  assert.match(designFoundationDoc,/Acceptance of this document means \*\*DESIGN FOUNDATION ACCEPTED \/ HARDENED\*\*/);
+  assert.match(designFoundationDoc,/does not mean implementation is complete/);
+  assert.match(designFoundationDoc,/MUST NOT be marked ACCEPTED.*Visual Design Gate/);
+  assert.match(designFoundationDoc,/AI-generated mockups.*IDEA \/ RESEARCH only/);
+  assert.match(designFoundationDoc,/not generic placeholder dashboards or prose-only descriptions/);
+  assert.match(designFoundationDoc,/Attendance recalculation.*Admin only; open period/);
+  assert.doesNotMatch(designFoundationDoc,/Attendance recalculation.*Admin\/Voditelj/);
+  assert.match(designFoundationDoc,/transitions: Admin only/);
+  assert.match(designFoundationDoc,/Reports.*Voditelj assigned departments/);
+  assert.match(designFoundationDoc,/Voditelj has read-only terminal status\/history visibility only for event-effective assigned departments/);
+  assert.match(designFoundationDoc,/event-effective assigned departments and cannot pair, revoke, rotate, or reconcile/);
+  assert.match(designFoundationDoc,/Workflow-level responsive and accessibility ownership/);
+  assert.match(designFoundationDoc,/DRAFT -> COMPANY_SETUP -> PEOPLE_IMPORT -> ACCESS_SETUP -> TERMINAL_SETUP -> DRY_RUN -> READY_FOR_GO_LIVE -> GO_LIVE_APPROVED/);
+  assert.match(designFoundationDoc,/UPLOAD -> PARSE -> NORMALIZE\/STAGE -> MAP -> VALIDATE -> PREVIEW -> APPROVE -> COMMIT -> RESULT\/AUDIT/);
+  assert.doesNotMatch(designFoundationDoc,/`employee-onboarding-import`/);
+});
+
+test('final cross-screen polish zaključava focus touch i workflow state baseline',()=>{
+  assert.match(styles,/Final cross-screen polish — shared workflow states and focus/);
+  assert.match(styles,/:focus-visible/);
+  assert.match(styles,/\.notice\.danger/);
+  assert.match(styles,/\.empty-state/);
+  assert.match(styles,/pointer:coarse/);
+  assert.match(styles,/min-height:44px/);
+  assert.match(styles,/prefers-reduced-motion:reduce/);
+  assert.match(styles,/scroll-snap-type:x proximity/);
+});
+
 test('R5 učitava CSS slojeve istim redoslijedom i sprema ih za offline rad',()=>{
   const imports=['./design-system/tokens.css',...styleLayerPaths.map(path=>`./${path}`)];
   const positions=imports.map(path=>styleEntry.indexOf(`@import url("${path}")`));
@@ -1250,8 +1830,8 @@ test('R5 učitava CSS slojeve istim redoslijedom i sprema ih za offline rad',()=
 });
 
 test('ključni tekst i statusi Design Systema zadovoljavaju WCAG AA kontrast',()=>{
-  assert.match(designTokens,/--bss-color-text-muted: var\(--bss-color-neutral-600\)/);
-  assert.equal(hexToken(designTokens,'--bss-color-success-600'),'#166534');
+  assert.match(designTokens,/--bss-color-text-muted: #667085/);
+  assert.equal(hexToken(designTokens,'--bss-color-success-600'),'#067647');
   const pairs=[
     ['--bss-color-neutral-600','--bss-color-neutral-50'],
     ['--bss-color-success-600','--bss-color-success-100'],
@@ -1329,7 +1909,7 @@ test('aplikacija povezuje vodič i offline predmemorira cijeli Design System',()
   for(const asset of ['design-system/index.html','design-system/tokens.css','design-system/guide.css','design-system/guide.js']){
     assert.match(serviceWorker,new RegExp(asset.replaceAll('.','\\.')));
   }
-  assert.match(serviceWorker,/bss-backend-mvp-v1-r2/);
+  assert.match(serviceWorker,/bss-backend-mvp-v1-r5/);
 });
 
 test('Brand Book v1.0 pokriva svih devet dogovorenih područja',()=>{
@@ -1393,7 +1973,7 @@ test('aplikacija povezuje Brand Book i cijeli paket radi offline',()=>{
     'bss-presentation-cover.svg','bss-terminal-label.svg',
     'BSS_BRAND-BOOK_v1.0_11.07.2026.pdf'
   ]) assert.match(serviceWorker,new RegExp(asset.replaceAll('.','\\.')));
-  assert.match(serviceWorker,/bss-backend-mvp-v1-r2/);
+  assert.match(serviceWorker,/bss-backend-mvp-v1-r5/);
   assert.match(serviceWorker,/path\.includes\('\/brand-book'\)/);
 });
 
@@ -1494,11 +2074,11 @@ test('Backend MVP učitava API adaptere prije aplikacije i sprema shell za offli
   ]){
     assert.match(serviceWorker,new RegExp(asset.replaceAll('.','\\.')));
   }
-  assert.match(serviceWorker,/bss-backend-mvp-v1-r2/);
+  assert.match(serviceWorker,/bss-backend-mvp-v1-r5/);
 });
 
 test('cache invalidation hotfix osvježava app shell i odmah preuzima otvorene klijente',()=>{
-  assert.match(serviceWorker,/const CACHE_NAME = 'bss-backend-mvp-v1-r2'/);
+  assert.match(serviceWorker,/const CACHE_NAME = 'bss-backend-mvp-v1-r5'/);
   assert.match(serviceWorker,/new Request\(asset,\{cache:'reload'\}\)/);
   assert.match(serviceWorker,/new Request\(request,\{cache:'no-store'\}\)/);
   assert.match(serviceWorker,/new Request\(request,\{cache:'no-cache'\}\)/);
@@ -1814,7 +2394,7 @@ test('screen registry zaključava sve BSS ekrane i sigurno vraća početni prika
   ]);
   assert.equal(evaluate("BSS_CORE.views.registry.has('reports')"),true);
   assert.equal(evaluate("BSS_CORE.views.registry.has('__proto__')"),false);
-  assert.match(evaluate("BSS_CORE.views.registry.render('nepoznato',globalThis)"),/Operativni dashboard/);
+  assert.match(evaluate("BSS_CORE.views.registry.render('nepoznato',globalThis)"),/Početna/);
 });
 
 test('event registry parsira samo dopuštene akcije bez evala',()=>{
@@ -1951,4 +2531,162 @@ test('MVP Scope v1.1 zajednički godišnji ostaje privatno minimiziran i koristi
   assert.match(sharedLeaveCalendarScope,/pending\/odbijene\/poništene zahtjeve/);
   assert.match(fs.readFileSync('src/adapters/api-state.js','utf8'),/approved-leave-calendar/);
   assert.doesNotMatch(apiContractDraft,/sick_leave|medical_reason|diagnosis/i);
+});
+
+function terminalReconciliationHarness(role='admin',post=async(_path,body)=>({attendanceEventId:'30000000-0000-4000-8000-000000000003',resolution:body.resolution})){
+  const dom=new JSDOM('<div id="modal"></div>');
+  const rawId='30000000-0000-4000-8000-000000000003';
+  const item={syncEventId:'10000000-0000-4000-8000-000000000001',eventId:'20000000-0000-4000-8000-000000000002',attendanceEventId:rawId,statusCode:'reconciliation_required',status:'Za usklađenje',label:'Radnik <script>',type:'Prijava',occurredAt:'2026-10-03T08:00:00Z',reconciliation:null,reconciliationLoaded:true};
+  const context=vm.createContext({document:dom.window.document,Element:dom.window.Element,BSS_API_ACTIVE:true,logged:true,screen:'terminal',currentRole:role,state:{terminal:{recentEvents:[item]},company:{timezone:'Europe/Zagreb'}},BSS_API:{post},$:selector=>dom.window.document.querySelector(selector),escapeHtml:value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char])),showModal:modal=>modal.classList.add('open'),closeModal:()=>dom.window.document.querySelector('#modal').classList.remove('open'),toast:message=>{context.message=message;}});
+  vm.runInContext(fs.readFileSync('src/adapters/api-terminal-reconciliation.js','utf8'),context);
+  const module=context.BSSTerminalReconciliation;
+  module.configure({refresh:async()=>true});
+  Object.assign(context,{openTerminalEvent:module.open,submitTerminalReconciliation:module.submit,reloadTerminalEvents:module.reload});
+  vm.runInContext(fs.readFileSync('src/views/events.js','utf8'),context);
+  const fill=(resolution='accepted',reason='Provjera dokaza')=>{
+    dom.window.document.querySelector('#terminalResolution').value=resolution;
+    dom.window.document.querySelector('#terminalResolutionReason').value=reason;
+    dom.window.document.querySelector('#terminalResolutionConfirm').checked=true;
+  };
+  return{context,module,item,fill,document:dom.window.document};
+}
+
+test('terminal reconciliation uses raw receipt ID, trims reason and prevents concurrent submission',async()=>{
+  let release,calls=0,path,payload;
+  const h=terminalReconciliationHarness('admin',async(value,body)=>{calls++;path=value;payload=body;return new Promise(resolve=>{release=()=>resolve({attendanceEventId:h.item.attendanceEventId,resolution:body.resolution});});});
+  await h.module.open(h.item.syncEventId);h.fill('rejected','  Provjeren dokaz  ');
+  assert.equal(h.document.querySelector('script'),null);
+  const first=h.module.submit();await h.module.submit();
+  assert.equal(calls,1);assert.equal(path,`/attendance-events/${h.item.attendanceEventId}/reconciliation`);
+  assert.equal(payload.reason,'Provjeren dokaz');assert.equal(payload.resolution,'rejected');
+  assert.equal(h.document.querySelector('#terminalResolution').disabled,true);
+  release();await first;
+  assert.match(h.context.message,/Odbijeno/);
+});
+
+test('terminal reconciliation rejects invalid reason, missing confirmation, missing raw ID and old read contract',async()=>{
+  let calls=0;const h=terminalReconciliationHarness('admin',async()=>{calls++;});
+  await h.module.open(h.item.syncEventId);h.fill('accepted',' x ');await h.module.submit();assert.equal(calls,0);
+  h.fill();h.document.querySelector('#terminalResolutionConfirm').checked=false;await h.module.submit();assert.equal(calls,0);
+  h.item.attendanceEventId=null;await h.module.open(h.item.syncEventId);assert.equal(h.document.querySelector('#terminalResolution'),null);
+  h.item.attendanceEventId='30000000-0000-4000-8000-000000000003';h.item.reconciliationLoaded=false;
+  await h.module.open(h.item.syncEventId);assert.equal(h.document.querySelector('#terminalResolution'),null);
+});
+
+test('terminal reconciliation read-back recognizes a committed timeout without retrying',async()=>{
+  let calls=0;const h=terminalReconciliationHarness('admin',async()=>{calls++;h.item.reconciliation={resolution:'accepted',createdAt:'2026-10-03T10:00:00Z',attendanceDayId:'day'};throw new Error('timeout');});
+  await h.module.open(h.item.syncEventId);h.fill();await h.module.submit();
+  assert.equal(calls,1);assert.match(h.context.message,/Spremljena odluka: Prihvaćeno/);
+  await h.module.open(h.item.syncEventId);
+  assert.equal(h.document.querySelector('#terminalResolution'),null);
+  assert.match(h.document.querySelector('#modal').textContent,/Za usklađenje/);
+  assert.match(h.document.querySelector('#modal').textContent,/Zaključena odluka: Prihvaćeno/);
+});
+
+test('terminal reconciliation preserves unknown outcome and never retries automatically',async()=>{
+  let calls=0;const h=terminalReconciliationHarness('admin',async()=>{calls++;throw new Error('network');});
+  await h.module.open(h.item.syncEventId);h.fill();h.module.configure({refresh:async()=>false});
+  await h.module.submit();await h.module.submit();
+  assert.equal(calls,1);assert.match(h.context.message,/Ishod zahtjeva nije poznat/);
+});
+
+test('terminal reconciliation respects role, refreshed competing decision and event action registration',async()=>{
+  for(const role of ['manager','worker','accountant']){
+    let calls=0;const h=terminalReconciliationHarness(role,async()=>{calls++;});
+    await h.module.open(h.item.syncEventId);await h.module.submit();
+    assert.equal(h.document.querySelector('#terminalResolution'),null);assert.equal(calls,0);
+  }
+  const h=terminalReconciliationHarness();h.module.configure({refresh:async()=>{h.item.reconciliation={resolution:'rejected',createdAt:'2026-10-03T10:00:00Z',attendanceDayId:null};return true;}});
+  await h.module.open(h.item.syncEventId);assert.equal(h.document.querySelector('#terminalResolution'),null);
+  assert.ok(h.context.BSSCore.views.events.parse(`openTerminalEvent('${h.item.syncEventId}')`));
+  assert.ok(h.context.BSSCore.views.events.parse('submitTerminalReconciliation()'));
+});
+
+
+function terminalRotationHarness(role='admin',request=null){
+  const dom=new JSDOM('<div id="modal"></div>');
+  const terminal={apiId:'10000000-0000-4000-8000-000000000001',revision:'7',statusCode:'offline',name:'Testni terminal',location:'Ulaz'};
+  const result=()=>({terminal:{id:terminal.apiId,revision:'8',status:'offline'},deviceCredential:'synthetic-one-time-test-value',acknowledgementKey:{id:'20000000-0000-4000-8000-000000000002',version:2,derivation:'BSS-TERMINAL-ACK-KEY-V1'}});
+  const copied=[],calls=[];
+  const context=vm.createContext({document:dom.window.document,Element:dom.window.Element,BSS_API_ACTIVE:true,logged:true,currentRole:role,screen:'terminal',state:{terminal},navigator:{clipboard:{writeText:async value=>copied.push(value)}},BSS_API:{request:async(...args)=>{calls.push(args);return request?request(...args):result();}},$:selector=>dom.window.document.querySelector(selector),escapeHtml:value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char])),showModal:modal=>{context.BSSTerminalCredential.clear();modal.classList.add('open');},toast:message=>{context.message=message;}});
+  vm.runInContext(fs.readFileSync('src/adapters/api-terminal-credential.js','utf8'),context);
+  const module=context.BSSTerminalCredential;let refreshes=0;
+  module.configure({refresh:async()=>{refreshes++;return true;}});
+  const fill=(reason='normal_rotation')=>{dom.window.document.querySelector('#terminalRotationReason').value=reason;module.changeReason();dom.window.document.querySelector('#terminalRotationConfirm').checked=true;};
+  return{context,module,terminal,result,calls,copied,fill,document:dom.window.document,refreshes:()=>refreshes};
+}
+
+test('terminal rotation sends explicit reason and If-Match once without session replay; secret remains transient',async()=>{
+  for(const reason of ['normal_rotation','suspected_compromise']){
+    const h=terminalRotationHarness();await h.module.open();h.fill(reason);await h.module.submit();
+    assert.equal(h.calls.length,1);assert.equal(h.calls[0][0],`/terminals/${h.terminal.apiId}/credentials/rotate`);
+    const options=h.calls[0][1];assert.equal(options.body.reason,reason);assert.equal(options.headers['If-Match'],'"7"');assert.equal(options.retrySession,false);
+    const field=h.document.querySelector('#terminalCredential');assert.equal(field.type,'password');assert.equal(field.value,'synthetic-one-time-test-value');
+    assert.equal(JSON.stringify(h.context.state).includes(field.value),false);
+    assert.equal(h.document.querySelector('#modal').innerHTML.includes(field.value),false);
+    h.module.reveal();assert.equal(field.type,'text');await h.module.copy();assert.deepEqual(h.copied,['synthetic-one-time-test-value']);
+    h.module.clear();assert.equal(field.value,'');assert.equal(field.type,'password');await h.module.copy();assert.equal(h.copied.length,1);
+    assert.equal(h.terminal.revision,'8');
+  }
+});
+
+test('terminal rotation requires explicit confirmation and changing reason cancels that confirmation',async()=>{
+  const h=terminalRotationHarness();await h.module.open();await h.module.submit();assert.equal(h.calls.length,0);
+  h.fill();h.document.querySelector('#terminalRotationReason').value='suspected_compromise';h.module.changeReason();
+  assert.equal(h.document.querySelector('#terminalRotationConfirm').checked,false);await h.module.submit();assert.equal(h.calls.length,0);
+});
+
+test('terminal rotation prevents duplicate submissions and discards a late credential after dialog dismissal',async()=>{
+  let release;const h=terminalRotationHarness('admin',()=>new Promise(resolve=>{release=()=>resolve(h.result());}));
+  await h.module.open();h.fill();const first=h.module.submit();await h.module.submit();assert.equal(h.calls.length,1);
+  h.module.clear();release();await first;
+  assert.equal(h.document.querySelector('#terminalCredential'),null);assert.match(h.module.controlsHtml(),/prikaz je zatvoren/);
+});
+
+test('terminal rotation fails closed for other roles, revoked devices and missing revisions',async()=>{
+  for(const role of ['manager','worker','accountant']){
+    const h=terminalRotationHarness(role);await h.module.open();await h.module.submit();assert.equal(h.module.controlsHtml(),'');assert.equal(h.calls.length,0);
+  }
+  const h=terminalRotationHarness();h.terminal.statusCode='revoked';await h.module.open();assert.equal(h.document.querySelector('#terminalRotationReason'),null);
+  h.terminal.statusCode='offline';h.terminal.revision='0';await h.module.open();assert.equal(h.calls.length,0);assert.equal(h.module.controlsHtml(),'');
+});
+
+test('terminal rotation handles stale revision, expiry and ambiguous timeout without automatic retry or error echo',async()=>{
+  for(const error of [{code:'STALE_REVISION',status:409},{status:401},{status:429},new Error('sensitive-server-value')]){
+    const h=terminalRotationHarness('admin',async()=>{throw error;});await h.module.open();h.fill();await h.module.submit();await h.module.submit();
+    assert.equal(h.calls.length,1);assert.equal(h.refreshes(),2);assert.equal(h.document.querySelector('#terminalCredential'),null);
+    assert.equal(h.module.controlsHtml().includes('sensitive-server-value'),false);
+    if(!error.status)assert.match(h.module.controlsHtml(),/Ishod rotacije nije poznat/);
+    if(error.code==='STALE_REVISION')assert.match(h.module.controlsHtml(),/u međuvremenu promijenjen/);
+  }
+});
+
+test('terminal rotation rejects mismatched response and registers the actual UI actions',async()=>{
+  const h=terminalRotationHarness('admin',async()=>({...h.result(),terminal:{...h.result().terminal,id:'wrong-id'}}));
+  await h.module.open();h.fill();await h.module.submit();assert.equal(h.document.querySelector('#terminalCredential'),null);assert.match(h.module.controlsHtml(),/Ishod rotacije nije poznat/);
+  vm.runInContext(fs.readFileSync('src/views/events.js','utf8'),h.context);
+  for(const action of ['openTerminalRotation','submitTerminalRotation','changeTerminalRotationReason','revealTerminalCredential','copyTerminalCredential'])assert.ok(h.context.BSSCore.views.events.parse(`${action}()`));
+});
+
+test('render, modal replacement, closing and API logout clear terminal credential references',async()=>{
+  const app=boot();const credentialSource=fs.readFileSync('src/adapters/api-terminal-credential.js','utf8');app.evaluate(credentialSource);
+  let cleared=0;app.window.BSSTerminalCredential={clear:()=>{cleared++;}};
+  app.window.render();app.window.showModal(app.document.querySelector('#modal'));app.window.closeModal();app.window.navigate('terminal');
+  assert.equal(cleared,4);
+  const bindings=fs.readFileSync('src/adapters/api-bindings.js','utf8');
+  assert.match(bindings,/async function apiLogout\(\)\{\s*root\.BSSTerminalCredential\?\.clear\(\);\s*try\{await BSS_API\.post/);
+});
+
+test('failed session refresh consumes its response body and never replays the protected request',async()=>{
+  let protectedCalls=0,refreshCalls=0,consumed=0;
+  const api=loadAdapter(apiAdapterSource,{fetch:async url=>{
+    if(String(url).endsWith('/auth/refresh')){
+      refreshCalls++;
+      return{ok:false,status:401,text:async()=>{consumed++;return'{"code":"UNAUTHENTICATED"}';}};
+    }
+    protectedCalls++;
+    return{ok:false,status:401,json:async()=>({code:'UNAUTHENTICATED',message:'Prijava je potrebna.'})};
+  }}).api;
+  await assert.rejects(api.get('/workers'),error=>error.status===401&&error.code==='UNAUTHENTICATED');
+  assert.equal(protectedCalls,1);assert.equal(refreshCalls,1);assert.equal(consumed,1);
 });
