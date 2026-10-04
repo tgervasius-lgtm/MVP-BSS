@@ -88,7 +88,12 @@ jobs:
       - name: Install Chromium
         run: ./node_modules/.bin/playwright install --with-deps chromium
 
-      - name: Browser E2E and axe
+      - name: Standalone frontend browser E2E and axe
+        run: npm run test:e2e -- --reporter=line
+        env:
+          BSS_E2E_FULLSTACK: "false"
+
+      - name: Full-stack browser E2E and axe
         run: npm run test:e2e -- --reporter=line
         env:
           BSS_E2E_FULLSTACK: "true"

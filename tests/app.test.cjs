@@ -1833,6 +1833,7 @@ test('ključni tekst i statusi Design Systema zadovoljavaju WCAG AA kontrast',()
   assert.match(designTokens,/--bss-color-text-muted: #667085/);
   assert.equal(hexToken(designTokens,'--bss-color-success-600'),'#067647');
   const pairs=[
+    ['--bss-color-accent-text','--bss-color-accent-soft'],
     ['--bss-color-neutral-600','--bss-color-neutral-50'],
     ['--bss-color-success-600','--bss-color-success-100'],
     ['--bss-color-warning-700','--bss-color-warning-100'],
@@ -1845,6 +1846,7 @@ test('ključni tekst i statusi Design Systema zadovoljavaju WCAG AA kontrast',()
   }
   const dark=designTokens.slice(designTokens.indexOf(':root[data-theme="dark"]'));
   for(const [foreground,background] of [
+    ['--bss-color-accent-text','--bss-color-accent-soft'],
     ['--bss-color-text-muted','--bss-color-bg-surface'],
     ['--bss-color-success','--bss-color-success-soft'],
     ['--bss-color-warning','--bss-color-warning-soft'],
@@ -2182,8 +2184,10 @@ test('R6 quality gate pokriva lint, deterministički build, Chromium E2E i axe',
   assert.match(playwrightConfig,/desktop-chromium/);
   assert.match(playwrightConfig,/mobile-chromium/);
   assert.match(e2eSource,/AxeBuilder/);
-  assert.match(e2eSource,/Godišnji kalendar cijele firme/);
-  assert.match(e2eSource,/Moj godišnji kalendar/);
+  assert.match(e2eSource,/Moj godišnji/);
+  assert.match(e2eSource,/department-capacity-table/);
+  assert.match(qualityWorkflow,/BSS_E2E_FULLSTACK: "false"/);
+  assert.match(qualityWorkflow,/BSS_E2E_FULLSTACK: "true"/);
   for(const command of ['npm run lint','npm test','npm run build','playwright install --with-deps chromium','npm run test:e2e']){
     assert.match(qualityWorkflow,new RegExp(command.replace(/[.*+?^$()|[\]\\]/g,'\\$&')));
   }
