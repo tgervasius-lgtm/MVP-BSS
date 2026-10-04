@@ -24,15 +24,15 @@
     "check": "npm run lint:openapi && npm run lint && npm test && npm run build"
   },
   "dependencies": {
-    "@fastify/cookie": "11.1.1",
+    "@fastify/cookie": "11.1.2",
     "@fastify/rate-limit": "11.2.0",
     "@fastify/static": "10.1.4",
     "@fontsource/noto-sans": "^5.2.10",
-    "@node-rs/argon2": "2.0.2",
+    "@node-rs/argon2": "2.2.1",
     "exceljs": "^4.4.0",
     "fastify": "5.12.5",
     "fastify-raw-body": "^5.0.0",
-    "pdfkit": "^0.19.1",
+    "pdfkit": "^0.20.2",
     "pg": "8.22.0"
   },
   "overrides": {
@@ -46,12 +46,12 @@
     "brace-expansion@^2.0.1": "2.1.7"
   },
   "devDependencies": {
-    "@redocly/cli": "2.39.0",
+    "@redocly/cli": "2.55.0",
     "@types/node": "24.10.1",
     "@types/pdfkit": "^0.17.6",
     "@types/pg": "8.16.0",
-    "tsx": "4.23.1",
+    "tsx": "4.23.15",
     "typescript": "5.9.3",
-    "yaml": "2.9.0"
+    "yaml": "2.9.1"
   }
 }
