@@ -1160,6 +1160,8 @@ test("PostgreSQL migrations, RLS isolation, auth and manager scope", { skip: !da
   const reconciliationRawId = (await owner.query<{ id: string }>(
     "SELECT id FROM attendance_events WHERE device_event_id = $1", [reconciliationEventId]
   )).rows[0]!.id;
+  const beforeResolution = await service.listTerminalSyncEvents(admin.actor, paired.terminal.id, transferHistoryFilters);
+  assert.equal(beforeResolution.items.find((item) => item.attendanceEventId === reconciliationRawId)?.reconciliation, null);
   const acceptedReconciliation = await service.resolveTerminalEventReconciliation(
     admin.actor,
     reconciliationRawId,
@@ -1191,6 +1193,29 @@ test("PostgreSQL migrations, RLS isolation, auth and manager scope", { skip: !da
     "SELECT COUNT(*)::text AS count FROM terminal_event_reconciliations WHERE attendance_event_id = $1",
     [reconciliationRawId]
   )).rows[0]?.count, "1");
+
+  // Read-back is independent of POST response and immutable delivery status.
+  const resolvedHistory = await service.listTerminalSyncEvents(admin.actor, paired.terminal.id, transferHistoryFilters);
+  const resolvedDeliveries = resolvedHistory.items.filter((item) => item.attendanceEventId === reconciliationRawId);
+  assert.equal(resolvedDeliveries.length, 2);
+  assert.deepEqual(resolvedDeliveries.map((item) => item.status).sort(), ["duplicate", "reconciliation_required"]);
+  for (const delivery of resolvedDeliveries) {
+    assert.deepEqual(delivery.reconciliation, {
+      resolution: "accepted", attendanceDayId: acceptedReconciliation.attendanceDayId, createdAt: acceptedReconciliation.createdAt
+    });
+    assert.equal("reason" in delivery.reconciliation!, false);
+    assert.equal("resolvedBy" in delivery.reconciliation!, false);
+  }
+  const managerResolvedHistory = await service.listTerminalSyncEvents(manager.actor, paired.terminal.id, transferHistoryFilters);
+  assert.ok(managerResolvedHistory.items.some((item) => item.attendanceEventId === reconciliationRawId));
+  assert.ok(managerResolvedHistory.items.every((item) => item.reconciliation === null));
+  await assert.rejects(service.listTerminalSyncEvents({ ...admin.actor, organizationId: ids.org2 }, paired.terminal.id, transferHistoryFilters),
+    (error: unknown) => typeof error === "object" && error !== null && "code" in error && error.code === "NOT_FOUND");
+  assert.deepEqual(await service.resolveTerminalEventReconciliation(admin.actor, reconciliationRawId,
+    { resolution: "accepted", reason: "Administrator verified the missing worker-status boundary evidence" }, "same-decision"), acceptedReconciliation);
+  await assert.rejects(service.resolveTerminalEventReconciliation(admin.actor, reconciliationRawId,
+    { resolution: "rejected", reason: "Cannot replace a final decision" }, "different-decision"),
+    (error: unknown) => typeof error === "object" && error !== null && "code" in error && error.code === "CONFLICT");
 
   const uncertainClockEvent = await ingest(
     "check_in", randomUUID(), new Date(Date.now() - 2000).toISOString(), 33,
@@ -1227,12 +1252,44 @@ test("PostgreSQL migrations, RLS isolation, auth and manager scope", { skip: !da
   );
   assert.equal(postRotationOldKey.results[0]?.status, "rejected");
   assert.equal(postRotationOldKey.results[0]?.code, "ACKNOWLEDGEMENT_KEY_INACTIVE");
+  for (const deniedActor of [manager.actor, workerSession.actor, accountant.actor]) {
+    await assert.rejects(service.rotateTerminalCredential(deniedActor, paired.terminal.id,
+      { reason: "normal_rotation" }, rotated.terminal.revision, "rotation-denied-role"),
+      (error: unknown) => typeof error === "object" && error !== null && "code" in error && error.code === "FORBIDDEN");
+  }
+  await assert.rejects(service.rotateTerminalCredential(admin.actor, paired.terminal.id,
+    { reason: "normal_rotation" }, terminalBeforeRotation.revision, "rotation-stale-revision"),
+    (error: unknown) => typeof error === "object" && error !== null && "code" in error && error.code === "STALE_REVISION");
+  const beforeCompromiseCredential = activeDeviceCredential;
+  const beforeCompromiseKey = activeAcknowledgementKey;
+  const terminalBeforeCompromise = (await service.listTerminals(admin.actor)).find((item) => item.id === paired.terminal.id)!;
+  const compromised = await service.rotateTerminalCredential(admin.actor, paired.terminal.id,
+    { reason: "suspected_compromise" }, terminalBeforeCompromise.revision, "rotation-compromise");
+  activeDeviceCredential = compromised.deviceCredential;
+  activeAcknowledgementKey = compromised.acknowledgementKey;
+  assert.equal(compromised.acknowledgementKey.version, beforeCompromiseKey.version + 1);
+  const closedCompromisedKey = await owner.query<{ closed: boolean; revoked: boolean }>(
+    "SELECT valid_to IS NOT NULL AS closed, revoked_at IS NOT NULL AS revoked FROM terminal_credentials WHERE id = $1", [beforeCompromiseKey.id]);
+  assert.deepEqual(closedCompromisedKey.rows[0], { closed: true, revoked: true });
+  const compromisedReceipt = await ingest("check_in", randomUUID(), new Date().toISOString(), 36,
+    "integration-nonce-compromised-key-0040b", "c".repeat(64),
+    { acknowledgedAt: new Date().toISOString(), keyId: beforeCompromiseKey.id,
+      keyVersion: beforeCompromiseKey.version, receiptCredential: beforeCompromiseCredential });
+  assert.equal(compromisedReceipt.results[0]?.code, "ACKNOWLEDGEMENT_KEY_INACTIVE");
+  const rotationAudit = await owner.query("SELECT before_json, after_json FROM audit_events WHERE entity_id = $1 AND action = 'terminal.credential.rotate'", [paired.terminal.id]);
+  assert.ok(rotationAudit.rows.length >= 2);
+  for (const credential of [historicalCredential, rotated.deviceCredential, compromised.deviceCredential]) {
+    assert.equal(JSON.stringify(rotationAudit.rows).includes(credential), false);
+  }
   const terminalBeforeRevocation = (await service.listTerminals(admin.actor)).find((item) => item.id === paired.terminal.id)!;
   await service.revokeTerminal(admin.actor, paired.terminal.id, terminalBeforeRevocation.revision, "integration-terminal-revoke");
   await assert.rejects(
     ingest("check_in", randomUUID(), new Date().toISOString(), 36, "integration-nonce-revoked-terminal-0041", "c".repeat(64)),
     (error: unknown) => typeof error === "object" && error !== null && "code" in error && error.code === "UNAUTHENTICATED"
   );
+  await assert.rejects(service.rotateTerminalCredential(admin.actor, paired.terminal.id,
+    { reason: "normal_rotation" }, terminalBeforeRevocation.revision, "rotation-revoked-terminal"),
+    (error: unknown) => typeof error === "object" && error !== null && "code" in error && error.code === "CONFLICT");
   assert.equal(overnightDay.items[0]?.plannedMinutes, 450);
   assert.deepEqual(overnightDay.items[0]?.provenance.eventTimeInterpretations.map((item) => item.localTimestamp), [
     "2026-01-10T22:30:00.000", "2026-01-11T05:30:00.000"
