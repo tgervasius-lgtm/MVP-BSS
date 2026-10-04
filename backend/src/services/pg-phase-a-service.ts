@@ -8,7 +8,7 @@ import { createOpaqueToken, hashToken } from "../security/tokens.js";
 import { decodeTimelineCursor, decodeUuidCursor, encodeTimelineCursor, encodeUuidCursor } from "./cursors.js";
 import { normalizeDatabaseError } from "./database-errors.js";
 import { datasetVersion } from "./dataset-version.js";
-import { terminalSyncEventView, type TerminalSyncEventRow } from "./terminal-sync-event.js";
+import { terminalSyncHistorySelect, terminalSyncEventView, type TerminalSyncEventRow } from "./terminal-sync-event.js";
 import { lockTerminalEventLifecycle } from "./terminal-event-lock.js";
 import { requireBoundedDateRange, requireValidShiftWindow } from "./validation.js";
 import type {
@@ -1279,10 +1279,7 @@ export class PgPhaseAService implements PhaseAService {
       if (!terminal.rows[0]) throw new AppError("NOT_FOUND", "Terminal nije pronađen.");
       const cursor = decodeTimelineCursor(filters.cursor);
       const result = await client.query<TerminalSyncEventRow>(
-        `SELECT e.id, e.terminal_id, e.device_event_id, e.sequence, e.worker_id, e.occurred_at,
-           e.acknowledged_at, e.received_at, e.event_type, e.status, e.rejection_code,
-           e.attendance_event_id, e.acknowledgement_verified, e.lifecycle_evidence
-         FROM terminal_sync_events e
+        `${terminalSyncHistorySelect}
          WHERE e.terminal_id = $1 AND e.received_at >= $2::date AND e.received_at < ($3::date + interval '1 day')
            AND ($4::text IS NULL OR e.status = $4) AND ($8::text <> 'manager' OR e.effective_department_id = ANY($9::uuid[]))
            AND ($5::timestamptz IS NULL OR (e.received_at, e.id) < ($5::timestamptz, $6::uuid))
