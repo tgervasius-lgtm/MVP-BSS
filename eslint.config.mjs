@@ -45,7 +45,7 @@ export default [
     rules:strictRules
   },
   {
-    files:['playwright.config.cjs','tests/**/*.cjs'],
+    files:['playwright.config.cjs','tests/**/*.cjs','terminal/**/*.cjs'],
     languageOptions:{sourceType:'commonjs',globals:{...globals.node,...globals.browser}},
     rules:strictRules
   },
@@ -55,7 +55,7 @@ export default [
     rules:strictRules
   },
   {
-    files:['src/**/*.js'],
+    files:['src/**/*.js','terminal/ui/**/*.js'],
     ignores:['src/adapters/api-bindings.js'],
     languageOptions:{globals:{...globals.browser,module:'readonly'}},
     rules:strictRules
