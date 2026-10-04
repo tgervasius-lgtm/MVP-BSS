@@ -1,4 +1,7 @@
 /* BSS Design System v1.0 · tamna tema */
+:root[data-theme="dark"] .login{background:var(--bss-color-bg-canvas)}
+:root[data-theme="dark"] .bottom-nav{background:var(--bss-color-bg-surface);border-color:var(--bss-color-border)}
+:root[data-theme="dark"] th{color:var(--bss-color-text-muted)}
 :root[data-theme="dark"] .login .form select option{background:var(--bss-color-bg-surface);color:var(--bss-color-text)}
 :root[data-theme="dark"] .quick button,:root[data-theme="dark"] .process-step{background:linear-gradient(145deg,var(--bss-color-bg-surface),var(--bss-color-bg-subtle))}
 :root[data-theme="dark"] .quick button:hover,:root[data-theme="dark"] .attendance-live-item:hover,:root[data-theme="dark"] .drawer-item:hover{background:var(--bss-color-bg-hover);border-color:var(--bss-color-border-strong)}
