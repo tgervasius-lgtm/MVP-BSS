@@ -51,10 +51,12 @@ test("#237 PostgreSQL 1000-row atomic import, worker history/audit and durable e
   assert.equal(JSON.stringify(result).includes("Synthetic"), false);
   const importAudits = await f.owner.query("SELECT after_json FROM audit_events WHERE entity_type='worker_import'");
   assert.equal(JSON.stringify(importAudits.rows).includes("Synthetic"), false);
-  await assert.rejects(f.owner.query("UPDATE worker_import_commits SET created_count=1"), /immutable/i);
-  await assert.rejects(f.owner.query("DELETE FROM worker_import_commit_workers"), /immutable/i);
+  await assert.rejects(f.owner.query("UPDATE worker_import_commits SET created_count=1"), /worker_import_commits is append-only/);
+  await assert.rejects(f.owner.query("DELETE FROM worker_import_commit_workers"), /worker_import_commit_workers is append-only/);
   await assert.rejects(f.owner.query("DELETE FROM worker_import_sessions WHERE id=$1", [s.id]), /immutable/i);
   assert.equal(await f.count("worker_import_commits"), 1);
+  assert.equal(await f.count("worker_import_commit_workers"), 1000);
+  assert.equal((await f.owner.query("SELECT created_count FROM worker_import_commits")).rows[0].created_count, 1000);
 });
 
 test("#237 PostgreSQL validation, revisions, tenant/RBAC isolation and two-session admission", options, async (t) => {
@@ -200,6 +202,36 @@ test("#237 PostgreSQL reference locks, commit SQL deadline and rollback preserve
   await f.owner.query("DROP TRIGGER fixture_slow ON workers; DROP FUNCTION fixture_slow_worker()");
   await f.commit(slow);
   assert.equal(await f.count("workers"), 2);
+});
+
+test("#237 PostgreSQL unique index rejects a manual insert racing after validation and rolls back earlier rows", options, async (t) => {
+  assert.ok(url, "BSS_TEST_DATABASE_URL is required");
+  const f = await importFixture(url); t.after(f.dispose);
+  const s = await f.prepare([f.worker("RACE_FIRST"), f.worker("RACE_LAST")]);
+  await f.owner.query(`CREATE FUNCTION fixture_race_worker() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN
+    IF NEW.code='RACE_FIRST' THEN PERFORM pg_advisory_xact_lock(237014); END IF; RETURN NEW; END $$;
+    CREATE TRIGGER fixture_race BEFORE INSERT ON workers FOR EACH ROW EXECUTE FUNCTION fixture_race_worker()`);
+  await f.owner.query("SELECT pg_advisory_lock(237014)");
+  // Attach rejection handling immediately while the SQL operation is blocked.
+  const rejected = assert.rejects(f.commit(s), { code: "CONFLICT" });
+  try {
+    let waiting = false;
+    for (let i = 0; i < 40; i++) {
+      waiting = (await f.owner.query("SELECT 1 FROM pg_stat_activity WHERE datname=current_database() AND wait_event='advisory'")).rowCount! > 0;
+      if (waiting) break;
+      await delay(20);
+    }
+    assert.equal(waiting, true, "Importer must pass validation and reach the insert barrier");
+    await f.owner.query(`INSERT INTO workers(organization_id,code,name,department_id,shift_id,annual_leave_allowance)
+      VALUES ($1,'race_last','Manual fixture worker',$2,$3,10)`, [f.first.actor.organizationId, f.first.department, f.first.shift]);
+  } finally { await f.owner.query("SELECT pg_advisory_unlock(237014)"); }
+  await rejected;
+  assert.equal(await f.count("workers"), 1);
+  assert.equal((await f.owner.query("SELECT 1 FROM workers WHERE code='RACE_FIRST'")).rowCount, 0);
+  assert.equal(await f.count("worker_import_commits"), 0); assert.equal(await f.count("worker_import_commit_workers"), 0);
+  assert.equal((await f.owner.query("SELECT 1 FROM audit_events WHERE action='worker.create'")).rowCount, 0);
+  assert.equal((await f.store.get(f.first.actor, s.id, "after-index-conflict")).session.state, "READY");
+  assert.equal(await f.count("worker_import_staging"), 1);
 });
 
 test("#237 migration 013 down guard sees hidden tenant data under NOSUPERUSER/NOBYPASSRLS owner", options, async (t) => {

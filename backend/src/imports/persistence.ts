@@ -67,6 +67,7 @@ export type CommitRow = { id: string; idempotency_key_hash: string; request_fing
 export async function readResult(tx: ImportTransaction, session: SessionRow, commit: CommitRow): Promise<ImportResult> {
   const workers = await tx.query<{ worker_id: string }>(`SELECT worker_id FROM worker_import_commit_workers
     WHERE commit_id = $1 ORDER BY row_number`, [commit.id]);
+  if (workers.rows.length !== commit.created_count) throw new AppError("INTERNAL_ERROR", "Nedostaje potpuni dokaz potvrđenog uvoza.");
   return { commitId: commit.id, sessionId: session.id, fileChecksum: session.file_checksum,
     previewChecksum: commit.preview_checksum, schemaVersion: session.schema_version, parserVersion: session.parser_version,
     policyVersion: session.policy_version, uploaderId: session.uploader_id, approvedBy: commit.approved_by,
