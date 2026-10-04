@@ -158,6 +158,8 @@ Standardno trajanje je 180 ms. Veći prijelaz ekrana smije trajati do 280 ms. Ka
 
 Tema se postavlja atributom `data-theme="light|dark"` na `<html>`. Odabir se sprema pod ključem `bss-theme-v1` i dijele ga aplikacija i živi vodič. Ako korisnik još nije odabrao temu, koristi se postavka operativnog sustava.
 
+Prijava u tamnoj temi koristi `--bss-color-bg-canvas` uz semantičke boje teksta; svijetla fiksna pozadina ne smije ostati ispod teksta tamne teme.
+
 Komponenta je spremna tek kada je pregledana u obje teme. U tamnoj temi ne invertira se cijela paleta; semantičke površine, rubovi i statusi imaju posebno podešene vrijednosti.
 
 ## 9. Responsive pravila
