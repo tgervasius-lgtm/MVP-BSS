@@ -23,7 +23,9 @@ class Handler(BaseHTTPRequestHandler):
         self.connection.settimeout(5)
 
     def send(self, code, data, content_type="application/json; charset=utf-8"):
-        payload = data if isinstance(data, bytes) else encode(data).encode()
+        # JSON remains data even if a future consumer embeds it into an HTML page.
+        payload = data if isinstance(data, bytes) else encode(data).translate(
+            str.maketrans({"<": r"\u003c", ">": r"\u003e", "&": r"\u0026"})).encode()
         self.send_response(code)
         self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(len(payload)))
@@ -77,7 +79,7 @@ class Handler(BaseHTTPRequestHandler):
             elif self.path == "/connection":
                 if set(value) != {"paused"} or type(value["paused"]) is not bool:
                     raise ValueError(INVALID_REQUEST)
-                self.server.sync.paused = value["paused"]
+                self.server.sync.paused = bool(value["paused"])
                 self.send(200, {"paused": self.server.sync.paused})
             else:
                 self.send(404, {"error": "Nije pronađeno."})

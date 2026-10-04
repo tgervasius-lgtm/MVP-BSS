@@ -189,6 +189,8 @@ class TestAgent(unittest.TestCase):
         self.assertEqual(sender.state, "offline")
 
     def test_private_ui_host_origin_token_and_no_credentials(self):
+        label = '<script>alert("card")</script>'
+        self.cfg["cards"][0]["label"] = label
         sender = Sync(self.store)
         server = make_server(self.store, sender, 0)
         worker = threading.Thread(target=server.serve_forever)
@@ -196,8 +198,12 @@ class TestAgent(unittest.TestCase):
         self.addCleanup(lambda: (server.shutdown(), worker.join(), server.server_close()))
         origin = f"http://127.0.0.1:{server.server_port}"
         with urlopen(origin + "/state") as response:
+            self.assertEqual(response.headers.get_content_type(), "application/json")
+            self.assertEqual(response.headers["X-Content-Type-Options"], "nosniff")
             body = response.read()
             state = json.loads(body)
+        self.assertEqual(state["cards"], [label])
+        self.assertNotIn(b"<script>", body)
         self.assertNotIn(self.cfg["deviceCredential"].encode(), body)
         self.assertNotIn(self.cfg["rfidPepper"].encode(), body)
         for headers in [{}, {"Host": "attacker.invalid"},
@@ -212,6 +218,13 @@ class TestAgent(unittest.TestCase):
         with urlopen(request) as response:
             self.assertEqual(response.status, 200)
         self.assertTrue(sender.paused)
+        request = Request(origin + "/connection", data=json.dumps({"paused": label}).encode(), headers={
+            "Content-Type": "application/json", "Origin": origin, "X-BSS-Local-Token": state["token"]})
+        with self.assertRaises(HTTPError) as error:
+            urlopen(request)
+        self.assertEqual(error.exception.code, 400)
+        self.assertNotIn(label.encode(), error.exception.read())
+        self.assertIs(sender.paused, True)
 
     def test_cli_session_and_fixed_file_boundaries(self):
         directory = Path(self.temp.name)
@@ -219,7 +232,7 @@ class TestAgent(unittest.TestCase):
         cfg_path.write_text(json.dumps(self.cfg), encoding="utf-8")
         cfg_path.chmod(0o600)
         self.assertEqual(load(cfg_path), self.cfg)
-        self.assertEqual(session_directory(directory.name), directory)
+        self.assertEqual(session_directory(directory.name), directory.resolve(strict=True))
         for name in ("../outside", str(directory), "unrelated-session", "file:queue?mode=memory"):
             with self.assertRaises(ValueError):
                 session_directory(name)
@@ -237,7 +250,7 @@ class TestAgent(unittest.TestCase):
     def test_session_rejects_linked_files_and_shared_permissions(self):
         # Windows link/ACL qualification remains a separate physical deployment task.
         if os.name == "nt":
-            self.assertEqual(session_file(self.state_path, "state"), self.state_path)
+            self.assertEqual(session_file(self.state_path, "state"), self.state_path.resolve(strict=True))
             return
         directory = Path(self.temp.name)
         target = directory / "target.json"

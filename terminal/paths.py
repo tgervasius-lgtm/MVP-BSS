@@ -26,6 +26,8 @@ def session_file(value, expected_name):
     if not path.is_absolute() or path.name != expected_name or ".." in path.parts:
         raise ValueError("Putanja nije datoteka ili mapa ove testne sesije.")
     directory = session_directory(path.parent.name)
-    if path.parent != directory or path.is_symlink():
+    # Windows TEMP may use an 8.3 spelling (RUNNER~1); compare canonical parents
+    # while still rejecting a linked session or target file.
+    if path.parent.is_symlink() or path.parent.resolve(strict=True) != directory or path.is_symlink():
         raise ValueError("Putanja napušta testnu sesiju.")
     return directory / expected_name
