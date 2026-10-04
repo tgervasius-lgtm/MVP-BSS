@@ -151,6 +151,7 @@ export type TerminalSyncEventView = {
   attendanceEventId: string | null;
   acknowledgementVerified: boolean;
   lifecycleEvidence: TerminalLifecycleEvidence;
+  reconciliation: { resolution: "accepted" | "rejected"; attendanceDayId: string | null; createdAt: string } | null;
 };
 export type TerminalLifecycleEvidence = {
   decision: "accepted" | "rejected" | "reconciliation_required" | "duplicate";

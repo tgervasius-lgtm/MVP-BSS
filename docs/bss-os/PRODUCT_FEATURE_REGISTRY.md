@@ -1,10 +1,10 @@
 # BSS Product Feature Registry
 
-Last reviewed: 2026-09-01 for #131/AUDIT A affected rows
+Last reviewed: 2026-10-04 for post-terminal UI status and remaining contract gaps
 
-Important: Backend MVP Phase B is now merged into the authoritative protected `main` baseline through PR #99. The resulting baseline commit is `198b2ce9f1ad73b7b72058a930cf005cbb35a0da`. `MERGED` in this registry means the capability is present in repository code at that baseline; it does **not** mean deployed, production-ready, legally approved or physically validated.
+Historical integration: Backend MVP Phase B merged through PR #99 at `198b2ce9f1ad73b7b72058a930cf005cbb35a0da`. `MERGED` in this registry means the capability is present in repository code at its cited evidence baseline and inherited by the current reviewed main; it does **not** mean deployed, production-ready, legally approved or physically validated.
 
-The authoritative baseline has since advanced to `b904eca3c047c01da7a78e376269e94ed1d2fb48`. Issues #143/#145/#144/#146 are merged and the #133 targeted AUDIT A recheck passed. `BSS_V1_PRODUCT_CONTRACT.md` v1.0 is the accepted/frozen #131 product-scope authority; its requirements do not change an implementation row to `MERGED`.
+Current reviewed software baseline is `e6d191c0933d3e32dce68ef874a9b8af722a64d8`. Period/recalculation UI (#228), report preview/verification (#233), and terminal reconciliation/rotation (#235/#236) are merged. OM-01 (#229) is accepted architecture only. The earlier targeted AUDIT A baseline was `b904eca3c047c01da7a78e376269e94ed1d2fb48`. Issues #143/#145/#144/#146 are merged and the #133 targeted AUDIT A recheck passed. `BSS_V1_PRODUCT_CONTRACT.md` v1.0 is the accepted/frozen #131 product-scope authority; its requirements do not change an implementation row to `MERGED`.
 
 PR #99 integration evidence includes green required repository checks, PostgreSQL-backed integration coverage, full-stack browser/accessibility coverage, dependency/security checks and CodeQL with `js/missing-rate-limiting = 0`. OpenAPI also declares the shared `429 RateLimited` response for operations that have runtime rate limits. Production infrastructure, shared/distributed rate limiting, observability, restore drills, hardware and live-pilot evidence remain separate.
 
@@ -46,7 +46,9 @@ PR #99 integration evidence includes green required repository checks, PostgreSQ
 | TIME-005 | Missing/irregular event review queue | Yes | IMPLEMENTED | MERGED | Frontend drill-down and merged Phase B backend flow | NOT DEPLOYED | Confirm business rules with pilot employers |
 | TIME-006 | Terminal offline sync event ingestion | Yes | DEMO / IMPLEMENTED | MERGED | #144 DEC-025 acknowledgement, historical key/lifecycle, immutable fingerprint and Admin reconciliation implementation is merged; fresh PostgreSQL evidence and targeted AUDIT A recheck passed on `b904eca`. | NOT DEPLOYED | Run real-device durable-commit, worker-feedback, power-loss, retry/offline and clock-health tests under #132/AUDIT C. |
 | TIME-007 | Terminal sync-event timeline | Yes | IMPLEMENTED | MERGED | Newest-first keyset pagination and tenant filters | NOT DEPLOYED | Verify retention, scale and operational visibility |
-| TIME-008 | Device credential validity, revocation and rotation semantics | Yes | ADMIN UI PARTIAL | MERGED | `valid_from`, revocation/expiry checks and device-auth contracts | NOT DEPLOYED | Implement managed KMS/secrets custody and real rotation drill |
+| TIME-008 | Device credential validity, revocation and rotation semantics | Yes | IMPLEMENTED | MERGED | #236: explicit reason/confirmation, If-Match, transient masked one-time secret, no blind retry, role/revision/lifecycle regression and CI browser proof | NOT DEPLOYED | Implement managed KMS/secrets custody and real device transfer/rotation drill |
+| TIME-009 | Authoritative terminal-event reconciliation UI | Yes | IMPLEMENTED | MERGED | #235: raw receipt ID, Admin-only summary, immutable delivery proof, confirmation, lost-response read-back and PostgreSQL tenant/role tests | NOT DEPLOYED | Re-prove operational recovery with actual terminal/environment evidence |
+| TIME-010 | Period lifecycle and historical recalculation UI | Yes | IMPLEMENTED | MERGED | #228: Admin-only review/finalize/close/reopen and guarded recalculation against existing server contracts | NOT DEPLOYED | Preserve immutable snapshots and perform staging role/recovery validation |
 
 ## RFID administration
 
@@ -72,10 +74,12 @@ PR #99 integration evidence includes green required repository checks, PostgreSQ
 | ID | Capability | MVP | UI | Core implementation | Security/test evidence | Production | Primary evidence / next action |
 |---|---|---:|---|---|---|---|---|
 | REPORT-001 | Report type and filter selection | Yes | IMPLEMENTED | MERGED | Approved report types and server validation | NOT DEPLOYED | Confirm final pilot reporting catalogue |
-| REPORT-002 | Bounded report preview | Yes | IMPLEMENTED | MERGED | Limit, deterministic dataset version, server totals and runtime rate limit | NOT DEPLOYED | Verify performance and stale-preview behavior |
+| REPORT-002 | Bounded report preview | Yes | IMPLEMENTED | MERGED | #233: server-authoritative dataset/totals, request freshness and role-scoped contract tests | NOT DEPLOYED | Verify performance and stale-preview behavior in staging |
 | REPORT-003 | XLSX export | Yes | IMPLEMENTED / HANDOFF | MERGED | Primary business export path and generator integrated through PR #99 | NOT DEPLOYED | Validate output with accounting/payroll sample cases without claiming payroll calculation |
 | REPORT-004 | CSV export | Yes | IMPLEMENTED / HANDOFF | MERGED | Technical export path in scope | NOT DEPLOYED | Verify encoding, locale and delimiter compatibility |
 | REPORT-005 | Accounting-role restricted access | Yes | IMPLEMENTED | MERGED | RBAC declarations and contract coverage | NOT DEPLOYED | Complete least-privilege role matrix |
+| REPORT-006 | Stored export verification | Yes | IMPLEMENTED | MERGED | #233: verification of existing export provenance/checksums through the server contract | NOT DEPLOYED | Revalidate on deployed storage/runtime |
+| REPORT-007 | Explicit immutable period-version selection for official export | Yes | NONE | PARTIAL | API accepts `periodVersionId`; current report UI does not offer the complete named-version selection path | NOT DEPLOYED | Focused report work remains separate from onboarding/import; do not silently use latest/current data as a locked official version |
 
 ## Audit and accountability
 
@@ -89,8 +93,8 @@ PR #99 integration evidence includes green required repository checks, PostgreSQ
 
 | ID | Capability | MVP | UI | Core implementation | Security/test evidence | Production | Primary evidence / next action |
 |---|---:|---|---|---|---|---|---|
-| ONBOARD-001 | Resumable company setup through explicit go-live approval | Yes, frozen v1.0 scope | NONE | NONE | Product requirements are frozen; no implementation or environment evidence | NOT DEPLOYED | Create focused implementation/evidence work without bypassing AUDIT C |
-| IMPORT-001 | Admin-only atomic CSV/XLSX employee import with validation and preview | Yes, frozen v1.0 scope | NONE | NONE | Canonical fields, no-default rule, all-or-nothing commit and audit requirements are frozen; no importer evidence exists | NOT DEPLOYED | Implement and verify tenant/privacy/idempotency/capacity behavior in focused future work |
+| ONBOARD-001 | Resumable company setup through explicit go-live approval | Yes, frozen v1.0 scope | NONE | NONE | Product requirements are frozen; no implementation or environment evidence | NOT DEPLOYED | #237 and the implementation plan; tenant/go-live authority still requires a recorded decision, without bypassing AUDIT C |
+| IMPORT-001 | Admin-only atomic CSV/XLSX employee import with validation and preview | Yes, frozen v1.0 scope | NONE | NONE | Canonical fields, no-default rule, all-or-nothing commit and audit requirements are frozen; no importer evidence exists | NOT DEPLOYED | #237 and the implementation plan; approve limits/lifecycle, then prove tenant/privacy/atomicity/idempotency/capacity behavior |
 
 ## Experience and sales validation
 
@@ -119,7 +123,7 @@ PR #99 integration evidence includes green required repository checks, PostgreSQ
 
 ## Registry maintenance from the Phase 0 baseline
 
-1. Treat PR #99 / `198b2ce9...` as the authoritative merged software baseline until a later merged commit changes it.
+1. Use current protected main; this review is pinned to `e6d191c`. PR #99 / `198b2ce9...` is historical integration evidence, not the current head.
 2. Keep `MERGED` separate from `STAGING`, `PRODUCTION`, legal approval and physical hardware evidence.
 3. Attach exact endpoint/test/migration references when a later workstream needs deeper evidence; do not downgrade merged capabilities merely because deployment is still open.
 4. Complete the authoritative RBAC matrix and broader API/runtime drift guard before the first live pilot.

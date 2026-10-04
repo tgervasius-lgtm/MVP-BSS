@@ -1,7 +1,7 @@
 # BSS Pilot Readiness Package
 
 Status: `PROPOSED`
-Last reviewed: 2026-09-20
+Last reviewed: 2026-10-04 (repository status only; live evidence remains open)
 Owner: BSS founders
 Tracking issue: `#62`
 
@@ -29,7 +29,7 @@ Current overall status: `BLOCKED`.
 
 The historical Phase B integration blocker is resolved: issue `#55` is CLOSED/COMPLETED and PR `#99` is MERGED. This establishes a repository baseline, not a pilot release or deployed environment.
 
-Current blockers are the remaining accepted design/implementation gates, Production-like Staging / `AUDIT B`, deployed security and recovery evidence, Hardware 9C / `AUDIT C`, and customer-specific legal, operational and GO/NO-GO evidence. No live pilot is authorized.
+The Design Foundation acceptance gate is complete, but contract-defined implementation gaps remain. Current blockers are those remaining implementation gaps, Production-like Staging / `AUDIT B`, deployed security and recovery evidence, Hardware 9C / `AUDIT C`, and customer-specific legal, operational and GO/NO-GO evidence. No live pilot is authorized.
 
 ### 2.1 Evidence snapshot and authority
 
@@ -41,13 +41,13 @@ This B2 documentation refresh was prepared from protected `main` at `88c1b8db99a
 | [Readiness Matrix](../../BSS_READINESS_MATRIX.md) | Current readiness and missing evidence; Production-like Staging is NOT IMPLEMENTED / NOT EVIDENCE PROVEN, Hardware 9C and Pilot remain NOT PASS. |
 | [Master Roadmap v4.9](MASTER_ROADMAP.md) | Owns the sequence below and AUDIT A-D / PRG; local G1-G9 rows collect evidence and do not replace those gates. |
 | [Product Contract v1.0](../../BSS_V1_PRODUCT_CONTRACT.md) / DEC-027 | ACCEPTED / FROZEN; controls product scope, roles, onboarding/import and exclusions. Supersedes the old scope freeze for product scope. |
-| [Design Foundation](../../BSS_DESIGN_FOUNDATION_V1.md) / #156 | PR #161 MERGED; proposal remains PROPOSED / NOT ACCEPTED and #156 OPEN. Figma/Storybook remain CANDIDATE / INACTIVE. |
+| [Design Foundation](../../BSS_DESIGN_FOUNDATION_V1.md) / #156 | Visual Design Gate owner review completed; PR #183 MERGED; Design Foundation v1.0 is ACCEPTED / HARDENED and #156 CLOSED/COMPLETED. Figma/Storybook remain CANDIDATE / INACTIVE. This is not implementation or Staging/Pilot evidence. |
 | [Decision Log](DECISION_LOG.md), DEC-025/026 | Historical targeted AUDIT A PASS is tied to `b904eca`; software acknowledgement evidence does not prove real-device durable write/feedback or a fresh release audit. |
 | [Product Feature Registry](PRODUCT_FEATURE_REGISTRY.md) | Implementation inventory; any older product-scope wording must be reconciled to the frozen contract, not used to invent a new pilot capability. |
 
-Accepted execution route: Visual Design Gate -> explicit owner/BSS OS Design Foundation acceptance -> roadmap-ordered contract-defined implementation gaps -> Production-like Staging / AUDIT B -> Pilot readiness + Hardware 9C / AUDIT C -> controlled Pilot -> Post-Pilot hardening / PRG / AUDIT D -> Commercial Production.
+Accepted execution route: Design Foundation ACCEPTED/HARDENED -> roadmap-ordered contract-defined implementation gaps + OM-01 -> minimum operational foundation -> Production-like Staging / AUDIT B -> Pilot readiness + Hardware 9C / AUDIT C -> controlled Pilot -> Post-Pilot hardening / PRG / AUDIT D -> Commercial Production.
 
-This document refresh implements none of those capabilities and declares no general development restart. Issue `#62` remains OPEN until its full evidence and second-person dry-run requirements are met.
+Current software evidence is main `e6d191c`: #228/#233/#235/#236 are merged and #234 is completed. OM-01 architecture is accepted and merged through #229; #225 is completed for architecture only. Onboarding/import #237 and explicit locked report-version selection remain open. See [the implementation preparation](CUSTOMER_ONBOARDING_IMPORT_IMPLEMENTATION_PLAN.md). This status refresh does not implement those gaps or operational capabilities. Issue `#62` remains OPEN until its full evidence and second-person dry-run requirements are met.
 
 ## 3. Recommended first-pilot envelope
 
@@ -530,7 +530,7 @@ Evidence may link to controlled external systems, but the BSS OS record must ide
 | Area | Status | Next required evidence |
 |---|---|---|
 | Software baseline | `REPOSITORY BASELINE VERIFIED` | #55/#99 integration resolved; select and independently verify the actual release candidate later |
-| Design and contract gaps | `BLOCKED / PARTIAL` | #156 acceptance and roadmap-ordered implementation, including onboarding/import; contract freeze and proposal merge do not prove completion |
+| Design and contract gaps | `IMPLEMENTATION PARTIAL` | #156 acceptance is complete; #228/#233/#235/#236 are merged. Onboarding/import #237 and locked report-version selection remain open; complete remaining flows and evidence before Pilot |
 | Production-like Staging / AUDIT B | `NOT IMPLEMENTED / NOT EVIDENCE PROVEN` | #59 environment, deployed security, load, migration/rollback and restore evidence |
 | Infrastructure architecture | `PROPOSED` | Approve ADR-001 and provision staging |
 | Preview/sales sandbox | `SEPARATE / NOT LIVE EVIDENCE` | #58 reconstruction remains separate from staging and real-customer readiness |

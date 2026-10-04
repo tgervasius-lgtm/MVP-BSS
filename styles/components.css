@@ -16,7 +16,7 @@
 .muted-box{background:var(--bss-color-bg-subtle);border:1px solid var(--bss-color-border);border-radius:14px;padding:11px;font-size:11px;line-height:1.45;color:var(--bss-color-text-muted)}
 .notice{border-radius:14px;padding:10px 12px;margin-bottom:10px;font-size:11px;line-height:1.45;border:1px solid #fde68a;background:#fffbeb;color:#854d0e}
 .notice.info{border-color:#bfdbfe;background:#eff6ff;color:#1e40af}
-.pill{display:inline-flex;align-items:center;gap:5px;border:1px solid #cde2d6;background:#f4faf6;color:var(--bss-color-accent-text);border-radius:999px;padding:6px 8px;font-size:9px;font-weight:900;white-space:nowrap}
+.pill{display:inline-flex;align-items:center;gap:5px;border:1px solid #cde2d6;background:#f4faf6;color:var(--bss-color-accent-text);border-radius:999px;padding:6px 8px;font-size:var(--bss-font-size-xs);font-weight:900;white-space:nowrap}
 .pill.green{background:var(--bss-color-success-soft);border-color:#bbf7d0;color:var(--bss-color-success)}
 .pill.orange{background:var(--bss-color-warning-soft);border-color:#fde68a;color:var(--bss-color-warning)}
 .pill.red{background:var(--bss-color-danger-soft);border-color:#fecaca;color:var(--bss-color-danger)}
@@ -39,7 +39,7 @@
 .stat{background:var(--bss-color-bg-surface);border:1px solid var(--bss-color-border);border-radius:16px;padding:11px;min-height:78px;box-shadow:var(--bss-shadow-md)}
 .stat .num{font-size:22px;font-weight:950;letter-spacing:-.045em;overflow-wrap:anywhere}
 .stat .lab{font-size:12px;color:var(--bss-color-text-muted);font-weight:750;margin-top:4px}
-.stat .trend{font-size:9px;line-height:1.35;color:var(--bss-color-success);font-weight:800;margin-top:6px}
+.stat .trend{font-size:var(--bss-font-size-xs);line-height:var(--bss-line-height-normal);color:var(--bss-color-success);font-weight:800;margin-top:6px}
 .dashboard-grid{display:grid;gap:10px}
 .dashboard-grid>*,.dashboard-layout>*,.report-layout>*,.terminal-layout>*,.admin-two-column>*{min-width:0}
 .quick{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
@@ -79,7 +79,95 @@
 .table-wrap:focus-visible{outline:3px solid rgba(15,118,110,.2);outline-offset:-3px}.table-wrap::-webkit-scrollbar{height:9px;width:9px}.table-wrap::-webkit-scrollbar-thumb{background:#b9d8c6;border:2px solid #fff;border-radius:999px}.table-wrap::-webkit-scrollbar-track{background:#f7faf8}
 .table-scroll-hint{display:none}
 table{border-collapse:collapse;width:100%;min-width:760px}
-th{position:sticky;top:0;background:#f7faf8;color:var(--bss-color-text-muted);font-size:9px;text-transform:uppercase;letter-spacing:.04em;text-align:left;padding:9px 11px;border-bottom:1px solid var(--bss-color-border);z-index:1}
+th{position:sticky;top:0;background:#f7faf8;color:var(--bss-color-text-muted);font-size:var(--bss-font-size-xs);text-transform:uppercase;letter-spacing:.04em;text-align:left;padding:9px 11px;border-bottom:1px solid var(--bss-color-border);z-index:1}
 td{font-size:11px;font-weight:650;padding:10px 11px;border-bottom:1px solid #edf3ef;vertical-align:top}
 tbody tr:hover{background:#fbfdfc}
 .table-summary{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:9px 12px;border-top:1px solid var(--bss-color-border);font-size:10px;color:var(--bss-color-text-muted)}
+
+
+/* Final cross-screen polish — shared workflow states and focus */
+:where(button,a,input,select,textarea,[tabindex]):focus-visible{
+  outline:3px solid var(--bss-color-focus);
+  outline-offset:2px;
+}
+.empty-state{
+  min-height:72px;
+  display:grid;
+  place-items:center;
+  padding:18px 14px;
+  border:1px dashed var(--bss-color-border);
+  border-radius:8px;
+  background:var(--bss-color-bg-subtle);
+  color:var(--bss-color-text-muted);
+  line-height:1.45;
+}
+.empty-state.compact{min-height:0;padding:12px}
+.notice{border-radius:8px}
+.notice.danger{
+  border-color:var(--bss-color-danger);
+  background:var(--bss-color-danger-soft);
+  color:var(--bss-color-danger);
+}
+.notice.info{
+  border-color:var(--bss-color-info);
+  background:var(--bss-color-info-soft);
+  color:var(--bss-color-info);
+}
+.table-wrap{
+  -webkit-overflow-scrolling:touch;
+  scroll-snap-type:x proximity;
+}
+.table-scroll-hint{
+  user-select:none;
+}
+
+
+/* Owner visual review — enterprise sharpness pass */
+.section-title h1{
+  font-weight:850;
+  letter-spacing:-.035em;
+}
+.card{
+  border-radius:8px;
+  box-shadow:none;
+}
+.card h2{font-weight:850}
+.card h3{font-weight:800}
+.btn{
+  border-radius:7px;
+  box-shadow:none;
+}
+.btn.small{border-radius:6px}
+.icon-btn{border-radius:7px}
+.pill{
+  border-radius:6px;
+  padding:4px 7px;
+  font-weight:850;
+}
+.tab{
+  border-radius:6px;
+  padding:8px 10px;
+}
+.quick button{
+  border-radius:7px;
+  background:var(--bss-color-bg-surface);
+  box-shadow:none;
+}
+.quick button:hover{
+  border-color:var(--bss-color-border-strong);
+  background:var(--bss-color-bg-hover);
+}
+.avatar{
+  border-radius:7px;
+  background:var(--bss-color-bg-subtle);
+  border:1px solid var(--bss-color-border);
+  color:var(--bss-color-text);
+}
+th{
+  background:#f3f5f7;
+  color:#596579;
+  font-weight:850;
+  letter-spacing:.05em;
+}
+td{font-weight:600}
+tbody tr:hover{background:var(--bss-color-bg-hover)}
