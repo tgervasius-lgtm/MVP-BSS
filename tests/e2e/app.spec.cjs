@@ -64,18 +64,23 @@ for(const role of ['admin','manager','worker','accountant']){
 test('admin vidi cijelu firmu, a radnik samo svoj godišnji kalendar',async({page})=>{
   await loginAs(page,'admin');
   await page.evaluate(()=>window.navigate('vacations'));
-  await expect(page.locator('.section-title h1')).toHaveText('Godišnji kalendar cijele firme');
+  await expect(page.locator('.section-title h1')).toHaveText('Godišnji');
+  await expect(page.locator('.department-capacity-table')).toBeVisible();
+  await expect(page.locator('.vacation-balance-table')).toContainText('Marko Marić');
   await page.evaluate(()=>window.logout());
   await page.locator('#loginRole').selectOption('worker');
   await page.locator('[data-bss-action="login()"]').click();
   await page.evaluate(()=>window.navigate('vacations'));
-  await expect(page.locator('.section-title h1')).toHaveText('Moj godišnji kalendar');
-  await expect(page.locator('.section-title p')).toHaveCount(0);
+  await expect(page.locator('.section-title h1')).toHaveText('Moj godišnji');
+  await expect(page.locator('.department-capacity-table,.vacation-balance-table,.calendar-filter')).toHaveCount(0);
+  await expect(page.locator('#content')).not.toContainText('Marko Marić');
+  await expect(page.locator('#content')).not.toContainText('Petra Novak');
+  await expect(page.locator('.personal-requests-table thead')).not.toContainText('Radnik');
 });
 
-test('UX/UI Cleanup v1.1 koristi četiri KPI-ja, tablice i XLSX kao glavni izvoz',async({page})=>{
+test('operativni pregled koristi četiri pokazatelja, tablice i XLSX kao glavni izvoz',async({page})=>{
   await loginAs(page,'admin');
-  await expect(page.locator('.dashboard-kpis .kpi-card')).toHaveCount(4);
+  await expect(page.locator('.home-summary-strip .home-summary-item')).toHaveCount(4);
   await expect(page.locator('.weekly-chart')).toHaveCount(0);
   await expect(page.locator('.weekly-attendance-table tbody tr')).toHaveCount(5);
   for(const [screen,selector] of [
@@ -99,21 +104,27 @@ test('UX/UI Cleanup v1.1 koristi četiri KPI-ja, tablice i XLSX kao glavni izvoz
   await expect(exportButtons.nth(2)).toContainText('Tehnički CSV');
 });
 
-test('radnik ima kompaktne kružne sažetke za sate i godišnji bez dupliciranih KPI kartica',async({page})=>{
+test('radnik ima osobni mjesečni pregled i stanje godišnjeg s pripadajućim akcijama',async({page})=>{
   await loginAs(page,'worker');
   await page.evaluate(()=>window.navigate('mytime'));
-  await expect(page.locator('.time-summary-visual')).toBeVisible();
-  await expect(page.locator('button.time-donut[data-bss-action]')).toHaveAttribute('aria-label',/Odrađeno.*planiranih.*Saldo/);
+  await expect(page.locator('.mytime-summary-card')).toBeVisible();
+  await expect(page.locator('#myTimeMonth')).toBeVisible();
+  await expect(page.locator('.mytime-summary-grid>button>span')).toHaveText(['Odrađeno','Planirano','Saldo','Za provjeru']);
+  await page.locator('.mytime-summary-grid').getByRole('button',{name:/Odrađeno/}).click();
+  await expect(page.locator('#myTimeRecords')).toBeFocused();
   await expect(page.locator('.attendance-kpis')).toHaveCount(0);
-  await expect(page.locator('.data-summary-metrics>button[data-bss-action]')).toHaveCount(2);
-  await expect(page.locator('.mytime-review')).toHaveCount(0);
+  await expect(page.locator('#corrDate')).toBeVisible();
+  await expect(page.getByRole('button',{name:'Pošalji zahtjev',exact:true})).toBeVisible();
   expect(await seriousAxeViolations(page)).toEqual([]);
 
   await page.evaluate(()=>window.navigate('vacations'));
-  await expect(page.locator('.vacation-balance-visual button.leave-donut[data-bss-action]')).toHaveAttribute('aria-label',/Iskorišteno.*planirano.*raspoloživo/);
-  await expect(page.locator('.donut-legend>button[data-bss-action]')).toHaveCount(3);
+  await expect(page.locator('.vacation-balance-visual')).toHaveAttribute('aria-label',/iskorišteno.*planirano.*raspoloživo/);
+  await expect(page.locator('.vacation-balance-grid>button>span')).toHaveText(['Iskorišteno','Planirano','Preostalo','Raspoloživo']);
   await expect(page.locator('.vacation-summary-card,.vacation-balance-table')).toHaveCount(0);
   expect(await seriousAxeViolations(page)).toEqual([]);
+  await page.locator('.vacation-balance-grid').getByRole('button',{name:/Planirano/}).click();
+  await expect(page.locator('.request-tabs button.active')).toContainText('Na čekanju');
+  await expect(page.locator('#content')).not.toContainText('Marko Marić');
 });
 
 test('četiri dashboard KPI-ja otvaraju točne filtrirane preglede',async({page})=>{
@@ -134,7 +145,7 @@ test('četiri dashboard KPI-ja otvaraju točne filtrirane preglede',async({page}
 test('zajednički godišnji prikazuje samo odobrena razdoblja bez privatnih podataka',async({page})=>{
   await loginAs(page,'admin');
   await page.evaluate(()=>window.navigate('sharedLeave'));
-  await expect(page.locator('.section-title h1')).toHaveText('Zajednički kalendar godišnjih');
+  await expect(page.locator('.section-title h1')).toHaveText('Kalendar');
   await expect(page.locator('.scope-switch button')).toHaveCount(3);
   await page.getByRole('button',{name:'Organizacija',exact:true}).click();
   await expect(page.locator('.shared-leave-table tbody tr')).toHaveCount(5);
@@ -170,8 +181,11 @@ test('tema i svih sedam CSS slojeva rade nakon ponovnog učitavanja',async({page
   expect(css.legacy).toBe('');
 });
 
-test('ključne aplikacijske stranice nemaju ozbiljne axe povrede',async({page})=>{
+for(const theme of ['light','dark']){
+test(`ključne aplikacijske stranice nemaju ozbiljne axe povrede (${theme})`,async({page})=>{
+  await page.addInitScript(value=>localStorage.setItem('bss-theme-v1',value),theme);
   await page.goto('/');
+  await expect(page.locator('html')).toHaveAttribute('data-theme',theme);
   expect(await seriousAxeViolations(page)).toEqual([]);
   await page.locator('#loginRole').selectOption('admin');
   await page.locator('[data-bss-action="login()"]').click();
@@ -179,11 +193,14 @@ test('ključne aplikacijske stranice nemaju ozbiljne axe povrede',async({page})=
   expect(await seriousAxeViolations(page)).toEqual([]);
 });
 
-test('Design System i Brand Book učitavaju se bez ozbiljnih axe povreda',async({page})=>{
+test(`Design System i Brand Book učitavaju se bez ozbiljnih axe povreda (${theme})`,async({page})=>{
+  await page.addInitScript(value=>localStorage.setItem('bss-theme-v1',value),theme);
   await page.goto('/design-system/');
+  await expect(page.locator('html')).toHaveAttribute('data-theme',theme);
   await expect(page.locator('h1')).toHaveText('BSS Design System v1.0');
   expect(await seriousAxeViolations(page)).toEqual([]);
   await page.goto('/brand-book/');
   await expect(page.locator('h1')).toHaveText('Jasan sustav za stvaran rad.');
   expect(await seriousAxeViolations(page)).toEqual([]);
 });
+}

@@ -65,6 +65,8 @@ Nova komponenta ne smije izravno koristiti primitive ako postoji odgovarajući s
 
 Primarna brand boja je teal. Za glavnu radnju koristi se `--bss-color-action-primary`; za tekstualni naglasak `--bss-color-accent-text`. Ta dva tokena namjerno nisu ista u tamnoj temi zbog kontrasta.
 
+Tekstualni naglasak u svijetloj temi koristi `#0e7479` kako bi i mali tekst aktivne navigacije imao najmanje 4.5:1 kontrast na `--bss-color-accent-soft`. Kontrast se provjerava za stvarni par teksta i površine u obje teme.
+
 ### 3.3. Statusi
 
 | Značenje | Token teksta | Token površine | Primjeri |
@@ -75,6 +77,8 @@ Primarna brand boja je teal. Za glavnu radnju koristi se `--bss-color-action-pri
 | Informacija | `--bss-color-info` | `--bss-color-info-soft` | kontekst i obavijest |
 
 Status mora imati čitljiv naziv. Sama zelena, žuta ili crvena površina nije dovoljan signal.
+
+Opis ispod naziva statusa nasljeđuje pripadajuću statusnu boju teksta. Neutralni `--bss-color-text-muted` nije zamjena za taj token na obojenim statusnim površinama jer ti parovi ne zadovoljavaju AA kontrast.
 
 ## 4. Tipografija
 
