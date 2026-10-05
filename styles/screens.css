@@ -1576,5 +1576,8 @@ button.day:hover{outline:2px solid var(--bss-color-accent-text);outline-offset:1
 .terminal-evidence{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
 .terminal-evidence div{min-width:0}.terminal-evidence dt{font-size:13px;color:var(--bss-color-text-muted)}
 .terminal-evidence dd{margin:4px 0 0;overflow-wrap:anywhere}
+.screen-help{border:1px solid var(--bss-color-border);border-radius:10px;background:var(--bss-color-bg-subtle);padding:10px 14px;margin-bottom:16px}
+.screen-help-heading{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}.screen-help p{margin:8px 0 0;color:var(--bss-color-text-muted);font-size:12px;line-height:1.5}.screen-help-modal ol{padding-left:24px;line-height:1.65;color:var(--bss-color-text)}.screen-help-modal li+li{margin-top:12px}
+
 
 .home-attendance-pairs{min-width:520px}.home-attendance-pairs td small{display:block;color:var(--bss-color-text-muted);margin-top:3px}.correction-reply{max-width:300px;white-space:normal;overflow-wrap:anywhere}.correction-reply b,.correction-reply small{display:block}.correction-reply small{margin-top:4px;color:var(--bss-color-text-muted)}

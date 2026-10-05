@@ -216,3 +216,11 @@ Prije prihvaćanja provjeriti:
 Refactor v1 R5 dovršio je prijelaz na semantičke `--bss-*` tokene, a R6 je zaključao registryje prikaza i događaja te razdvojio poslovni CSS na slojeve za osnovu, rasporede, komponente, ekrane, navigaciju, teme i responzivna pravila. UX/UI Cleanup v1.1 sveo je početni dashboard na najviše četiri klikabilna KPI-ja, zadržao tablične operativne prikaze i dopustio samo kompaktne kružne sažetke mjesečnih sati i godišnjeg fonda. Tjedni i dekorativni grafovi nisu dio Frontend v1.0.0.
 
 Design System je nakon taga `frontend-v1.0.0` zamrznut. Backend PR smije dodati nužna `loading`, `empty`, `error`, `forbidden` i `stale` stanja koristeći postojeće tokene i komponente, ali ne smije uvoditi novi vizualni sustav ili mijenjati zaključanu hijerarhiju ekrana.
+# Contextual help — 2026-10-05
+
+Core screens may show a short role-aware instruction that users can hide and
+restore via “Pomoć za ovaj ekran”. Longer help uses the existing accessible modal.
+Dismissal is a local display preference per role/screen; it must never suppress
+validation errors, operational notices or decision confirmations. Static help
+must describe only actions already available to the active role. See
+`docs/ux/CONTEXTUAL_HELP_2026-10-05.md` (issue #254).

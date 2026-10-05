@@ -1,5 +1,6 @@
-const CACHE_NAME = 'bss-backend-mvp-v1-r5';
+const CACHE_NAME = 'bss-backend-mvp-v1-r6';
 const ASSETS = [
+  './src/views/contextual-help.js',
   './index.html','./styles.css','./app.js','./manifest.json','./icons/icon.svg',
   './styles/base.css','./styles/layouts.css','./styles/components.css','./styles/screens.css',
   './styles/navigation.css','./styles/themes.css','./styles/responsive.css','./src/demo-auth.css',
