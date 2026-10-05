@@ -289,7 +289,7 @@ test('UX/UI Cleanup v1 svodi dashboard na četiri KPI-ja i tablični dnevni preg
   assert.ok(document.querySelector('[data-kpi="pending"]'));
   assert.equal(document.querySelector('.weekly-chart'),null);
   assert.equal(document.querySelectorAll('.weekly-attendance-table tbody tr').length,5);
-  assert.ok(document.querySelectorAll('.activity-columns .activity-item').length>=6);
+  assert.equal(document.querySelectorAll('.home-attendance-pairs tbody tr').length,6);
   const metrics=window.dashboardMetrics(state().workers.filter(worker=>worker.active));
   assert.equal(metrics.active,7);
   assert.ok(metrics.monthMinutes>0);
@@ -2693,4 +2693,80 @@ test('failed session refresh consumes its response body and never replays the pr
   }}).api;
   await assert.rejects(api.get('/workers'),error=>error.status===401&&error.code==='UNAUTHENTICATED');
   assert.equal(protectedCalls,1);assert.equal(refreshCalls,1);assert.equal(consumed,1);
+});
+
+test('početna sparuje dolazak i odlazak po radniku i radnom danu, uključujući noćnu smjenu',()=>{
+  const app=boot('admin');
+  app.evaluate(`state.records=[
+    {id:901,workerId:1,date:'2026-07-09',start:'22:00',end:'06:00',status:'Uredno'},
+    {id:902,workerId:1,date:'2026-07-10',start:'22:00',end:'',status:'Aktivno'},
+    {id:903,workerId:2,date:'2026-07-10',start:'08:00',end:'16:00',status:'Uredno'}
+  ];render();`);
+  const rows=Array.from(app.document.querySelectorAll('.home-attendance-pairs tbody tr'));
+  assert.equal(rows.length,3);
+  const night=rows.find(row=>row.textContent.includes('06:00'));
+  assert.match(night.textContent,/Ivan Horvat/);
+  assert.match(night.textContent,/22:00/);
+  assert.match(night.textContent,/Sljedeći dan/);
+  const active=rows.find(row=>row.textContent.includes('Aktivno'));
+  assert.equal(active.children[3].textContent,'—');
+  assert.doesNotMatch(active.textContent,/06:00/);
+  app.window.switchRole('worker');
+  assert.equal(app.document.querySelector('.home-attendance-pairs'),null);
+});
+
+test('odbijanje korekcije traži obrazloženje i radnik vidi samo svoj odgovor',()=>{
+  const app=boot('admin');
+  app.evaluate(`state.corrections=[{id:990,workerId:1,date:'2026-07-09',oldStart:'08:00',oldEnd:'',newStart:'08:00',newEnd:'16:00',reason:'Zaboravljena odjava',status:'Na čekanju'},{id:991,workerId:2,date:'2026-07-09',oldStart:'08:00',oldEnd:'',newStart:'08:00',newEnd:'16:00',reason:'Tuđi razlog',status:'Odbijeno',decisionNote:'Privatni odgovor drugom radniku'}];navigate('corrections');`);
+  app.window.openCorrectionDecision(990,'Odbijeno');
+  app.window.updateCorrection(990,'Odbijeno');
+  assert.equal(app.state().corrections[0].status,'Na čekanju');
+  const note='<script>ne</script> Potvrdite vrijeme s voditeljem.';
+  app.document.querySelector('#correctionDecisionNote').value=note;
+  app.window.updateCorrection(990,'Odbijeno');
+  assert.equal(app.state().corrections[0].decisionNote,note);
+  assert.ok(app.state().corrections[0].decidedAt);
+  app.window.switchRole('worker');app.window.navigate('corrections');
+  assert.match(app.document.querySelector('#content').textContent,/Potvrdite vrijeme s voditeljem/);
+  assert.doesNotMatch(app.document.querySelector('#content').textContent,/Privatni odgovor drugom radniku/);
+  assert.equal(app.document.querySelector('.correction-reply script'),null);
+  assert.ok(app.document.querySelector('[data-bss-action="reloadCorrections()"]'));
+  app.window.openCorrectionDecision(990,'Odobreno');
+  assert.equal(app.document.querySelector('#correctionDecisionNote'),null);
+});
+
+test('odobrena korekcija čuva odgovor i ne dopušta ponovnu odluku',()=>{
+  const app=boot('admin');
+  app.window.navigate('corrections');
+  app.window.openCorrectionDecision(1,'Odobreno');
+  app.document.querySelector('#correctionDecisionNote').value='Vrijeme je potvrđeno s voditeljem.';
+  app.window.updateCorrection(1,'Odobreno');
+  const item=app.state().corrections.find(value=>value.id===1);
+  assert.equal(item.status,'Odobreno');assert.match(item.decisionNote,/potvrđeno/);
+  const note=item.decisionNote;
+  app.window.updateCorrection(1,'Odbijeno');
+  assert.equal(item.status,'Odobreno');assert.equal(item.decisionNote,note);
+});
+
+test('stvarni API adapter šalje uneseno obrazloženje i reviziju bez generičke poruke',async()=>{
+  const app=boot('admin'),calls=[];
+  app.window.fetch=async(url,options={})=>{
+    calls.push({url:String(url),...options});
+    return String(url).includes('/correction-requests/')
+      ?{ok:true,status:204}
+      :{ok:false,status:401,json:async()=>({code:'UNAUTHENTICATED'})};
+  };
+  app.evaluate(fs.readFileSync('src/adapters/api-bindings.js','utf8'));
+  await new Promise(resolve=>setTimeout(resolve,10));
+  app.evaluate(`state=clone(DEFAULT_STATE);state.demoMode=false;currentRole='admin';logged=true;state.corrections[0].apiId='00000000-0000-4000-8000-000000000001';state.corrections[0].revision='7';render();navigate('corrections');`);
+  app.window.openCorrectionDecision(1,'Odbijeno');
+  await app.window.updateCorrection(1,'Odbijeno');
+  assert.equal(calls.filter(item=>item.url.includes('/correction-requests/')).length,0);
+  app.document.querySelector('#correctionDecisionNote').value='Provjerite odjavu sa svojim voditeljem.';
+  await app.window.updateCorrection(1,'Odbijeno');
+  const sent=calls.filter(item=>item.url.includes('/correction-requests/'));
+  assert.equal(sent.length,1);
+  assert.match(sent[0].url,/\/reject$/);
+  assert.deepEqual(JSON.parse(sent[0].body),{note:'Provjerite odjavu sa svojim voditeljem.'});
+  assert.equal(sent[0].headers['If-Match'],'"7"');
 });

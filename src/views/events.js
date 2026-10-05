@@ -6,7 +6,7 @@
     'cancelCorrection','cancelInvitation','cancelVacationRequest','changeCalendarPeriod','clearAttendanceFilters','clearAuditFilters',
     'clearRequestFilters','closeDrawer','closeModal','decideRequest','demoOfflineScan','demoScan','demoUnknownCard',
     'downloadReport','focusSection','login','acceptInvitation','logout','navigate','openAccessModal','openAttendanceRecord','openAttendanceReview',
-    'openAttendanceStatus','openCancelRequest','openCorrectionsFromRecord','openDepartmentModal','openDrawer',
+    'openAttendanceStatus','openCancelRequest','openCorrectionDecision','openCorrectionsFromRecord','openDepartmentModal','openDrawer',
     'openHolidayModal','openInviteModal','openJobPositionModal','openPendingRequests','openRequestDecision','openResetDemoDialog',
     'openShiftModal','openShiftWorkers','openVacationRequestStatus','openWorker','openWorkerModal','openWorkerStatus','pairTerminal','refreshWorkerJobOptions','resendInvitation','revokeTerminal',
     'resetDemo','restoreTerminal','saveAccessUser','saveDepartment','saveHoliday','saveJobPosition','saveSettings',
@@ -16,7 +16,7 @@
     'startCorrectionFromRecord','submitCorrection','submitVacationRequest','switchRole','toggleAccessDepartmentFields',
     'toggleAccessUser','toggleCard','toggleDemoMode','toggleDepartment','toggleHoliday','toggleJobPosition','toggleShift',
     'toggleTheme','toggleWorkerActive','updateCorrection','updateCorrectionPreview','updateReportDepartment',
-    'openTerminalEvent','submitTerminalReconciliation','reloadTerminalEvents',
+    'openTerminalEvent','submitTerminalReconciliation','reloadTerminalEvents','reloadCorrections',
     'openTerminalRotation','submitTerminalRotation','changeTerminalRotationReason','revealTerminalCredential','copyTerminalCredential',
     'updateVacationRequestPreview'
   ]);

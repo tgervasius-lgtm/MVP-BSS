@@ -18,8 +18,19 @@
     return `<div class="home-queue-list">${alerts.map(alert=>`<button class="home-queue-row ${alert.tone}" data-bss-action="${alert.action||`navigate('${alert.target}')`}"><span class="home-queue-mark" aria-hidden="true">${alert.icon}</span><div><b>${escapeHtml(alert.title)}</b><small>${escapeHtml(alert.text)}</small></div><i aria-hidden="true">›</i></button>`).join('')||'<div class="empty-state compact">Nema otvorenih stavki koje traže pažnju.</div>'}</div>`;
   }
 
+  function pairedAttendance(context){
+    const {attendanceRecords,workerById,escapeHtml,isoLabel,pill}=context;
+    const records=[...attendanceRecords].sort((a,b)=>`${b.date} ${b.start||''}`.localeCompare(`${a.date} ${a.start||''}`)).slice(0,6);
+    const rows=records.map(record=>{
+      const worker=workerById(record.workerId);
+      const overnight=record.start&&record.end&&record.end<record.start;
+      return `<tr><td><b>${escapeHtml(worker?.name||'Nepoznat radnik')}</b><small>${escapeHtml(worker?.dept||'—')}</small></td><td>${escapeHtml(isoLabel(record.date))}</td><td>${escapeHtml(record.start||'—')}</td><td>${escapeHtml(record.end||'—')}${overnight?'<small>Sljedeći dan</small>':''}</td><td>${pill(record.status)}</td></tr>`;
+    }).join('');
+    return `<div class="table-wrap"><table class="compact-table home-attendance-pairs"><thead><tr><th>Radnik</th><th>Radni dan</th><th>Dolazak</th><th>Odlazak</th><th>Status</th></tr></thead><tbody>${rows||'<tr><td colspan="5"><div class="empty-state compact">Još nema evidentiranih dolazaka i odlazaka.</div></td></tr>'}</tbody></table></div>`;
+  }
+
   function admin(context){
-    const {metrics,weekly,alerts,checkins,checkouts,state,title,weeklyAttendanceTable,attendanceEvent,escapeHtml,pill}=context;
+    const {metrics,weekly,alerts,state,title,weeklyAttendanceTable,escapeHtml,pill}=context;
     const absentToday=metrics.absent+metrics.vacation+metrics.sick;
     const dateLabel=new Date().toLocaleDateString('hr-HR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
     const summary=summaryStrip([
@@ -43,7 +54,7 @@
       <div class="dashboard-layout home-operational-layout">
         <div class="dashboard-primary">
           <section class="card table-card home-daily-module"><div class="table-card-heading"><div><h2>Dnevni pregled</h2><p>Prijave, odjave i otvorene smjene po radnom danu.</p></div><button class="link-btn" data-bss-action="navigate('attendance')">Otvori evidenciju →</button></div>${weeklyAttendanceTable(weekly)}</section>
-          <section class="card home-activity-card"><div class="card-heading"><div><h2>Zadnje prijave i odjave</h2><p>Posljednji evidentirani terminalski događaji.</p></div></div><div class="activity-columns"><div><h3>Prijave</h3>${checkins.map(event=>attendanceEvent(event,'in')).join('')}</div><div><h3>Odjave</h3>${checkouts.map(event=>attendanceEvent(event,'out')).join('')}</div></div></section>
+          <section class="card table-card home-activity-card"><div class="table-card-heading"><div><h2>Dolasci i odlasci</h2><p>Posljednjih šest zapisa: dolazak i odlazak uz istog radnika i radni dan.</p></div></div>${pairedAttendance(context)}</section>
         </div>
         <aside class="dashboard-secondary">
           <section class="card home-actions-card"><div class="card-heading"><div><h2>Za riješiti</h2><p>Stavke koje traže odluku ili provjeru.</p></div><span class="alert-total">${alerts.length}</span></div>${alertsList(alerts,escapeHtml)}</section>
