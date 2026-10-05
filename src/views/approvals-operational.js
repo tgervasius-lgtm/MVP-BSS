@@ -34,18 +34,20 @@
     ],'Sažetak korekcija');
     const rows=corrections.map(correction=>{
       const worker=workerById(correction.workerId),values=correctionValues(correction);
+      const decided=['Odobreno','Odbijeno'].includes(correction.status);
+      const reply=decided?`<div class="correction-reply"><b>${escapeHtml(correction.decisionNote||'Odluka bez dodatne napomene.')}</b>${correction.decidedAt?`<small>${escapeHtml(correction.decidedAt)}</small>`:''}</div>`:correction.status==='Poništeno'?'<span class="small-muted">Zahtjev je poništen.</span>':'<span class="small-muted">Odgovor će se prikazati nakon odluke.</span>';
       const controls=isApprover&&correction.status==='Na čekanju'
-        ?`<div class="table-actions"><button data-bss-action="updateCorrection(${correction.id},'Odobreno')">Odobri</button><button class="danger" data-bss-action="updateCorrection(${correction.id},'Odbijeno')">Odbij</button></div>`
+        ?`<div class="table-actions"><button data-bss-action="openCorrectionDecision(${correction.id},'Odobreno')">Odobri</button><button class="danger" data-bss-action="openCorrectionDecision(${correction.id},'Odbijeno')">Odbij</button></div>`
         :isWorker&&correction.status==='Na čekanju'
           ?`<button class="table-detail-btn danger" data-bss-action="cancelCorrection(${correction.id})">Poništi</button>`
           :'—';
-      return `<tr data-correction-id="${correction.id}"><td><b>${escapeHtml(worker?.name||'Nepoznat radnik')}</b><small>${escapeHtml(worker?.dept||'—')}</small></td><td>${escapeHtml(isoLabel(correction.date))}</td><td class="correction-before">${escapeHtml(values.oldValue)}</td><td class="correction-after"><b>${escapeHtml(values.newValue)}</b></td><td>${escapeHtml(correction.reason)}</td><td>${pill(correction.status)}</td><td>${controls}</td></tr>`;
+      return `<tr data-correction-id="${correction.id}"><td><b>${escapeHtml(worker?.name||'Nepoznat radnik')}</b><small>${escapeHtml(worker?.dept||'—')}</small></td><td>${escapeHtml(isoLabel(correction.date))}</td><td class="correction-before">${escapeHtml(values.oldValue)}</td><td class="correction-after"><b>${escapeHtml(values.newValue)}</b></td><td>${escapeHtml(correction.reason)}</td><td>${pill(correction.status)}</td><td>${reply}</td><td>${controls}</td></tr>`;
     }).join('');
     const heading=isWorker?'Moje korekcije':currentRole==='manager'?'Korekcije mojeg tima':'Korekcije vremena';
-    const subtitle=isWorker?'Izvorni zapis ostaje nepromijenjen do odobrenja.':'Kontrolirane promjene s dokaznim tragom.';
+    const subtitle=isWorker?'Ovdje pratite status i odgovor na svoje zahtjeve za korekciju.':'Kontrolirane promjene s dokaznim tragom.';
     return `${title(heading,subtitle)}
       ${summary}
-      <section class="card table-card approval-table-card corrections-operational-card"><div class="table-card-heading"><div><h2>Korekcije vremena</h2><p>Izvorno → predloženo → odluka; audit trag ostaje sačuvan.</p></div></div><div class="table-wrap"><table class="compact-table corrections-table"><thead><tr><th>Radnik</th><th>Datum</th><th>Izvorno</th><th>Predloženo</th><th>Razlog</th><th>Status</th><th>Radnja</th></tr></thead><tbody>${rows||'<tr><td colspan="7"><div class="empty-state">Nema korekcija u tvojem opsegu.</div></td></tr>'}</tbody></table></div></section>
+      <section class="card table-card approval-table-card corrections-operational-card"><div class="table-card-heading"><div><h2>Korekcije vremena</h2><p>Izvorno → predloženo → odluka. Osvježite prikaz za nove odluke.</p></div><button class="btn secondary" data-bss-action="reloadCorrections()">Osvježi</button></div><div class="table-wrap"><table class="compact-table corrections-table"><thead><tr><th>Radnik</th><th>Datum</th><th>Izvorno</th><th>Predloženo</th><th>Razlog</th><th>Status</th><th>Odgovor i datum odluke</th><th>Radnja</th></tr></thead><tbody>${rows||'<tr><td colspan="8"><div class="empty-state">Nema korekcija u tvojem opsegu.</div></td></tr>'}</tbody></table></div></section>
       ${isWorker?correctionForm():''}`;
   }
 

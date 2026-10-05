@@ -1576,3 +1576,5 @@ button.day:hover{outline:2px solid var(--bss-color-accent-text);outline-offset:1
 .terminal-evidence{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
 .terminal-evidence div{min-width:0}.terminal-evidence dt{font-size:13px;color:var(--bss-color-text-muted)}
 .terminal-evidence dd{margin:4px 0 0;overflow-wrap:anywhere}
+
+.home-attendance-pairs{min-width:520px}.home-attendance-pairs td small{display:block;color:var(--bss-color-text-muted);margin-top:3px}.correction-reply{max-width:300px;white-space:normal;overflow-wrap:anywhere}.correction-reply b,.correction-reply small{display:block}.correction-reply small{margin-top:4px;color:var(--bss-color-text-muted)}

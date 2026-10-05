@@ -164,11 +164,12 @@
     const date=$('#corrDate')?.value,start=$('#corrStart')?.value,end=$('#corrEnd')?.value,reason=$('#corrReason')?.value.trim();
     const record=state.records.find(item=>item.workerId===currentWorker().id&&item.date===date);
     if(!record?.apiId||!start||!end||!reason){toast('Odaberi postojeći zapis te unesi ispravno vrijeme i razlog.');return;}
-    await mutateApi(()=>BSS_API.post('/correction-requests',{attendanceDayId:record.apiId,newCheckIn:asIso(date,start,record.timezone),newCheckOut:asIso(date,end,record.timezone),reason}),'Zahtjev za korekciju je poslan.');
+    await mutateApi(()=>BSS_API.post('/correction-requests',{attendanceDayId:record.apiId,newCheckIn:asIso(date,start,record.timezone),newCheckOut:asIso(date,end,record.timezone),reason}),'Zahtjev za korekciju je poslan. Odgovor pratite u Moje korekcije.');
   }
   async function apiUpdateCorrection(id,status){
-    const correction=state.corrections.find(item=>item.id===Number(id));if(!correction||!['admin','manager'].includes(currentRole))return;
-    const decision=status==='Odobreno'?'approve':'reject',note=decision==='reject'?'Odbijeno nakon provjere evidencije.':'Odobreno nakon provjere evidencije.';
+    const correction=state.corrections.find(item=>item.id===Number(id));if(!correction||!['admin','manager'].includes(currentRole)||!correctionVisible(correction)||correction.status!=='Na čekanju'||!['Odobreno','Odbijeno'].includes(status))return;
+    const note=correctionDecisionNote(status);if(note===null)return;
+    const decision=status==='Odobreno'?'approve':'reject';
     await mutateApi(()=>BSS_API.post(`/correction-requests/${correction.apiId}/${decision}`,{note},revisionHeaders(correction.revision)),status==='Odobreno'?'Korekcija je odobrena.':'Korekcija je odbijena.');
   }
   async function apiCancelCorrection(id){
@@ -331,7 +332,7 @@
     Object.assign(root,{
     login:apiLogin,acceptInvitation:apiAcceptInvitation,logout:apiLogout,openWorkerModal:apiOpenWorkerModal,saveWorker:apiSaveWorker,toggleWorkerActive:apiToggleWorker,toggleCard:apiToggleCard,
     saveShift:apiSaveShift,toggleShift:()=>toast('Smjena s povijesnim zapisima ne deaktivira se u MVP-u.'),submitVacationRequest:apiSubmitVacation,decideRequest:apiDecideRequest,cancelVacationRequest:apiCancelVacation,
-    submitCorrection:apiSubmitCorrection,updateCorrection:apiUpdateCorrection,cancelCorrection:apiCancelCorrection,downloadReport:apiDownloadReport,
+    submitCorrection:apiSubmitCorrection,updateCorrection:apiUpdateCorrection,cancelCorrection:apiCancelCorrection,reloadCorrections:()=>refreshApi('Statusi korekcija su osvježeni.'),downloadReport:apiDownloadReport,
     viewReports:root.BSSAttendanceLifecycle?.viewReports,
     setReportType:root.BSSReportAuthority?.setType||root.setReportType,
     applyReportFilters:root.BSSReportAuthority?.applyFilters||root.BSSAttendanceLifecycle?.applyReportFilters,
