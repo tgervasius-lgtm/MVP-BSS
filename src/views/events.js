@@ -18,7 +18,7 @@
     'toggleTheme','toggleWorkerActive','updateCorrection','updateCorrectionPreview','updateReportDepartment',
     'openTerminalEvent','submitTerminalReconciliation','reloadTerminalEvents',
     'openTerminalRotation','submitTerminalRotation','changeTerminalRotationReason','revealTerminalCredential','copyTerminalCredential',
-    'updateVacationRequestPreview'
+    'updateVacationRequestPreview','openScreenHelp','hideScreenHelp','restoreScreenHelp'
   ]);
   const allowedActions=new Set(actionNames);
 

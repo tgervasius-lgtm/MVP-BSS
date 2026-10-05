@@ -612,6 +612,7 @@ function render(){
   const target = $('#content .content-inner');
   target.innerHTML = `<div class="screen">${BSS_VIEWS.registry.render(screen,globalThis)}</div>`;
   enhanceRenderedUi();
+  BSSContextualHelp.decorate(target,screen,currentRole);
 }
 function login(){
   if(state.demoMode && $('#loginRole')) currentRole = $('#loginRole').value;

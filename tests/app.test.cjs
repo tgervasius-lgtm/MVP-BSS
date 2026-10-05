@@ -31,7 +31,8 @@ const coreSources = [
   'src/views/home-operational.js',
   'src/views/terminal-operational.js',
   'src/views/access-operational.js',
-  'src/views/audit-operational.js'
+  'src/views/audit-operational.js',
+  'src/views/contextual-help.js'
 ].map(path=>fs.readFileSync(path,'utf8'));
 const styleEntry = fs.readFileSync('styles.css','utf8');
 const styleLayerPaths = [
@@ -1911,7 +1912,7 @@ test('aplikacija povezuje vodič i offline predmemorira cijeli Design System',()
   for(const asset of ['design-system/index.html','design-system/tokens.css','design-system/guide.css','design-system/guide.js']){
     assert.match(serviceWorker,new RegExp(asset.replaceAll('.','\\.')));
   }
-  assert.match(serviceWorker,/bss-backend-mvp-v1-r5/);
+  assert.match(serviceWorker,/bss-backend-mvp-v1-r6/);
 });
 
 test('Brand Book v1.0 pokriva svih devet dogovorenih područja',()=>{
@@ -1975,7 +1976,7 @@ test('aplikacija povezuje Brand Book i cijeli paket radi offline',()=>{
     'bss-presentation-cover.svg','bss-terminal-label.svg',
     'BSS_BRAND-BOOK_v1.0_11.07.2026.pdf'
   ]) assert.match(serviceWorker,new RegExp(asset.replaceAll('.','\\.')));
-  assert.match(serviceWorker,/bss-backend-mvp-v1-r5/);
+  assert.match(serviceWorker,/bss-backend-mvp-v1-r6/);
   assert.match(serviceWorker,/path\.includes\('\/brand-book'\)/);
 });
 
@@ -2076,11 +2077,11 @@ test('Backend MVP učitava API adaptere prije aplikacije i sprema shell za offli
   ]){
     assert.match(serviceWorker,new RegExp(asset.replaceAll('.','\\.')));
   }
-  assert.match(serviceWorker,/bss-backend-mvp-v1-r5/);
+  assert.match(serviceWorker,/bss-backend-mvp-v1-r6/);
 });
 
 test('cache invalidation hotfix osvježava app shell i odmah preuzima otvorene klijente',()=>{
-  assert.match(serviceWorker,/const CACHE_NAME = 'bss-backend-mvp-v1-r5'/);
+  assert.match(serviceWorker,/const CACHE_NAME = 'bss-backend-mvp-v1-r6'/);
   assert.match(serviceWorker,/new Request\(asset,\{cache:'reload'\}\)/);
   assert.match(serviceWorker,/new Request\(request,\{cache:'no-store'\}\)/);
   assert.match(serviceWorker,/new Request\(request,\{cache:'no-cache'\}\)/);
@@ -2693,4 +2694,27 @@ test('failed session refresh consumes its response body and never replays the pr
   }}).api;
   await assert.rejects(api.get('/workers'),error=>error.status===401&&error.code==='UNAUTHENTICATED');
   assert.equal(protectedCalls,1);assert.equal(refreshCalls,1);assert.equal(consumed,1);
+});
+
+test('contextual help persists dismissal per screen and role and can restore',()=>{
+  const app=boot('worker');
+  assert.ok(app.document.querySelector('.screen-help p'));
+  app.evaluate('hideScreenHelp()');
+  assert.equal(app.document.querySelector('.screen-help p'),null);
+  assert.ok(app.document.querySelector('[data-bss-action="openScreenHelp()"]'));
+  app.evaluate("navigate('mytime')");
+  assert.ok(app.document.querySelector('.screen-help p'));
+  app.evaluate("navigate('home')");
+  assert.equal(app.document.querySelector('.screen-help p'),null);
+  app.evaluate('openScreenHelp()');
+  assert.ok(app.document.querySelector('#modal.open'));
+  assert.match(app.document.querySelector('#modal').textContent,/Moji sati/);
+  app.evaluate('restoreScreenHelp()');
+  assert.ok(app.document.querySelector('.screen-help p'));
+  app.evaluate('hideScreenHelp();currentRole="admin";render()');
+  assert.ok(app.document.querySelector('.screen-help p'));
+  app.evaluate("navigate('settings')");
+  assert.equal(app.document.querySelector('.screen-help'),null);
+  app.evaluate('openScreenHelp()');
+  assert.equal(app.document.querySelector('#modal.open'),null);
 });

@@ -204,3 +204,27 @@ test(`Design System i Brand Book učitavaju se bez ozbiljnih axe povreda (${them
   expect(await seriousAxeViolations(page)).toEqual([]);
 });
 }
+
+test('pomoć se skriva, pamti, ponovno otvara i vraća uz tipkovnicu',async({page})=>{
+  const errors=trackErrors(page);
+  await loginAs(page,'worker');
+  await expect(page.locator('.screen-help p')).toBeVisible();
+  await page.getByRole('button',{name:'Sakrij kratku uputu za ovaj ekran'}).click();
+  await expect(page.locator('.screen-help p')).toHaveCount(0);
+  await page.reload();
+  await page.locator('#loginRole').selectOption('worker');
+  await page.locator('[data-bss-action="login()"]').click();
+  await expect(page.locator('.screen-help p')).toHaveCount(0);
+  const opener=page.getByRole('button',{name:'Pomoć za ovaj ekran'});
+  await opener.click();
+  await expect(page.locator('#modal')).toHaveAttribute('aria-hidden','false');
+  expect(await seriousAxeViolations(page)).toEqual([]);
+  await page.keyboard.press('Escape');
+  await expect(opener).toBeFocused();
+  await opener.click();
+  await page.getByRole('button',{name:'Prikaži kratku uputu'}).click();
+  await expect(page.locator('.screen-help p')).toBeVisible();
+  await expect(opener).toBeFocused();
+  expect(await seriousAxeViolations(page)).toEqual([]);
+  expect(errors).toEqual([]);
+});
