@@ -742,7 +742,8 @@ function viewAdminHome(){
   const workers=activeWorkers(),metrics=dashboardMetrics(workers),workerIds=workers.map(worker=>worker.id),weekly=weeklyAttendance(workerIds),alerts=dashboardAlerts(metrics);
   return BSS_VIEWS.homeOperational.admin({
     metrics,weekly,alerts,checkins:recentAttendanceEvents('in',workerIds),checkouts:recentAttendanceEvents('out',workerIds),
-    state,title,kpiCard,weeklyAttendanceTable,attendanceEvent,escapeHtml,pill,row,initials
+    state,title,kpiCard,weeklyAttendanceTable,attendanceEvent,escapeHtml,pill,row,initials,
+    attendanceRecords:state.records.filter(recordVisible),workerById,isoLabel
   });
 }
 function viewWorkerHome(){
@@ -866,7 +867,7 @@ function setMyTimeMonth(value){
 function setMyTimeReview(value){ myTimeReviewOnly=Boolean(value);render(); }
 function correctionForm(){
   const draft=correctionDraft;
-  return `<div class="card correction-form-card"><div class="card-heading"><div><h2>Zatraži korekciju</h2><p>Izvorni zapis ostaje do odobrenja.</p></div>${pill('Kontrolirana izmjena')}</div><div class="form form-grid cols-3"><label>Datum<input id="corrDate" type="date" max="${DEMO_TODAY}" value="${escapeHtml(draft.date)}" data-bss-change="updateCorrectionPreview()"></label><label>Ispravan dolazak<input id="corrStart" type="time" value="${escapeHtml(draft.start)}" data-bss-change="updateCorrectionPreview()"></label><label>Ispravan odlazak<input id="corrEnd" type="time" value="${escapeHtml(draft.end)}" data-bss-change="updateCorrectionPreview()"></label><label style="grid-column:1/-1">Razlog<textarea id="corrReason" rows="3" placeholder="Primjer: zaboravljena odjava ili terminal nije bio dostupan"></textarea></label></div><div id="corrPreview" class="muted-box correction-preview">${correctionPreviewText(draft.date,currentWorker().id)}</div><div class="btns"><button class="btn" data-bss-action="submitCorrection()">Pošalji zahtjev</button></div></div>`;
+  return `<div class="card correction-form-card"><div class="card-heading"><div><h2>Zatraži korekciju</h2><p>Izvorni zapis ostaje do odobrenja. Odgovor i obrazloženje pratite u Moje korekcije.</p></div>${pill('Kontrolirana izmjena')}</div><div class="form form-grid cols-3"><label>Datum<input id="corrDate" type="date" max="${DEMO_TODAY}" value="${escapeHtml(draft.date)}" data-bss-change="updateCorrectionPreview()"></label><label>Ispravan dolazak<input id="corrStart" type="time" value="${escapeHtml(draft.start)}" data-bss-change="updateCorrectionPreview()"></label><label>Ispravan odlazak<input id="corrEnd" type="time" value="${escapeHtml(draft.end)}" data-bss-change="updateCorrectionPreview()"></label><label style="grid-column:1/-1">Razlog<textarea id="corrReason" rows="3" placeholder="Primjer: zaboravljena odjava ili terminal nije bio dostupan"></textarea></label></div><div id="corrPreview" class="muted-box correction-preview">${correctionPreviewText(draft.date,currentWorker().id)}</div><div class="btns"><button class="btn" data-bss-action="submitCorrection()">Pošalji zahtjev</button></div></div>`;
 }
 function progressPercent(value,total){
   if(!Number(total))return 0;
@@ -1353,10 +1354,29 @@ function viewCorrections(){
     currentRole,isWorker,isApprover,corrections,workerById,correctionValues,escapeHtml,isoLabel,pill,correctionForm,title
   });
 }
+function openCorrectionDecision(id,status){
+  if(!['admin','manager'].includes(currentRole)||!['Odobreno','Odbijeno'].includes(status))return;
+  const correction=state.corrections.find(item=>item.id===Number(id));
+  if(!correction||!correctionVisible(correction)||correction.status!=='Na čekanju')return;
+  const worker=workerById(correction.workerId),values=correctionValues(correction),reject=status==='Odbijeno';
+  const modal=$('#modal');
+  modal.innerHTML=`<div class="modal-card request-decision-modal"><div class="modal-head"><div><h2>${reject?'Odbij korekciju':'Odobri korekciju'}</h2><div class="small-muted">${escapeHtml(worker?.name||'Radnik')} · ${escapeHtml(isoLabel(correction.date))}</div></div><button class="close-btn" aria-label="Zatvori" data-bss-action="closeModal()">×</button></div><div class="record-detail-grid"><div><span>Izvorno</span><b>${escapeHtml(values.oldValue)}</b></div><div><span>Predloženo</span><b>${escapeHtml(values.newValue)}</b></div></div><p>${escapeHtml(correction.reason)}</p><div class="form"><label>Obrazloženje odluke${reject?' (obvezno)':' (neobvezno)'}<textarea id="correctionDecisionNote" rows="3" maxlength="1000" ${reject?'required minlength="2"':''} aria-describedby="correctionDecisionHelp"></textarea></label><p id="correctionDecisionHelp" class="small-muted">Radnik će vidjeti ovu poruku uz svoj zahtjev u Moje korekcije.</p></div><div class="btns"><button class="btn ${reject?'red':'green'}" data-bss-action="updateCorrection(${correction.id},'${status}')">Potvrdi ${reject?'odbijanje':'odobrenje'}</button><button class="btn secondary" data-bss-action="closeModal()">Odustani</button></div></div>`;
+  showModal(modal);
+}
+function reloadCorrections(){render();}
+function correctionDecisionNote(status){
+  const field=$('#correctionDecisionNote'),note=field?.value.trim()||'';
+  if(note.length>1000||(status==='Odbijeno'&&note.length<2)){
+    toast(status==='Odbijeno'?'Za odbijanje unesite obrazloženje od 2 do 1000 znakova.':'Obrazloženje može imati najviše 1000 znakova.');
+    field?.focus();return null;
+  }
+  return note;
+}
 function updateCorrection(id,status){
   if(!['admin','manager'].includes(currentRole))return;
   const correction=state.corrections.find(item=>item.id===Number(id));
   if(!correction||!correctionVisible(correction)||!['Odobreno','Odbijeno'].includes(status))return;
+  const note=correctionDecisionNote(status);if(note===null)return;
   const worker=workerById(correction.workerId);
   const record=state.records.find(item=>item.workerId===correction.workerId&&item.date===correction.date);
   const result=BSS_USE_CASES.corrections.decide(correction,{
@@ -1365,7 +1385,7 @@ function updateCorrection(id,status){
     id:record?.id||(status==='Odobreno'?nextId():null)
   });
   if(!result.ok)return;
-  Object.assign(correction,result.correction);
+  Object.assign(correction,result.correction,{decisionNote:note,decidedAt:now(),decidedBy:role().label});
   if(result.record){
     if(result.created)state.records.push(result.record);
     else Object.assign(record,result.record);
@@ -1373,7 +1393,7 @@ function updateCorrection(id,status){
   const values=correctionValues(correction);
   const decision=status==='Odobreno'?'Odobrena':'Odbijena';
   audit(role().label,`${decision} korekcija: ${worker?.name||'Radnik'} · ${values.oldValue} → ${values.newValue}.`,'Korekcije');
-  saveAndRender(`Korekcija je ${decision.toLowerCase()}.`);
+  closeModal();saveAndRender(`Korekcija je ${decision.toLowerCase()}.`);
 }
 
 const REPORT_TYPE_CONFIG = {

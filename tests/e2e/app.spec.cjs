@@ -1,3 +1,4 @@
+/* global state */
 const {test,expect}=require('@playwright/test');
 const {AxeBuilder}=require('@axe-core/playwright');
 
@@ -227,4 +228,21 @@ test('pomoć se skriva, pamti, ponovno otvara i vraća uz tipkovnicu',async({pag
   await expect(opener).toBeFocused();
   expect(await seriousAxeViolations(page)).toEqual([]);
   expect(errors).toEqual([]);
+});
+
+test('korekcija traži obrazloženje i prikazuje odgovor radniku',async({page})=>{
+  await loginAs(page,'admin');
+  // This synthetic fixture belongs to the worker used in the second half.
+  await page.evaluate(()=>{state.corrections.find(item=>item.id===1).workerId=1;window.render();});
+  await page.evaluate(()=>window.navigate('corrections'));
+  await page.locator('[data-bss-action="openCorrectionDecision(1,\'Odbijeno\')"]').click();
+  await page.getByRole('button',{name:'Potvrdi odbijanje'}).click();
+  await expect(page.locator('#correctionDecisionNote')).toBeFocused();
+  await page.locator('#correctionDecisionNote').fill('Vrijeme odjave treba potvrditi s voditeljem.');
+  expect(await seriousAxeViolations(page)).toEqual([]);
+  await page.getByRole('button',{name:'Potvrdi odbijanje'}).click();
+  await page.evaluate(()=>{window.switchRole('worker');window.navigate('corrections');});
+  await expect(page.locator('[data-correction-id="1"]')).toContainText('Vrijeme odjave treba potvrditi s voditeljem.');
+  await expect(page.locator('[data-correction-id="1"]')).toContainText('Odbijeno');
+  expect(await seriousAxeViolations(page)).toEqual([]);
 });

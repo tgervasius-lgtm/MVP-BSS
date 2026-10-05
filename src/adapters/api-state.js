@@ -154,7 +154,7 @@
     const corrections=(data.corrections?.items||[]).map(item=>{
       const record=recordByApi.get(item.attendanceDayId),worker=ensureWorker(item.workerId);
       const correctionTimeZone=record?.timezone||timeZone;
-      return {id:id(item.id),apiId:item.id,attendanceDayApiId:item.attendanceDayId,workerId:worker.id,date:record?.date||String(item.newValues?.checkIn||'').slice(0,10),oldStart:localTime(item.oldValues?.checkIn,correctionTimeZone),oldEnd:localTime(item.oldValues?.checkOut,correctionTimeZone),newStart:localTime(item.newValues?.checkIn,correctionTimeZone),newEnd:localTime(item.newValues?.checkOut,correctionTimeZone),reason:item.reason,status:requestLabels[item.status]||item.status,decisionNote:item.decisionNote||'',revision:item.revision};
+      return {id:id(item.id),apiId:item.id,attendanceDayApiId:item.attendanceDayId,workerId:worker.id,date:record?.date||String(item.newValues?.checkIn||'').slice(0,10),oldStart:localTime(item.oldValues?.checkIn,correctionTimeZone),oldEnd:localTime(item.oldValues?.checkOut,correctionTimeZone),newStart:localTime(item.newValues?.checkIn,correctionTimeZone),newEnd:localTime(item.newValues?.checkOut,correctionTimeZone),reason:item.reason,status:requestLabels[item.status]||item.status,submittedAt:localDateTime(item.submittedAt,timeZone),decidedAt:localDateTime(item.decidedAt,timeZone),decisionNote:item.decisionNote||'',revision:item.revision};
     });
     const balances=new Map((data.leaveBalances?.items||[]).map(item=>[item.workerId,item]));
     workers.forEach(worker=>{const balance=balances.get(worker.apiId);if(balance){worker.vacationAllowance=balance.allowanceDays;worker.leaveBalance=balance;}});
