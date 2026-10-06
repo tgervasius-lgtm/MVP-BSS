@@ -11,11 +11,14 @@ import { registerAuthRoutes } from "./routes/auth.js";
 import { registerPhaseARoutes } from "./routes/phase-a.js";
 import { registerMvpRoutes } from "./routes/mvp.js";
 import { registerAttendancePeriodRoutes } from "./routes/attendance-periods.js";
+import { registerDocumentRoutes } from "./routes/documents.js";
+import type { DocumentService } from "../documents/model.js";
 
 export type AppDependencies = Readonly<{
   config: AppConfig;
   authService: AuthService;
   phaseAService: MvpService;
+  documents?: DocumentService;
   logger?: boolean;
   readinessCheck?: () => Promise<void>;
 }>;
@@ -121,6 +124,9 @@ export async function buildApp(dependencies: AppDependencies): Promise<FastifyIn
   }
 
   app.setErrorHandler((error, request, reply) => {
+    if (typeof error === "object" && error !== null && "code" in error && error.code === "FST_ERR_CTP_BODY_TOO_LARGE") {
+      return reply.status(413).send({ code: "VALIDATION_FAILED", message: "Datoteka je prevelika.", requestId: request.id });
+    }
     const rateLimited = typeof error === "object" && error !== null && (
       ("statusCode" in error && error.statusCode === 429) ||
       ("code" in error && error.code === "RATE_LIMITED")
@@ -163,6 +169,7 @@ export async function buildApp(dependencies: AppDependencies): Promise<FastifyIn
   await app.register(registerPhaseARoutes, { phaseAService, authenticate });
   await registerMvpRoutes(app, { mvpService: phaseAService, authenticate });
   await registerAttendancePeriodRoutes(app, { mvpService: phaseAService, authenticate });
+  await registerDocumentRoutes(app, { authenticate, ...(dependencies.documents ? { documents: dependencies.documents } : {}) });
 
   app.setNotFoundHandler((request, reply) => {
     if (config.frontendRoot && request.method === "GET" && !request.url.startsWith("/api/") && request.headers.accept?.includes("text/html")) {

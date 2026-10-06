@@ -430,3 +430,9 @@ The following choices were explicitly approved by the BSS owner and form the fro
 | Repository baseline for freeze | `b904eca3c047c01da7a78e376269e94ed1d2fb48` |
 | Contract status | `ACCEPTED / FROZEN` |
 | Design Foundation gate | `PRODUCT CONTRACT FREEZE GATE SATISFIED` |
+
+## Approved implementation extension — personal document mailbox (2026-10-06, #256)
+
+The owner authorized implementation of personal delivery/download of finished payslips, contracts and other company PDFs. Admin/accountant may prepare and explicitly publish to one worker; worker reads/downloads own published PDFs; manager has no access. Existing BSS session replaces repeated per-document password entry. Payroll/tax/contribution calculation remains excluded. Worker uploads, bulk distribution, workflow email/push and legal receipt/signing are deferred.
+
+The detailed proposed implementation, bounded encrypted storage, security/privacy verification and mandatory activation decisions are recorded in `docs/documents/WORKER_DOCUMENT_MAILBOX_V1.md`. Authorization to implement does not approve production processing, retention policy, infrastructure costs, merge or deployment. This narrow extension does not reopen unrelated frozen v1 scope.

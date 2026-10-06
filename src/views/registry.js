@@ -13,6 +13,7 @@
     sharedLeave:'viewSharedLeave',
     corrections:'viewCorrections',
     reports:'viewReports',
+    documents:'viewDocuments',
     terminal:'viewTerminal',
     terminalDemo:'viewTerminalDemo',
     flow:'viewFlow',

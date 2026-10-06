@@ -3,13 +3,18 @@ import { loadConfig } from "./config.js";
 import { createPool } from "./db/pool.js";
 import { PgAuthService } from "./services/pg-auth-service.js";
 import { PgMvpService } from "./services/pg-mvp-service.js";
+import { loadDocumentConfig } from "./documents/config.js";
+import { PgDocumentService } from "./documents/pg-document-service.js";
+import { clamScanner } from "./documents/scanner.js";
 
 const config = loadConfig();
 const pool = createPool(config);
+const documentConfig = loadDocumentConfig(process.env);
 const app = await buildApp({
   config,
   authService: new PgAuthService(pool, config),
   phaseAService: new PgMvpService(pool, config),
+  ...(documentConfig ? { documents: new PgDocumentService(pool, documentConfig, clamScanner(documentConfig.socketPath)) } : {}),
   readinessCheck: async () => { await pool.query("SELECT 1"); }
 });
 

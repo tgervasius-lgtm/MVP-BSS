@@ -130,3 +130,9 @@ PR #99 integration evidence includes green required repository checks, PostgreSQ
 5. Resolve the RFID listing/capacity policy with evidence instead of applying an arbitrary limiter.
 6. Reconstruct Preview and split PR #28/#31 retained work from current `main`; never treat the stale PR branches as current product state.
 7. Review this registry with the MVP scope, Control Board and Readiness Matrix after every material product or architecture change.
+
+## Personal document mailbox — #256, 2026-10-06
+
+| ID | Capability | MVP | UI | Core implementation | Security/test evidence | Production | Primary evidence / next action |
+|---|---|---:|---|---|---|---|---|
+| DOC-001 | Admin/accountant publishes finished PDF to one worker; personal archive/download | Owner-approved extension | IMPLEMENTED FOR REVIEW | PARTIAL / PR REVIEW | New HTTP, encryption, RLS/migration and UI tests; final PR checks remain authority | NOT DEPLOYED / DISABLED | `docs/documents/WORKER_DOCUMENT_MAILBOX_V1.md`; actual scanner/key/restore/retention/capacity gates before activation |

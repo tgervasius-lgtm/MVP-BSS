@@ -436,17 +436,17 @@ const NAV_ITEMS = {
   admin: [
     ['home','⌂','Početna'],['attendance','◴','Evidencija'],['workers','☷','Radnici'],['shifts','↺','Smjene'],
     ['vacations','▦','Godišnji'],['sharedLeave','◎','Kalendar'],['requests','□','Zahtjevi'],['corrections','✎','Korekcije'],['reports','⇩','Izvještaji'],
-    ['terminal','◉','Terminali'],['roles','♙','Prava pristupa'],['audit','☰','Audit log'],['settings','⚙','Postavke']
+    ['documents','▤','Dokumenti'],['terminal','◉','Terminali'],['roles','♙','Prava pristupa'],['audit','☰','Audit log'],['settings','⚙','Postavke']
   ],
   manager: [
     ['home','⌂','Početna'],['attendance','◴','Evidencija tima'],['workers','☷','Moj tim'],['shifts','↺','Smjene'],
     ['vacations','▦','Godišnji tima'],['sharedLeave','◎','Kalendar'],['requests','□','Zahtjevi'],['corrections','✎','Korekcije'],['reports','⇩','Izvještaji'],['terminal','◉','Terminali']
   ],
   worker: [
-    ['home','⌂','Početna'],['mytime','◷','Moji sati'],['vacations','▦','Moj godišnji'],['sharedLeave','◎','Kalendar'],['requests','□','Moji zahtjevi'],['corrections','✎','Moje korekcije']
+    ['home','⌂','Početna'],['mytime','◷','Moji sati'],['vacations','▦','Moj godišnji'],['sharedLeave','◎','Kalendar'],['requests','□','Moji zahtjevi'],['corrections','✎','Moje korekcije'],['documents','▤','Moji dokumenti']
   ],
   accountant: [
-    ['home','⌂','Početna'],['reports','⇩','Izvještaji'],['sharedLeave','◎','Kalendar']
+    ['home','⌂','Početna'],['reports','⇩','Izvještaji'],['documents','▤','Dokumenti'],['sharedLeave','◎','Kalendar']
   ]
 };
 const DEMO_NAV = {
@@ -508,6 +508,7 @@ function topCopy(){
     sharedLeave: ['Kalendar','Odobreni godišnji u dopuštenom opsegu'],
     corrections: ['Korekcije vremena','Kontrolirane izmjene zapisa'],
     reports: ['Izvještaji','CSV i pravi XLSX export'],
+    documents: [currentRole==='worker'?'Moji dokumenti':'Dokumenti radnika','Privatni dokumenti i platne liste'],
     terminal: ['Terminali','Status uređaja i sinkronizacije'],
     terminalDemo: ['RFID simulator','Odvojeni prodajni demo terminala'],
     flow: ['Kako radi BSS','Prodajni prikaz procesa'],
@@ -604,6 +605,7 @@ function shell(){
   </div>`;
 }
 function render(){
+  globalThis.BSSDocuments?.syncIdentity();
   globalThis.BSSTerminalCredential?.clear();
   if(!allowedScreens().includes(screen)) screen = 'home';
   document.getElementById('root').innerHTML = shell();
@@ -612,7 +614,7 @@ function render(){
   const target = $('#content .content-inner');
   target.innerHTML = `<div class="screen">${BSS_VIEWS.registry.render(screen,globalThis)}</div>`;
   enhanceRenderedUi();
-  BSSContextualHelp.decorate(target,screen,currentRole);
+  BSSContextualHelp.decorate(target,screen,currentRole);globalThis.BSSDocuments?.mount();
 }
 function login(){
   if(state.demoMode && $('#loginRole')) currentRole = $('#loginRole').value;
@@ -653,6 +655,7 @@ function showModal(modal){
   layerReturnFocus=document.activeElement;modal.classList.add('open');modal.setAttribute('aria-hidden','false');focusFirst(modal);
 }
 function closeModal(){
+  globalThis.BSSDocuments?.clearSensitive();
   globalThis.BSSTerminalCredential?.clear();
   const modal=$('#modal');if(!modal)return;
   modal.classList.remove('open');modal.setAttribute('aria-hidden','true');layerReturnFocus?.focus?.();
