@@ -49,6 +49,8 @@ Focused tests cover PDF bounds, encryption/AAD/tampering/old-key support, config
 
 This Work environment cannot run the PowerShell wrapper, PostgreSQL or Unix sockets (`EPERM` on a minimal Node socket probe). Equivalent available npm checks run locally; CI must provide the unavailable PostgreSQL/socket evidence. No unavailable test is counted as PASS.
 
+The first PR CI run verified 72 backend unit/contract tests and 20 PostgreSQL integration tests without skips, including the mailbox and scanner transport fixtures. A separate dependency gate found GHSA-68fv-2mgg-jv7q in existing development-only `source-map-js@1.2.1`; `npm audit --json` reproduced it on clean main `98c4a44`. The lockfile receives the upstream 1.2.2 patch within the existing semver range; no new dependency, license change or gate suppression is introduced. Final evidence remains the checks on the latest PR head.
+
 Runtime rollback: set DOCUMENTS_ENABLED=false through the normal reviewed release path, revert application code if needed, preserve schema/bytes/keyring and backups. Migration down is allowed only when worker_documents is empty and outside production under the existing migration guard. A nonempty mailbox refuses down migration. Never delete decryption keys while matching records/backups exist. Retention erasure and crypto re-encryption are future explicitly reviewed work.
 
 ## Recorded related decisions

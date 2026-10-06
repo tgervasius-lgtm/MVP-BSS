@@ -24,10 +24,12 @@ export function clamScanner(socketPath: string, timeoutMs = 10000): DocumentScan
     socket.on("data", (chunk: Buffer) => {
       response = Buffer.concat([response, chunk]);
       if (response.length > 1024) { unavailable(); return; }
-      if (!response.includes(0)) return;
-      const result = response.toString("utf8");
-      if (result === "stream: OK\0") finish();
-      else if (/^stream: [^\x00\r\n]+ FOUND\0$/.test(result)) finish(new AppError("VALIDATION_FAILED", "Dokument nije prošao sigurnosnu provjeru. Učitajte drugi PDF."));
+      const terminator = response.indexOf(0);
+      if (terminator < 0) return;
+      if (terminator !== response.length - 1) { unavailable(); return; }
+      const result = response.subarray(0, terminator).toString("utf8");
+      if (result === "stream: OK") finish();
+      else if (/^stream: [^\r\n]+ FOUND$/.test(result)) finish(new AppError("VALIDATION_FAILED", "Dokument nije prošao sigurnosnu provjeru. Učitajte drugi PDF."));
       else unavailable();
     });
   });

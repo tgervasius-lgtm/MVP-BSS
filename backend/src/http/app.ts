@@ -169,7 +169,7 @@ export async function buildApp(dependencies: AppDependencies): Promise<FastifyIn
   await app.register(registerPhaseARoutes, { phaseAService, authenticate });
   await registerMvpRoutes(app, { mvpService: phaseAService, authenticate });
   await registerAttendancePeriodRoutes(app, { mvpService: phaseAService, authenticate });
-  await registerDocumentRoutes(app, { authenticate, ...(dependencies.documents ? { documents: dependencies.documents } : {}) });
+  registerDocumentRoutes(app, { authenticate, ...(dependencies.documents ? { documents: dependencies.documents } : {}) });
 
   app.setNotFoundHandler((request, reply) => {
     if (config.frontendRoot && request.method === "GET" && !request.url.startsWith("/api/") && request.headers.accept?.includes("text/html")) {

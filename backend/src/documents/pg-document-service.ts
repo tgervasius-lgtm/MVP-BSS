@@ -39,7 +39,7 @@ export class PgDocumentService implements DocumentService {
       try {
         const parsed: unknown = JSON.parse(Buffer.from(filters.cursor, "base64url").toString());
         if (!Array.isArray(parsed) || parsed.length !== 2 || typeof parsed[0] !== 'string' || !Number.isFinite(Date.parse(parsed[0]))
-          || typeof parsed[1] !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(parsed[1])) throw new Error();
+          || typeof parsed[1] !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(parsed[1])) throw new Error("Invalid document cursor");
         cursor = [new Date(parsed[0]).toISOString(), parsed[1]];
       } catch { throw new AppError("VALIDATION_FAILED", "Neispravna stranica dokumenata."); }
     }

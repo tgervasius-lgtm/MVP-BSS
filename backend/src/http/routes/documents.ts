@@ -3,7 +3,7 @@ import { AppError, requireRevision } from "../../domain/errors.js";
 import { CATEGORIES, MAX_DOCUMENT_BYTES, documentReader, documentWriter, type DocumentService, type DocumentFilters, type DocumentUpload } from "../../documents/model.js";
 import type { Authenticate } from "../app.js";
 
-export async function registerDocumentRoutes(app: FastifyInstance, dependencies: { authenticate: Authenticate; documents?: DocumentService }): Promise<void> {
+export function registerDocumentRoutes(app: FastifyInstance, dependencies: { authenticate: Authenticate; documents?: DocumentService }): void {
   const { authenticate, documents } = dependencies;
   const service = () => {
     if (!documents) throw new AppError("DOCUMENTS_UNAVAILABLE", "Sandučić dokumenata još nije aktiviran za ovo okruženje.");
@@ -41,8 +41,8 @@ export async function registerDocumentRoutes(app: FastifyInstance, dependencies:
       activeUploads.add(request.id);
       request.raw.once("aborted", () => activeUploads.delete(request.id));
     },
-    onResponse: async request => { activeUploads.delete(request.id); },
-    onTimeout: async request => { activeUploads.delete(request.id); },
+    onResponse: (request, _reply, done) => { activeUploads.delete(request.id); done(); },
+    onTimeout: (request, _reply, done) => { activeUploads.delete(request.id); done(); },
     schema: { body: { type: "object", additionalProperties: false,
       required: ["workerId","title","category","period","uploadId","contentBase64"], properties: {
         workerId: { type: "string", format: "uuid" }, uploadId: { type: "string", format: "uuid" },
