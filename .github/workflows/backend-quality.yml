@@ -72,17 +72,13 @@ jobs:
       - name: Official signatures and isolated local scanner
         run: |
           umask 077
-          mkdir -p "$RUNNER_TEMP/mailbox-clam/db"
-          cat > "$RUNNER_TEMP/mailbox-clam/freshclam.conf" <<EOF
-          DatabaseDirectory $RUNNER_TEMP/mailbox-clam/db
-          DatabaseOwner $(id -un)
-          DatabaseMirror database.clamav.net
-          MaxAttempts 2
-          EOF
-          timeout 300 freshclam --config-file="$RUNNER_TEMP/mailbox-clam/freshclam.conf"
-          cat > "$RUNNER_TEMP/mailbox-clam/clamd.conf" <<EOF
-          DatabaseDirectory $RUNNER_TEMP/mailbox-clam/db
-          LocalSocket $RUNNER_TEMP/mailbox-clam/clamd.sock
+          sudo systemctl stop clamav-freshclam clamav-daemon clamav-daemon.socket
+          timeout 300 sudo freshclam --stdout
+          sudo install -d -o "$(id -un)" -m 700 /run/clamav
+          sudo tee /etc/clamav/clamd.conf > /dev/null <<EOF
+          DatabaseDirectory /var/lib/clamav
+          User $(id -un)
+          LocalSocket /run/clamav/clamd.ctl
           LocalSocketMode 600
           ScanPDF yes
           AlertEncryptedDoc yes
@@ -94,20 +90,20 @@ jobs:
           Foreground yes
           EOF
           clamd --version
-          clamd --config-file="$RUNNER_TEMP/mailbox-clam/clamd.conf" > "$RUNNER_TEMP/mailbox-clam/clamd.log" 2>&1 &
+          sudo clamd --config-file=/etc/clamav/clamd.conf > "$RUNNER_TEMP/mailbox-clamd.log" 2>&1 &
           scanner_pid=$!
           for attempt in $(seq 1 60); do
-            if [ -S "$RUNNER_TEMP/mailbox-clam/clamd.sock" ]; then exit 0; fi
-            if ! kill -0 "$scanner_pid" 2>/dev/null; then cat "$RUNNER_TEMP/mailbox-clam/clamd.log"; exit 1; fi
+            if [ -S /run/clamav/clamd.ctl ]; then exit 0; fi
+            if ! kill -0 "$scanner_pid" 2>/dev/null; then cat "$RUNNER_TEMP/mailbox-clamd.log"; exit 1; fi
             sleep 1
           done
           printf 'ClamAV startup timeout after %s attempts\n' "$attempt"
-          cat "$RUNNER_TEMP/mailbox-clam/clamd.log"
+          cat "$RUNNER_TEMP/mailbox-clamd.log"
           exit 1
       - name: Actual scanner and encrypted logical restore proof
         run: |
           umask 077
-          export DOCUMENTS_CLAMD_SOCKET="$RUNNER_TEMP/mailbox-clam/clamd.sock"
+          export DOCUMENTS_CLAMD_SOCKET=/run/clamav/clamd.ctl
           node --import tsx --test test/operational/mailbox-runtime.test.ts
         env:
           BSS_MAILBOX_DISPOSABLE_TEST: synthetic-ci-only
