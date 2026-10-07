@@ -31,7 +31,7 @@ function prerequisites() {
   return { database, socket };
 }
 
-async function syntheticPdf(label: string): Promise<Buffer> {
+async function syntheticPdf(label: string, attachment?: Buffer): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     const pdf = new PDFDocument({ compress: false });
     const chunks: Buffer[] = [];
@@ -39,6 +39,7 @@ async function syntheticPdf(label: string): Promise<Buffer> {
     pdf.on('error', reject);
     pdf.on('end', () => resolve(Buffer.concat(chunks)));
     pdf.text(`BSS synthetic operational fixture: ${label}`);
+    if (attachment) pdf.file(attachment, { name: 'eicar.com', type: 'application/octet-stream' });
     pdf.end();
   });
 }
@@ -61,8 +62,8 @@ test('operational mailbox: actual ClamAV rejects EICAR before persistence and ac
   const eicar = Buffer.from(['X5O!P%@AP[4', '\\PZX54(P^)7CC)7}$', 'EICAR-STANDARD-ANTIVIRUS-TEST-FILE!', '$H+H*'].join(''));
   assert.equal(eicar.length, 68);
   await assert.rejects(scan(eicar), { code: 'VALIDATION_FAILED' });
-  // Valid PDF with a raw comment before its final EOF. Reaches the actual scanner after BSS PDF validation.
-  const infected = Buffer.from(clean.toString('latin1').replace(/%%EOF\s*$/, `%${eicar.toString('ascii')}\n%%EOF\n`), 'latin1');
+  // Valid PDF with a file attachment: exercises actual PDF extraction rather than an ignored comment.
+  const infected = await syntheticPdf('embedded safe antivirus fixture', eicar);
   const f = await documentFixture(database, scan);
   t.after(f.dispose);
   await assert.rejects(f.service.upload(f.first.admin, upload(f.first.workers[0]!, infected), 'eicar-upload'), { code: 'VALIDATION_FAILED' });

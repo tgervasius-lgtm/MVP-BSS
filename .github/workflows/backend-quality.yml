@@ -90,7 +90,7 @@ jobs:
           Foreground yes
           EOF
           clamd --version
-          sudo clamd --config-file=/etc/clamav/clamd.conf > "$RUNNER_TEMP/mailbox-clamd.log" 2>&1 &
+          clamd --config-file=/etc/clamav/clamd.conf > "$RUNNER_TEMP/mailbox-clamd.log" 2>&1 &
           scanner_pid=$!
           for attempt in $(seq 1 60); do
             if [ -S /run/clamav/clamd.ctl ]; then exit 0; fi
