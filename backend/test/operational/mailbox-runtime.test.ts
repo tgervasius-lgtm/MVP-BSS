@@ -129,7 +129,7 @@ test('operational mailbox: encrypted logical backup and separate keyring restore
   target = await createPostgresFixture(database, 'mailbox_restore');
   const targetUrl = new URL(database); targetUrl.pathname = `/${target.databaseName}`;
   const started = performance.now();
-  await run('pg_restore', ['--exit-on-error', '--single-transaction', plainDump], { env: postgresEnv(targetUrl), timeout: 30_000 });
+  await run('pg_restore', ['--exit-on-error', '--single-transaction', '--dbname', target.databaseName, plainDump], { env: postgresEnv(targetUrl), timeout: 30_000 });
   await rm(plainDump);
   const appUrl = new URL(source.appUrl); appUrl.pathname = `/${target.databaseName}`;
   restoredPool = new pg.Pool({ connectionString: appUrl.toString(), connectionTimeoutMillis: 5_000, statement_timeout: 30_000 });
