@@ -33,6 +33,8 @@ Before activation, configure and verify supported ClamAV with current signatures
 
 ## Configuration / activation gates
 
+Provider-neutral execution checklist and restore evidence requirements: [Mailbox staging verification](MAILBOX_STAGING_VERIFICATION.md). Preparation is not execution or activation approval.
+
 `DOCUMENTS_ENABLED` defaults to false. An enabled process must have all of:
 
 - `DOCUMENTS_KEYS_JSON`: secret-store JSON map of key IDs to independent random 32-byte base64 keys (no committed values).
