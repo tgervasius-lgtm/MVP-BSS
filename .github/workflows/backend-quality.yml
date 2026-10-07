@@ -101,6 +101,7 @@ jobs:
             if ! kill -0 "$scanner_pid" 2>/dev/null; then cat "$RUNNER_TEMP/mailbox-clam/clamd.log"; exit 1; fi
             sleep 1
           done
+          printf 'ClamAV startup timeout after %s attempts\n' "$attempt"
           cat "$RUNNER_TEMP/mailbox-clam/clamd.log"
           exit 1
       - name: Actual scanner and encrypted logical restore proof
