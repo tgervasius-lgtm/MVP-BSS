@@ -246,3 +246,48 @@ test('korekcija traži obrazloženje i prikazuje odgovor radniku',async({page})=
   await expect(page.locator('[data-correction-id="1"]')).toContainText('Odbijeno');
   expect(await seriousAxeViolations(page)).toEqual([]);
 });
+
+test('osobni sandučić ima filtre, čitljiv prikaz i pristup samo dopuštenim ulogama',async({page})=>{
+  const errors=trackErrors(page);await loginAs(page,'worker');await page.evaluate(()=>window.navigate('documents'));
+  await expect(page.locator('.section-title h1')).toHaveText('Moji dokumenti');
+  await expect(page.locator('.document-row')).toHaveCount(2);
+  await expect(page.getByRole('button',{name:'Novi dokument'})).toHaveCount(0);
+  await page.getByLabel('Vrsta dokumenta').selectOption('contract');await page.getByRole('button',{name:'Primijeni',exact:true}).click();
+  await expect(page.locator('.document-row')).toHaveCount(1);await expect(page.locator('.document-row')).toContainText('Ugovor o radu');
+  expect(await seriousAxeViolations(page)).toEqual([]);
+  await page.evaluate(()=>{window.switchRole('manager');window.navigate('documents');});
+  await expect(page.locator('.section-title h1')).not.toHaveText('Moji dokumenti');expect(errors).toEqual([]);
+});
+
+test.describe('document API UI fixture',()=>{
+// Browser routing cannot intercept requests made by the service worker.
+// Keep normal service-worker coverage in the separate application tests.
+test.use({serviceWorkers:'block'});
+test('dokument API sučelje: primatelj, nacrt, potvrda objave i preuzimanje PDF-a',async({page})=>{
+  const errors=trackErrors(page);const docs=[];const id='00000000-0000-4000-8000-000000000010';const worker='00000000-0000-4000-8000-000000000005';
+  await page.route(/\/api\/v1\/documents(?:[/?].*)?$/,async route=>{
+    const req=route.request(),path=new URL(req.url()).pathname;let data;
+    if(path.endsWith('/config'))data={enabled:true,maxBytes:5242880};
+    else if(path.endsWith('/recipients'))data={items:[{id:worker,name:'Synthetic Worker',code:'W-1'}]};
+    else if(path.endsWith('/publish')){expect(req.headers()['if-match']).toBe('"1"');expect(req.postDataJSON()).toEqual({confirmed:true});docs[0].state='published';docs[0].revision='2';data=docs[0];}
+    else if(path.endsWith('/download')){await route.fulfill({status:200,contentType:'application/pdf',headers:{'content-disposition':'attachment; filename="BSS-fixture.pdf"'},body:'%PDF-1.4\nfixture\n%%EOF'});return;}
+    else if(req.method()==='POST'){const body=req.postDataJSON();expect(body.workerId).toBe(worker);expect(body.period).toBe('2026-10');docs.push({...body,id,workerName:'Synthetic Worker',workerCode:'W-1',state:'draft',revision:'1',bytes:25,createdAt:'2026-10-06T10:00:00Z',publishedAt:null});data=docs[0];}
+    else data={items:docs,nextCursor:null};
+    await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(data)});
+  });
+  await loginAs(page,'accountant');
+  await page.evaluate(()=>{state.demoMode=false;window.navigate('documents');});
+  await page.getByRole('button',{name:'Novi dokument'}).click();
+  await page.getByLabel('Traži primatelja po imenu ili šifri').fill('Synthetic');await page.getByRole('button',{name:'Pronađi radnika'}).click();
+  await page.getByRole('combobox',{name:'Primatelj',exact:true}).selectOption(worker);await page.getByLabel('Naziv dokumenta').fill('Platna lista 10/2026');
+  await page.getByLabel('Mjesec (obvezno za platnu listu)').fill('2026-10');
+  await page.getByLabel('PDF datoteka').setInputFiles({name:'fixture.pdf',mimeType:'application/pdf',buffer:Buffer.from('%PDF-1.4\nfixture\n%%EOF')});
+  expect(await seriousAxeViolations(page)).toEqual([]);await page.getByRole('button',{name:'Spremi nacrt'}).click();
+  await expect(page.locator('.document-row')).toContainText('Nacrt');
+  await page.getByRole('button',{name:'Pregledaj i objavi'}).click();await expect(page.locator('#modal')).toContainText('Synthetic Worker · W-1');
+  expect(await seriousAxeViolations(page)).toEqual([]);await page.getByRole('button',{name:'Potvrdi objavu'}).click();
+  await expect(page.locator('.document-row')).toContainText('Objavljeno');
+  const downloadPromise=page.waitForEvent('download');await page.getByRole('button',{name:/Preuzmi PDF/}).click();const download=await downloadPromise;expect(download.suggestedFilename()).toBe('BSS-fixture.pdf');
+  expect(errors).toEqual([]);
+});
+});

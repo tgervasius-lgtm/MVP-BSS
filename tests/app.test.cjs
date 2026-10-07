@@ -32,7 +32,8 @@ const coreSources = [
   'src/views/terminal-operational.js',
   'src/views/access-operational.js',
   'src/views/audit-operational.js',
-  'src/views/contextual-help.js'
+  'src/views/contextual-help.js',
+  'src/views/documents.js'
 ].map(path=>fs.readFileSync(path,'utf8'));
 const styleEntry = fs.readFileSync('styles.css','utf8');
 const styleLayerPaths = [
@@ -727,11 +728,11 @@ test('primarna desktop navigacija razlikuje operativni fokus po ulozi',()=>{
 
   const worker=boot('worker');
   const workerPrimary=[...worker.document.querySelectorAll('.desktop-nav-primary .nav-label')].map(node=>node.textContent.trim());
-  assert.deepEqual(workerPrimary,['Početna','Moji sati','Moj godišnji','Kalendar','Moji zahtjevi']);
+  assert.deepEqual(workerPrimary,['Početna','Moji sati','Moj godišnji','Kalendar','Moji zahtjevi','Moji dokumenti']);
 
   const accountant=boot('accountant');
   const accountantPrimary=[...accountant.document.querySelectorAll('.desktop-nav-primary .nav-label')].map(node=>node.textContent.trim());
-  assert.deepEqual(accountantPrimary,['Početna','Izvještaji','Kalendar']);
+  assert.deepEqual(accountantPrimary,['Početna','Izvještaji','Dokumenti','Kalendar']);
 });
 
 test('desktop navigacija prikazuje samo primarne Admin stavke i puni izbornik ostaje u draweru',()=>{
@@ -1912,7 +1913,7 @@ test('aplikacija povezuje vodič i offline predmemorira cijeli Design System',()
   for(const asset of ['design-system/index.html','design-system/tokens.css','design-system/guide.css','design-system/guide.js']){
     assert.match(serviceWorker,new RegExp(asset.replaceAll('.','\\.')));
   }
-  assert.match(serviceWorker,/bss-backend-mvp-v1-r6/);
+  assert.match(serviceWorker,/bss-backend-mvp-v1-r7/);
 });
 
 test('Brand Book v1.0 pokriva svih devet dogovorenih područja',()=>{
@@ -1976,7 +1977,7 @@ test('aplikacija povezuje Brand Book i cijeli paket radi offline',()=>{
     'bss-presentation-cover.svg','bss-terminal-label.svg',
     'BSS_BRAND-BOOK_v1.0_11.07.2026.pdf'
   ]) assert.match(serviceWorker,new RegExp(asset.replaceAll('.','\\.')));
-  assert.match(serviceWorker,/bss-backend-mvp-v1-r6/);
+  assert.match(serviceWorker,/bss-backend-mvp-v1-r7/);
   assert.match(serviceWorker,/path\.includes\('\/brand-book'\)/);
 });
 
@@ -2077,11 +2078,11 @@ test('Backend MVP učitava API adaptere prije aplikacije i sprema shell za offli
   ]){
     assert.match(serviceWorker,new RegExp(asset.replaceAll('.','\\.')));
   }
-  assert.match(serviceWorker,/bss-backend-mvp-v1-r6/);
+  assert.match(serviceWorker,/bss-backend-mvp-v1-r7/);
 });
 
 test('cache invalidation hotfix osvježava app shell i odmah preuzima otvorene klijente',()=>{
-  assert.match(serviceWorker,/const CACHE_NAME = 'bss-backend-mvp-v1-r6'/);
+  assert.match(serviceWorker,/const CACHE_NAME = 'bss-backend-mvp-v1-r7'/);
   assert.match(serviceWorker,/new Request\(asset,\{cache:'reload'\}\)/);
   assert.match(serviceWorker,/new Request\(request,\{cache:'no-store'\}\)/);
   assert.match(serviceWorker,/new Request\(request,\{cache:'no-cache'\}\)/);
@@ -2394,7 +2395,7 @@ test('screen registry zaključava sve BSS ekrane i sigurno vraća početni prika
   const {evaluate}=boot('admin');
   const screens=evaluate('BSS_CORE.views.registry.screens');
   assert.deepEqual(Object.keys(screens).sort(),[
-    'attendance','audit','corrections','flow','home','mytime','reports','requests','roles','settings',
+    'attendance','audit','corrections','documents','flow','home','mytime','reports','requests','roles','settings',
     'sharedLeave','shifts','terminal','terminalDemo','vacations','worker','workers'
   ]);
   assert.equal(evaluate("BSS_CORE.views.registry.has('reports')"),true);
@@ -2496,7 +2497,7 @@ test('pregled, reporting profil i implementirani API v1.3 zaključavaju tabličn
   assert.doesNotMatch(apiContractDraft,/payroll-calculation|gps-tracking|door-access-control/i);
 });
 
-test('Frontend Freeze v1.0 ostaje baza, a Backend MVP ugovor je verzioniran na v1.4',()=>{
+test('Frontend Freeze v1.0 ostaje baza, a Backend MVP ugovor je verzioniran na v1.5',()=>{
   const baseline='91323c7cdbbbbf7b965c4926c94a11af6d31bf62';
   for(const document of [frontendRelease,frontendFinalReview,backendHandoff,reportingProfile,designSystemDoc,screenMap,apiContractDraft]){
     assert.match(document,new RegExp(baseline));
@@ -2506,14 +2507,14 @@ test('Frontend Freeze v1.0 ostaje baza, a Backend MVP ugovor je verzioniran na v
   assert.match(frontendRelease,/BACKEND OPENAPI v1 ODOBREN/);
   assert.match(frontendRelease,/nema stvarnog login\/session sustava, API-ja, baze podataka/i);
   assert.match(frontendRelease,/40 putanja i 51 operacija/);
-  assert.match(screenMap,/Broj registriranih ekrana \| 17/);
+  assert.match(screenMap,/Broj registriranih ekrana \| 18/);
   for(const id of frontendHandoff.screens.map(item=>item.id)){
     assert.ok(screenMap.includes(`\`${id}\``),`Screen Map ne sadrži ${id}`);
   }
   const pathsSection=apiContractDraft.match(/^paths:\r?\n([\s\S]*?)^components:/m)?.[1]||'';
-  assert.equal((pathsSection.match(/^ {2}\/[^\n]+:/gm)||[]).length,52);
-  assert.equal((apiContractDraft.match(/^ {6}operationId:/gm)||[]).length,63);
-  assert.match(apiContractDraft,/version: 1\.4\.0/);
+  assert.equal((pathsSection.match(/^ {2}\/[^\n]+:/gm)||[]).length,58);
+  assert.equal((apiContractDraft.match(/^ {6}operationId:/gm)||[]).length,70);
+  assert.match(apiContractDraft,/version: 1\.5\.0/);
   assert.match(apiContractDraft,/x-bss-status: MVP_IMPLEMENTED/);
   assert.match(apiContractDraft,/x-bss-frontend-release: frontend-v1\.0\.0/);
   assert.match(frontendReleaseWorkflow,/branches: \[main\]/);
@@ -2717,6 +2718,53 @@ test('contextual help persists dismissal per screen and role and can restore',()
   assert.equal(app.document.querySelector('.screen-help'),null);
   app.evaluate('openScreenHelp()');
   assert.equal(app.document.querySelector('#modal.open'),null);
+});
+
+test('sandučic radnika prikazuje vlastite ogledne dokumente, filtre i zabranu voditelju',async()=>{
+  const app=boot('worker');app.window.navigate('documents');
+  assert.equal(app.document.querySelectorAll('.document-row').length,2);
+  assert.equal(app.document.querySelector('[data-bss-action="openDocumentUpload()"]'),null);
+  app.document.querySelector('#documentCategory').value='contract';app.window.filterDocuments();
+  assert.equal(app.document.querySelectorAll('.document-row').length,1);
+  assert.match(app.document.querySelector('.document-row').textContent,/Ugovor/);
+  app.window.switchRole('manager');assert.equal(app.window.allowedScreens().includes('documents'),false);
+  app.window.navigate('documents');assert.equal(app.evaluate('screen'),'home');
+});
+
+test('API sandučić ne prikazuje demo dokumente kada nije aktiviran i odbacuje zakašnjeli odgovor nakon odjave',async()=>{
+  const app=boot('worker');const calls=[];
+  app.window.fetch=async url=>{calls.push(url);return{ok:true,status:200,json:async()=>({enabled:false,maxBytes:5242880})};};
+  app.evaluate("state.demoMode=false;sessionContext={organization:{id:'one'},user:{id:'worker'}};navigate('documents')");
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.match(app.document.querySelector('#content').textContent,/trenutačno nisu dostupni/);
+  assert.equal(app.document.querySelectorAll('.document-row').length,0);assert.equal(calls.length,1);
+  let finish;
+  app.window.fetch=async url=>String(url).endsWith('/config')?{ok:true,status:200,json:async()=>({enabled:true})}:new Promise(resolve=>{finish=resolve;});
+  const pending=app.window.reloadDocuments();await new Promise(resolve=>setImmediate(resolve));
+  app.window.logout();finish({ok:true,status:200,json:async()=>({items:[{id:'private',title:'Private late document'}],nextCursor:null})});await pending;
+  assert.doesNotMatch(app.document.body.textContent,/Private late document/);
+  assert.equal(app.document.querySelectorAll('.document-row').length,0);
+});
+
+test('API dokumenta: eksplicitni nacrt, stabilan uploadId pri ponavljanju i bez refresh/replay mutacije',async()=>{
+  const app=boot('accountant'),calls=[],worker='00000000-0000-4000-8000-000000000005';
+  app.window.fetch=async(url,options={})=>{
+    calls.push({url:String(url),...options});
+    if(options.method==='POST')return{ok:false,status:401,json:async()=>({code:'UNAUTHENTICATED',message:'Prijava je potrebna.'})};
+    const data=String(url).endsWith('/config')?{enabled:true}:String(url).includes('/recipients')?{items:[{id:worker,name:'Synthetic',code:'W-1'}]}:{items:[],nextCursor:null};
+    return{ok:true,status:200,json:async()=>data};
+  };
+  app.evaluate("state.demoMode=false;sessionContext={organization:{id:'one'},user:{id:'accountant'}};navigate('documents')");await new Promise(resolve=>setImmediate(resolve));
+  app.window.openDocumentUpload();await app.window.findDocumentRecipients();
+  app.document.querySelector('#documentRecipient').value=worker;
+  app.document.querySelector('#documentTitle').value='Platna lista';app.document.querySelector('#documentUploadPeriod').value='2026-10';
+  Object.defineProperty(app.document.querySelector('#documentFile'),'files',{value:[new app.window.File(['%PDF-1.4\nfixture\n%%EOF'],'fixture.pdf',{type:'application/pdf'})]});
+  await app.window.submitDocumentUpload();await app.window.submitDocumentUpload();
+  const sent=calls.filter(x=>x.method==='POST');assert.equal(sent.length,2);
+  assert.equal(JSON.parse(sent[0].body).uploadId,JSON.parse(sent[1].body).uploadId);
+  assert.equal(calls.some(x=>x.url.includes('/auth/refresh')),false);assert.equal(calls.some(x=>x.url.includes('/publish')),false);
+  app.window.closeModal();assert.equal(app.document.querySelector('#documentFile'),null);
+  assert.ok(!Object.values(app.window.localStorage).some(value=>String(value).includes('contentBase64')));
 });
 
 test('početna sparuje dolazak i odlazak po radniku i radnom danu, uključujući noćnu smjenu',()=>{

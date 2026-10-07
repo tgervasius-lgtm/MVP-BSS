@@ -1,8 +1,8 @@
 {
-  "contract": "BSS post-freeze frontend screen ownership to Backend MVP API v1.4",
+  "contract": "BSS post-freeze frontend screen ownership to Backend MVP API v1.5",
   "readiness": "RECONCILED_WITH_EXPLICIT_UI_GAPS",
-  "contractReviewedAt": "2026-10-04",
-  "contractReviewStatus": "POST_TERMINAL_MERGE_RECONCILED_WITH_EXPLICIT_GAPS",
+  "contractReviewedAt": "2026-10-06",
+  "contractReviewStatus": "DOCUMENT_MAILBOX_IMPLEMENTATION_REVIEW_REQUIRED",
   "productAuthority": {
     "file": "BSS_V1_PRODUCT_CONTRACT.md",
     "version": "1.0",
@@ -13,14 +13,14 @@
     "status": "HISTORICAL_FRONTEND_V1_REFERENCE",
     "authority": "NOT_CURRENT_PRODUCT_AUTHORITY"
   },
-  "repositoryBaseline": "e6d191c0933d3e32dce68ef874a9b8af722a64d8",
+  "repositoryBaseline": "98c4a44e59e02dfac29de246ddf0bbe4c1067680",
   "openapi": {
     "file": "openapi/bss-mvp-api-v1.yaml",
-    "sha256": "62a649b1f63ee571d1f43b9be5bbe145810159fe13fb71f556ec82bcf6788d6a",
-    "version": "1.4.0",
+    "sha256": "dd929c7b10a1b7de285604b1e0f6fae57e92778ee9dc1b0a3503afb2a39a9393",
+    "version": "1.5.0",
     "status": "MVP_IMPLEMENTED",
-    "paths": 52,
-    "operations": 63,
+    "paths": 58,
+    "operations": 70,
     "phaseAImplementedOperations": 30,
     "phaseBImplementedOperations": 63
   },
@@ -232,6 +232,26 @@
         "replaceHolidaysForYear"
       ],
       "note": "Legacy Job Position controls are superseded; onboarding/import are separate Product Contract gaps."
+    },
+    {
+      "id": "documents",
+      "status": "implemented-feature-disabled",
+      "classification": "OWNER_APPROVED_SCOPE_EXTENSION",
+      "roles": [
+        "admin",
+        "accountant",
+        "worker"
+      ],
+      "operations": [
+        "getDocumentMailboxConfig",
+        "findDocumentRecipients",
+        "listWorkerDocuments",
+        "uploadWorkerDocument",
+        "publishWorkerDocument",
+        "withdrawWorkerDocument",
+        "downloadWorkerDocument"
+      ],
+      "notes": "Owner approved first mailbox implementation on 2026-10-06 (#256); production activation, retention and scanner/key readiness remain separate gates. Worker sees only own published PDFs; manager denied."
     }
   ],
   "nonScreenPatterns": [

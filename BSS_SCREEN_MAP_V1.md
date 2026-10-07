@@ -8,7 +8,7 @@
 | Pregledani protected-main baseline | `cd2aee008b8971060a711808e31c4ca0d7b67fdf` |
 | Povijesna frontend referenca | frontend v1.0.0 na `91323c7cdbbbbf7b965c4926c94a11af6d31bf62`; nije samostalni autoritet za aktualni proizvod |
 | Izvori aktualnog UI-ja | `src/views/registry.js`, `app.js`, `src/adapters/api-state.js`, `src/adapters/api-attendance-lifecycle.js`, `src/adapters/api-report-authority.js`, `src/adapters/api-bindings.js` |
-| Broj registriranih ekrana | 17 |
+| Broj registriranih ekrana | 18 |
 | Uloge | Admin, Voditelj, Radnik, Knjigovodstvo |
 
 Ova mapa usklađuje stabilne frontend screen ID-eve s frozen Product Contractom i aktualnom implementacijom. Postojanje OpenAPI operacije nije dokaz da postoji odgovarajući UI. `CONTRACT-DEFINED GAP` znači da je capability u frozen Product Contractu, ali aktualni frontend nema potpun ekran/pattern; ne znači `IMPLEMENTED`, `EVIDENCE PROVEN` ni spremnost za Staging/Pilot.
@@ -58,3 +58,7 @@ Ova mapa usklađuje stabilne frontend screen ID-eve s frozen Product Contractom 
 ## Stabilnost i change control
 
 Registrirani screen ID-evi ostaju stabilne frontend reference dok fokusirana, versionirana promjena ne dokaže potrebu za preimenovanjem ili uklanjanjem. Stabilan ID nije dokaz potpunog UI capabilityja. Backend integracija, Design Foundation, Figma ili Storybook ne smiju proširiti ulogu, data scope, workflow ili poslovno stanje izvan frozen Product Contracta. Ova v1.1 reconciliation promjena ne mijenja runtime, OpenAPI, bazu, hardver niti Product Contract i ostaje predmet BSS OS reviewa.
+
+## Personal documents extension — #256 (2026-10-06)
+
+`documents` → `viewDocuments`, OpenAPI 1.5: availability, minimal recipient lookup, list, draft upload, explicit publish, withdraw and private download. Admin/accountant tenant-wide delivery; worker own published only; manager denied. UI/API implementation is for review and production feature is disabled by default. See `docs/documents/WORKER_DOCUMENT_MAILBOX_V1.md` for the owner-authorized scope extension and activation blockers. Historical v1.1 reconciliation rows above retain their cited baseline.

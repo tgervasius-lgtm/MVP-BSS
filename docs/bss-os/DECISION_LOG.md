@@ -41,3 +41,7 @@ When changing a decision:
 3. create a new decision ID when the decision itself changes materially;
 4. document the reason, impact and migration action;
 5. update affected scope, risk, feature and readiness documents.
+
+## 2026-10-06 — #256 document mailbox
+
+Owner-approved implementation: personal mailbox for finished monthly payslips, contracts and other company documents, using the existing login instead of repeated document passwords. Payroll calculation explicitly deferred. Admin/accountant delivery and worker-only personal reading are the first slice; worker uploads/bulk distribution/notifications/reading acknowledgments are deferred. Storage/scanner/retention activation details remain review requirements in `docs/documents/WORKER_DOCUMENT_MAILBOX_V1.md`; no merge/deploy or costs approved. White/grey remains the first theme choice; alternate gallery shortlist 1,6,7,13,14,16,17.

@@ -161,3 +161,7 @@ Trivy Phase 1 is merged and automated through #129/PR #141; #129 and #115 are co
 ## Working without blind spots
 
 For every new module/service or external platform, record the owner, threat model, data processed, contract/API impact, tests, dependency/SBOM coverage, deployment/rollback, observability, privacy implications and handoff evidence. Functionality is not complete merely because it works locally, because a PR merged or because a static analyzer reports a green gate.
+
+## Document mailbox extension — #256 (2026-10-06)
+
+IMPLEMENTATION FOR REVIEW / DISABLED BY DEFAULT. Personal PDF delivery/download is owner-authorized scope; deployment, real-data use, retention/destruction policy, actual scanner proof, independent keys/restore and capacity evidence remain NOT PROVEN. See `docs/documents/WORKER_DOCUMENT_MAILBOX_V1.md`. No existing Staging/Pilot/Production status is upgraded by this change.

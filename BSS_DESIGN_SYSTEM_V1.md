@@ -224,3 +224,7 @@ Dismissal is a local display preference per role/screen; it must never suppress
 validation errors, operational notices or decision confirmations. Static help
 must describe only actions already available to the active role. See
 `docs/ux/CONTEXTUAL_HELP_2026-10-05.md` (issue #254).
+
+## Personal documents pattern — 2026-10-06 (#256)
+
+Use a readable list with document title, type/month and direct PDF download. Worker sees personal published documents only. Admin/accountant preparation is a separate draft/review/publish flow that always displays worker name and code before publication. Provide loading, empty, disabled, error and stale-state recovery; every action supports keyboard/focus and narrow screens. Never label a download as confirmed reading or acceptance. Existing color tokens remain in use.

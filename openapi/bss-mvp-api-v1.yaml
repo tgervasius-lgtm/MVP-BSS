@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: BSS MVP API
-  version: 1.4.0
+  version: 1.5.0
   summary: Implemented Backend MVP contract for the frozen BSS Frontend v1.0.0.
   description: |
     Implemented versioned contract for the functional Backend MVP; deployment remains a separate
@@ -45,6 +45,8 @@ tags:
     description: Append-only administrative evidence.
   - name: Terminals
     description: Terminal identity, synchronization, event ingestion and heartbeat.
+  - name: Documents
+    description: Private finished PDF delivery; payroll calculation excluded.
 security:
   - sessionCookie: []
 paths:
@@ -1612,6 +1614,408 @@ paths:
           $ref: '#/components/responses/Unauthenticated'
         '204':
           description: Heartbeat accepted.
+  /documents/config:
+    get:
+      tags:
+        - Documents
+      operationId: getDocumentMailboxConfig
+      x-bss-roles: [admin, accountant, worker]
+      summary: Document mailbox availability
+      description: Admin/accountant/worker only. Manager denied. Does not expose key
+        or scanner configuration.
+      responses:
+        "200":
+          description: Successful result.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                  - enabled
+                  - maxBytes
+                properties:
+                  enabled:
+                    type: boolean
+                  maxBytes:
+                    type: integer
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+  /documents/recipients:
+    get:
+      tags:
+        - Documents
+      operationId: findDocumentRecipients
+      x-bss-roles: [admin, accountant]
+      summary: Find document recipients
+      description: Admin/accountant only. Minimal name/code/ID search, at most 50
+        active workers in the authenticated organization. No general worker API
+        permission expansion.
+      parameters:
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 100
+            default: ""
+      responses:
+        "200":
+          description: Successful result.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                  - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: false
+                      required:
+                        - id
+                        - name
+                        - code
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                        name:
+                          type: string
+                        code:
+                          type: string
+                    maxItems: 50
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          description: Internal error.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "503": &a1
+          description: "DOCUMENTS_UNAVAILABLE: feature disabled, scanner unavailable, or
+            document key/content unavailable. No insecure fallback."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /documents:
+    get:
+      tags:
+        - Documents
+      operationId: listWorkerDocuments
+      x-bss-roles: [admin, accountant, worker]
+      summary: List documents
+      description: Workers see only their own published documents. Admin/accountant
+        see organization drafts, published and withdrawn metadata. Manager denied.
+        Metadata is private and not cached.
+      parameters:
+        - name: category
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - payslip
+              - contract
+              - other
+        - name: period
+          in: query
+          required: false
+          schema:
+            type: string
+            pattern: ^20[0-9]{2}-(0[1-9]|1[0-2])$
+        - name: cursor
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 256
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 25
+      responses:
+        "200":
+          description: Successful result.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                  - items
+                  - nextCursor
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/DocumentItem"
+                  nextCursor:
+                    type:
+                      - string
+                      - "null"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          description: Internal error.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "503": *a1
+    post:
+      tags:
+        - Documents
+      operationId: uploadWorkerDocument
+      x-bss-roles: [admin, accountant]
+      summary: Upload a private PDF draft
+      description: Admin/accountant only. Origin protection, 10 uploads/minute/IP.
+        Recipient/content are immutable. Exact retry via uploadId returns the
+        existing record. Scan failure persists no bytes. Bounded encrypted
+        PostgreSQL content; 250 MiB configured default organization quota and
+        10000 document cap including withdrawn records. No automatic retention
+        deletion.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DocumentUpload"
+      responses:
+        "201":
+          description: Draft created, or existing exact upload retry returned.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DocumentItem"
+          headers:
+            ETag:
+              schema:
+                type: string
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "413":
+          description: Decoded file or request exceeds size limits.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          description: Internal error.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "503": *a1
+  /documents/{documentId}/download:
+    get:
+      tags:
+        - Documents
+      operationId: downloadWorkerDocument
+      x-bss-roles: [admin, accountant, worker]
+      summary: Download a private PDF
+      description: "Worker: own published only; admin/accountant: draft or published
+        in same organization; manager denied. No password per document and no
+        public storage URL. no-store/private, nosniff, attachment. Records
+        download_issued, not proof of receipt or reading. A download authorized
+        before withdrawal can finish; saved copies cannot be recalled."
+      parameters:
+        - &a2
+          name: documentId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: PDF attachment. Never browser/API cached.
+          headers:
+            Content-Disposition:
+              schema:
+                type: string
+            Cache-Control:
+              schema:
+                type: string
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          description: Internal error.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "503": *a1
+  /documents/{documentId}/publish:
+    post:
+      tags:
+        - Documents
+      operationId: publishWorkerDocument
+      x-bss-roles: [admin, accountant]
+      summary: Publish reviewed document
+      description: "Admin/accountant only. Explicit confirmed=true and current
+        If-Match required. Publication: draft to published. Withdrawal:
+        draft/published to withdrawn. No restore or content overwrite. Stale
+        revision/invalid transition returns 409."
+      parameters:
+        - *a2
+        - &a3
+          name: If-Match
+          in: header
+          required: true
+          description: Current quoted positive document revision.
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - confirmed
+              properties:
+                confirmed:
+                  type: boolean
+                  const: true
+      responses:
+        "200":
+          description: Successful result.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DocumentItem"
+          headers:
+            ETag:
+              schema:
+                type: string
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          description: Internal error.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "503": *a1
+  /documents/{documentId}/withdraw:
+    post:
+      tags:
+        - Documents
+      operationId: withdrawWorkerDocument
+      x-bss-roles: [admin, accountant]
+      summary: Withdraw document access
+      description: "Admin/accountant only. Explicit confirmed=true and current
+        If-Match required. Publication: draft to published. Withdrawal:
+        draft/published to withdrawn. No restore or content overwrite. Stale
+        revision/invalid transition returns 409."
+      parameters:
+        - *a2
+        - *a3
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - confirmed
+              properties:
+                confirmed:
+                  type: boolean
+                  const: true
+      responses:
+        "200":
+          description: Successful result.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DocumentItem"
+          headers:
+            ETag:
+              schema:
+                type: string
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          description: Internal error.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "503": *a1
 components:
   securitySchemes:
     sessionCookie:
@@ -1869,6 +2273,105 @@ components:
           schema:
             $ref: '#/components/schemas/RateLimitedProblem'
   schemas:
+    DocumentItem:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - workerId
+        - workerName
+        - workerCode
+        - title
+        - category
+        - period
+        - state
+        - bytes
+        - revision
+        - createdAt
+        - publishedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        workerId:
+          type: string
+          format: uuid
+        workerName:
+          type: string
+        workerCode:
+          type: string
+        title:
+          type: string
+          minLength: 2
+          maxLength: 120
+        category: &a1
+          type: string
+          enum:
+            - payslip
+            - contract
+            - other
+        period:
+          type:
+            - string
+            - "null"
+          pattern: ^20[0-9]{2}-(0[1-9]|1[0-2])$
+        state:
+          type: string
+          enum:
+            - draft
+            - published
+            - withdrawn
+        bytes:
+          type: integer
+          minimum: 1
+          maximum: 5242880
+        revision:
+          type: string
+          pattern: ^[1-9][0-9]*$
+        createdAt:
+          type: string
+          format: date-time
+        publishedAt:
+          type:
+            - string
+            - "null"
+          format: date-time
+    DocumentUpload:
+      type: object
+      additionalProperties: false
+      required:
+        - workerId
+        - uploadId
+        - title
+        - category
+        - period
+        - contentBase64
+      properties:
+        workerId:
+          type: string
+          format: uuid
+        uploadId:
+          type: string
+          format: uuid
+          description: Stable client UUID per immutable upload attempt. Same
+            actor/key/body replays the same document; changed body conflicts.
+        title:
+          type: string
+          minLength: 2
+          maxLength: 120
+        category: *a1
+        period:
+          type:
+            - string
+            - "null"
+          pattern: ^20[0-9]{2}-(0[1-9]|1[0-2])$
+          description: Required non-null month for payslip; optional month for other categories.
+        contentBase64:
+          type: string
+          contentEncoding: base64
+          maxLength: 6990508
+          description: PDF bytes only, up to 5 MiB decoded. Password-encrypted PDF is
+            rejected. Mandatory scanner before persistence.
     Role:
       type: string
       enum: [admin, manager, worker, accountant]

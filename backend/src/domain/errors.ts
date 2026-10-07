@@ -6,6 +6,7 @@ export type ProblemCode =
   | "CONFLICT"
   | "STALE_REVISION"
   | "RATE_LIMITED"
+  | "DOCUMENTS_UNAVAILABLE"
   | "INTERNAL_ERROR";
 
 const STATUS_BY_CODE: Record<ProblemCode, number> = {
@@ -16,6 +17,7 @@ const STATUS_BY_CODE: Record<ProblemCode, number> = {
   CONFLICT: 409,
   STALE_REVISION: 409,
   RATE_LIMITED: 429,
+  DOCUMENTS_UNAVAILABLE: 503,
   INTERNAL_ERROR: 500
 };
 

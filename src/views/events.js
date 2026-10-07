@@ -18,6 +18,7 @@
     'toggleTheme','toggleWorkerActive','updateCorrection','updateCorrectionPreview','updateReportDepartment',
     'openTerminalEvent','submitTerminalReconciliation','reloadTerminalEvents','reloadCorrections',
     'openTerminalRotation','submitTerminalRotation','changeTerminalRotationReason','revealTerminalCredential','copyTerminalCredential',
+    'filterDocuments','reloadDocuments','moreDocuments','downloadDocument','openDocumentUpload','findDocumentRecipients','submitDocumentUpload','reviewDocument','confirmDocument',
     'updateVacationRequestPreview','openScreenHelp','hideScreenHelp','restoreScreenHelp'
   ]);
   const allowedActions=new Set(actionNames);

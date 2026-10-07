@@ -38,3 +38,7 @@ Last reviewed: 2026-09-01
 - Review the full register at least monthly during active development.
 - A risk is closed only with reproducible evidence, not because work was planned, discussed or documented.
 - Merged application code does not close infrastructure, privacy, hardware or operational risks unless those layers have their own evidence.
+
+## DOC-001 — personal documents (2026-10-06, issue #256)
+
+HIGH / MITIGATING / NOT ACTIVATED. Misdelivery, unauthorized payroll access, unsafe uploads, DB/backup growth and lost decryption keys. Controls proposed in implementation: recipient review, immutable binding/content, server/RLS own-worker isolation, encrypted bytes, fail-closed scanner, limits, private downloads and content-free audit. Closure requires final PR security evidence plus deployed scanner/keys/restore/capacity and approved retention/access-after-employment policy. CI alone does not close operational/privacy risk.
