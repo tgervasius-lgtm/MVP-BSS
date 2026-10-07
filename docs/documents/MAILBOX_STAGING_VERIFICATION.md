@@ -1,6 +1,6 @@
 # Sandučić — provjera prije aktivacije
 
-Status: `PREPARED / NOT EXECUTED`, 2026-10-07.
+Status: `PREPARED / CI EXECUTION PENDING`, 2026-10-07.
 Osnova: spojeni PR #257, commit `773f5bb0377c84048f149f09295199aeb620ebeb`.
 Ovaj postupak ne odobrava hosting, trošak, deployment, migraciju stvarne baze ni uključivanje funkcije. Koristiti samo sintetičke dokumente i odvojeno testno okruženje.
 
@@ -28,6 +28,10 @@ Operator prije pokretanja zabilježi okruženje, SHA, datum i vlastiti identitet
 Tek u odobrenom izoliranom testnom okruženju operator konfigurira `DOCUMENTS_ENABLED`, `DOCUMENTS_KEYS_JSON`, `DOCUMENTS_ACTIVE_KEY_ID`, `DOCUMENTS_CLAMD_SOCKET` i po potrebi `DOCUMENTS_QUOTA_BYTES`. Nikad ispisivati vrijednosti ključeva u zapis, terminal capture ili chat.
 
 ## Scenariji i očekivani rezultat
+
+PR #259 dodaje `backend/test/operational/mailbox-runtime.test.ts` i posao `Mailbox real scanner and synthetic restore` u postojeći backend CI. Koristi privremeni PostgreSQL 16, pravi ClamAV sa službenim potpisima i lokalnim Unix socketom, čist sintetički PDF/EICAR PDF, fail-closed test te pg_dump/pg_restore u novu bazu uz zasebnu kopiju testnog keyringa. Izvršenje zahtijeva eksplicitni `synthetic-ci-only` marker, loopback URL i kontrolnu bazu `bss_test`. Fixture uklanja samo resurse koje je sam stvorio. Nema novih npm ovisnosti, cloud računa ni deploymenta; CI zahtijeva apt pakete i pristup službenom signature mirroru. Nedostupan mirror/engine prekida posao, bez preskakanja.
+
+Automatski dokaz je ograničen na clean/EICAR, nedostupan socket, dva key ID-a, obnovljene hashove/RLS/audit i novi upload. Ne zamjenjuje M01–M15 u stvarnom deployed stagingu, encrypted/obfuscated/polyglot PDF korpus, sesije, praćenje potpisa, dugotrajni kapacitet, off-platform backup ili provider PITR. Sintetičko izmjereno vrijeme nije prihvaćeni production RTO. Privremeni backup i ključevi ne izvoze se kao javni CI artifact.
 
 | ID | Radnja | Uvjet prolaza |
 |---|---|---|
