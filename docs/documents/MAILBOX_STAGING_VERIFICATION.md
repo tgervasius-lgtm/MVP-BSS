@@ -1,6 +1,6 @@
 # Sandučić — provjera prije aktivacije
 
-Status: `PREPARED / CI EXECUTION PENDING`, 2026-10-07.
+Status: `CI EXECUTED / ANTIVIRUS GATE FAILED / ACTIVATION BLOCKED`, 2026-10-07.
 Osnova: spojeni PR #257, commit `773f5bb0377c84048f149f09295199aeb620ebeb`.
 Ovaj postupak ne odobrava hosting, trošak, deployment, migraciju stvarne baze ni uključivanje funkcije. Koristiti samo sintetičke dokumente i odvojeno testno okruženje.
 
@@ -31,7 +31,7 @@ Tek u odobrenom izoliranom testnom okruženju operator konfigurira `DOCUMENTS_EN
 
 PR #259 dodaje `backend/test/operational/mailbox-runtime.test.ts` i posao `Mailbox real scanner and synthetic restore` u postojeći backend CI. Koristi privremeni PostgreSQL 16, pravi ClamAV sa službenim potpisima i lokalnim Unix socketom, čist sintetički PDF/EICAR PDF, fail-closed test te pg_dump/pg_restore u novu bazu uz zasebnu kopiju testnog keyringa. Izvršenje zahtijeva eksplicitni `synthetic-ci-only` marker, loopback URL i kontrolnu bazu `bss_test`. Fixture uklanja samo resurse koje je sam stvorio. Nema novih npm ovisnosti, cloud računa ni deploymenta; CI zahtijeva apt pakete i pristup službenom signature mirroru. Nedostupan mirror/engine prekida posao, bez preskakanja.
 
-Automatski dokaz je ograničen na clean/EICAR, nedostupan socket, dva key ID-a, obnovljene hashove/RLS/audit i novi upload. Ne zamjenjuje M01–M15 u stvarnom deployed stagingu, encrypted/obfuscated/polyglot PDF korpus, sesije, praćenje potpisa, dugotrajni kapacitet, off-platform backup ili provider PITR. Sintetičko izmjereno vrijeme nije prihvaćeni production RTO. Privremeni backup i ključevi ne izvoze se kao javni CI artifact.
+Predviđena automatska pokrivenost obuhvaća clean/EICAR, nedostupan socket, dva key ID-a, obnovljene hashove/RLS/audit i novi upload. Potvrđeni rezultati i neizvršene provjere navedeni su ispod; prisutnost testa sama nije PASS. Ne zamjenjuje M01–M15 u stvarnom deployed stagingu, encrypted/obfuscated/polyglot PDF korpus, sesije, praćenje potpisa, dugotrajni kapacitet, off-platform backup ili provider PITR. Sintetičko izmjereno vrijeme nije prihvaćeni production RTO. Privremeni backup i ključevi ne izvoze se kao javni CI artifact.
 
 | ID | Radnja | Uvjet prolaza |
 |---|---|---|
@@ -70,15 +70,19 @@ Ovo je zahtjev za dokaz, ne automatska naredba protiv postojeće baze. Operator 
 
 Za svaki M01–M15 i svaki korak obnove zabilježiti `PASS`, `FAIL`, `UNAVAILABLE` ili `SKIPPED`, komandu/radnju, vrijeme i privatnu referencu dokaza. `UNAVAILABLE` i `SKIPPED` nisu prolaz.
 
-| Dokaz | Stanje pri pripremi ovog postupka |
+| Dokaz | Potvrđeno stanje 2026-10-07 |
 |---|---|
 | Spojeni kod #257 | MERGED; potvrđeno iz aktualnog GitHuba |
-| Repo CI | Evidencija #257; nije ponovno izvođeno niti predstavljeno kao staging dokaz |
-| Stvarni ClamAV engine i potpisi | UNAVAILABLE u ovom radnom okruženju |
+| Repo CI | PR #259, SHA `cca20143ca4e255261ecd522b2c772ff7a799353`: backend quality i Ubuntu/Windows compatibility PASS; operativni job FAIL. Ostali dovršeni governance/change-impact/secrets/workflow-static/Trivy/security gateovi PASS; BSS quality još traje u trenutku zapisa. |
+| Stvarni ClamAV engine i potpisi | CI: ClamAV 1.5.4, službeni DB 28146; čist PDF prihvaćen, samostalni EICAR odbijen. PDF s ugrađenom EICAR datotekom nije odbijen: M12 FAIL. |
 | Provisionirani staging i stvarne sesije | UNVERIFIED; nema potvrđene instance za ovaj postupak |
-| Izolirani restore ciphertexta i keyringa | NOT EXECUTED |
+| Izolirani restore ciphertexta i keyringa | CI PASS: šifrirani pg_dump + zasebna kopija ključeva, pg_restore u novu sintetičku bazu, tri PDF-a pod K1/K2, hashovi/audit/FORCE RLS/tuđi pristup/nedostajući K1/novi upload. Izmjereno 743 ms za sintetičku obnovu i provjeru; nije staging RTO. |
 | Kapacitet, monitoring i alarmi scannera | NOT EXECUTED |
 | Politika retentiona, pristupa nakon prestanka rada i zakonite dostave | Otvoreni acceptance uvjeti prije stvarnih dokumenata |
+
+Dokaz: [backend CI run 37677717422](https://github.com/tgervasius-lgtm/MVP-BSS/actions/runs/37677717422), operativni job `112985406337`. Assertion za odbijanje ugrađenog EICAR PDF-a pada; kasnije provjere u tom testu (nula spremljenih zapisa i nedostupan socket) nisu izvršene i nisu PASS. Zasebni restore test prolazi. Test ostaje obvezan i crven, bez preskakanja ili zamjene očekivanog odbijanja prihvatom.
+
+Lokalno je potvrđeno da PDFKit fixture sadrži stvarni `/EmbeddedFile` i nekomprimirani testni sadržaj. Uzrok propuštanja još nije izoliran; ne pripisivati ga poznatom FlateDecode problemu bez dokaza. Prije aktivacije potrebno je dokazati pouzdano odbijanje tog PDF-a i proširiti reprezentativni korpus; izbor sanacije zahtijeva zasebnu implementaciju i sigurnosni pregled.
 
 Prije stvarnih dokumenata moraju proći svi obvezni tehnički scenariji, restore i operativne/privacy odluke iz implementacijskog dokumenta. Staging PASS ne dodjeljuje automatski Pilot/Production PASS. Aktivacija za stvarne radnike zahtijeva zasebno vlasničko release odobrenje.
 
