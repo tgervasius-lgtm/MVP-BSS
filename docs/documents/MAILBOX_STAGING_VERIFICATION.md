@@ -87,3 +87,29 @@ Lokalno je potvrđeno da PDFKit fixture sadrži stvarni `/EmbeddedFile` i nekomp
 Prije stvarnih dokumenata moraju proći svi obvezni tehnički scenariji, restore i operativne/privacy odluke iz implementacijskog dokumenta. Staging PASS ne dodjeljuje automatski Pilot/Production PASS. Aktivacija za stvarne radnike zahtijeva zasebno vlasničko release odobrenje.
 
 Rollback: odobrenim release putem postaviti `DOCUMENTS_ENABLED=false`; sačuvati shemu, ciphertext, keyring i backup. Ne pokretati migration down nad nepraznom bazom niti brisati ključeve.
+
+## 2026-10-08 — izolacija PDF token-boundary propuštanja
+
+Status: `ROOT CAUSE ISOLATED / REMEDIATION PROPOSED / ACTIVATION BLOCKED`.
+Reprodukcija: [CI run 37828817734](https://github.com/tgervasius-lgtm/MVP-BSS/actions/runs/37828817734), job `113488517949`, commit `1ee9badce7bb3dc530ed31a1ea56660f7df30fe8`.
+
+- Točan 68-bajtni EICAR payload potvrđen u nekomprimiranom EmbeddedFile streamu.
+- ClamAV 1.5.4 izravni CLI s `--debug --scan-pdf=yes` prihvaća isti PDF: rezultat `OK`. BSS socket adapter stoga nije jedini uzrok.
+- Trace za EmbeddedFile obj 9 0 navodi 90 ekstrahiranih bajtova umjesto 68; početak skeniranja uključuje dio PDF rječnika.
+- Usporedni PDF mijenja samo MIME metapodatak privitka iz `application/octet-stream` u `text/plain` (PDFKit također automatski generira datume/ID-eve). Isti EICAR payload i isti daemon: `text/plain` odbijen; originalni PDF prihvaćen.
+- Pregled [ClamAV 1.5.4 pdf.c](https://github.com/Cisco-Talos/clamav/blob/clamav-1.5.4/libclamav/pdf.c#L237) pokazuje da pdf_find_stream koristi prvo podudaranje podniza `stream` bez provjere granice tokena. U ovom fixtureu podniz u MIME imenu prethodi pravom stream tokenu. Trace i usporedba podupiru taj konkretan uzrok.
+- Ovaj nekomprimirani slučaj nije dokaz FlateDecode greške iz upstream #1773. Nije dokaz univerzalnog propuštanja svih PDF virusa.
+- Originalni upload rejection assertion ostaje obvezan i FAIL. Test nije zamijenjen lakšim MIME fixtureom.
+- Zasebni restore K1/K2, hashovi, audit i izolacija ponovno PASS. Backend quality i Windows/Linux compatibility PASS. Lokalni TypeScript PASS; lokalni socket unit test UNAVAILABLE zbog listen EPERM, ne PASS.
+
+### Sanacija za pregled — još nije prihvaćena ni implementirana
+
+Preporučeni kandidat: zasebna, ograničena strukturna provjera PDF-a neovisnim održavanim parserom prije spremanja, koja odbija ugrađene datoteke i neprovjerive PDF-ove. Obična pretraga bajtova/regex nije dovoljna jer imena, streamovi i objektni tokovi mogu biti kodirani ili komprimirani. ClamAV ostaje obvezan za dopuštene PDF-ove; nedostupnost parsera/scannera, timeout, oštećenje ili prekoračenje limita odbija upload.
+
+To mijenja politiku prihvaćenih PDF-ova: npr. PDF/A-3 s ugrađenim XML-om više ne bi bio dopušten. Prije runtime implementacije treba prihvatiti taj opseg, odabrati parser nakon provjere licence/ranjivosti/ograničenja te dopuniti API dokumentaciju, deployment dependencies i regresije. Ne popravljati samo EICAR regexom niti preimenovanjem testnog MIME-a.
+
+Alternativa koja čuva prihvat PDF privitaka: dokazano ispravljen/patched scanner ili neovisno izdvajanje i skeniranje svakog privitka, uz ograničenja broja, dubine, ukupnih dekodiranih bajtova, CPU/vremena i fail-closed ponašanje. Obje traže zaseban sigurnosni review i testni korpus; nije opravdano unaprijed tvrditi da nadogradnja enginea rješava problem.
+
+Acceptance prije uklanjanja blokade: originalni reproducer odbijen prije persistencea; čisti obični PDF dopušten; obfuscated/compressed/object-stream fixtures; timeout/limit/parser/scanner-down fail closed; nula document.uploaded audita i ciphertext zapisa pri odbijanju; RBAC/RLS/audit/restore regresije. Odluka o PDF politici nije donesena ovim dijagnostičkim PR-om. Nema runtime izmjene, mergea, deploymenta ni vendor aktivacije.
+
+Board/Mapa pročitani iz dostavljenih kopija (Board sadrži nastavak 08.10.02:59 UTC; Mapa source-refresh zapis 05.10.). Aktualni središnji VersionId-evi nisu dostavljeni niti potvrđeni: `SOURCE_FRESHNESS_UNVERIFIED`. To ne vraća ranije zatvorene zadatke.
