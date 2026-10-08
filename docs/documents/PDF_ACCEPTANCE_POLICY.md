@@ -101,10 +101,7 @@ output-budget rejection and normal/error temporary-file cleanup). Frontend lint,
 168 tests and build PASS. Socket test is locally UNAVAILABLE (`listen EPERM`), also
 reproduced on the unchanged baseline test; it is not marked PASS.
 
-CI PENDING on the implementation revision: actual ClamAV + original EICAR PDF upload
-rejection, benign attachment rejection, missing parser/scanner, no ciphertext or
-upload audit on rejection, clean upload/download, PostgreSQL/RLS and keyring restore.
-The original rejection assertion remains mandatory; no test was skipped to pass it.
+CI PASS on implementation `2c50a7669a115bee29b9eca83d00c820fb538478`: [backend run 37834648130](https://github.com/tgervasius-lgtm/MVP-BSS/actions/runs/37834648130), operational job `113508469864`, all 6 operational test groups pass. Actual ClamAV + original EICAR PDF upload rejection, benign attachment rejection, missing parser/scanner, no ciphertext or upload audit on rejection, clean upload/download, PostgreSQL/RLS and keyring restore are verified. qpdf 12.4.2; ClamAV official daily DB 28147. Both Linux/Windows compatibility and backend quality pass. The original rejection assertion remains mandatory; no test was skipped to pass it. Direct ClamAV still accepts the original attachment PDF: the added policy closes the upload path; the upstream engine is not claimed fixed. Three document hashes/two key generations restored; 751 ms synthetic measurement is not a staging RTO. Full PR checks are tracked on GitHub by head SHA.
 
 Before activation: deployed M01–M15, representative real-export synthetic/redacted
 corpus and ambiguous/polyglot coverage, runtime vulnerability/SBOM and process

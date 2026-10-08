@@ -1,6 +1,6 @@
 # Sandučić — provjera prije aktivacije
 
-Status: `PDF POLICY OWNER ACCEPTED / IMPLEMENTATION FOR REVIEW / CI PENDING / ACTIVATION BLOCKED`, 2026-10-08.
+Status: `PDF POLICY OWNER ACCEPTED / IMPLEMENTED FOR REVIEW / COMBINED CI GATE PASS / STAGING ACTIVATION BLOCKED`, 2026-10-08.
 Current policy: [PDF acceptance policy](PDF_ACCEPTANCE_POLICY.md). Historical ClamAV-only failure evidence below is retained; it does not describe a fixed upstream engine.
 Osnova: spojeni PR #257, commit `773f5bb0377c84048f149f09295199aeb620ebeb`.
 Ovaj postupak ne odobrava hosting, trošak, deployment, migraciju stvarne baze ni uključivanje funkcije. Koristiti samo sintetičke dokumente i odvojeno testno okruženje.
@@ -117,4 +117,4 @@ Board/Mapa pročitani iz dostavljenih kopija (Board sadrži nastavak 08.10.02:59
 
 ## 2026-10-08 — prihvaćena PDF politika i implementacija
 
-Vlasnik je izričito prihvatio odbijanje PDF-ova s ugrađenim datotekama uz zadržavanje ClamAV-a. Implementiran qpdf 12.4.2 pregled svih objekata u odvojenom ograničenom procesu; OpenAPI i upload poruka usklađeni. Dokumenti se ne prepravljaju. Izvorni application/octet-stream EICAR reproducer ostaje u testu i mora biti odbijen kroz upload, a čist PDF mora proći oba sloja. CI rezultat ove izmjene tek treba potvrditi; stariji PASS/FAIL rezultati nisu preneseni na novi SHA. Nema merge/deploy/activation.
+Vlasnik je izričito prihvatio odbijanje PDF-ova s ugrađenim datotekama uz zadržavanje ClamAV-a. Implementiran qpdf 12.4.2 pregled svih objekata u odvojenom ograničenom procesu; OpenAPI i upload poruka usklađeni. Dokumenti se ne prepravljaju. Izvorni application/octet-stream EICAR reproducer ostaje u testu i mora biti odbijen kroz upload, a čist PDF mora proći oba sloja. CI PASS na implementaciji `2c50a7669a115bee29b9eca83d00c820fb538478`: [run 37834648130](https://github.com/tgervasius-lgtm/MVP-BSS/actions/runs/37834648130), job `113508469864`, svih šest operativnih grupa testova prolazi. Originalni reproducer i benigni privitak odbijeni prije persistencea/audita; parser-down i scanner-down odbijaju; čisti PDF prolazi oba sloja; tri dokumenta pod K1/K2 obnovljena s odgovarajućim hashovima, izolacijom i auditom. Backend quality i Windows/Linux compatibility PASS. qpdf 12.4.2 / ClamAV daily DB 28147. ClamAV sam i dalje propušta originalni reproducer; dodatna politika zatvara taj upload put. Mjerenje 751 ms odnosi se samo na sintetičku obnovu. Završne PR provjere ocjenjuju se na aktualnom GitHub SHA-u. Nema merge/deploy/activation.
