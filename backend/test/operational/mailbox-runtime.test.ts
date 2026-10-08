@@ -31,7 +31,7 @@ function prerequisites() {
   return { database, socket };
 }
 
-async function syntheticPdf(label: string, attachment?: Buffer): Promise<Buffer> {
+async function syntheticPdf(label: string, attachment?: Buffer, attachmentType = 'application/octet-stream'): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     const pdf = new PDFDocument({ compress: false });
     const chunks: Buffer[] = [];
@@ -39,7 +39,7 @@ async function syntheticPdf(label: string, attachment?: Buffer): Promise<Buffer>
     pdf.on('error', reject);
     pdf.on('end', () => resolve(Buffer.concat(chunks)));
     pdf.text(`BSS synthetic operational fixture: ${label}`);
-    if (attachment) pdf.file(attachment, { name: 'eicar.com', type: 'application/octet-stream' });
+    if (attachment) pdf.file(attachment, { name: 'eicar.com', type: attachmentType });
     pdf.end();
   });
 }
@@ -87,6 +87,18 @@ test('operational mailbox: actual ClamAV rejects EICAR before persistence and ac
     t.diagnostic(`Direct ClamAV CLI exit ${cli.code}: ${cli.stdout.trim()}`);
     // Filter scanner debug noise; no user documents, keys or database URLs are logged.
     t.diagnostic(cli.stderr.split('\n').filter(line => /pdf|embedded|eicar|small data|extract|scan limit/i.test(line)).slice(-100).join('\n'));
+    // Change only attachment MIME metadata; keep the original failing PDF gate.
+    // An identical payload accepted only with a subtype ending in "stream"
+    // points to PDF token-boundary parsing, not socket transport or signatures.
+    const alternate = await syntheticPdf('embedded safe antivirus fixture', eicar, 'text/plain');
+    let alternateVerdict = 'accepted';
+    try { await scan(alternate); }
+    catch (error) {
+      const failed = error as Error & { code?: string };
+      assert.equal(failed.code, 'VALIDATION_FAILED', 'Alternate PDF scan must give a malware verdict, not an availability error');
+      alternateVerdict = 'rejected';
+    }
+    t.diagnostic(`MIME-only comparison via same daemon: application/octet-stream original; text/plain ${alternateVerdict}; exact payload unchanged`);
   } finally {
     await rm(diagnostics, { recursive: true, force: true });
   }
