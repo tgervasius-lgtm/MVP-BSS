@@ -1798,7 +1798,12 @@ paths:
       summary: Upload a private PDF draft
       description: Admin/accountant only. Origin protection, 10 uploads/minute/IP.
         Recipient/content are immutable. Exact retry via uploadId returns the
-        existing record. Scan failure persists no bytes. Bounded encrypted
+        existing record after structural validation. PDF files with embedded/associated
+        files, file-attachment annotations or portfolios are rejected with 422,
+        including compressed objects and escaped names. Invalid, encrypted or
+        uninspectable PDFs are not accepted. Both qpdf structural inspection and
+        ClamAV are mandatory; missing/failed inspection infrastructure returns 503.
+        Rejection persists no content or upload audit. Bounded encrypted
         PostgreSQL content; 250 MiB configured default organization quota and
         10000 document cap including withdrawn records. No automatic retention
         deletion.

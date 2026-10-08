@@ -6,11 +6,12 @@ import { withTenant } from '../../src/db/tenant.js';
 import { AppError } from '../../src/domain/errors.js';
 import { PgDocumentService } from '../../src/documents/pg-document-service.js';
 import type { DocumentUpload } from '../../src/documents/model.js';
+import { syntheticPdf } from '../helpers/pdf-fixture.js';
 import { documentFixture } from '../helpers/document-fixture.js';
 
 const url=process.env.BSS_TEST_DATABASE_URL,required=process.env.BSS_REQUIRE_POSTGRES_TESTS==='true';
 const options={skip:!url&&!required};
-const pdf=Buffer.from('%PDF-1.4\nSynthetic private fixture\n%%EOF\n');
+const pdf=await syntheticPdf('Synthetic private fixture');
 const upload=(workerId:string):DocumentUpload=>({workerId,uploadId:randomUUID(),title:'Synthetic payslip',category:'payslip',period:'2026-10',contentBase64:pdf.toString('base64')});
 
 test('mailbox PostgreSQL: draft/publication/withdrawal, encrypted bytes, own-worker and cross-tenant RLS, private audit',options,async t=>{

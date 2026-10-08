@@ -31,6 +31,86 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  mailbox-operational:
+    name: Mailbox real scanner and synthetic restore
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: bss_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d bss_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Node.js 22
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - name: Install locked test dependencies
+        run: |
+          npm ci --ignore-scripts
+          npm rebuild esbuild --foreground-scripts
+      - name: Install actual scanner and PostgreSQL 16 client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clamav-daemon clamav-freshclam postgresql-client-16
+      - name: Install pinned structural PDF inspector
+        run: bash scripts/install-qpdf-ci.sh
+      - name: Official signatures and isolated local scanner
+        run: |
+          umask 077
+          sudo systemctl stop clamav-freshclam clamav-daemon clamav-daemon.socket
+          timeout 300 sudo freshclam --stdout
+          sudo install -d -o "$(id -un)" -m 700 /run/clamav
+          sudo tee /etc/clamav/clamd.conf > /dev/null <<EOF
+          DatabaseDirectory /var/lib/clamav
+          User $(id -un)
+          LocalSocket /run/clamav/clamd.ctl
+          LocalSocketMode 600
+          ScanPDF yes
+          AlertEncryptedDoc yes
+          AlertExceedsMax yes
+          StreamMaxLength 6M
+          MaxFileSize 6M
+          MaxScanSize 40M
+          MaxRecursion 16
+          Foreground yes
+          EOF
+          clamd --version
+          clamd --config-file=/etc/clamav/clamd.conf > "$RUNNER_TEMP/mailbox-clamd.log" 2>&1 &
+          scanner_pid=$!
+          for attempt in $(seq 1 60); do
+            if [ -S /run/clamav/clamd.ctl ]; then exit 0; fi
+            if ! kill -0 "$scanner_pid" 2>/dev/null; then cat "$RUNNER_TEMP/mailbox-clamd.log"; exit 1; fi
+            sleep 1
+          done
+          printf 'ClamAV startup timeout after %s attempts\n' "$attempt"
+          cat "$RUNNER_TEMP/mailbox-clamd.log"
+          exit 1
+      - name: Actual scanner and encrypted logical restore proof
+        run: |
+          umask 077
+          export DOCUMENTS_CLAMD_SOCKET=/run/clamav/clamd.ctl
+          node --import tsx --test --test-concurrency=1 test/operational/pdf-policy.test.ts test/operational/mailbox-runtime.test.ts
+        env:
+          BSS_MAILBOX_DISPOSABLE_TEST: synthetic-ci-only
+          BSS_TEST_DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/bss_test
+
   static-compatibility:
     name: Static compatibility (${{ matrix.os }}, Node ${{ matrix.node }})
     runs-on: ${{ matrix.os }}
@@ -127,6 +207,9 @@ jobs:
           PUBLIC_ORIGIN: http://127.0.0.1:4173
           DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/bss_test
           DATABASE_SSL: "false"
+
+      - name: Install pinned structural PDF inspector
+        run: bash scripts/install-qpdf-ci.sh
 
       - name: PostgreSQL migration and isolation tests
         run: npm run test:integration

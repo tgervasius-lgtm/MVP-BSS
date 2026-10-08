@@ -7,6 +7,7 @@ import type { DocumentConfig } from "./config.js";
 import { openDocument, sealDocument } from "./crypto.js";
 import { documentReader, documentWriter, fingerprint, validateUpload, type DocumentView, type DocumentUpload, type DocumentFilters, type DocumentPage, type DocumentService } from "./model.js";
 import type { DocumentScanner } from "./scanner.js";
+import { inspectPdf } from "./pdf-policy.js";
 
 type Row = { id: string; worker_id: string; name: string; code: string; title: string; category: DocumentView['category']; period: string | null;
   state: DocumentView['state']; byte_length: number; revision: string; created_at: Date; published_at: Date | null; fingerprint?: string;
@@ -56,7 +57,10 @@ export class PgDocumentService implements DocumentService {
     });
   }
   async upload(actor: ActorContext, input: DocumentUpload, requestId: string): Promise<DocumentView> {
-    documentWriter(actor); const bytes = validateUpload(input); const digest = fingerprint(input, bytes);
+    documentWriter(actor); const bytes = validateUpload(input);
+    // Inspect retries too: a pre-policy draft must not bypass the PDF policy.
+    await inspectPdf(bytes);
+    const digest = fingerprint(input, bytes);
     const existing = async (tx: TenantTransaction) => {
       const r = (await tx.query<Row>(`SELECT ${columns},d.fingerprint ${join} WHERE d.organization_id=$1 AND d.uploaded_by=$2 AND d.upload_id=$3`,
         [actor.organizationId, actor.userId, input.uploadId])).rows[0];

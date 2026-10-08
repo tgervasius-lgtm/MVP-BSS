@@ -1,6 +1,6 @@
 # Worker document mailbox v1 — issue #256
 
-Status: IMPLEMENTATION FOR REVIEW / DISABLED BY DEFAULT / NOT DEPLOYED.
+Status: core MERGED (#257); PDF policy extension IMPLEMENTED FOR REVIEW (#259) / DISABLED BY DEFAULT / NOT DEPLOYED.
 Owner authorized the first mailbox implementation on 2026-10-06. Base: `98c4a44e59e02dfac29de246ddf0bbe4c1067680`. Merge and deployment remain separate decisions. Payroll calculation is explicitly deferred by the owner.
 
 ## User-facing contract
@@ -27,11 +27,15 @@ Audit actions: `document.uploaded`, `document.published`, `document.withdrawn`, 
 
 ## Validation and scanner
 
-Base64 is canonical and bounded; a PDF header/EOF check rejects obvious wrong types. A conservative `/Encrypt` rejection catches ordinary password-protected PDFs but is not a full PDF parser. Every new payload must receive the exact clean ClamAV INSTREAM response before persistence. Timeout, socket failure, size-limit/error/malformed response or FOUND fails closed; raw scanner output is not exposed or logged. The native adapter uses only an operator-configured local Unix socket, never a user-controlled remote destination. Inactive/missing config produces 503 rather than bypassing scanning or encryption.
+Owner accepted rejection of embedded-file PDFs on 2026-10-08. See [PDF acceptance policy](PDF_ACCEPTANCE_POLICY.md) for qpdf 12.4.2 runtime prerequisites, limits, privacy and regression evidence. New uploads and exact retries undergo mandatory structural inspection before any database lookup; embedded/associated files, attachment annotations and portfolios are rejected. Password/encryption, parse warnings/errors and inspection failures cannot pass. Original PDF bytes are never rewritten; text, images and multiple pages remain allowed.
+
+Base64 is canonical and bounded; a PDF header/EOF check rejects obvious wrong types. A conservative `/Encrypt` rejection catches ordinary password-protected PDFs and is supplemented by the mandatory independent qpdf inspection. Every new payload must receive the exact clean ClamAV INSTREAM response before persistence. Timeout, socket failure, size-limit/error/malformed response or FOUND fails closed; raw scanner output is not exposed or logged. The native adapter uses only an operator-configured local Unix socket, never a user-controlled remote destination. Inactive/missing config produces 503 rather than bypassing scanning or encryption.
 
 Before activation, configure and verify supported ClamAV with current signatures, ScanPDF, encrypted-document detection (`AlertEncrypted`/PDF equivalent), and scanning/recursion/stream limits covering the full permitted PDF. Alert on exceeded scan limits. Validate encrypted/obfuscated PDFs, malformed/polyglot files, EICAR and clean representative PDFs with the actual engine. Local protocol fixtures only verify transport/fail-closed handling; they do not establish malware-detection effectiveness. Engine/signature health, Unix socket permissions and deployment compatibility must be operationally monitored. Do not send payroll PDFs to public scanning services.
 
 ## Configuration / activation gates
+
+Provider-neutral execution checklist and restore evidence requirements: [Mailbox staging verification](MAILBOX_STAGING_VERIFICATION.md). Preparation is not execution or activation approval.
 
 `DOCUMENTS_ENABLED` defaults to false. An enabled process must have all of:
 
