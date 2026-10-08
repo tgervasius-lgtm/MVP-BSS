@@ -64,6 +64,32 @@ test('operational mailbox: actual ClamAV rejects EICAR before persistence and ac
   await assert.rejects(scan(eicar), { code: 'VALIDATION_FAILED' });
   // Valid PDF with a file attachment: exercises actual PDF extraction rather than an ignored comment.
   const infected = await syntheticPdf('embedded safe antivirus fixture', eicar);
+  // Diagnose the exact failing fixture independently of the BSS socket adapter.
+  // Only synthetic bytes are written; retain the upload rejection gate below.
+  const diagnostics = await mkdtemp(join(tmpdir(), 'bss-scanner-diagnostic-'));
+  try {
+    const pdfPath = join(diagnostics, 'embedded.pdf');
+    await writeFile(pdfPath, infected, { mode: 0o600 });
+    assert.ok(infected.includes(eicar), 'Uncompressed PDF must contain the exact test payload');
+    const embedded = infected.toString('latin1').match(/\/Type \/EmbeddedFile[\s\S]*?\r?\nstream\r?\n([\s\S]*?)\r?\nendstream/);
+    assert.ok(embedded, 'EmbeddedFile stream must exist');
+    assert.deepEqual(Buffer.from(embedded[1]!, 'latin1'), eicar, 'Attachment bytes must match standalone detected payload');
+    t.diagnostic(`Synthetic PDF: ${infected.length} bytes; exact ${eicar.length}-byte EmbeddedFile payload verified; SHA256 ${hash(infected)}`);
+    let cli: { stdout: string; stderr: string; code?: number };
+    try {
+      cli = await run('clamscan', ['--debug', '--stdout', '--scan-pdf=yes', pdfPath], { timeout: 30_000, maxBuffer: 2 * 1024 * 1024 });
+      cli.code = 0;
+    } catch (error) {
+      const failed = error as Error & { code?: number; stdout?: string; stderr?: string };
+      assert.equal(failed.code, 1, `Direct scanner failed independently of malware verdict: ${failed.message}`);
+      cli = { code: failed.code, stdout: failed.stdout ?? '', stderr: failed.stderr ?? '' };
+    }
+    t.diagnostic(`Direct ClamAV CLI exit ${cli.code}: ${cli.stdout.trim()}`);
+    // Filter scanner debug noise; no user documents, keys or database URLs are logged.
+    t.diagnostic(cli.stderr.split('\n').filter(line => /pdf|embedded|eicar|small data|extract|scan limit/i.test(line)).slice(-100).join('\n'));
+  } finally {
+    await rm(diagnostics, { recursive: true, force: true });
+  }
   const f = await documentFixture(database, scan);
   t.after(f.dispose);
   await assert.rejects(f.service.upload(f.first.admin, upload(f.first.workers[0]!, infected), 'eicar-upload'), { code: 'VALIDATION_FAILED' });
