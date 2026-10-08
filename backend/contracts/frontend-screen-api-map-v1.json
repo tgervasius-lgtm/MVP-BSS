@@ -16,7 +16,7 @@
   "repositoryBaseline": "98c4a44e59e02dfac29de246ddf0bbe4c1067680",
   "openapi": {
     "file": "openapi/bss-mvp-api-v1.yaml",
-    "sha256": "dd929c7b10a1b7de285604b1e0f6fae57e92778ee9dc1b0a3503afb2a39a9393",
+    "sha256": "896803ca4611e883f09d56351f1c76cc53beb5127d353b01a5ef7e499eba640a",
     "version": "1.5.0",
     "status": "MVP_IMPLEMENTED",
     "paths": 58,

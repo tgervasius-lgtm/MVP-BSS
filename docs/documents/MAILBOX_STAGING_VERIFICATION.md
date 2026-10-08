@@ -1,6 +1,7 @@
 # Sandučić — provjera prije aktivacije
 
-Status: `CI EXECUTED / ANTIVIRUS GATE FAILED / ACTIVATION BLOCKED`, 2026-10-07.
+Status: `PDF POLICY OWNER ACCEPTED / IMPLEMENTATION FOR REVIEW / CI PENDING / ACTIVATION BLOCKED`, 2026-10-08.
+Current policy: [PDF acceptance policy](PDF_ACCEPTANCE_POLICY.md). Historical ClamAV-only failure evidence below is retained; it does not describe a fixed upstream engine.
 Osnova: spojeni PR #257, commit `773f5bb0377c84048f149f09295199aeb620ebeb`.
 Ovaj postupak ne odobrava hosting, trošak, deployment, migraciju stvarne baze ni uključivanje funkcije. Koristiti samo sintetičke dokumente i odvojeno testno okruženje.
 
@@ -20,7 +21,7 @@ Operator prije pokretanja zabilježi okruženje, SHA, datum i vlastiti identitet
 1. Potvrđen zaseban testni backend, baza i release put; nikakva veza s production podacima, bazom ili ključevima.
 2. Odobren deployment testnog okruženja. Izbor pružatelja i eventualni trošak zahtijevaju vlastitu odluku; ovaj dokument ih ne pretpostavlja.
 3. Migracija 014 primijenjena odobrenim putem i runtime račun bez superuser/BYPASSRLS ovlasti. Pregledati [runtime grants](../../backend/deploy/runtime-grants.sql) zajedno s dodatnim mailbox grantovima iz implementacijskog dokumenta; ne dodjeljivati blanket prava.
-4. Stvarni podržani ClamAV engine s aktualnim potpisima, ScanPDF i politikom odbijanja šifriranih PDF-ova. Limiti skeniranja/rekurzije/streama moraju pokrivati dopuštenih 5 MiB i alarmirati prekoračenja.
+4. Instaliran i verificiran qpdf 12.4.2 te util-linux prlimit, privatni tmpfs i granice iz PDF acceptance policyja. Stvarni podržani ClamAV engine s aktualnim potpisima, ScanPDF i politikom odbijanja šifriranih PDF-ova. Limiti skeniranja/rekurzije/streama moraju pokrivati dopuštenih 5 MiB i alarmirati prekoračenja.
 5. Backend ima dostupan lokalni Unix socket s minimalnim pravima. Postojeći adapter ne podržava zamjenu proizvoljnim udaljenim TCP scannerom. Način pakiranja backend+scanner mora biti provjeren na odabranom runtimeu.
 6. Testni keyring pohranjen izvan repozitorija; zasebno zaštićena kopija ključeva dostupna operatoru obnove. Stari ključevi sačuvani dok postoje pripadajući zapisi/backupi.
 7. Dvije sintetičke tvrtke, dva radnika u prvoj te admin, accountant i manager računi. Pripremiti testni ugovor i mjesečnu platnu listu bez stvarnih osobnih podataka.
@@ -45,7 +46,7 @@ Predviđena automatska pokrivenost obuhvaća clean/EICAR, nedostupan socket, dva
 | M08 | Objaviti/povući sa zastarjelom revision/If-Match | Konflikt; nema tihog prepisivanja novije odluke. |
 | M09 | Povlačenje objavljenog dokumenta i novo preuzimanje | Novo preuzimanje odbijeno za sve uloge; ranije preuzeta kopija ne može se opozvati. |
 | M10 | Odjava/promjena identiteta/blokiranje korisnika | Nema zaostalih privatnih podataka u UI-u; opozvana sesija ne dopušta novi pristup kroz backend. |
-| M11 | Zaustaviti scanner, izazvati timeout i prekoračenje scan limita | Upload odbijen; ništa se ne sprema; nema bypassa ni sirovog scanner izlaza u logovima. |
+| M11 | Učiniti parser/scanner nedostupnim, izazvati timeout i prekoračenje limita | Upload odbijen; ništa se ne sprema; nema bypassa ni sirovog scanner izlaza u logovima. |
 | M12 | EICAR sigurni testni uzorak kroz engine te valjani PDF s testnim uzorkom kroz upload | Engine detektira uzorak, API odbija upload prije spremanja. Običan EICAR tekst odbijen PDF provjerom nije dokaz rada scannera. |
 | M13 | Šifrirani, oštećeni, obfuskovani i kontrolirani polyglot PDF fixturei | Svaki ima unaprijed definiran očekivani ishod; šifrirani PDF odbijen; rezultati provjereni na stvarnom engineu. Ne koristiti živi malware. |
 | M14 | PDF preko 5 MiB, testna quota i višestruki istodobni uploadi | Odbijanje prema ugovoru; nema prekoračenja kvote ni duplikata. Mjeriti latenciju/RSS i ponašanje procesa pri restartu. |
@@ -102,7 +103,7 @@ Reprodukcija: [CI run 37828817734](https://github.com/tgervasius-lgtm/MVP-BSS/ac
 - Originalni upload rejection assertion ostaje obvezan i FAIL. Test nije zamijenjen lakšim MIME fixtureom.
 - Zasebni restore K1/K2, hashovi, audit i izolacija ponovno PASS. Backend quality i Windows/Linux compatibility PASS. Lokalni TypeScript PASS; lokalni socket unit test UNAVAILABLE zbog listen EPERM, ne PASS.
 
-### Sanacija za pregled — još nije prihvaćena ni implementirana
+### Povijesni prijedlog sanacije — naknadno prihvaćen 08.10.2026.
 
 Preporučeni kandidat: zasebna, ograničena strukturna provjera PDF-a neovisnim održavanim parserom prije spremanja, koja odbija ugrađene datoteke i neprovjerive PDF-ove. Obična pretraga bajtova/regex nije dovoljna jer imena, streamovi i objektni tokovi mogu biti kodirani ili komprimirani. ClamAV ostaje obvezan za dopuštene PDF-ove; nedostupnost parsera/scannera, timeout, oštećenje ili prekoračenje limita odbija upload.
 
@@ -113,3 +114,7 @@ Alternativa koja čuva prihvat PDF privitaka: dokazano ispravljen/patched scanne
 Acceptance prije uklanjanja blokade: originalni reproducer odbijen prije persistencea; čisti obični PDF dopušten; obfuscated/compressed/object-stream fixtures; timeout/limit/parser/scanner-down fail closed; nula document.uploaded audita i ciphertext zapisa pri odbijanju; RBAC/RLS/audit/restore regresije. Odluka o PDF politici nije donesena ovim dijagnostičkim PR-om. Nema runtime izmjene, mergea, deploymenta ni vendor aktivacije.
 
 Board/Mapa pročitani iz dostavljenih kopija (Board sadrži nastavak 08.10.02:59 UTC; Mapa source-refresh zapis 05.10.). Aktualni središnji VersionId-evi nisu dostavljeni niti potvrđeni: `SOURCE_FRESHNESS_UNVERIFIED`. To ne vraća ranije zatvorene zadatke.
+
+## 2026-10-08 — prihvaćena PDF politika i implementacija
+
+Vlasnik je izričito prihvatio odbijanje PDF-ova s ugrađenim datotekama uz zadržavanje ClamAV-a. Implementiran qpdf 12.4.2 pregled svih objekata u odvojenom ograničenom procesu; OpenAPI i upload poruka usklađeni. Dokumenti se ne prepravljaju. Izvorni application/octet-stream EICAR reproducer ostaje u testu i mora biti odbijen kroz upload, a čist PDF mora proći oba sloja. CI rezultat ove izmjene tek treba potvrditi; stariji PASS/FAIL rezultati nisu preneseni na novi SHA. Nema merge/deploy/activation.

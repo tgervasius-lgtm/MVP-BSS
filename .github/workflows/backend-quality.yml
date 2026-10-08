@@ -69,6 +69,8 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y clamav-daemon clamav-freshclam postgresql-client-16
+      - name: Install pinned structural PDF inspector
+        run: bash scripts/install-qpdf-ci.sh
       - name: Official signatures and isolated local scanner
         run: |
           umask 077
@@ -104,7 +106,7 @@ jobs:
         run: |
           umask 077
           export DOCUMENTS_CLAMD_SOCKET=/run/clamav/clamd.ctl
-          node --import tsx --test test/operational/mailbox-runtime.test.ts
+          node --import tsx --test --test-concurrency=1 test/operational/pdf-policy.test.ts test/operational/mailbox-runtime.test.ts
         env:
           BSS_MAILBOX_DISPOSABLE_TEST: synthetic-ci-only
           BSS_TEST_DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/bss_test
@@ -205,6 +207,9 @@ jobs:
           PUBLIC_ORIGIN: http://127.0.0.1:4173
           DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/bss_test
           DATABASE_SSL: "false"
+
+      - name: Install pinned structural PDF inspector
+        run: bash scripts/install-qpdf-ci.sh
 
       - name: PostgreSQL migration and isolation tests
         run: npm run test:integration

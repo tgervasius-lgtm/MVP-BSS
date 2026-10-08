@@ -6,14 +6,16 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { promisify } from 'node:util';
+import fs from 'node:fs/promises';
+import { syncBuiltinESMExports } from 'node:module';
 import pg from 'pg';
-import PDFDocument from 'pdfkit';
 import { loadDocumentConfig } from '../../src/documents/config.js';
 import { openDocument, sealDocument } from '../../src/documents/crypto.js';
 import { PgDocumentService } from '../../src/documents/pg-document-service.js';
 import { clamScanner } from '../../src/documents/scanner.js';
 import type { DocumentUpload } from '../../src/documents/model.js';
 import { documentFixture } from '../helpers/document-fixture.js';
+import { syntheticPdf } from '../helpers/pdf-fixture.js';
 import { createPostgresFixture } from '../helpers/postgres-fixture.js';
 
 const run = promisify(execFile);
@@ -31,18 +33,6 @@ function prerequisites() {
   return { database, socket };
 }
 
-async function syntheticPdf(label: string, attachment?: Buffer, attachmentType = 'application/octet-stream'): Promise<Buffer> {
-  return new Promise((resolve, reject) => {
-    const pdf = new PDFDocument({ compress: false });
-    const chunks: Buffer[] = [];
-    pdf.on('data', (chunk: Buffer) => chunks.push(chunk));
-    pdf.on('error', reject);
-    pdf.on('end', () => resolve(Buffer.concat(chunks)));
-    pdf.text(`BSS synthetic operational fixture: ${label}`);
-    if (attachment) pdf.file(attachment, { name: 'eicar.com', type: attachmentType });
-    pdf.end();
-  });
-}
 
 function upload(workerId: string, bytes: Buffer): DocumentUpload {
   return { workerId, uploadId: randomUUID(), title: 'Synthetic operational PDF', category: 'payslip', period: '2026-10', contentBase64: bytes.toString('base64') };
@@ -53,7 +43,7 @@ function postgresEnv(database: URL) {
     PGPASSWORD: decodeURIComponent(database.password), PGDATABASE: database.pathname.slice(1), PGCONNECT_TIMEOUT: '5' };
 }
 
-test('operational mailbox: actual ClamAV rejects EICAR before persistence and accepts a clean PDF', { timeout: 90_000 }, async t => {
+test('operational mailbox: PDF policy blocks embedded EICAR before persistence; actual ClamAV still required for clean PDFs', { timeout: 90_000 }, async t => {
   const { database, socket } = prerequisites();
   const scan = clamScanner(socket);
   const clean = await syntheticPdf('clean');
@@ -102,13 +92,24 @@ test('operational mailbox: actual ClamAV rejects EICAR before persistence and ac
   } finally {
     await rm(diagnostics, { recursive: true, force: true });
   }
-  const f = await documentFixture(database, scan);
+  let scannerCalls = 0;
+  const f = await documentFixture(database, async bytes => { scannerCalls++; await scan(bytes); });
   t.after(f.dispose);
   await assert.rejects(f.service.upload(f.first.admin, upload(f.first.workers[0]!, infected), 'eicar-upload'), { code: 'VALIDATION_FAILED' });
+  const benign = await syntheticPdf('benign attachment also forbidden', Buffer.from('synthetic benign attachment'));
+  await assert.rejects(f.service.upload(f.first.admin, upload(f.first.workers[0]!, benign), 'benign-attachment-upload'), { code: 'VALIDATION_FAILED' });
+  // Missing parser cannot silently fall through to ClamAV or persistence.
+  const inaccessible = t.mock.method(fs, 'access', async () => { throw Object.assign(new Error('Synthetic dependency unavailable'), { code: 'ENOENT' }); });
+  syncBuiltinESMExports();
+  try {
+    await assert.rejects(f.service.upload(f.first.admin, upload(f.first.workers[0]!, clean), 'parser-down'), { code: 'DOCUMENTS_UNAVAILABLE' });
+  } finally { inaccessible.mock.restore(); syncBuiltinESMExports(); }
+  assert.equal(scannerCalls, 0, 'Rejected structural policy must run before scanner');
   assert.equal((await f.owner.query('SELECT count(*)::integer AS n FROM worker_documents')).rows[0].n, 0);
   assert.equal((await f.owner.query("SELECT count(*)::integer AS n FROM audit_events WHERE action='document.uploaded'")).rows[0].n, 0);
   const input = upload(f.first.workers[0]!, clean);
   const draft = await f.service.upload(f.first.accountant, input, 'clean-upload');
+  assert.equal(scannerCalls, 1, 'Accepted PDF must still pass actual ClamAV');
   await f.service.transition(f.first.accountant, draft.id, draft.revision, 'publish', 'clean-publish');
   assert.equal(hash((await f.service.download(f.first.worker, draft.id, 'clean-download')).content), hash(clean));
   const absent = new PgDocumentService(f.appPool, f.config, clamScanner(join(tmpdir(), `missing-clamd-${randomUUID()}`), 100));

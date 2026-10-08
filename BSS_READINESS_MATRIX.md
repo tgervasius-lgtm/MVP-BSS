@@ -164,4 +164,6 @@ For every new module/service or external platform, record the owner, threat mode
 
 ## Document mailbox extension — #256 (2026-10-06)
 
-IMPLEMENTATION FOR REVIEW / DISABLED BY DEFAULT. Personal PDF delivery/download is owner-authorized scope; deployment, real-data use, retention/destruction policy, actual scanner proof, independent keys/restore and capacity evidence remain NOT PROVEN. See `docs/documents/WORKER_DOCUMENT_MAILBOX_V1.md`. No existing Staging/Pilot/Production status is upgraded by this change.
+Core MERGED (#257); PDF acceptance policy extension IMPLEMENTED FOR REVIEW (#259) / DISABLED BY DEFAULT. Personal PDF delivery/download is owner-authorized scope; deployment, real-data use, retention/destruction policy, actual scanner proof, independent keys/restore and capacity evidence remain NOT PROVEN. See `docs/documents/WORKER_DOCUMENT_MAILBOX_V1.md`. No existing Staging/Pilot/Production status is upgraded by this change.
+
+PDF policy (owner accepted 2026-10-08): reject embedded-file PDFs through mandatory qpdf 12.4.2 inspection alongside ClamAV. See `docs/documents/PDF_ACCEPTANCE_POLICY.md`. Local structural corpus PASS; combined CI verification pending for this revision. No staging/Pilot/Production readiness upgrade.
