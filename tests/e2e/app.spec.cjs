@@ -291,3 +291,29 @@ test('dokument API sučelje: primatelj, nacrt, potvrda objave i preuzimanje PDF-
   expect(errors).toEqual([]);
 });
 });
+
+test('report-version UX keeps explicit source and accessible responsive states',async({page})=>{
+  const errors=trackErrors(page);
+  await page.goto('/design-system/report-versions.html');
+  await page.locator('input[value="locked"]').check();
+  await expect(page.locator('#prepare')).toBeDisabled();
+  await page.locator('#version').selectOption('sample-v1');
+  await page.locator('#prepare').click();
+  await expect(page.locator('#confirmation-copy')).toContainText('Verzija 1');
+  await page.locator('#format').selectOption('PDF');
+  await expect(page.locator('#confirmation')).toBeHidden();
+  for(const value of ['empty','error','gone']){
+    await page.locator('#scenario').selectOption(value);
+    await expect(page.locator('#prepare')).toBeDisabled();
+    await expect(page.locator('input[value="locked"]')).toBeChecked();
+  }
+  await page.locator('#scenario').selectOption('ready');
+  await expect(page.locator('#prepare')).toBeDisabled();
+  await page.locator('#version').selectOption('sample-v2');
+  for(const theme of ['light','dark']){
+    if(theme==='dark')await page.locator('#theme').click();
+    expect(await seriousAxeViolations(page)).toEqual([]);
+    expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  }
+  expect(errors).toEqual([]);
+});

@@ -2842,3 +2842,30 @@ test('stvarni API adapter šalje uneseno obrazloženje i reviziju bez generičke
   assert.deepEqual(JSON.parse(sent[0].body),{note:'Provjerite odjavu sa svojim voditeljem.'});
   assert.equal(sent[0].headers['If-Match'],'"7"');
 });
+
+test('report-version UX blocks unavailable locked sources and invalidates edited confirmation',()=>{
+  const documentHtml=fs.readFileSync('design-system/report-versions.html','utf8');
+  const controller=fs.readFileSync('src/views/report-version-preview.js','utf8');
+  const dom=new JSDOM(documentHtml,{runScripts:'outside-only'});
+  try{
+    dom.window.eval(controller);
+    const doc=dom.window.document;
+    const change=()=>new dom.window.Event('change',{bubbles:true});
+    const locked=doc.querySelector('input[value="locked"]');
+    locked.checked=true;locked.dispatchEvent(change());
+    const prepare=doc.getElementById('prepare'),version=doc.getElementById('version');
+    assert.equal(prepare.disabled,true);
+    version.value='sample-v1';version.dispatchEvent(change());prepare.click();
+    assert.match(doc.getElementById('confirmation-copy').textContent,/Verzija 1/);
+    const format=doc.getElementById('format');format.value='PDF';format.dispatchEvent(change());
+    assert.equal(doc.getElementById('confirmation').hidden,true);
+    const scenario=doc.getElementById('scenario');
+    for(const value of ['empty','error','gone']){
+      scenario.value=value;scenario.dispatchEvent(change());
+      assert.equal(prepare.disabled,true);assert.equal(locked.checked,true);
+      prepare.click();assert.equal(doc.getElementById('confirmation').hidden,true);
+    }
+    scenario.value='ready';scenario.dispatchEvent(change());
+    assert.equal(prepare.disabled,true);
+  }finally{dom.window.close();}
+});
