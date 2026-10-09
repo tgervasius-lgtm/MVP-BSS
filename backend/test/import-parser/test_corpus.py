@@ -6,6 +6,8 @@ from pathlib import Path
 import sys
 import unittest
 import zipfile
+import struct
+import zlib
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "import-parser"))
 from archive import Rejected, MAX_ENTRY
@@ -130,6 +132,26 @@ class Corpus(unittest.TestCase):
                 warnings.simplefilter('ignore', UserWarning)
                 z.writestr('xl/workbook.xml', parts()['xl/workbook.xml'])
         with self.assertRaises(Rejected): parse(buf.getvalue(), 'xlsx', ',')
+
+    def test_forged_uncompressed_size_cannot_hide_extra_inflated_bytes(self):
+        p = parts(); p['docProps/core.xml'] = '<a/>' + 'hidden-extra-data' * 20
+        data = bytearray(workbook(p))
+        with zipfile.ZipFile(io.BytesIO(data)) as z:
+            info = z.getinfo('docProps/core.xml')
+        checksum = zlib.crc32(b'<a/>')
+        struct.pack_into('<I', data, info.header_offset + 14, checksum)
+        struct.pack_into('<I', data, info.header_offset + 22, 4)
+        cursor = 0
+        while True:
+            cursor = data.find(b'PK\x01\x02', cursor)
+            if cursor < 0: self.fail('central entry missing')
+            size = struct.unpack_from('<H', data, cursor + 28)[0]
+            if data[cursor+46:cursor+46+size] == b'docProps/core.xml':
+                struct.pack_into('<I', data, cursor + 16, checksum)
+                struct.pack_into('<I', data, cursor + 24, 4)
+                break
+            cursor += 4
+        with self.assertRaises(Rejected): parse(bytes(data), 'xlsx', ',')
 
 
 if __name__ == '__main__':

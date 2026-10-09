@@ -7,7 +7,9 @@ import io
 import posixpath
 import re
 import stat
+import struct
 import zipfile
+import zlib
 import xml.etree.ElementTree as ET
 
 S = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
@@ -63,6 +65,33 @@ def bounded_xml(data):
     return root
 
 
+def inflated(z, info, data):
+    # ZipExtFile bounds reads by the advertised *uncompressed* size. Inspect
+    # actual DEFLATE output independently so a forged small size/CRC cannot
+    # conceal trailing decompressed content. zipfile still validates each local
+    # header/name/overlap before this bounded stdlib-zlib scan.
+    with z.open(info):
+        pass
+    offset = info.header_offset
+    require(offset >= 0 and data[offset:offset + 4] == b"PK\x03\x04", "INVALID_FORMAT")
+    flags, method = struct.unpack_from("<HH", data, offset + 6)
+    require(flags == info.flag_bits and method == info.compress_type, "INVALID_FORMAT")
+    name_size, extra_size = struct.unpack_from("<HH", data, offset + 26)
+    start = offset + 30 + name_size + extra_size
+    require(start + info.compress_size <= len(data), "INVALID_FORMAT")
+    compressed = data[start:start + info.compress_size]
+    if info.compress_type == zipfile.ZIP_STORED:
+        yield compressed
+        return
+    decoder = zlib.decompressobj(-15)
+    tail = compressed
+    while tail:
+        chunk = decoder.decompress(tail, 65536)
+        tail = decoder.unconsumed_tail
+        yield chunk
+    require(decoder.eof and not decoder.unused_data, "INVALID_FORMAT")
+
+
 def archive(data):
     require(data.startswith(b"PK\x03\x04"), "INVALID_FORMAT")
     result = {}
@@ -87,17 +116,16 @@ def archive(data):
             require(info.file_size <= MAX_ENTRY and info.file_size <= max(1, info.compress_size) * 100, "ARCHIVE_LIMIT")
             chunks = []
             size = 0
-            with z.open(info) as stream:
-                while True:
-                    chunk = stream.read(65536)
-                    if not chunk:
-                        break
-                    size += len(chunk)
-                    total += len(chunk)
-                    require(size <= MAX_ENTRY and size <= max(1, info.compress_size) * 100
-                            and total <= MAX_EXPANDED and total <= len(data) * 100, "ARCHIVE_LIMIT")
-                    chunks.append(chunk)
+            crc = 0
+            for chunk in inflated(z, info, data):
+                size += len(chunk)
+                total += len(chunk)
+                require(size <= MAX_ENTRY and size <= max(1, info.compress_size) * 100
+                        and total <= MAX_EXPANDED and total <= len(data) * 100, "ARCHIVE_LIMIT")
+                crc = zlib.crc32(chunk, crc)
+                chunks.append(chunk)
             require(size == info.file_size, "INVALID_FORMAT")
+            require(crc == info.CRC, "INVALID_FORMAT")
             result[name] = bounded_xml(b"".join(chunks))
     for mandatory in ("[Content_Types].xml", "_rels/.rels", "xl/workbook.xml", "xl/_rels/workbook.xml.rels"):
         require(mandatory in result, "INVALID_FORMAT")

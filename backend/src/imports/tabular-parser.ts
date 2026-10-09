@@ -18,7 +18,7 @@ const unavailable = () => new ImportParserError("UNAVAILABLE", "PARSER_UNAVAILAB
 // Trusted paths only. No environment-selected executable or user-provided path.
 // Do not bind /, /etc, /home, host /proc, application config or DB credentials.
 export function importSandboxArgs(directory: string): string[] {
-  return ["--unshare-all", "--disable-userns", "--die-with-parent", "--new-session", "--cap-drop", "ALL",
+  return ["--unshare-all", "--unshare-user", "--disable-userns", "--die-with-parent", "--new-session", "--cap-drop", "ALL",
     "--ro-bind", "/usr", "/usr", "--ro-bind", "/lib", "/lib", "--ro-bind", "/lib64", "/lib64",
     "--ro-bind", directory, "/parser", "--dir", "/tmp", "--remount-ro", "/", "--chdir", "/parser",
     "--clearenv", "--setenv", "LANG", "C.UTF-8", "--", "/usr/bin/prlimit",
