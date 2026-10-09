@@ -14,12 +14,26 @@ function bindings(input: ReferenceBinding[], cells: SourceCell[]): Map<string, s
   const result = new Map<string, string>();
   for (const item of input) {
     if (!item || typeof item.source !== "string" || item.source !== item.source.trim()
-      || Object.keys(item).sort().join(",") !== "id,source" || !present.has(item.source) || result.has(item.source)) invalid();
+      || Object.keys(item).length !== 2 || !Object.hasOwn(item, "id") || !Object.hasOwn(item, "source")
+      || !present.has(item.source) || result.has(item.source)) invalid();
     assertId(item.id); result.set(item.source, item.id.toLowerCase());
   }
   // Missing bindings become row errors (the Admin can repair the mapping).
   // Every supplied ID is rechecked by the existing store under tenant RLS.
   return result;
+}
+
+function validAllowance(value: unknown): boolean {
+  if (typeof value === "number") return Number.isInteger(value) && value >= 0 && value <= 366;
+  return typeof value === "string" && /^(?:0|[1-9]\d{0,2})$/.test(value) && Number(value) <= 366;
+}
+
+// Checksums need a stable code-unit order, independent of the host's locale.
+function orderedBindings(map: Map<string, string>): [string, string][] {
+  return [...map.entries()].sort(([a], [b]) => {
+    if (a === b) return 0;
+    return a < b ? -1 : 1;
+  });
 }
 
 /** Pure normalization boundary; never looks up names globally or creates refs.
@@ -30,7 +44,7 @@ export function mapImportSource(source: ParsedTable, mapping: SourceMapping): {
   canonicalRows: ImportWorker[] | null; issues: ImportIssue[]; mappingChecksum: string;
 } {
   if (!mapping || !Array.isArray(mapping.columns) || mapping.columns.length !== source.headers.length
-    || Object.keys(mapping).sort().join(",") !== "columns,departments,shifts"
+    || Object.keys(mapping).length !== 3 || !["columns", "departments", "shifts"].every(key => Object.hasOwn(mapping, key))
     || mapping.columns.some(x => !FIELDS.includes(x)) || new Set(mapping.columns).size !== mapping.columns.length
     || FIELDS.filter(x => x !== "email").some(x => !mapping.columns.includes(x))) invalid();
   const departmentIndex = mapping.columns.indexOf("department");
@@ -47,8 +61,7 @@ export function mapImportSource(source: ParsedTable, mapping: SourceMapping): {
       if (typeof value[field] !== "string" || !(value[field] as string).trim()) issue(field, "TEXT_REQUIRED");
     if (value.email !== undefined && typeof value.email !== "string") issue("email", "TEXT_REQUIRED");
     const allowance = typeof value.annualLeaveAllowance === "string" ? value.annualLeaveAllowance.trim() : value.annualLeaveAllowance;
-    if (!(typeof allowance === "number" && Number.isInteger(allowance) && allowance >= 0 && allowance <= 366)
-      && !(typeof allowance === "string" && /^(?:0|[1-9][0-9]{0,2})$/.test(allowance) && Number(allowance) <= 366))
+    if (!validAllowance(allowance))
       issue("annualLeaveAllowance", "EXPLICIT_ALLOWANCE_REQUIRED");
     const departmentId = typeof value.department === "string" ? departments.get(value.department.trim()) : undefined;
     const shiftId = typeof value.shift === "string" ? shifts.get(value.shift.trim()) : undefined;
@@ -60,9 +73,8 @@ export function mapImportSource(source: ParsedTable, mapping: SourceMapping): {
         departmentId, shiftId, annualLeaveAllowance: Number(allowance) }])[0]!);
     } catch { issue("row", "INVALID_WORKER_FIELDS"); }
   });
-  const order = (map: Map<string, string>) => [...map.entries()].sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0);
   const mappingChecksum = digest({ parserVersion: source.version, fileChecksum: source.fileChecksum,
     headers: source.headers, rows: source.rows, columns: mapping.columns,
-    departments: order(departments), shifts: order(shifts) });
+    departments: orderedBindings(departments), shifts: orderedBindings(shifts) });
   return { canonicalRows: issues.length ? null : rows, issues, mappingChecksum };
 }

@@ -1,7 +1,6 @@
 """Synthetic format corpus. Direct parser tests do not claim sandbox proof."""
-import copy
+import csv
 import io
-import os
 from pathlib import Path
 import sys
 import unittest
@@ -47,12 +46,14 @@ def workbook(values=None, compression=zipfile.ZIP_DEFLATED):
 
 class Corpus(unittest.TestCase):
     def reject_csv(self, text):
-        with self.assertRaises(Exception):
-            parse(text.encode() if isinstance(text, str) else text, 'csv', ',')
+        data = text.encode() if isinstance(text, str) else text
+        with self.assertRaises((Rejected, UnicodeDecodeError, csv.Error)):
+            parse(data, 'csv', ',')
 
     def reject_xlsx(self, values):
-        with self.assertRaises(Exception):
-            parse(workbook(values), 'xlsx', ',')
+        data = workbook(values)
+        with self.assertRaises(Rejected):
+            parse(data, 'xlsx', ',')
 
     def test_csv_lexical_and_dialects(self):
         for delimiter in (',', ';'):
@@ -109,6 +110,16 @@ class Corpus(unittest.TestCase):
             p = parts(); p[file] = p[file].replace(old, new); self.reject_xlsx(p)
         p = parts(); p['xl/worksheets/sheet2.xml'] = p['xl/worksheets/sheet1.xml']; self.reject_xlsx(p)
 
+    def test_numeric_markup_remains_ascii_only(self):
+        original = '<c r="A2" t="inlineStr"><is><t>000001</t></is></c>'
+        for replacement in ['<c r="A2"><v>1\u0662</v></c>',
+                            '<c r="A2" t="s"><v>\u0660</v></c>',
+                            '<c r="A1\u0662"><v>1</v></c>']:
+            p = parts()
+            p['xl/worksheets/sheet1.xml'] = p['xl/worksheets/sheet1.xml'].replace(original, replacement)
+            self.reject_xlsx(p)
+        p = parts(); p['xl/theme/theme\u0661.xml'] = '<a/>'; self.reject_xlsx(p)
+
     def test_duplicate_data_containers_cannot_silently_drop_rows_or_sheets(self):
         for file, closing, duplicate in [
             ('xl/workbook.xml', '</workbook>', '<sheets/>'),
@@ -116,7 +127,7 @@ class Corpus(unittest.TestCase):
             ('xl/worksheets/sheet1.xml', '</worksheet>', '<dimension ref="A1:F2"/>')
         ]:
             p = parts(); p[file] = p[file].replace(closing, duplicate + closing)
-            with self.assertRaises(Rejected): parse(workbook(p), 'xlsx', ',')
+            self.reject_xlsx(p)
 
     def test_archives_payloads_relations_and_entities(self):
         for name in ['../outside.xml', '/outside.xml', 'xl\\evil.xml', 'xl/vbaProject.bin', 'xl/embeddings/oleObject1.bin',
@@ -133,14 +144,20 @@ class Corpus(unittest.TestCase):
         for i in range(101): p[f'xl/theme/theme{i}.xml'] = '<a/>'
         self.reject_xlsx(p)
         data = bytearray(workbook(compression=zipfile.ZIP_STORED)); offset = data.find(b'<worksheet'); data[offset+2] ^= 1
-        with self.assertRaises(Exception): parse(bytes(data), 'xlsx', ',')
+        corrupt = bytes(data)
+        with self.assertRaises(Rejected) as error:
+            parse(corrupt, 'xlsx', ',')
+        self.assertEqual(error.exception.code, 'INVALID_FORMAT')
         buf = io.BytesIO(workbook())
         with zipfile.ZipFile(buf, 'a') as z:
             import warnings
             with warnings.catch_warnings():
                 warnings.simplefilter('ignore', UserWarning)
                 z.writestr('xl/workbook.xml', parts()['xl/workbook.xml'])
-        with self.assertRaises(Rejected): parse(buf.getvalue(), 'xlsx', ',')
+        duplicate = buf.getvalue()
+        with self.assertRaises(Rejected) as error:
+            parse(duplicate, 'xlsx', ',')
+        self.assertEqual(error.exception.code, 'DUPLICATE_ENTRY')
 
     def test_forged_uncompressed_size_cannot_hide_extra_inflated_bytes(self):
         p = parts(); p['docProps/core.xml'] = '<a/>' + 'hidden-extra-data' * 20
@@ -160,7 +177,10 @@ class Corpus(unittest.TestCase):
                 struct.pack_into('<I', data, cursor + 24, 4)
                 break
             cursor += 4
-        with self.assertRaises(Rejected): parse(bytes(data), 'xlsx', ',')
+        forged = bytes(data)
+        with self.assertRaises(Rejected) as error:
+            parse(forged, 'xlsx', ',')
+        self.assertEqual(error.exception.code, 'INVALID_FORMAT')
 
 
 if __name__ == '__main__':

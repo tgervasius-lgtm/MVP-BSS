@@ -8,6 +8,7 @@ import sys
 import pyexpat
 
 MAX_BYTES = 1048576
+SANDBOX_UNAVAILABLE = "sandbox unavailable"
 
 
 def restrict():
@@ -27,16 +28,16 @@ def restrict():
     lib.seccomp_release.argtypes = [ctypes.c_void_p]
     context = lib.seccomp_init(0x7FFF0000)  # SCMP_ACT_ALLOW; restrict dangerous syscalls below.
     if not context:
-        raise RuntimeError("sandbox unavailable")
+        raise RuntimeError(SANDBOX_UNAVAILABLE)
     try:
         for name in ("clone", "clone3", "fork", "vfork", "execve", "execveat", "socket", "socketpair",
                      "connect", "bind", "listen", "accept", "accept4", "ptrace", "process_vm_readv",
                      "process_vm_writev", "mount", "umount2", "unshare", "setns", "io_uring_setup"):
             number = lib.seccomp_syscall_resolve_name(name.encode("ascii"))
             if number < 0 or lib.seccomp_rule_add(context, 0x00050001, number, 0) != 0:  # EPERM
-                raise RuntimeError("sandbox unavailable")
+                raise RuntimeError(SANDBOX_UNAVAILABLE)
         if lib.seccomp_load(context) != 0:
-            raise RuntimeError("sandbox unavailable")
+            raise RuntimeError(SANDBOX_UNAVAILABLE)
     finally:
         lib.seccomp_release(context)
 
@@ -106,7 +107,7 @@ def main():
     except Rejected as error:
         print(json.dumps({"error": error.code}))
         return 2
-    except (ValueError, UnicodeError, csv.Error, MemoryError, RecursionError):
+    except (ValueError, csv.Error, MemoryError, RecursionError):
         print('{"error":"INVALID_FILE"}')
         return 2
     except Exception:

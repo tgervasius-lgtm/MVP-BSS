@@ -53,6 +53,23 @@ test("mapping fingerprint binds source content, headers and reviewed target IDs"
   assert.notEqual(mapImportSource(s, mapping()).mappingChecksum, baseline);
 });
 
+test("mapping identity ignores property and binding insertion order, including accented labels", () => {
+  const s = source();
+  s.rows[0]![2] = "Željeni odjel";
+  s.rows.push(["000002", "Second Worker", "Alpha", "Day", 20, ""]);
+  const m = mapping();
+  m.departments = [{ source: "Željeni odjel", id: department }, { source: "Alpha", id: randomUUID() }];
+  const baseline = mapImportSource(s, m);
+  const reordered: SourceMapping = { shifts: m.shifts, departments: [...m.departments].reverse().map(
+    ({ source: label, id }) => ({ id, source: label })), columns: m.columns };
+  assert.deepEqual(baseline.issues, []);
+  assert.deepEqual(mapImportSource(s, reordered), baseline);
+  const inherited = Object.assign(Object.create({ shifts: m.shifts }), {
+    columns: m.columns, departments: m.departments, extra: true
+  }) as SourceMapping;
+  assert.throws(() => mapImportSource(s, inherited), { code: "VALIDATION_FAILED" });
+});
+
 test("oversized input and cancellation reject before starting a parser process", async () => {
   await assert.rejects(parseImportFile(Buffer.alloc(1048577), "csv", ","), { kind: "REJECTED", reason: "FILE_LIMIT" });
   await assert.rejects(parseImportFile(Buffer.alloc(0), "xlsx", ","), { kind: "REJECTED" });

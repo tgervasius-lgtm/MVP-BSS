@@ -29,7 +29,8 @@ export function importSandboxArgs(directory: string): string[] {
 function decodedTable(value: unknown, fileChecksum: string): ParsedTable {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw unavailable();
   const data = value as Record<string, unknown>;
-  if (data.version !== TABULAR_VERSION || Object.keys(data).sort().join(",") !== "headers,rows,version"
+  if (data.version !== TABULAR_VERSION || Object.keys(data).length !== 3
+    || !["headers", "rows", "version"].every(key => Object.hasOwn(data, key))
     || !Array.isArray(data.headers) || data.headers.length < 5 || data.headers.length > 6
     || !data.headers.every(h => typeof h === "string" && h.trim() === h && h.length > 0 && [...h].length <= 80 && !h.includes("\0"))
     || new Set(data.headers).size !== data.headers.length
@@ -37,7 +38,7 @@ function decodedTable(value: unknown, fileChecksum: string): ParsedTable {
   const width = data.headers.length;
   for (const row of data.rows) {
     if (!Array.isArray(row) || row.length !== width || !row.every(cell =>
-      (typeof cell === "string" && [...cell].length <= TABULAR_LIMITS.cell && !cell.includes("\0") && !/^[\s]*[=+@-]/u.test(cell))
+      (typeof cell === "string" && [...cell].length <= TABULAR_LIMITS.cell && !cell.includes("\0") && !/^\s*[=+@-]/u.test(cell))
       || (typeof cell === "number" && Number.isInteger(cell) && cell >= 0 && cell <= 366))) throw unavailable();
   }
   return { version: TABULAR_VERSION, fileChecksum, headers: data.headers as string[], rows: data.rows as SourceCell[][] };
