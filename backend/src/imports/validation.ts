@@ -2,7 +2,7 @@ import { digest, IMPORT_POLICY, type ImportCounts, type ImportInput, type Import
 import type { ImportTransaction } from "./transaction.js";
 
 type Reference = { id: string; status: string; revision: string };
-export async function validateImport(tx: ImportTransaction, input: ImportInput): Promise<{
+export async function validateImport(tx: ImportTransaction, input: ImportInput, mappingChecksum: string | null = null): Promise<{
   issues: ImportIssue[]; counts: ImportCounts; checksum: string;
 }> {
   const departments = await tx.query<Reference>(`SELECT id, status, revision::text FROM departments
@@ -39,5 +39,5 @@ export async function validateImport(tx: ImportTransaction, input: ImportInput):
   const blocked = new Set(issues.map((r) => r.rowNumber)).size;
   return { issues, counts: { total: input.rows.length, valid: input.rows.length - blocked, blocked },
     checksum: digest([IMPORT_POLICY.schemaVersion, IMPORT_POLICY.version, input.parserVersion,
-      input.fileChecksum, input.rows, departments.rows, shifts.rows]) };
+      input.fileChecksum, input.rows, departments.rows, shifts.rows, ...(mappingChecksum ? [mappingChecksum] : [])]) };
 }

@@ -44,6 +44,16 @@ function decodedTable(value: unknown, fileChecksum: string): ParsedTable {
   return { version: TABULAR_VERSION, fileChecksum, headers: data.headers as string[], rows: data.rows as SourceCell[][] };
 }
 
+// Recheck and detach parser output before the asynchronous persistence boundary.
+// This does not parse a file or replace the mandatory sandbox.
+export function checkedParsedTable(source: ParsedTable): ParsedTable {
+  if (!source || Object.keys(source).length !== 4
+    || !["version", "fileChecksum", "headers", "rows"].every(key => Object.hasOwn(source, key))
+    || typeof source.fileChecksum !== "string" || !/^[a-f0-9]{64}$/.test(source.fileChecksum)) throw unavailable();
+  const checked = decodedTable({ version: source.version, headers: source.headers, rows: source.rows }, source.fileChecksum);
+  return structuredClone(checked);
+}
+
 /** Internal adapter, not registered by server.ts. All failure paths close before
  * DB work. Raw bytes go only to stdin; stderr, parser output and values are never logged.
  */

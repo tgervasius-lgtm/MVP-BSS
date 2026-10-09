@@ -6,7 +6,7 @@ import { AppError } from "../domain/errors.js";
 export const IMPORT_POLICY = Object.freeze({
   version: "h2-import-2026-10-04", schemaVersion: "worker-import-v1",
   maxRows: 1000, maxSessions: 2, ttlSeconds: 86_400, metadataDays: 30,
-  transactionMs: 5000, lockMs: 1000
+  transactionMs: 5000, lockMs: 1000, parseLeaseSeconds: 10
 });
 export type ImportWorker = Readonly<{
   code: string; name: string; email: string | null;
@@ -15,17 +15,17 @@ export type ImportWorker = Readonly<{
 export type ImportInput = Readonly<{
   fileChecksum: string; parserVersion: string; rows: readonly ImportWorker[];
 }>;
-export type ImportState = "READY" | "INVALID" | "COMMITTED" | "CANCELLED" | "EXPIRED";
+export type ImportState = "PARSING" | "NEEDS_MAPPING" | "READY" | "INVALID" | "COMMITTED" | "CANCELLED" | "EXPIRED" | "FAILED";
 export type ImportIssue = { rowNumber: number; field: string; code: string };
 export type ImportCounts = { total: number; valid: number; blocked: number };
 export type ImportSession = {
   id: string; state: ImportState; revision: string; uploaderId: string;
   createdAt: string; expiresAt: string; fileChecksum: string;
   parserVersion: string; policyVersion: string; schemaVersion: string;
-  counts: ImportCounts; previewChecksum: string | null;
+  counts: ImportCounts; previewChecksum: string | null; mappingChecksum: string | null;
 };
 export type ImportResult = {
-  commitId: string; sessionId: string; fileChecksum: string; previewChecksum: string;
+  commitId: string; sessionId: string; mappingChecksum: string | null; fileChecksum: string; previewChecksum: string;
   schemaVersion: string; parserVersion: string; policyVersion: string;
   uploaderId: string; approvedBy: string; approvedAt: string; committedAt: string;
   createdCount: number; counts: ImportCounts; errors: never[]; createdWorkerIds: string[];
