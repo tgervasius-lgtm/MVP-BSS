@@ -131,3 +131,7 @@ Each slice is complete only with reviewed contract/data/code/UI ownership as app
 H2-0 begins with measured D1 options and the D2/D3 decision record, followed by the proposed API/schema review. Preserve #68 sales, #62 Pilot, #59 infrastructure, #64/#66 privacy/legal, #95 identity, #97 recovery, #132 hardware and #133 roadmap ownership. Runtime work, customer-data processing and policy acceptance remain separate from this preparation PR.
 
 The [H2-0 framework](H2_IMPORT_ONBOARDING_DECISION_PROPOSAL.md) was explicitly accepted by the owner on 2026-10-04 and merged through #241 (`b260428c34143db1cd0b17b1ec214a2fa64e2fed`). The owner authorized backend implementation. [H2-1a](H2_IMPORT_BACKEND_FOUNDATION.md) isolates the private staging/atomic-commit foundation for review; it is not registered in the server and does not implement the proposed HTTP contract. File parsing/containment, source mapping, upload admission, deployment-wide monitored cleanup and all customer-facing flows remain separate work. Target-runtime/privacy/backup evidence and actual D3 operator identities remain activation gates.
+
+## H2-1c sequencing update — 2026-10-09
+
+The next inactive review slice persists source/mapping identity and the per-session parsing lifecycle: [H2-1c1](H2_IMPORT_SOURCE_LIFECYCLE.md). It extends the existing staging/atomic store before adding an HTTP boundary. Deployment-wide admission, durable attempt limits, monitored cleanup and the authenticated API remain H2-1c2; no customer upload or full H2-1 completion is claimed by H2-1c1.

@@ -4,7 +4,7 @@ import type { ActorContext } from "../domain/types.js";
 import { requireRole } from "../security/rbac.js";
 import { assertChecksum, assertId, digest, IMPORT_POLICY, invalid, keyHash, normalizeInput,
   normalizeRows, type ImportInput, type ImportWorker } from "./model.js";
-import { assertRevision, auditImport, expire, lockedSession, nonterminal, readResult,
+import { assertRevision, auditImport, expire, expireDue, lockedSession, nonterminal, readResult,
   SESSION_COLUMNS, sessionView, stagedRows, terminate, updatePreview, type CommitRow, type SessionRow } from "./persistence.js";
 import { importTransaction, type ImportTransaction } from "./transaction.js";
 import { validateImport } from "./validation.js";
@@ -15,7 +15,7 @@ import { writeCommit } from "./commit.js";
 export class PgWorkerImportStore {
   constructor(private readonly pool: pg.Pool) {}
 
-  private async run<T>(actor: ActorContext, requestId: string,
+  protected async run<T>(actor: ActorContext, requestId: string,
     operation: (tx: ImportTransaction) => Promise<T | AppError>): Promise<T> {
     const result = await importTransaction(this.pool, actor, requestId, operation);
     // Expiry cleanup must commit even when the requested action is refused.
@@ -40,7 +40,7 @@ export class PgWorkerImportStore {
         return { session: sessionView(await expire(tx, actor, requestId, previous)), replayed: true };
       }
       await this.cleanup(tx, actor, requestId);
-      const active = await tx.query<{ count: string }>("SELECT count(*)::text FROM worker_import_sessions WHERE state IN ('READY','INVALID')");
+      const active = await tx.query<{ count: string }>("SELECT count(*)::text FROM worker_import_sessions WHERE state IN ('PARSING','NEEDS_MAPPING','READY','INVALID')");
       if (Number(active.rows[0]?.count) >= IMPORT_POLICY.maxSessions) return new AppError("CONFLICT", "Već postoje dvije otvorene pripreme uvoza.");
       const validation = await validateImport(tx, normalized);
       const result = await tx.query<SessionRow>(`WITH stamp AS (SELECT clock_timestamp() AS now)
@@ -76,7 +76,7 @@ export class PgWorkerImportStore {
       if (!nonterminal(row)) return new AppError("CONFLICT", "Privremeni podaci više nisu dostupni.");
       assertRevision(row, revision);
       const rows = normalizeRows(await stagedRows(tx, id));
-      const validation = await validateImport(tx, { fileChecksum: row.file_checksum, parserVersion: row.parser_version, rows });
+      const validation = await validateImport(tx, { fileChecksum: row.file_checksum, parserVersion: row.parser_version, rows }, row.mapping_checksum);
       // Reads do not extend expiry, remap values or silently change approval.
       return { rows: rows.slice(offset, offset + limit), offset, counts: validation.counts,
         issues: validation.issues.filter((issue) => issue.rowNumber >= offset + 2 && issue.rowNumber < offset + limit + 2),
@@ -91,7 +91,8 @@ export class PgWorkerImportStore {
       const row = await expire(tx, actor, requestId, await lockedSession(tx, id));
       if (!nonterminal(row)) return new AppError("CONFLICT", "Priprema uvoza je završena.");
       assertRevision(row, revision);
-      const validation = await validateImport(tx, { fileChecksum: row.file_checksum, parserVersion: row.parser_version, rows });
+      if (row.source_format) throw new AppError("CONFLICT", "Izvorni uvoz mijenja se samo putem mappinga.");
+      const validation = await validateImport(tx, { fileChecksum: row.file_checksum, parserVersion: row.parser_version, rows }, row.mapping_checksum);
       const updated = await updatePreview(tx, id, rows, validation.counts, validation.checksum);
       await auditImport(tx, actor, requestId, id, "revalidated", { revision: updated.revision, ...validation.counts });
       return updated;
@@ -119,7 +120,7 @@ export class PgWorkerImportStore {
       if (row.state !== "READY" || row.preview_checksum !== input.previewChecksum)
         throw new AppError("CONFLICT", "Potvrdite aktualnu ispravnu pripremu uvoza.");
       const rows = normalizeRows(await stagedRows(tx, id));
-      const validation = await validateImport(tx, { fileChecksum: row.file_checksum, parserVersion: row.parser_version, rows });
+      const validation = await validateImport(tx, { fileChecksum: row.file_checksum, parserVersion: row.parser_version, rows }, row.mapping_checksum);
       if (validation.checksum !== input.previewChecksum) throw new AppError("STALE_REVISION", "Promijenjeni su podaci odjela ili smjena.");
       if (validation.counts.blocked) throw new AppError("CONFLICT", "Uvoz sadrži neispravne ili već postojeće radnike.");
       // Recheck expiry after reference locks and validation, before any write.
@@ -139,16 +140,13 @@ export class PgWorkerImportStore {
     });
   }
 
-  private async cleanup(tx: ImportTransaction, actor: ActorContext, requestId: string) {
-    const expired = await tx.query<SessionRow>(`SELECT ${SESSION_COLUMNS} FROM worker_import_sessions
-      WHERE state IN ('READY','INVALID') AND expires_at <= clock_timestamp()
-      ORDER BY id LIMIT 100 FOR UPDATE SKIP LOCKED`);
-    for (const row of expired.rows) await terminate(tx, actor, requestId, row, "EXPIRED");
+  protected async cleanup(tx: ImportTransaction, actor: ActorContext, requestId: string) {
+    const expired = await expireDue(tx, actor, requestId);
     const removed = await tx.query(`DELETE FROM worker_import_sessions WHERE id IN (
-      SELECT id FROM worker_import_sessions WHERE state IN ('CANCELLED','EXPIRED')
+      SELECT id FROM worker_import_sessions WHERE state IN ('CANCELLED','EXPIRED','FAILED')
         AND terminal_at <= clock_timestamp() - interval '30 days'
       ORDER BY id LIMIT 100 FOR UPDATE SKIP LOCKED) RETURNING id`);
-    return { expired: expired.rowCount ?? 0, removed: removed.rowCount ?? 0 };
+    return { expired, removed: removed.rowCount ?? 0 };
   }
 
   // Tenant-scoped primitive only; this is NOT the deployment-wide monitored

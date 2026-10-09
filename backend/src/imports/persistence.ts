@@ -7,16 +7,17 @@ export type SessionRow = {
   id: string; uploader_id: string; state: ImportState; revision: string;
   created_at: Date; expires_at: Date; expired: boolean; file_checksum: string;
   parser_version: string; policy_version: string; schema_version: string;
+  source_format: "csv" | "xlsx" | null; mapping_checksum: string | null; parse_lease: string | null;
   total: number; blocked: number; preview_checksum: string | null; create_fingerprint: string;
 };
 export const SESSION_COLUMNS = `id, uploader_id, state, revision::text, created_at, expires_at,
   expires_at <= clock_timestamp() AS expired, file_checksum, parser_version, policy_version,
-  schema_version, total, blocked, preview_checksum, create_fingerprint`;
+  schema_version, total, blocked, preview_checksum, create_fingerprint, source_format, mapping_checksum, parse_lease`;
 export function sessionView(row: SessionRow): ImportSession {
   return { id: row.id, uploaderId: row.uploader_id, state: row.state, revision: row.revision,
     createdAt: row.created_at.toISOString(), expiresAt: row.expires_at.toISOString(), fileChecksum: row.file_checksum,
     parserVersion: row.parser_version, policyVersion: row.policy_version, schemaVersion: row.schema_version,
-    counts: { total: row.total, valid: row.total - row.blocked, blocked: row.blocked }, previewChecksum: row.preview_checksum };
+    counts: { total: row.total, valid: row.total - row.blocked, blocked: row.blocked }, previewChecksum: row.preview_checksum, mappingChecksum: row.mapping_checksum };
 }
 export async function lockedSession(tx: ImportTransaction, id: string): Promise<SessionRow> {
   const result = await tx.query<SessionRow>(`SELECT ${SESSION_COLUMNS} FROM worker_import_sessions WHERE id = $1 FOR UPDATE`, [id]);
@@ -27,7 +28,7 @@ export async function lockedSession(tx: ImportTransaction, id: string): Promise<
 export function assertRevision(row: SessionRow, revision: string): void {
   if (revision !== row.revision) throw new AppError("STALE_REVISION", "Priprema uvoza je promijenjena.");
 }
-export function nonterminal(row: SessionRow): boolean { return row.state === "READY" || row.state === "INVALID"; }
+export function nonterminal(row: SessionRow): boolean { return ["PARSING", "NEEDS_MAPPING", "READY", "INVALID"].includes(row.state); }
 export async function auditImport(tx: ImportTransaction, actor: ActorContext, requestId: string,
   id: string, action: string, data: object): Promise<void> {
   await tx.query(`INSERT INTO audit_events(organization_id, actor_type, actor_id, actor_role,
@@ -36,22 +37,49 @@ export async function auditImport(tx: ImportTransaction, actor: ActorContext, re
   [actor.organizationId, actor.userId, `worker_import.${action}`, id, JSON.stringify(data), requestId]);
 }
 export async function terminate(tx: ImportTransaction, actor: ActorContext, requestId: string,
-  row: SessionRow, state: "CANCELLED" | "EXPIRED"): Promise<SessionRow> {
+  row: SessionRow, state: "CANCELLED" | "EXPIRED" | "FAILED"): Promise<SessionRow> {
   await tx.query("DELETE FROM worker_import_staging WHERE session_id = $1", [row.id]);
   const updated = await tx.query<SessionRow>(`UPDATE worker_import_sessions SET state = $2, revision = revision + 1,
-    terminal_at = clock_timestamp(), preview_checksum = NULL WHERE id = $1 RETURNING ${SESSION_COLUMNS}`, [row.id, state]);
+    terminal_at = clock_timestamp(), preview_checksum = NULL, parse_lease = NULL, parse_expires_at = NULL WHERE id = $1 RETURNING ${SESSION_COLUMNS}`, [row.id, state]);
   await auditImport(tx, actor, requestId, row.id, state.toLowerCase(), { total: row.total });
   return updated.rows[0]!;
 }
 export async function expire(tx: ImportTransaction, actor: ActorContext, requestId: string, row: SessionRow): Promise<SessionRow> {
   // Re-evaluate after acquiring locks; a transaction may have waited for another
   // writer. Never trust application clocks or the pre-lock SELECT expression.
-  const clock = await tx.query<{ expired: boolean }>("SELECT expires_at <= clock_timestamp() AS expired FROM worker_import_sessions WHERE id = $1", [row.id]);
-  return nonterminal(row) && clock.rows[0]?.expired ? terminate(tx, actor, requestId, row, "EXPIRED") : row;
+  const clock = await tx.query<{ expired: boolean; abandoned: boolean }>(`SELECT expires_at <= clock_timestamp() AS expired,
+    parse_expires_at <= clock_timestamp() AS abandoned FROM worker_import_sessions WHERE id = $1`, [row.id]);
+  if (!nonterminal(row)) return row;
+  if (clock.rows[0]?.expired) return terminate(tx, actor, requestId, row, "EXPIRED");
+  if (row.state === "PARSING" && clock.rows[0]?.abandoned) return terminate(tx, actor, requestId, row, "FAILED");
+  return row;
+}
+
+export async function expireDue(tx: ImportTransaction, actor: ActorContext, requestId: string): Promise<number> {
+  // Bound and lock one batch, then purge/transition/audit atomically. This avoids
+  // hundreds of serial network round trips inside the five-second transaction.
+  const result = await tx.query(`WITH due AS MATERIALIZED (
+      SELECT id FROM worker_import_sessions WHERE state IN ('PARSING','NEEDS_MAPPING','READY','INVALID')
+        AND (expires_at <= clock_timestamp() OR parse_expires_at <= clock_timestamp())
+      ORDER BY id LIMIT 100 FOR UPDATE SKIP LOCKED
+    ), ended AS (
+      UPDATE worker_import_sessions s SET state = CASE WHEN expires_at <= clock_timestamp() THEN 'EXPIRED' ELSE 'FAILED' END,
+        revision = revision + 1, terminal_at = clock_timestamp(), preview_checksum = NULL,
+        parse_lease = NULL, parse_expires_at = NULL
+      FROM due WHERE s.id = due.id RETURNING s.id, s.state, s.total
+    ), purged AS (
+      DELETE FROM worker_import_staging s USING ended WHERE s.session_id = ended.id
+    )
+    INSERT INTO audit_events(organization_id, actor_type, actor_id, actor_role,
+      action, entity_type, entity_id, after_json, request_id, metadata)
+    SELECT $1, 'user', $2, 'admin', 'worker_import.' || lower(state), 'worker_import', id,
+      jsonb_build_object('total', total), $3, '{}'::jsonb FROM ended RETURNING entity_id`,
+  [actor.organizationId, actor.userId, requestId]);
+  return result.rowCount ?? 0;
 }
 export async function stagedRows(tx: ImportTransaction, id: string): Promise<ImportWorker[]> {
   const result = await tx.query<{ rows_json: ImportWorker[] }>("SELECT rows_json FROM worker_import_staging WHERE session_id = $1", [id]);
-  if (!result.rows[0]) throw new AppError("CONFLICT", "Privremeni podaci više nisu dostupni.");
+  if (!result.rows[0]?.rows_json) throw new AppError("CONFLICT", "Privremeni podaci više nisu dostupni.");
   return result.rows[0].rows_json;
 }
 export async function updatePreview(tx: ImportTransaction, id: string, rows: readonly ImportWorker[],
@@ -68,7 +96,7 @@ export async function readResult(tx: ImportTransaction, session: SessionRow, com
   const workers = await tx.query<{ worker_id: string }>(`SELECT worker_id FROM worker_import_commit_workers
     WHERE commit_id = $1 ORDER BY row_number`, [commit.id]);
   if (workers.rows.length !== commit.created_count) throw new AppError("INTERNAL_ERROR", "Nedostaje potpuni dokaz potvrđenog uvoza.");
-  return { commitId: commit.id, sessionId: session.id, fileChecksum: session.file_checksum,
+  return { commitId: commit.id, sessionId: session.id, mappingChecksum: session.mapping_checksum, fileChecksum: session.file_checksum,
     previewChecksum: commit.preview_checksum, schemaVersion: session.schema_version, parserVersion: session.parser_version,
     policyVersion: session.policy_version, uploaderId: session.uploader_id, approvedBy: commit.approved_by,
     approvedAt: commit.committed_at.toISOString(), committedAt: commit.committed_at.toISOString(), createdCount: commit.created_count,
