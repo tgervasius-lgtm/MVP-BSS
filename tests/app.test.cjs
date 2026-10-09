@@ -1443,10 +1443,42 @@ test('contract gap #232 veže službeni report preview i export verification na 
 });
 
 test('server-authoritative report preview ne koristi lokalni preview kao fallback uspjeha u API modu',()=>{
-  assert.match(reportAuthoritySource,/Službeni preview nije dostupan/);
-  assert.match(reportAuthoritySource,/Lokalni prikaz se ne predstavlja kao službeni report dataset/);
-  assert.match(reportAuthoritySource,/Server preview nije vratio isti normalizirani skup kriterija/);
-  assert.match(reportAuthoritySource,/server-authoritative/);
+  assert.match(reportAuthoritySource,/Službeni pregled nije dostupan/);
+  assert.match(reportAuthoritySource,/Ogledni podaci nisu službeni podaci izvještaja/);
+  assert.match(reportAuthoritySource,/Zaprimljeni pregled ne odgovara odabranim kriterijima/);
+  assert.match(reportAuthoritySource,/Službeni sažetak izvještaja/);
+});
+
+test('API izvještaj prikazuje hrvatska stanja i zadržava odbijanje neusklađenog pregleda',async()=>{
+  const filters={type:'summary',month:'2026-07',department:'Svi',workerId:'Svi'};
+  let respond;
+  let result;
+  const context=vm.createContext({
+    BSS_API_ACTIVE:true,currentRole:'admin',
+    BSS_API:{post:async()=>result??await new Promise(resolve=>{respond=resolve;})},
+    normalizeReportFilters:value=>value,
+    monthBounds:()=>({start:'2026-07-01',end:'2026-07-31'}),
+    REPORT_TYPE_CONFIG:{summary:{label:'Mjesečni sažetak'}},
+    escapeHtml:value=>String(value).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;'),
+    formatMinutes:String,formatSignedMinutes:String,render:()=>{}
+  });
+  vm.runInContext(reportAuthoritySource,context);
+  const authority=context.BSSReportAuthority;
+  authority.configure({getReportFilters:()=>filters,setReportFilters:()=>{}});
+  assert.match(authority.previewHtml(),/Ogledni podaci nisu službeni podaci izvještaja/);
+  const pending=authority.loadPreview();
+  assert.match(authority.previewHtml(),/Učitavam službeni pregled/);
+  respond({filters:{reportType:'monthly_summary',periodFrom:'2026-07-01',periodTo:'2026-07-31'},columns:[],rows:[],datasetVersion:'<verzija>'});
+  assert.equal(await pending,true);
+  assert.match(authority.previewHtml(),/Nema podataka za odabrane kriterije/);
+  assert.match(authority.previewHtml(),/&lt;verzija&gt;/);
+  assert.match(authority.metricsHtml(),/Službeni sažetak izvještaja/);
+  result={filters:{reportType:'monthly_summary',periodFrom:'2026-08-01',periodTo:'2026-08-31'},rows:[{}]};
+  assert.equal(await authority.loadPreview(),false);
+  assert.match(authority.previewHtml(),/Službeni pregled nije dostupan/);
+  assert.match(authority.previewHtml(),/ne odgovara odabranim kriterijima/);
+  assert.equal(authority.hasRows(),false);
+  assert.equal(authority.metricsHtml(),'');
 });
 
 test('contract gap #227 veže attendance lifecycle i recalculation na postojeći API bez role proširenja',()=>{

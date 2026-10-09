@@ -10,7 +10,7 @@ Scope: frontend presentation and synthetic demonstration consistency. Baseline: 
 - Terminal headings/status and report boundary labels use semantic text tokens in light and dark themes.
 - Primary request and daily attendance actions stay visible in horizontal table regions; keyboard navigation and existing decision dialogs remain available.
 - Login/status copy distinguishes synthetic demo data. The displayed role matrix matches accepted role scope; it is explanatory copy, not an authorization mechanism.
-- Shared-calendar detail list explicitly describes its annual scope. Rejection is labelled as rejection; technical copy is simplified where touched.
+- Shared-calendar detail list explicitly describes its annual scope in both demo and API sessions. Rejection is labelled as rejection; technical copy is simplified where touched. API report loading, empty, error, summary and export-verification messages use Croatian user-facing wording; checksums, dataset/version identifiers and verification logic remain unchanged.
 
 ## Implementation boundary
 
