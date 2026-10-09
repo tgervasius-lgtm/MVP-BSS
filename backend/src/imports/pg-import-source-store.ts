@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { AppError } from "../domain/errors.js";
 import type { ActorContext } from "../domain/types.js";
 import { requireRole } from "../security/rbac.js";
-import { assertChecksum, assertId, digest, IMPORT_POLICY, invalid, keyHash, type ImportIssue, type ImportWorker } from "./model.js";
+import { assertChecksum, assertId, digest, IMPORT_POLICY, invalid, keyHash, normalizeRows, type ImportIssue, type ImportWorker } from "./model.js";
 import { PgWorkerImportStore } from "./pg-worker-import-store.js";
 import { assertRevision, auditImport, expire, lockedSession, nonterminal, SESSION_COLUMNS,
   sessionView, terminate, type SessionRow } from "./persistence.js";
@@ -136,13 +136,16 @@ export class PgImportSourceStore extends PgWorkerImportStore {
       if (!nonterminal(row) || row.state === "PARSING") return conflict();
       assertRevision(row, revision);
       const staged = await sourceStage(tx, id);
-      const validation = staged.rows_json ? await validateImport(tx, { fileChecksum: row.file_checksum,
-        parserVersion: row.parser_version, rows: staged.rows_json }, row.mapping_checksum) : null;
+      // PostgreSQL jsonb reorders object keys; reconstruct the same canonical
+      // representation used by mapping and commit before computing its digest.
+      const rows = staged.rows_json ? normalizeRows(staged.rows_json) : null;
+      const validation = rows ? await validateImport(tx, { fileChecksum: row.file_checksum,
+        parserVersion: row.parser_version, rows }, row.mapping_checksum) : null;
       if (!nonterminal(await expire(tx, actor, requestId, row))) return conflict();
       const issues = validation?.issues ?? staged.mapping_issues;
       return { session: sessionView(row), offset, headers: staged.source_json.headers, mapping: staged.mapping_json,
         sourceRows: staged.source_json.rows.slice(offset, offset + limit),
-        canonicalRows: staged.rows_json?.slice(offset, offset + limit) ?? null,
+        canonicalRows: rows?.slice(offset, offset + limit) ?? null,
         counts: validation?.counts ?? sessionView(row).counts,
         issues: issues.filter(issue => issue.rowNumber >= offset + 2 && issue.rowNumber < offset + limit + 2),
         requiresRefresh: validation !== null && (validation.checksum !== row.preview_checksum || validation.counts.blocked !== row.blocked) };
