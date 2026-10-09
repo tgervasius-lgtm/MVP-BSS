@@ -109,7 +109,8 @@ test('radnik ima osobni mjesečni pregled i stanje godišnjeg s pripadajućim ak
   await loginAs(page,'worker');
   await page.evaluate(()=>window.navigate('mytime'));
   await expect(page.locator('.mytime-summary-card')).toBeVisible();
-  await expect(page.locator('#myTimeMonth')).toBeVisible();
+  await expect(page.getByRole('combobox',{name:'Mjesec — mjesec',exact:true})).toBeVisible();
+  await expect(page.getByRole('spinbutton',{name:'Mjesec — godina',exact:true})).toBeVisible();
   await expect(page.locator('.mytime-summary-grid>button>span')).toHaveText(['Odrađeno','Planirano','Saldo','Za provjeru']);
   await page.locator('.mytime-summary-grid').getByRole('button',{name:/Odrađeno/}).click();
   await expect(page.locator('#myTimeRecords')).toBeFocused();
@@ -280,7 +281,8 @@ test('dokument API sučelje: primatelj, nacrt, potvrda objave i preuzimanje PDF-
   await page.getByRole('button',{name:'Novi dokument'}).click();
   await page.getByLabel('Traži primatelja po imenu ili šifri').fill('Synthetic');await page.getByRole('button',{name:'Pronađi radnika'}).click();
   await page.getByRole('combobox',{name:'Primatelj',exact:true}).selectOption(worker);await page.getByLabel('Naziv dokumenta').fill('Platna lista 10/2026');
-  await page.getByLabel('Mjesec (obvezno za platnu listu)').fill('2026-10');
+  await page.getByRole('combobox',{name:'Mjesec (obvezno za platnu listu) — mjesec',exact:true}).selectOption('10');
+  await page.getByRole('spinbutton',{name:'Mjesec (obvezno za platnu listu) — godina',exact:true}).fill('2026');
   await page.getByLabel('PDF datoteka').setInputFiles({name:'fixture.pdf',mimeType:'application/pdf',buffer:Buffer.from('%PDF-1.4\nfixture\n%%EOF')});
   expect(await seriousAxeViolations(page)).toEqual([]);await page.getByRole('button',{name:'Spremi nacrt'}).click();
   await expect(page.locator('.document-row')).toContainText('Nacrt');
@@ -290,4 +292,34 @@ test('dokument API sučelje: primatelj, nacrt, potvrda objave i preuzimanje PDF-
   const downloadPromise=page.waitForEvent('download');await page.getByRole('button',{name:/Preuzmi PDF/}).click();const download=await downloadPromise;expect(download.suggestedFilename()).toBe('BSS-fixture.pdf');
   expect(errors).toEqual([]);
 });
+});
+
+test('design audit: localized month, visible decisions and readable terminal in both themes',async({page},testInfo)=>{
+  await loginAs(page,'worker');
+  await expect(page.locator('.worker-summary-card')).toContainText('11 dana');
+  await expect(page.locator('.topbar-meta')).toContainText('Demo datum: 10. 07. 2026.');
+  await page.evaluate(()=>window.navigate('mytime'));
+  await expect(page.getByRole('combobox',{name:'Mjesec — mjesec',exact:true})).toHaveValue('07');
+  await page.getByRole('combobox',{name:'Mjesec — mjesec',exact:true}).selectOption({label:'lipanj'});
+  await expect(page.locator('.mytime-summary-head h2')).toContainText('lipanj 2026.');
+  await expect(page.locator('#myTimeMonth')).toHaveValue('2026-06');
+  expect(await seriousAxeViolations(page)).toEqual([]);
+  await page.screenshot({path:testInfo.outputPath('worker-localized.png')});
+  await page.evaluate(()=>{window.switchRole('admin');window.navigate('requests');});
+  const action=page.locator('.requests-table [data-bss-action^="openRequestDecision"]').first();
+  const box=await action.boundingBox();expect(box).not.toBeNull();
+  expect(box.x).toBeGreaterThanOrEqual(0);expect(box.x+box.width).toBeLessThanOrEqual(page.viewportSize().width);
+  await action.click();await expect(page.locator('.request-decision-modal')).toBeVisible();
+  await page.getByRole('button',{name:'Odustani',exact:true}).click();
+  await page.screenshot({path:testInfo.outputPath('requests-actions.png')});
+  await page.evaluate(()=>window.navigate('terminal'));
+  for(const theme of ['light','dark']){
+    await page.evaluate(value=>{if(document.documentElement.dataset.theme!==value)window.toggleTheme();},theme);
+    // Audit settled theme colors, not intermediate CSS-transition frames.
+    await expect.poll(()=>page.evaluate(()=>document.getAnimations().filter(animation=>animation.constructor.name==='CSSTransition'&&animation.playState==='running').length)).toBe(0);
+    const colors=await page.locator('.terminal-summary-card h2').evaluate(el=>({text:getComputedStyle(el).color,background:getComputedStyle(el.closest('.card')).backgroundColor}));
+    expect(colors.text).not.toBe(colors.background);
+    expect(await seriousAxeViolations(page)).toEqual([]);
+    await page.screenshot({path:testInfo.outputPath(`terminal-${theme}.png`)});
+  }
 });

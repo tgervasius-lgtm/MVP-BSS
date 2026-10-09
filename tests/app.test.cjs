@@ -714,7 +714,7 @@ test('owner visual review fixes razdvajaju smjenu, worker facts i demo alate',()
   const worker=boot('worker');
   assert.ok(worker.document.querySelector('.worker-home-workspace'));
   assert.equal(worker.document.querySelectorAll('.worker-today-grid>button').length,2);
-  assert.match(worker.document.querySelector('.worker-summary-card').textContent,/Preostali godišnji/);
+  assert.match(worker.document.querySelector('.worker-summary-card').textContent,/Raspoloživi godišnji/);
 });
 
 test('primarna desktop navigacija razlikuje operativni fokus po ulozi',()=>{
@@ -2841,4 +2841,35 @@ test('stvarni API adapter šalje uneseno obrazloženje i reviziju bez generičke
   assert.match(sent[0].url,/\/reject$/);
   assert.deepEqual(JSON.parse(sent[0].body),{note:'Provjerite odjavu sa svojim voditeljem.'});
   assert.equal(sent[0].headers['If-Match'],'"7"');
+});
+
+test('design audit: Croatian month control preserves ISO filters and arbitrary years',()=>{
+  const app=boot('worker');app.window.navigate('mytime');
+  const choose=()=>app.document.querySelector('[aria-label="Mjesec — mjesec"]');
+  assert.equal(choose().selectedOptions[0].textContent,'srpanj');
+  choose().value='06';choose().dispatchEvent(new app.window.Event('change',{bubbles:true}));
+  assert.equal(app.document.querySelector('#myTimeMonth').value,'2026-06');
+  assert.match(app.document.querySelector('.mytime-summary-head h2').textContent,/lipanj/);
+  const year=app.document.querySelector('[aria-label="Mjesec — godina"]');
+  year.value='2032';year.dispatchEvent(new app.window.Event('change',{bubbles:true}));
+  assert.equal(app.document.querySelector('#myTimeMonth').value,'2032-06');
+  app.window.navigate('reports'); // worker remains scoped to home
+  assert.equal(app.evaluate('screen'),'home');
+});
+
+test('design audit: blank document month can be selected and cleared without a filter side effect',()=>{
+  const app=boot();const modal=app.document.querySelector('#modal');
+  modal.innerHTML='<label>Mjesec platne liste<input id="periodFixture" type="month"></label>';
+  app.window.showModal(modal);
+  const month=modal.querySelector('select'),year=modal.querySelector('input[type="number"]'),value=modal.querySelector('#periodFixture');
+  assert.equal(value.value,'');month.value='12';year.value='2027';month.dispatchEvent(new app.window.Event('change',{bubbles:true}));
+  assert.equal(value.value,'2027-12');month.value='';month.dispatchEvent(new app.window.Event('change',{bubbles:true}));
+  assert.equal(value.value,'');assert.equal(modal.querySelectorAll('input[type="month"]').length,0);
+});
+
+test('design audit: synthetic clock and available leave agree across worker views',()=>{
+  const app=boot('worker');assert.equal(app.evaluate('DEMO_TODAY'),'2026-07-10');
+  assert.match(app.document.querySelector('.worker-summary-card').textContent,/11 dana/);
+  app.window.navigate('vacations');assert.match(app.document.querySelector('.vacation-balance-visual').textContent,/11/);
+  app.window.switchRole('admin');assert.match(app.document.querySelector('.home-workspace-scope').textContent,/10.*srpnja.*2026/);
 });
