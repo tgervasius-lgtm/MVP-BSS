@@ -9,3 +9,9 @@ const destination = join(backendRoot, "dist", "migrations");
 await rm(destination, { recursive: true, force: true });
 await mkdir(dirname(destination), { recursive: true });
 await cp(source, destination, { recursive: true });
+
+// Native parser source must travel with the compiled adapter. It remains an
+// inactive internal module until admission, cleanup and HTTP gates are proved.
+await cp(join(backendRoot, "import-parser"), join(backendRoot, "dist", "import-parser"), {
+  recursive: true, filter: path => !path.includes("__pycache__") && !path.endsWith(".pyc")
+});

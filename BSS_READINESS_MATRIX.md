@@ -164,6 +164,10 @@ For every new module/service or external platform, record the owner, threat mode
 
 ## Document mailbox extension — #256 (2026-10-06)
 
-Core MERGED (#257); PDF acceptance policy extension IMPLEMENTED FOR REVIEW (#259) / DISABLED BY DEFAULT. Personal PDF delivery/download is owner-authorized scope; deployment, real-data use, retention/destruction policy, actual scanner proof, independent keys/restore and capacity evidence remain NOT PROVEN. See `docs/documents/WORKER_DOCUMENT_MAILBOX_V1.md`. No existing Staging/Pilot/Production status is upgraded by this change.
+Core MERGED (#257); PDF acceptance policy extension MERGED (#259) / DISABLED BY DEFAULT. Personal PDF delivery/download is owner-authorized scope; deployment, real-data use, retention/destruction policy, actual scanner proof, independent keys/restore and capacity evidence remain NOT PROVEN. See `docs/documents/WORKER_DOCUMENT_MAILBOX_V1.md`. No existing Staging/Pilot/Production status is upgraded by this change.
 
 PDF policy (owner accepted 2026-10-08): reject embedded-file PDFs through mandatory qpdf 12.4.2 inspection alongside ClamAV. See `docs/documents/PDF_ACCEPTANCE_POLICY.md`. Local structural corpus and combined CI PASS on implementation `2c50a7669a115bee29b9eca83d00c820fb538478` ([run 37834648130](https://github.com/tgervasius-lgtm/MVP-BSS/actions/runs/37834648130)): original/benign embedded PDF rejection before persistence, parser/scanner-down, clean PDF, RLS and K1/K2 restore. Native ClamAV defect itself is not fixed; enforced PDF policy closes the upload path. No staging/Pilot/Production readiness upgrade.
+
+## Employee import parser dependency — #237 (2026-10-09)
+
+H2-1a canonical database foundation is MERGED (#242). The isolated CSV/XLSX parser and explicit mapping primitive are IMPLEMENTED FOR REVIEW / INACTIVE; see [H2-1b scope and evidence](docs/bss-os/H2_IMPORT_PARSER_AND_MAPPING.md). HTTP ingestion, source/mapping persistence, global admission/cleanup and Admin UI remain incomplete. Native sandbox CI does not prove deployment identity, customer-data/privacy clearance, Staging or Pilot. Complete #237 stays OPEN.

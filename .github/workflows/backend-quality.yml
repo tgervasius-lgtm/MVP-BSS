@@ -31,6 +31,41 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  import-parser:
+    name: Import parser format and Linux isolation proof
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Node.js 22
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - name: Locked dependencies and reviewed native parser runtime
+        run: |
+          npm ci --ignore-scripts
+          npm rebuild esbuild --foreground-scripts
+          sudo apt-get update
+          sudo apt-get install -y bubblewrap python3 libseccomp2
+          /usr/bin/bwrap --version
+          /usr/bin/python3 -I -S -B -c 'import sys,pyexpat; print(sys.version); print(pyexpat.EXPAT_VERSION)'
+      - name: Synthetic hostile format corpus and build
+        run: |
+          /usr/bin/python3 -B -m unittest discover -s test/import-parser -v
+          npm run build
+      - name: Actual namespace, seccomp and hard resource limits
+        # Ubuntu's runner may forbid unprivileged namespace creation. Only this
+        # synthetic proof launches bwrap as runner root; inside it capabilities
+        # are dropped, FS is read-only, environment empty and seccomp mandatory.
+        # This does NOT certify an unprivileged deployment or authorize sudo in BSS.
+        run: sudo -- "$(command -v node)" --import tsx --test --test-concurrency=1 test/operational/import-parser.test.ts
+
   mailbox-operational:
     name: Mailbox real scanner and synthetic restore
     runs-on: ubuntu-24.04
