@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { execFile } from "node:child_process";
+import { execFile, spawn } from "node:child_process";
 import { promisify } from "node:util";
 import { mkdtemp, writeFile, copyFile, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
+import { fileURLToPath } from "node:url";
 import ExcelJS from "exceljs";
 import { parseImportFile, importSandboxArgs, TABULAR_LIMITS } from "../../src/imports/tabular-parser.js";
 
@@ -17,6 +18,28 @@ async function xlsx(edit?: (sheet: ExcelJS.Worksheet) => void): Promise<Buffer> 
   sheet.addRow(headers); sheet.addRow(row); edit?.(sheet);
   return Buffer.from(await workbook.xlsx.writeBuffer());
 }
+
+test("native parser starts with the production launch options and a synthetic document", async () => {
+  const result = await new Promise<{ code: number | null; stdout: string; stderr: string }>((resolve, reject) => {
+    const directory = fileURLToPath(new URL("../../import-parser/", import.meta.url));
+    const child = spawn("/usr/bin/bwrap", [...importSandboxArgs(directory), "csv", ","], {
+      env: { LANG: "C.UTF-8" }, stdio: ["pipe", "pipe", "pipe"], detached: true
+    });
+    let stdout = "";
+    let stderr = "";
+    const timer = setTimeout(() => { child.kill("SIGKILL"); reject(new Error("native startup timed out")); }, 5000);
+    child.stdout.on("data", chunk => { stdout += chunk.toString(); });
+    child.stderr.on("data", chunk => { stderr += chunk.toString(); });
+    child.stdin.on("error", () => { /* close carries the startup result */ });
+    child.on("error", reject);
+    child.on("close", code => { clearTimeout(timer); resolve({ code, stdout, stderr }); });
+    child.stdin.end(`${headers.join(",")}\n${row.join(",")}\n`);
+  });
+  // Diagnostics are limited to this synthetic fixture, never customer input.
+  assert.equal(result.code, 0, JSON.stringify(result));
+  assert.equal(result.stderr, "");
+  assert.equal(JSON.parse(result.stdout).rows[0][0], "000001");
+});
 
 test("actual isolated parser accepts ExcelJS XLSX/CSV and retains exact lexical IDs", async () => {
   const csv = Buffer.from(`${headers.join(",")}\n${row.join(",")}\n`);
