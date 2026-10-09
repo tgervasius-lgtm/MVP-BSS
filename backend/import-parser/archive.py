@@ -183,6 +183,7 @@ def xlsx(data):
     require([t for kind, t in rootrels.values() if kind == R + "/officeDocument"] == ["xl/workbook.xml"])
     wb = parts["xl/workbook.xml"]
     require(wb.tag == f"{{{S}}}workbook")
+    require(len(wb.findall(f"{{{S}}}sheets")) == 1, "SHEET_LIMIT")
     sheets = wb.find(f"{{{S}}}sheets")
     require(sheets is not None and len(sheets) == 1, "SHEET_LIMIT")
     sheet = sheets[0]
@@ -206,6 +207,7 @@ def xlsx(data):
     # Excel stores dates as numeric cells + styles. Never silently use them as IDs.
     formats = [0]
     if "xl/styles.xml" in parts:
+        require(len(parts["xl/styles.xml"].findall(f"{{{S}}}cellXfs")) == 1)
         styles = parts["xl/styles.xml"].find(f"{{{S}}}cellXfs")
         require(styles is not None and 0 < len(styles) <= 6006)
         formats = [int(x.get("numFmtId", "0")) for x in styles]
@@ -217,10 +219,12 @@ def xlsx(data):
         require(node.get("hidden", "0") in ("0", "false"), "HIDDEN_DATA")
         if local == "col":
             require(1 <= int(node.get("min", "0")) <= int(node.get("max", "0")) <= 6, "CELL_LIMIT")
+    require(len(document.findall(f"{{{S}}}dimension")) <= 1, "CELL_LIMIT")
     dimension = document.find(f"{{{S}}}dimension")
     if dimension is not None:
         for end in dimension.get("ref", "").split(":"):
             coordinate(end)
+    require(len(document.findall(f"{{{S}}}sheetData")) == 1, "ROW_LIMIT")
     body = document.find(f"{{{S}}}sheetData")
     require(body is not None and len(body) <= 1001, "ROW_LIMIT")
     rows = []

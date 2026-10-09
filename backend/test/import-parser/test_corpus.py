@@ -109,6 +109,15 @@ class Corpus(unittest.TestCase):
             p = parts(); p[file] = p[file].replace(old, new); self.reject_xlsx(p)
         p = parts(); p['xl/worksheets/sheet2.xml'] = p['xl/worksheets/sheet1.xml']; self.reject_xlsx(p)
 
+    def test_duplicate_data_containers_cannot_silently_drop_rows_or_sheets(self):
+        for file, closing, duplicate in [
+            ('xl/workbook.xml', '</workbook>', '<sheets/>'),
+            ('xl/worksheets/sheet1.xml', '</worksheet>', '<sheetData/>'),
+            ('xl/worksheets/sheet1.xml', '</worksheet>', '<dimension ref="A1:F2"/>')
+        ]:
+            p = parts(); p[file] = p[file].replace(closing, duplicate + closing)
+            with self.assertRaises(Rejected): parse(workbook(p), 'xlsx', ',')
+
     def test_archives_payloads_relations_and_entities(self):
         for name in ['../outside.xml', '/outside.xml', 'xl\\evil.xml', 'xl/vbaProject.bin', 'xl/embeddings/oleObject1.bin',
                      'xl/externalLinks/externalLink1.xml', 'xl/%2e%2e/secrets.xml']:

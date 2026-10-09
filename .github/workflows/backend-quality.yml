@@ -64,7 +64,16 @@ jobs:
         # synthetic proof launches bwrap as runner root; inside it capabilities
         # are dropped, FS is read-only, environment empty and seccomp mandatory.
         # This does NOT certify an unprivileged deployment or authorize sudo in BSS.
-        run: sudo -- "$(command -v node)" --import tsx --test --test-concurrency=1 test/operational/import-parser.test.ts
+        run: |
+          # The remapped namespace root cannot traverse the runner's private
+          # home. Expose only this synthetic code/build fixture, not that home.
+          proof_dir="$(mktemp -d /tmp/bss-import-runtime.XXXXXX)"
+          trap 'rm -rf "$proof_dir"' EXIT
+          chmod 755 "$proof_dir"
+          cp -R import-parser src dist test package.json "$proof_dir/"
+          ln -s "$PWD/node_modules" "$proof_dir/node_modules"
+          cd "$proof_dir"
+          sudo -- "$(command -v node)" --import tsx --test --test-concurrency=1 test/operational/import-parser.test.ts
 
   mailbox-operational:
     name: Mailbox real scanner and synthetic restore

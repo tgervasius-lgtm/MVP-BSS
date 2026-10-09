@@ -65,6 +65,13 @@ test("actual parser rejects formulas, cached formulas, hidden data, hyperlinks a
   ]) await assert.rejects(parseImportFile(await xlsx(edit), "xlsx", ","), { kind: "REJECTED" });
 });
 
+test("cancellation after spawn settles only after the isolated process closes", async () => {
+  const controller = new AbortController();
+  const result = parseImportFile(Buffer.from(`${headers.join(",")}\n${row.join(",")}`), "csv", ",", controller.signal);
+  controller.abort();
+  await assert.rejects(result, { kind: "CANCELLED" });
+});
+
 test("same sandbox enforces memory/CPU/no-fork/no-network/no-secret/no-write boundaries", async () => {
   const directory = await mkdtemp(join(tmpdir(), "bss-import-proof-"));
   const secret = join(tmpdir(), `bss-import-secret-${process.pid}`);

@@ -16,7 +16,7 @@ def restrict():
     for key, maximum in ((resource.RLIMIT_AS, 256 * 1024 * 1024), (resource.RLIMIT_CPU, 3),
                          (resource.RLIMIT_CORE, 0), (resource.RLIMIT_FSIZE, 0), (resource.RLIMIT_NPROC, 0)):
         resource.setrlimit(key, (maximum, maximum))
-    if sys.platform != "linux" or pyexpat.version_info < (2, 6, 0):
+    if sys.platform != "linux" or sys.version_info < (3, 12) or pyexpat.version_info < (2, 6, 0):
         raise RuntimeError("unsupported runtime")
     lib = ctypes.CDLL("libseccomp.so.2")
     lib.seccomp_init.argtypes = [ctypes.c_uint32]
