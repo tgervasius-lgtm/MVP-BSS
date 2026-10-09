@@ -291,3 +291,62 @@ test('dokument API sučelje: primatelj, nacrt, potvrda objave i preuzimanje PDF-
   expect(errors).toEqual([]);
 });
 });
+
+async function mapImportPreview(page,scenario='valid'){
+  await page.goto('/design-system/import-onboarding.html');
+  await page.getByLabel('Ogledni scenarij',{exact:true}).selectOption(scenario);
+  await page.getByRole('button',{name:'Pregledaj ogledni CSV',exact:true}).click();
+  await page.getByRole('button',{name:'Prikaži ogledni rezultat obrade',exact:true}).click();
+  for(const [index,field] of ['code','name','email','department','shift','annualLeaveAllowance'].entries()){
+    await page.locator(`#map-${field}`).selectOption(String(index+1));
+  }
+  await page.locator('#map-department-value').selectOption('demo-department');
+  await page.locator('#map-shift-value').selectOption('demo-shift');
+  await page.getByRole('button',{name:'Provjeri cijeli popis',exact:true}).click();
+}
+
+test('UX uvoza: potvrda, nepoznat rezultat i onboarding bez automatskog odobrenja',async({page})=>{
+  const errors=trackErrors(page);
+  await mapImportPreview(page,'uncertain');
+  await page.getByRole('button',{name:'Nastavi na potvrdu',exact:true}).click();
+  const commit=page.getByRole('button',{name:'Prikaži ogledni rezultat uvoza',exact:true});
+  await expect(commit).toBeDisabled();
+  await page.locator('#approve-import').check();
+  await commit.click();
+  await expect(page.getByRole('heading',{name:'Rezultat još nije potvrđen',exact:true})).toBeVisible();
+  await expect(page.getByRole('button',{name:'Počni novi ogledni pregled'})).toHaveCount(0);
+  expect(await seriousAxeViolations(page)).toEqual([]);
+  await page.getByRole('button',{name:'Provjeri ogledni rezultat',exact:true}).click();
+  await page.getByRole('button',{name:'Pregledaj pripremu tvrtke',exact:true}).click();
+  await expect(page.locator('#preview-content')).toContainText('Nije odobreno');
+  await expect(page.locator('#preview-content')).toContainText('Ogledni rezultat uvoza');
+  expect(await seriousAxeViolations(page)).toEqual([]);
+  expect(errors).toEqual([]);
+});
+
+test('UX uvoza: sve faze su pristupačne u obje teme i na uskom ekranu',async({page})=>{
+  const errors=trackErrors(page);
+  await mapImportPreview(page,'invalid');
+  await expect(page.getByRole('button',{name:'Nastavi na potvrdu',exact:true})).toBeDisabled();
+  await expect(page.locator('#preview-content')).toContainText('duplikat u datoteci');
+  for(const theme of ['light','dark']){
+    if(theme==='dark'){
+      await page.getByRole('button',{name:'Tamna tema',exact:true}).click();
+      await expect(page.locator('#preview-theme')).toHaveCSS('background-color','rgb(13, 39, 33)');
+    }
+    expect(await seriousAxeViolations(page)).toEqual([]);
+    if(page.viewportSize().width<=760){
+      expect(await page.locator('.preview-table-wrap').first().evaluate(table=>table.scrollWidth-table.clientWidth)).toBeLessThanOrEqual(1);
+    }
+    await page.getByRole('button',{name:'Promijeni povezivanje',exact:true}).click();
+    expect(await seriousAxeViolations(page)).toEqual([]);
+    await page.getByRole('button',{name:'Provjeri cijeli popis',exact:true}).click();
+    expect(await page.evaluate(()=>document.documentElement.scrollWidth-document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
+  }
+  await page.getByRole('button',{name:'Otkaži pripremu',exact:true}).click();
+  await page.getByRole('button',{name:'Da, otkaži oglednu pripremu',exact:true}).click();
+  await expect(page.getByRole('heading',{name:'Priprema je otkazana',exact:true})).toBeVisible();
+  await page.getByRole('button',{name:'Počni novi ogledni pregled',exact:true}).click();
+  expect(await seriousAxeViolations(page)).toEqual([]);
+  expect(errors).toEqual([]);
+});

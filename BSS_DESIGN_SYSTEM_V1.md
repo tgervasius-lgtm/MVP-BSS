@@ -228,3 +228,9 @@ must describe only actions already available to the active role. See
 ## Personal documents pattern — 2026-10-06 (#256)
 
 Use a readable list with document title, type/month and direct PDF download. Worker sees personal published documents only. Admin/accountant preparation is a separate draft/review/publish flow that always displays worker name and code before publication. Provide loading, empty, disabled, error and stale-state recovery; every action supports keyboard/focus and narrow screens. Never label a download as confirmed reading or acceptance. Existing color tokens remain in use.
+
+## Import/onboarding UX candidate — 2026-10-09 (#237)
+
+Status: **PROPOSED UX / SYNTHETIC PREVIEW ONLY**, not an accepted production screen or H2-2 API integration. Review `/design-system/import-onboarding.html` independently of the application navigation. Reuse semantic tokens, labelled 44px controls, keyboard focus, text-backed statuses and bounded horizontal table regions in both themes.
+
+The import proposal separates source selection, explicit mapping, whole-batch preview and approval. One blocked row blocks the whole batch. Editing mapping or refreshing a stale review clears approval. An uncertain commit offers read-back before any new import; commit success remains separate from user invitations and RFID assignment. Onboarding distinguishes verified prerequisites, computed readiness and separate operator approval; visited screens never certify readiness. See [review scope and acceptance](docs/ux/IMPORT_ONBOARDING_UX_PREVIEW_2026-10-09.md).

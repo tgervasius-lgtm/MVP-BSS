@@ -2842,3 +2842,79 @@ test('stvarni API adapter šalje uneseno obrazloženje i reviziju bez generičke
   assert.deepEqual(JSON.parse(sent[0].body),{note:'Provjerite odjavu sa svojim voditeljem.'});
   assert.equal(sent[0].headers['If-Match'],'"7"');
 });
+
+function importUxHarness(){
+  const {mount}=require('../src/views/import-onboarding-preview.js');
+  const document=new JSDOM(fs.readFileSync('design-system/import-onboarding.html','utf8'),{url:'https://preview.invalid/design-system/import-onboarding.html'}).window.document;
+  mount(document);
+  const click=action=>document.querySelector(`[data-action="${action}"]`).click();
+  const change=(id,value)=>{
+    const input=document.getElementById(id);
+    if(input.type==='checkbox')input.checked=value;else input.value=value;
+    input.dispatchEvent(new document.defaultView.Event('change',{bubbles:true}));
+  };
+  const map=()=>{
+    click('csv');click('parsed');
+    ['code','name','email','department','shift','annualLeaveAllowance'].forEach((field,index)=>change(`map-${field}`,String(index+1)));
+    change('map-department-value','demo-department');change('map-shift-value','demo-shift');
+  };
+  return {document,click,change,map};
+}
+
+test('UX prijedlog blokira nepotpuno/duplicirano povezivanje i traži izričitu potvrdu',()=>{
+  const {document,click,change,map}=importUxHarness();
+  map();
+  change('map-name','1');
+  assert.equal(document.querySelector('[data-action="validate"]').disabled,true);
+  change('map-name','2');click('validate');click('approve');
+  assert.equal(document.querySelector('[data-action="commit"]').disabled,true);
+  change('approve-import',true);
+  click('review');click('approve');
+  assert.equal(document.getElementById('approve-import').checked,false);
+  change('approve-import',true);click('commit');
+  assert.match(document.getElementById('preview-content').textContent,/Stvarni popis radnika ostaje nepromijenjen/);
+  click('onboarding');
+  assert.match(document.getElementById('preview-content').textContent,/Ogledni rezultat uvoza/);
+  assert.match(document.getElementById('preview-content').textContent,/Nije odobreno/);
+});
+
+test('UX prijedlog cijelog neispravnog popisa ostaje blokiran i može se otkazati',()=>{
+  const {document,click,change,map}=importUxHarness();
+  change('preview-scenario','invalid');map();click('validate');
+  assert.equal(document.querySelector('[data-action="approve"]').disabled,true);
+  assert.match(document.getElementById('preview-content').textContent,/duplikat u datoteci/);
+  assert.match(document.getElementById('preview-content').textContent,/cijeli broj od 0 do 366/);
+  click('cancelAsk');click('cancel');
+  assert.match(document.getElementById('preview-content').textContent,/Priprema je otkazana/);
+  click('replace');
+  assert.equal(document.querySelector('[data-action="validate"]'),null);
+  assert.match(document.getElementById('preview-content').textContent,/Nije odabrana/);
+});
+
+for(const scenario of ['expired','stale','uncertain']){
+  test(`UX prijedlog prikazuje siguran oporavak: ${scenario}`,()=>{
+    const {document,click,change,map}=importUxHarness();
+    change('preview-scenario',scenario);map();click('validate');click('approve');change('approve-import',true);click('commit');
+    const content=document.getElementById('preview-content');
+    if(scenario==='expired')assert.match(content.textContent,/Priprema je istekla/);
+    if(scenario==='stale'){
+      assert.match(content.textContent,/Potvrda nije prihvaćena/);click('refresh');click('approve');
+      assert.equal(document.getElementById('approve-import').checked,false);
+    }
+    if(scenario==='uncertain'){
+      assert.match(content.textContent,/Uvoz je možda uspio/);
+      assert.equal(document.querySelector('[data-action="replace"]'),null);
+      click('readback');assert.match(content.textContent,/Ogledni rezultat: 3 radnika dodana/);
+    }
+  });
+}
+
+test('UX prijedlog nema ulaz datoteke, API pozive, trajnu pohranu ni vezu s produkcijskim stanjem',()=>{
+  const {document}=importUxHarness();
+  const previewSource=fs.readFileSync('src/views/import-onboarding-preview.js','utf8');
+  assert.equal(document.querySelector('input[type="file"]'),null);
+  assert.doesNotMatch(previewSource,/\b(fetch|XMLHttpRequest|localStorage|sessionStorage|indexedDB)\b/);
+  assert.doesNotMatch(previewSource,/\bstate\.workers\b|\/api\/v1\//);
+  document.querySelector('[data-view="onboarding"]').click();
+  assert.match(document.getElementById('preview-content').textContent,/Blokirano/);
+});
