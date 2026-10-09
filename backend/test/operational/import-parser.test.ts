@@ -74,9 +74,10 @@ test("cancellation after spawn settles only after the isolated process closes", 
 
 test("same sandbox enforces memory/CPU/no-fork/no-network/no-secret/no-write boundaries", async () => {
   const directory = await mkdtemp(join(tmpdir(), "bss-import-proof-"));
-  const secret = join(tmpdir(), `bss-import-secret-${process.pid}`);
+  const secretDirectory = await mkdtemp(join(tmpdir(), "bss-import-secret-"));
+  const secret = join(secretDirectory, "secret");
   try {
-    await writeFile(secret, "SYNTHETIC-OUTSIDE-SANDBOX");
+    await writeFile(secret, "SYNTHETIC-OUTSIDE-SANDBOX", { flag: "wx", mode: 0o600 });
     await copyFile(new URL("../../import-parser/worker.py", import.meta.url), join(directory, "guard.py"));
     const probe = `import sys,os,socket,resource\nsys.path.insert(0,'/parser')\nfrom guard import restrict\nrestrict()\nassert not os.environ.get('DATABASE_URL')\nassert resource.getrlimit(resource.RLIMIT_AS)==(${TABULAR_LIMITS.memoryBytes},${TABULAR_LIMITS.memoryBytes})\nassert resource.getrlimit(resource.RLIMIT_CPU)==(3,3)\nassert resource.getrlimit(resource.RLIMIT_CORE)==(0,0)\nfor action in [lambda: socket.socket(),lambda: os.fork(),lambda: open(${JSON.stringify(secret)}),lambda: open('/tmp/write','w')]:\n try:\n  action()\n except OSError:\n  pass\n else:\n  raise RuntimeError('sandbox boundary failed')\ntry:\n value=bytearray(${TABULAR_LIMITS.memoryBytes})\nexcept MemoryError:\n pass\nelse:\n raise RuntimeError('memory ceiling failed')\nprint('ISOLATION_PASS')\n`;
     await writeFile(join(directory, "worker.py"), probe);
@@ -86,7 +87,7 @@ test("same sandbox enforces memory/CPU/no-fork/no-network/no-secret/no-write bou
     assert.equal(result.stdout.trim(), "ISOLATION_PASS");
     assert.equal(result.stderr, "");
   } finally {
-    await rm(directory, { recursive: true, force: true }); await rm(secret, { force: true });
+    await rm(directory, { recursive: true, force: true }); await rm(secretDirectory, { recursive: true, force: true });
   }
 });
 
