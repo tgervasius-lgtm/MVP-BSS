@@ -36,7 +36,7 @@ for(const directory of directories){
   await cp(path.join(root,directory),path.join(output,directory),{recursive:true});
 }
 
-for(const htmlPath of ['index.html','design-system/index.html','brand-book/index.html']){
+for(const htmlPath of ['index.html','design-system/index.html','brand-book/index.html','design-system/import-onboarding.html']){
   const html=await readFile(path.join(output,htmlPath),'utf8');
   if(/<script(?![^>]*\bsrc=)[^>]*>/i.test(html))throw new Error(`Inline script nije dopušten: ${htmlPath}`);
 }
