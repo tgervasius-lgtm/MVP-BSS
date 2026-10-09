@@ -154,6 +154,12 @@ test("#237 migration 015 preserves legacy data and refuses source loss under a c
   const down = await readFile(new URL("../../migrations/015_worker_import_source.down.sql", import.meta.url), "utf8");
   const up = await readFile(new URL("../../migrations/015_worker_import_source.up.sql", import.meta.url), "utf8");
   const legacy = await f.prepare([f.worker("LEGACY")]);
+  // Verify the 24-hour CHECK independently of the immutable-identity trigger.
+  // Auto-generated CHECK names include column checks with cross-column refs.
+  await f.owner.query("BEGIN");
+  await f.owner.query("ALTER TABLE worker_import_sessions DISABLE TRIGGER worker_import_session_identity");
+  await assert.rejects(f.owner.query("UPDATE worker_import_sessions SET expires_at=expires_at+interval '1 second' WHERE id=$1", [legacy.id]), { code: "23514" });
+  await f.owner.query("ROLLBACK");
   await f.owner.query("BEGIN"); await f.owner.query(down); await f.owner.query("COMMIT");
   assert.equal((await f.owner.query("SELECT state FROM worker_import_sessions WHERE id=$1", [legacy.id])).rows[0].state, "READY");
   await f.owner.query("BEGIN"); await f.owner.query(up); await f.owner.query("COMMIT");
@@ -169,4 +175,42 @@ test("#237 migration 015 preserves legacy data and refuses source loss under a c
   await f.owner.query("ROLLBACK");
   assert.equal((await f.owner.query("SELECT relforcerowsecurity FROM pg_class WHERE relname='worker_import_sessions'")).rows[0].relforcerowsecurity, true);
   assert.equal((await f.sourceStore.source(f.first.actor, p.session.id, p.session.revision, 0, 10, "preserved")).sourceRows.length, 1);
+});
+
+test("#237 tenant cleanup atomically purges expired source and fails abandoned parsing with rollback on audit failure", options, async t => {
+  assert.ok(url, "BSS_TEST_DATABASE_URL is required");
+  const f = await importSourceFixture(url); t.after(f.dispose);
+  const parsed = await f.parsed();
+  const parsing = await f.reserve(f.source("ABANDONED"));
+  await f.age(parsed.session.id, "25 hours"); await f.age(parsing.session.id, "11 seconds");
+  await f.owner.query(`CREATE FUNCTION fixture_cleanup_audit_failure() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN
+    IF NEW.action IN ('worker_import.expired','worker_import.failed') THEN RAISE EXCEPTION 'fixture cleanup audit failure'; END IF;
+    RETURN NEW; END $$;
+    CREATE TRIGGER fixture_cleanup_audit BEFORE INSERT ON audit_events FOR EACH ROW EXECUTE FUNCTION fixture_cleanup_audit_failure()`);
+  await assert.rejects(f.sourceStore.cleanupTenant(f.first.actor, "cleanup-failure"), /fixture cleanup audit failure/);
+  assert.equal(await f.count("worker_import_staging"), 1);
+  assert.equal((await f.owner.query("SELECT count(*)::integer AS n FROM worker_import_sessions WHERE terminal_at IS NULL")).rows[0].n, 2);
+  await f.owner.query("DROP TRIGGER fixture_cleanup_audit ON audit_events");
+  const result = await f.sourceStore.cleanupTenant(f.first.actor, "cleanup-success");
+  assert.equal(result.expired, 2); assert.equal(await f.count("worker_import_staging"), 0);
+  assert.equal((await f.sourceStore.get(f.first.actor, parsed.session.id, "expired-readback")).session.state, "EXPIRED");
+  assert.equal((await f.sourceStore.get(f.first.actor, parsing.session.id, "failed-readback")).session.state, "FAILED");
+  assert.equal(await f.count("workers"), 0);
+});
+
+test("#237 publication rechecks the lease after a slow staged write and purges its output", options, async t => {
+  assert.ok(url, "BSS_TEST_DATABASE_URL is required");
+  const f = await importSourceFixture(url); t.after(f.dispose);
+  const p = await f.reserve();
+  await f.owner.query(`CREATE TABLE fixture_parse_insert_seen (id integer);
+    GRANT INSERT ON fixture_parse_insert_seen TO ${f.role};
+    CREATE FUNCTION fixture_slow_source_write() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN
+      INSERT INTO fixture_parse_insert_seen VALUES (1); PERFORM pg_sleep(2.2); RETURN NEW; END $$;
+    CREATE TRIGGER fixture_slow_source BEFORE INSERT ON worker_import_staging FOR EACH ROW EXECUTE FUNCTION fixture_slow_source_write()`);
+  await f.age(p.session.id, "8 seconds");
+  await assert.rejects(f.sourceStore.publish(f.first.actor, p.session.id, p.session.revision, p.lease, p.table, "late-during-write"), { code: "CONFLICT" });
+  // The insert ran after the first lease check; cleanup committed in the same transaction.
+  assert.equal((await f.owner.query("SELECT 1 FROM fixture_parse_insert_seen")).rowCount, 1);
+  assert.equal(await f.count("worker_import_staging"), 0);
+  assert.equal((await f.sourceStore.get(f.first.actor, p.session.id, "late-readback")).session.state, "FAILED");
 });

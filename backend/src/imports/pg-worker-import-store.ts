@@ -4,7 +4,7 @@ import type { ActorContext } from "../domain/types.js";
 import { requireRole } from "../security/rbac.js";
 import { assertChecksum, assertId, digest, IMPORT_POLICY, invalid, keyHash, normalizeInput,
   normalizeRows, type ImportInput, type ImportWorker } from "./model.js";
-import { assertRevision, auditImport, expire, lockedSession, nonterminal, readResult,
+import { assertRevision, auditImport, expire, expireDue, lockedSession, nonterminal, readResult,
   SESSION_COLUMNS, sessionView, stagedRows, terminate, updatePreview, type CommitRow, type SessionRow } from "./persistence.js";
 import { importTransaction, type ImportTransaction } from "./transaction.js";
 import { validateImport } from "./validation.js";
@@ -141,15 +141,12 @@ export class PgWorkerImportStore {
   }
 
   protected async cleanup(tx: ImportTransaction, actor: ActorContext, requestId: string) {
-    const expired = await tx.query<SessionRow>(`SELECT ${SESSION_COLUMNS} FROM worker_import_sessions
-      WHERE state IN ('PARSING','NEEDS_MAPPING','READY','INVALID') AND (expires_at <= clock_timestamp() OR parse_expires_at <= clock_timestamp())
-      ORDER BY id LIMIT 100 FOR UPDATE SKIP LOCKED`);
-    for (const row of expired.rows) await expire(tx, actor, requestId, row);
+    const expired = await expireDue(tx, actor, requestId);
     const removed = await tx.query(`DELETE FROM worker_import_sessions WHERE id IN (
       SELECT id FROM worker_import_sessions WHERE state IN ('CANCELLED','EXPIRED','FAILED')
         AND terminal_at <= clock_timestamp() - interval '30 days'
       ORDER BY id LIMIT 100 FOR UPDATE SKIP LOCKED) RETURNING id`);
-    return { expired: expired.rowCount ?? 0, removed: removed.rowCount ?? 0 };
+    return { expired, removed: removed.rowCount ?? 0 };
   }
 
   // Tenant-scoped primitive only; this is NOT the deployment-wide monitored

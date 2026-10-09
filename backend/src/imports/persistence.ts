@@ -54,6 +54,29 @@ export async function expire(tx: ImportTransaction, actor: ActorContext, request
   if (row.state === "PARSING" && clock.rows[0]?.abandoned) return terminate(tx, actor, requestId, row, "FAILED");
   return row;
 }
+
+export async function expireDue(tx: ImportTransaction, actor: ActorContext, requestId: string): Promise<number> {
+  // Bound and lock one batch, then purge/transition/audit atomically. This avoids
+  // hundreds of serial network round trips inside the five-second transaction.
+  const result = await tx.query(`WITH due AS MATERIALIZED (
+      SELECT id FROM worker_import_sessions WHERE state IN ('PARSING','NEEDS_MAPPING','READY','INVALID')
+        AND (expires_at <= clock_timestamp() OR parse_expires_at <= clock_timestamp())
+      ORDER BY id LIMIT 100 FOR UPDATE SKIP LOCKED
+    ), ended AS (
+      UPDATE worker_import_sessions s SET state = CASE WHEN expires_at <= clock_timestamp() THEN 'EXPIRED' ELSE 'FAILED' END,
+        revision = revision + 1, terminal_at = clock_timestamp(), preview_checksum = NULL,
+        parse_lease = NULL, parse_expires_at = NULL
+      FROM due WHERE s.id = due.id RETURNING s.id, s.state, s.total
+    ), purged AS (
+      DELETE FROM worker_import_staging s USING ended WHERE s.session_id = ended.id
+    )
+    INSERT INTO audit_events(organization_id, actor_type, actor_id, actor_role,
+      action, entity_type, entity_id, after_json, request_id, metadata)
+    SELECT $1, 'user', $2, 'admin', 'worker_import.' || lower(state), 'worker_import', id,
+      jsonb_build_object('total', total), $3, '{}'::jsonb FROM ended RETURNING entity_id`,
+  [actor.organizationId, actor.userId, requestId]);
+  return result.rowCount ?? 0;
+}
 export async function stagedRows(tx: ImportTransaction, id: string): Promise<ImportWorker[]> {
   const result = await tx.query<{ rows_json: ImportWorker[] }>("SELECT rows_json FROM worker_import_staging WHERE session_id = $1", [id]);
   if (!result.rows[0]?.rows_json) throw new AppError("CONFLICT", "Privremeni podaci više nisu dostupni.");

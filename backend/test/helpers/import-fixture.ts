@@ -49,7 +49,7 @@ export async function importFixture(databaseUrl: string) {
     }
     // Fixture-only clock travel. Runtime cannot change either timestamp; these
     // owner DDL changes run in a transaction and are never granted to appPool.
-    async function age(id: string, interval: "11 seconds" | "25 hours" | "32 days", terminal = false) {
+    async function age(id: string, interval: "8 seconds" | "11 seconds" | "25 hours" | "32 days", terminal = false) {
       await owner.query("BEGIN");
       try {
         await owner.query("ALTER TABLE worker_import_sessions DISABLE TRIGGER worker_import_session_identity");

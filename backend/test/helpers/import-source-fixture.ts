@@ -6,15 +6,16 @@ import type { SourceMapping } from "../../src/imports/source-mapping.js";
 import { TABULAR_VERSION, type ParsedTable } from "../../src/imports/tabular-parser.js";
 import { importFixture } from "./import-fixture.js";
 
+function source(code = "001", count = 1): ParsedTable {
+  const rows = Array.from({ length: count }, (_, i) => [`${code}-${i}`, "Synthetic Person", "Department", "Day", "0"]);
+  return { version: TABULAR_VERSION, fileChecksum: digest(rows), headers: ["Code", "Name", "Department", "Shift", "Days"], rows };
+}
+
 export async function importSourceFixture(url: string) {
   const f = await importFixture(url);
   const sourceStore = new PgImportSourceStore(f.appPool);
   const mapping: SourceMapping = { columns: ["code", "name", "department", "shift", "annualLeaveAllowance"],
     departments: [{ source: "Department", id: f.first.department }], shifts: [{ source: "Day", id: f.first.shift }] };
-  function source(code = "001", count = 1): ParsedTable {
-    const rows = Array.from({ length: count }, (_, i) => [`${code}-${i}`, "Synthetic Person", "Department", "Day", "0"]);
-    return { version: TABULAR_VERSION, fileChecksum: digest(rows), headers: ["Code", "Name", "Department", "Shift", "Days"], rows };
-  }
   async function reserve(table = source(), key = randomUUID()) {
     const result = await sourceStore.reserve(f.first.actor, { fileChecksum: table.fileChecksum, format: "csv", delimiter: ",",
       policyVersion: IMPORT_POLICY.version }, key, "reserve");

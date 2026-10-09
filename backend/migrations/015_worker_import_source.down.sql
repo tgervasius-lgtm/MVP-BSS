@@ -15,19 +15,28 @@ ALTER TABLE worker_import_staging
   DROP CONSTRAINT worker_import_staged_mapping,
   DROP COLUMN source_json, DROP COLUMN mapping_json, DROP COLUMN mapping_issues,
   ALTER COLUMN rows_json SET NOT NULL;
+DO $migration$
+DECLARE
+  state_ready CONSTANT text := 'READY';
+  state_invalid CONSTANT text := 'INVALID';
+BEGIN
+  EXECUTE format($ddl$
 ALTER TABLE worker_import_sessions
   DROP CONSTRAINT worker_import_state, DROP CONSTRAINT worker_import_total,
   DROP CONSTRAINT worker_import_terminal, DROP CONSTRAINT worker_import_source_identity,
   DROP CONSTRAINT worker_import_parse_lease, DROP CONSTRAINT worker_import_mapping_ready,
   DROP COLUMN source_format, DROP COLUMN source_delimiter, DROP COLUMN mapping_checksum,
   DROP COLUMN parse_lease, DROP COLUMN parse_expires_at,
-  ADD CONSTRAINT worker_import_sessions_state_check CHECK (state IN ('READY','INVALID','COMMITTED','CANCELLED','EXPIRED')),
+  ADD CONSTRAINT worker_import_sessions_state_check CHECK (state IN (%1$L,%2$L,'COMMITTED','CANCELLED','EXPIRED')),
   ADD CONSTRAINT worker_import_sessions_total_check CHECK (total BETWEEN 1 AND 1000),
-  ADD CONSTRAINT worker_import_sessions_check1 CHECK ((state IN ('READY','INVALID')) = (terminal_at IS NULL));
+  ADD CONSTRAINT worker_import_sessions_check2 CHECK ((state IN (%1$L,%2$L)) = (terminal_at IS NULL));
 CREATE INDEX worker_import_expiry_idx ON worker_import_sessions(organization_id, expires_at)
-  WHERE state IN ('READY','INVALID');
+  WHERE state IN (%1$L,%2$L);
 CREATE INDEX worker_import_retention_idx ON worker_import_sessions(organization_id, terminal_at)
   WHERE state IN ('CANCELLED','EXPIRED');
+$ddl$, state_ready, state_invalid);
+END;
+$migration$;
 CREATE OR REPLACE FUNCTION bss_protect_worker_import_session() RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
   IF OLD.state = 'COMMITTED' THEN
