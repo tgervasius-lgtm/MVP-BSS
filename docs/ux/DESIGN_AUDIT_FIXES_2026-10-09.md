@@ -24,6 +24,14 @@ Frontend unit regressions cover localized period selection, years outside the de
 
 The PowerShell verification wrapper is unavailable in this Linux environment. Equivalent frontend npm checks are used; required GitHub checks remain the merge gate. No merge or deployment is authorized by this document.
 
+### Architecture-budget follow-up — 10.10.2026.
+
+The targeted rerun of quality run `37993579694` passed PostgreSQL initialization but exposed an architecture-budget failure: `app.js` had 2118 lines against its frozen limit of 2105. The month-period enhancer is now a dedicated `src/views/month-picker.js` module, loaded before the app and included in the public-shell precache (cache revision r8). The app passes its current reference date at both render and modal call sites; ISO values, Croatian labels, validation and existing change handlers are preserved. No gate or budget is relaxed.
+
+Local validation on Node 24.19.0: architecture guard PASS (91 source files; app.js 2087 lines), frontend lint PASS, all 173 unit/regression tests PASS, and build PASS. A new regression verifies the current reference year, invalid-year clearing, zero-padded years and single event delivery after repeated enhancement. Existing regressions cover worker refresh and optional document periods. Clean current-main architecture baseline also passes.
+
+Local Chromium E2E is UNAVAILABLE: Playwright's browser installation returned an invalid/truncated ZIP and no existing Chromium executable was found in the checked locations. No browser scenario is claimed PASS for this follow-up. Local full-stack/PostgreSQL and the PowerShell wrapper are UNAVAILABLE; GitHub required quality/security/browser checks must supply fresh evidence on the new head before merge. Physical Safari/iPhone review remains separate.
+
 ## Recovery and remaining evidence
 
 Revert this frontend commit/PR to restore the previous presentation. No data migration or database rollback is needed. Production/API readiness, full-stack PostgreSQL evidence, real Safari/iPhone review and deployment verification remain separate gates. Changes to authentication, role enforcement, hardware and Sonar findings belong to the main workstream.

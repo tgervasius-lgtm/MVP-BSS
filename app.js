@@ -658,7 +658,7 @@ function closeDrawer(restoreFocus=false){
 function showModal(modal){
   globalThis.BSSTerminalCredential?.clear();
   if(!modal)return;
-  enhanceMonthInputs(modal);
+  BSS_VIEWS.monthPicker.enhance(modal,DEMO_TODAY);
   const heading=modal.querySelector('h2');if(heading){heading.id='activeModalTitle';modal.setAttribute('aria-labelledby',heading.id);}
   layerReturnFocus=document.activeElement;modal.classList.add('open');modal.setAttribute('aria-hidden','false');focusFirst(modal);
 }
@@ -674,39 +674,8 @@ function openResetDemoDialog(){
   modal.innerHTML=`<div class="modal-card confirm-card"><div class="confirm-symbol" aria-hidden="true">↻</div><h2>Vratiti početne demo-podatke?</h2><p>Sve lokalne izmjene u radnicima, zahtjevima, terminalu i postavkama bit će zamijenjene početnim Demo 3.0 skupom.</p><div class="btns"><button class="btn red" data-bss-action="resetDemo()">Da, vrati podatke</button><button class="btn secondary" data-bss-action="closeModal()">Odustani</button></div></div>`;
   showModal(modal);layerReturnFocus=trigger;
 }
-// Preserve ISO values and existing change handlers while showing Croatian month names.
-function enhanceMonthInputs(container){
-  container.querySelectorAll('input[type="month"]').forEach(input=>{
-    const label=input.getAttribute('aria-label')||input.closest('label')?.textContent.trim()||'Razdoblje';
-    const selected=input.value.split('-');
-    const control=document.createElement('span');control.className='month-picker';
-    const month=document.createElement('select');month.setAttribute('aria-label',`${label} — mjesec`);
-    const year=document.createElement('input');year.type='number';year.min='1';year.max='9999';year.step='1';
-    year.setAttribute('aria-label',`${label} — godina`);year.value=selected[0]||DEMO_TODAY.slice(0,4);
-    const blank=document.createElement('option');blank.value='';blank.textContent='Odaberite mjesec';month.append(blank);
-    for(let index=1;index<=12;index++){
-      const option=document.createElement('option');option.value=String(index).padStart(2,'0');
-      option.textContent=new Date(2026,index-1,15).toLocaleDateString('hr-HR',{month:'long'});month.append(option);
-    }
-    month.value=selected[1]||'';
-    input.type='hidden';input.removeAttribute('aria-label');
-    // Avoid a label containing two labelable descendants.
-    const outerLabel=input.closest('label');
-    if(outerLabel){
-      const wrapper=document.createElement('div');wrapper.className='month-field';
-      const caption=document.createElement('span');caption.textContent=label;
-      wrapper.append(caption,input,control);outerLabel.replaceWith(wrapper);
-    }else input.after(control);
-    control.append(month,year);
-    const sync=()=>{
-      input.value=month.value&&year.value&&year.validity.valid?`${year.value.padStart(4,'0')}-${month.value}`:'';
-      input.dispatchEvent(new Event('change',{bubbles:true}));
-    };
-    month.addEventListener('change',sync);year.addEventListener('change',sync);
-  });
-}
 function enhanceRenderedUi(){
-  enhanceMonthInputs(document);
+  BSS_VIEWS.monthPicker.enhance(document,DEMO_TODAY);
   const [heading]=topCopy();document.title=`${heading} | BSS ${APP_VERSION}`;
   document.querySelectorAll('.table-wrap').forEach((wrapper,index)=>{
     const tableTitle=wrapper.closest('.card')?.querySelector('h2')?.textContent?.trim()||`Tablični prikaz ${index+1}`;

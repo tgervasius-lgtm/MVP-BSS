@@ -33,7 +33,8 @@ const coreSources = [
   'src/views/access-operational.js',
   'src/views/audit-operational.js',
   'src/views/contextual-help.js',
-  'src/views/documents.js'
+  'src/views/documents.js',
+  'src/views/month-picker.js'
 ].map(path=>fs.readFileSync(path,'utf8'));
 const styleEntry = fs.readFileSync('styles.css','utf8');
 const styleLayerPaths = [
@@ -1945,7 +1946,7 @@ test('aplikacija povezuje vodič i offline predmemorira cijeli Design System',()
   for(const asset of ['design-system/index.html','design-system/tokens.css','design-system/guide.css','design-system/guide.js']){
     assert.match(serviceWorker,new RegExp(asset.replaceAll('.','\\.')));
   }
-  assert.match(serviceWorker,/bss-backend-mvp-v1-r7/);
+  assert.match(serviceWorker,/bss-backend-mvp-v1-r8/);
 });
 
 test('Brand Book v1.0 pokriva svih devet dogovorenih područja',()=>{
@@ -2009,7 +2010,7 @@ test('aplikacija povezuje Brand Book i cijeli paket radi offline',()=>{
     'bss-presentation-cover.svg','bss-terminal-label.svg',
     'BSS_BRAND-BOOK_v1.0_11.07.2026.pdf'
   ]) assert.match(serviceWorker,new RegExp(asset.replaceAll('.','\\.')));
-  assert.match(serviceWorker,/bss-backend-mvp-v1-r7/);
+  assert.match(serviceWorker,/bss-backend-mvp-v1-r8/);
   assert.match(serviceWorker,/path\.includes\('\/brand-book'\)/);
 });
 
@@ -2098,6 +2099,7 @@ test('Backend MVP učitava API adaptere prije aplikacije i sprema shell za offli
     html.indexOf('src/use-cases/corrections.js'),
     html.indexOf('src/views/registry.js'),
     html.indexOf('src/views/events.js'),
+    html.indexOf('src/views/month-picker.js'),
     html.indexOf('app.js'),
     html.indexOf('src/adapters/api-bindings.js')
   ];
@@ -2106,15 +2108,15 @@ test('Backend MVP učitava API adaptere prije aplikacije i sprema shell za offli
   for(const asset of [
     'src/adapters/runtime.js','src/adapters/api.js','src/adapters/api-state.js','src/adapters/api-bindings.js','src/adapters/theme-bootstrap.js','src/domain/contracts.js','src/domain/time.js','src/policies/access.js',
     'src/use-cases/attendance.js','src/use-cases/leave.js','src/use-cases/corrections.js',
-    'src/views/registry.js','src/views/events.js'
+    'src/views/registry.js','src/views/events.js','src/views/month-picker.js'
   ]){
     assert.match(serviceWorker,new RegExp(asset.replaceAll('.','\\.')));
   }
-  assert.match(serviceWorker,/bss-backend-mvp-v1-r7/);
+  assert.match(serviceWorker,/bss-backend-mvp-v1-r8/);
 });
 
 test('cache invalidation hotfix osvježava app shell i odmah preuzima otvorene klijente',()=>{
-  assert.match(serviceWorker,/const CACHE_NAME = 'bss-backend-mvp-v1-r7'/);
+  assert.match(serviceWorker,/const CACHE_NAME = 'bss-backend-mvp-v1-r8'/);
   assert.match(serviceWorker,/new Request\(asset,\{cache:'reload'\}\)/);
   assert.match(serviceWorker,/new Request\(request,\{cache:'no-store'\}\)/);
   assert.match(serviceWorker,/new Request\(request,\{cache:'no-cache'\}\)/);
@@ -2173,6 +2175,7 @@ test('Service Worker izvršava fresh precache, briše legacy cache i koristi mre
   assert.equal(skipped,true);
   assert.ok(precacheRequests.length>30);
   assert.ok(precacheRequests.every(request=>request.cache==='reload'));
+  assert.ok(precacheRequests.some(request=>request.url==='./src/views/month-picker.js'));
 
   let activatePromise;
   listeners.activate({waitUntil:promise=>{activatePromise=promise;}});
@@ -2904,4 +2907,24 @@ test('design audit: synthetic clock and available leave agree across worker view
   assert.match(app.document.querySelector('.worker-summary-card').textContent,/11 dana/);
   app.window.navigate('vacations');assert.match(app.document.querySelector('.vacation-balance-visual').textContent,/11/);
   app.window.switchRole('admin');assert.match(app.document.querySelector('.home-workspace-scope').textContent,/10.*srpnja.*2026/);
+});
+
+test('month picker extraction preserves current reference year, validation and single change delivery',()=>{
+  const app=boot();const modal=app.document.querySelector('#modal');
+  app.evaluate("DEMO_TODAY='2031-09-10'");
+  modal.innerHTML='<input id="periodFixture" type="month" aria-label="Razdoblje dokumenta">';
+  const value=modal.querySelector('#periodFixture');let changes=0;
+  value.addEventListener('change',()=>{changes+=1;});
+  app.window.showModal(modal);app.window.showModal(modal);
+  const month=modal.querySelector('select'),year=modal.querySelector('input[type="number"]');
+  assert.equal(year.value,'2031');assert.equal(month.options.length,13);
+  assert.equal(modal.querySelectorAll('.month-picker').length,1);
+  assert.equal(month.getAttribute('aria-label'),'Razdoblje dokumenta — mjesec');
+  assert.equal(year.getAttribute('aria-label'),'Razdoblje dokumenta — godina');
+  month.value='02';month.dispatchEvent(new app.window.Event('change',{bubbles:true}));
+  assert.equal(value.value,'2031-02');assert.equal(changes,1);
+  year.value='10000';year.dispatchEvent(new app.window.Event('change',{bubbles:true}));
+  assert.equal(value.value,'');assert.equal(changes,2);
+  year.value='1';year.dispatchEvent(new app.window.Event('change',{bubbles:true}));
+  assert.equal(value.value,'0001-02');assert.equal(changes,3);
 });
