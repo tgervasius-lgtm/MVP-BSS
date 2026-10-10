@@ -33,7 +33,8 @@ const coreSources = [
   'src/views/access-operational.js',
   'src/views/audit-operational.js',
   'src/views/contextual-help.js',
-  'src/views/documents.js'
+  'src/views/documents.js',
+  'src/views/month-picker.js'
 ].map(path=>fs.readFileSync(path,'utf8'));
 const styleEntry = fs.readFileSync('styles.css','utf8');
 const styleLayerPaths = [
@@ -714,7 +715,7 @@ test('owner visual review fixes razdvajaju smjenu, worker facts i demo alate',()
   const worker=boot('worker');
   assert.ok(worker.document.querySelector('.worker-home-workspace'));
   assert.equal(worker.document.querySelectorAll('.worker-today-grid>button').length,2);
-  assert.match(worker.document.querySelector('.worker-summary-card').textContent,/Preostali godišnji/);
+  assert.match(worker.document.querySelector('.worker-summary-card').textContent,/Raspoloživi godišnji/);
 });
 
 test('primarna desktop navigacija razlikuje operativni fokus po ulozi',()=>{
@@ -1443,10 +1444,42 @@ test('contract gap #232 veže službeni report preview i export verification na 
 });
 
 test('server-authoritative report preview ne koristi lokalni preview kao fallback uspjeha u API modu',()=>{
-  assert.match(reportAuthoritySource,/Službeni preview nije dostupan/);
-  assert.match(reportAuthoritySource,/Lokalni prikaz se ne predstavlja kao službeni report dataset/);
-  assert.match(reportAuthoritySource,/Server preview nije vratio isti normalizirani skup kriterija/);
-  assert.match(reportAuthoritySource,/server-authoritative/);
+  assert.match(reportAuthoritySource,/Službeni pregled nije dostupan/);
+  assert.match(reportAuthoritySource,/Ogledni podaci nisu službeni podaci izvještaja/);
+  assert.match(reportAuthoritySource,/Zaprimljeni pregled ne odgovara odabranim kriterijima/);
+  assert.match(reportAuthoritySource,/Službeni sažetak izvještaja/);
+});
+
+test('API izvještaj prikazuje hrvatska stanja i zadržava odbijanje neusklađenog pregleda',async()=>{
+  const filters={type:'summary',month:'2026-07',department:'Svi',workerId:'Svi'};
+  let respond;
+  let result;
+  const context=vm.createContext({
+    BSS_API_ACTIVE:true,currentRole:'admin',
+    BSS_API:{post:async()=>result??await new Promise(resolve=>{respond=resolve;})},
+    normalizeReportFilters:value=>value,
+    monthBounds:()=>({start:'2026-07-01',end:'2026-07-31'}),
+    REPORT_TYPE_CONFIG:{summary:{label:'Mjesečni sažetak'}},
+    escapeHtml:value=>String(value).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;'),
+    formatMinutes:String,formatSignedMinutes:String,render:()=>{}
+  });
+  vm.runInContext(reportAuthoritySource,context);
+  const authority=context.BSSReportAuthority;
+  authority.configure({getReportFilters:()=>filters,setReportFilters:()=>{}});
+  assert.match(authority.previewHtml(),/Ogledni podaci nisu službeni podaci izvještaja/);
+  const pending=authority.loadPreview();
+  assert.match(authority.previewHtml(),/Učitavam službeni pregled/);
+  respond({filters:{reportType:'monthly_summary',periodFrom:'2026-07-01',periodTo:'2026-07-31'},columns:[],rows:[],datasetVersion:'<verzija>'});
+  assert.equal(await pending,true);
+  assert.match(authority.previewHtml(),/Nema podataka za odabrane kriterije/);
+  assert.match(authority.previewHtml(),/&lt;verzija&gt;/);
+  assert.match(authority.metricsHtml(),/Službeni sažetak izvještaja/);
+  result={filters:{reportType:'monthly_summary',periodFrom:'2026-08-01',periodTo:'2026-08-31'},rows:[{}]};
+  assert.equal(await authority.loadPreview(),false);
+  assert.match(authority.previewHtml(),/Službeni pregled nije dostupan/);
+  assert.match(authority.previewHtml(),/ne odgovara odabranim kriterijima/);
+  assert.equal(authority.hasRows(),false);
+  assert.equal(authority.metricsHtml(),'');
 });
 
 test('contract gap #227 veže attendance lifecycle i recalculation na postojeći API bez role proširenja',()=>{
@@ -1913,7 +1946,7 @@ test('aplikacija povezuje vodič i offline predmemorira cijeli Design System',()
   for(const asset of ['design-system/index.html','design-system/tokens.css','design-system/guide.css','design-system/guide.js']){
     assert.match(serviceWorker,new RegExp(asset.replaceAll('.','\\.')));
   }
-  assert.match(serviceWorker,/bss-backend-mvp-v1-r7/);
+  assert.match(serviceWorker,/bss-backend-mvp-v1-r8/);
 });
 
 test('Brand Book v1.0 pokriva svih devet dogovorenih područja',()=>{
@@ -1977,7 +2010,7 @@ test('aplikacija povezuje Brand Book i cijeli paket radi offline',()=>{
     'bss-presentation-cover.svg','bss-terminal-label.svg',
     'BSS_BRAND-BOOK_v1.0_11.07.2026.pdf'
   ]) assert.match(serviceWorker,new RegExp(asset.replaceAll('.','\\.')));
-  assert.match(serviceWorker,/bss-backend-mvp-v1-r7/);
+  assert.match(serviceWorker,/bss-backend-mvp-v1-r8/);
   assert.match(serviceWorker,/path\.includes\('\/brand-book'\)/);
 });
 
@@ -2066,6 +2099,7 @@ test('Backend MVP učitava API adaptere prije aplikacije i sprema shell za offli
     html.indexOf('src/use-cases/corrections.js'),
     html.indexOf('src/views/registry.js'),
     html.indexOf('src/views/events.js'),
+    html.indexOf('src/views/month-picker.js'),
     html.indexOf('app.js'),
     html.indexOf('src/adapters/api-bindings.js')
   ];
@@ -2074,15 +2108,15 @@ test('Backend MVP učitava API adaptere prije aplikacije i sprema shell za offli
   for(const asset of [
     'src/adapters/runtime.js','src/adapters/api.js','src/adapters/api-state.js','src/adapters/api-bindings.js','src/adapters/theme-bootstrap.js','src/domain/contracts.js','src/domain/time.js','src/policies/access.js',
     'src/use-cases/attendance.js','src/use-cases/leave.js','src/use-cases/corrections.js',
-    'src/views/registry.js','src/views/events.js'
+    'src/views/registry.js','src/views/events.js','src/views/month-picker.js'
   ]){
     assert.match(serviceWorker,new RegExp(asset.replaceAll('.','\\.')));
   }
-  assert.match(serviceWorker,/bss-backend-mvp-v1-r7/);
+  assert.match(serviceWorker,/bss-backend-mvp-v1-r8/);
 });
 
 test('cache invalidation hotfix osvježava app shell i odmah preuzima otvorene klijente',()=>{
-  assert.match(serviceWorker,/const CACHE_NAME = 'bss-backend-mvp-v1-r7'/);
+  assert.match(serviceWorker,/const CACHE_NAME = 'bss-backend-mvp-v1-r8'/);
   assert.match(serviceWorker,/new Request\(asset,\{cache:'reload'\}\)/);
   assert.match(serviceWorker,/new Request\(request,\{cache:'no-store'\}\)/);
   assert.match(serviceWorker,/new Request\(request,\{cache:'no-cache'\}\)/);
@@ -2141,6 +2175,7 @@ test('Service Worker izvršava fresh precache, briše legacy cache i koristi mre
   assert.equal(skipped,true);
   assert.ok(precacheRequests.length>30);
   assert.ok(precacheRequests.every(request=>request.cache==='reload'));
+  assert.ok(precacheRequests.some(request=>request.url==='./src/views/month-picker.js'));
 
   let activatePromise;
   listeners.activate({waitUntil:promise=>{activatePromise=promise;}});
@@ -2841,4 +2876,55 @@ test('stvarni API adapter šalje uneseno obrazloženje i reviziju bez generičke
   assert.match(sent[0].url,/\/reject$/);
   assert.deepEqual(JSON.parse(sent[0].body),{note:'Provjerite odjavu sa svojim voditeljem.'});
   assert.equal(sent[0].headers['If-Match'],'"7"');
+});
+
+test('design audit: Croatian month control preserves ISO filters and arbitrary years',()=>{
+  const app=boot('worker');app.window.navigate('mytime');
+  const choose=()=>app.document.querySelector('[aria-label="Mjesec — mjesec"]');
+  assert.equal(choose().selectedOptions[0].textContent,'srpanj');
+  choose().value='06';choose().dispatchEvent(new app.window.Event('change',{bubbles:true}));
+  assert.equal(app.document.querySelector('#myTimeMonth').value,'2026-06');
+  assert.match(app.document.querySelector('.mytime-summary-head h2').textContent,/lipanj/);
+  const year=app.document.querySelector('[aria-label="Mjesec — godina"]');
+  year.value='2032';year.dispatchEvent(new app.window.Event('change',{bubbles:true}));
+  assert.equal(app.document.querySelector('#myTimeMonth').value,'2032-06');
+  app.window.navigate('reports'); // worker remains scoped to home
+  assert.equal(app.evaluate('screen'),'home');
+});
+
+test('design audit: blank document month can be selected and cleared without a filter side effect',()=>{
+  const app=boot();const modal=app.document.querySelector('#modal');
+  modal.innerHTML='<label>Mjesec platne liste<input id="periodFixture" type="month"></label>';
+  app.window.showModal(modal);
+  const month=modal.querySelector('select'),year=modal.querySelector('input[type="number"]'),value=modal.querySelector('#periodFixture');
+  assert.equal(value.value,'');month.value='12';year.value='2027';month.dispatchEvent(new app.window.Event('change',{bubbles:true}));
+  assert.equal(value.value,'2027-12');month.value='';month.dispatchEvent(new app.window.Event('change',{bubbles:true}));
+  assert.equal(value.value,'');assert.equal(modal.querySelectorAll('input[type="month"]').length,0);
+});
+
+test('design audit: synthetic clock and available leave agree across worker views',()=>{
+  const app=boot('worker');assert.equal(app.evaluate('DEMO_TODAY'),'2026-07-10');
+  assert.match(app.document.querySelector('.worker-summary-card').textContent,/11 dana/);
+  app.window.navigate('vacations');assert.match(app.document.querySelector('.vacation-balance-visual').textContent,/11/);
+  app.window.switchRole('admin');assert.match(app.document.querySelector('.home-workspace-scope').textContent,/10.*srpnja.*2026/);
+});
+
+test('month picker extraction preserves current reference year, validation and single change delivery',()=>{
+  const app=boot();const modal=app.document.querySelector('#modal');
+  app.evaluate("DEMO_TODAY='2031-09-10'");
+  modal.innerHTML='<input id="periodFixture" type="month" aria-label="Razdoblje dokumenta">';
+  const value=modal.querySelector('#periodFixture');let changes=0;
+  value.addEventListener('change',()=>{changes+=1;});
+  app.window.showModal(modal);app.window.showModal(modal);
+  const month=modal.querySelector('select'),year=modal.querySelector('input[type="number"]');
+  assert.equal(year.value,'2031');assert.equal(month.options.length,13);
+  assert.equal(modal.querySelectorAll('.month-picker').length,1);
+  assert.equal(month.getAttribute('aria-label'),'Razdoblje dokumenta — mjesec');
+  assert.equal(year.getAttribute('aria-label'),'Razdoblje dokumenta — godina');
+  month.value='02';month.dispatchEvent(new app.window.Event('change',{bubbles:true}));
+  assert.equal(value.value,'2031-02');assert.equal(changes,1);
+  year.value='10000';year.dispatchEvent(new app.window.Event('change',{bubbles:true}));
+  assert.equal(value.value,'');assert.equal(changes,2);
+  year.value='1';year.dispatchEvent(new app.window.Event('change',{bubbles:true}));
+  assert.equal(value.value,'0001-02');assert.equal(changes,3);
 });
