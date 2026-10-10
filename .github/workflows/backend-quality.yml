@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - "backend/**"
+      - "terminal/**"
       - "openapi/bss-mvp-api-v1.yaml"
       - "BACKEND_READINESS_REPORT.md"
       - "BACKEND_ARCHITECTURE.md"
@@ -16,6 +17,7 @@ on:
       - "agent/bss-backend-**"
     paths:
       - "backend/**"
+      - "terminal/**"
       - "openapi/bss-mvp-api-v1.yaml"
       - "BACKEND_READINESS_REPORT.md"
       - "BACKEND_ARCHITECTURE.md"
@@ -189,6 +191,10 @@ jobs:
         run: npm run test:static
         env:
           BSS_REQUIRE_CASE_INSENSITIVE: ${{ matrix.require-case-insensitive }}
+
+      - name: Terminal durable queue and local UI security (native filesystem)
+        working-directory: .
+        run: python -m unittest discover -s terminal/tests -p 'test_*.py' -v
 
   quality:
     runs-on: ubuntu-latest
