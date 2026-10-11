@@ -1,4 +1,4 @@
-/* global logged, currentRole, sessionContext, state, BSS_API, render, escapeHtml, title, showModal, closeModal, toast, downloadBlob, currentWorker */
+/* global DEMO_TODAY, CURRENT_MONTH, monthDisplay, logged, currentRole, sessionContext, state, BSS_API, render, escapeHtml, title, showModal, closeModal, toast, downloadBlob, currentWorker */
 (function registerDocuments(root){
   'use strict';
   const categories={payslip:'Platna lista',contract:'Ugovor',other:'Drugi dokument'};
@@ -18,7 +18,7 @@
   function demoItems(){
     const workers=state.workers.slice(0,2);
     return workers.flatMap((worker,i)=>['payslip','contract'].map((kind,j)=>({id:`demo-${i}-${j}`,workerId:String(worker.id),workerName:worker.name,workerCode:`R-${worker.id}`,
-      title:kind==='payslip'?'Platna lista — listopad 2026.':'Ugovor o radu',category:kind,period:kind==='payslip'?'2026-10':null,state:'published',bytes:24000,revision:'1',createdAt:'2026-10-06T10:00:00Z',publishedAt:'2026-10-06T10:00:00Z'})))
+      title:kind==='payslip'?`Platna lista — ${monthDisplay(CURRENT_MONTH)}`:'Ugovor o radu',category:kind,period:kind==='payslip'?CURRENT_MONTH:null,state:'published',bytes:24000,revision:'1',createdAt:`${DEMO_TODAY}T08:00:00Z`,publishedAt:`${DEMO_TODAY}T08:00:00Z`})))
       .filter(d=>writer()||d.workerId===String(currentWorker().id));
   }
   async function loadDocuments(append=false){
