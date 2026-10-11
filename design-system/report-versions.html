@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="hr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>BSS — Odabir verzije izvještaja · UX prijedlog</title>
+  <link rel="stylesheet" href="tokens.css">
+  <link rel="stylesheet" href="../styles/report-version-preview.css">
+  <script defer src="../src/views/report-version-preview.js"></script>
+</head>
+<body>
+  <a class="skip" href="#content">Preskoči na sadržaj</a>
+  <header><a href="index.html">BSS · Smart Systems</a><button id="theme" type="button">Tamna tema</button></header>
+  <main id="content">
+    <p class="notice">UX prijedlog · sintetički podaci. Nijedna radnja ne stvara niti preuzima stvarni izvještaj.</p>
+    <p class="eyebrow">Izvještaji</p><h1>Odaberite izvor izvoza</h1>
+    <p>Razlikujte trenutačne podatke od ranije zaključanog mjesečnog obračuna.</p>
+    <div class="layout">
+      <section class="card" aria-labelledby="source-title">
+        <h2 id="source-title">1. Izvor podataka</h2>
+        <p><strong>Razdoblje:</strong> rujan 2026. · 1.9.–30.9.2026.<br><strong>Izvještaj:</strong> Mjesečni sažetak · svi odjeli</p>
+        <fieldset><legend>Što želite izvesti?</legend>
+          <label class="choice"><input type="radio" name="source" value="current" checked><span><strong>Trenutačni podaci</strong><small>Mogu se promijeniti nakon korekcija. Nije zaključani obračun.</small></span></label>
+          <label class="choice"><input type="radio" name="source" value="locked"><span><strong>Zaključana verzija</strong><small>Točno odabrani, ranije spremljeni mjesečni podaci.</small></span></label>
+        </fieldset>
+        <div id="version-panel" hidden>
+          <label for="version">2. Zaključana verzija</label>
+          <select id="version"><option value="">Odaberite verziju…</option></select>
+          <p class="muted">Ranija verzija ostaje dostupna nakon ponovnog otvaranja mjeseca. Ovdje ne zaključavate ni ponovno otvarate mjesec.</p>
+        </div>
+        <div id="summary" role="status" aria-live="polite"></div>
+        <label for="format">Format izvoza</label>
+        <select id="format"><option>XLSX</option><option>PDF</option><option>CSV</option></select>
+        <p class="muted">XLSX za daljnju obradu · PDF za čitljiv dokument · CSV za tehničku razmjenu.</p>
+        <button id="prepare" class="primary" type="button">Prikaži oglednu potvrdu</button>
+      </section>
+      <aside class="card" aria-labelledby="review-title">
+        <h2 id="review-title">Pregled prijedloga</h2>
+        <label for="scenario">Ogledni scenarij</label>
+        <select id="scenario"><option value="ready">Dvije zaključane verzije</option><option value="empty">Nema zaključane verzije</option><option value="error">Dohvat verzija nije uspio</option><option value="gone">Odabrana verzija nije dostupna</option></select>
+        <p class="muted">Samo kontrola za pregled prototipa; ne pripada stvarnom korisničkom postupku.</p>
+        <h3>Izvor pregleda</h3><p>Postojeći pregled trenutačnih podataka ne potvrđuje sadržaj zaključane verzije. Ovaj prijedlog ne prikazuje ogledne retke kao podatke te verzije.</p>
+        <h3>Nakon izvoza</h3><p>U povijesti izvoza treba vidjeti odabrani izvor i verziju. Zasebna provjera spremljene datoteke potvrđuje podudaranje podataka.</p>
+      </aside>
+    </div>
+    <section id="confirmation" class="card" hidden aria-labelledby="confirmation-title" tabindex="-1">
+      <h2 id="confirmation-title">Ogledna potvrda prije izvoza</h2><div id="confirmation-copy"></div>
+      <p class="notice">Ovo je prikaz potvrde. Datoteka nije generirana; provjera spremljenog izvoza nije izvršena.</p>
+      <button id="back" type="button">Natrag na izbor</button>
+    </section>
+    <footer>PROPOSED · bez API poziva, prijave, pohrane i stvarnog izvoza.</footer>
+  </main>
+</body></html>
