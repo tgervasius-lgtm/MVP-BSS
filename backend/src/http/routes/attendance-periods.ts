@@ -38,74 +38,77 @@ function revision(value: string | undefined): string {
   return normalized;
 }
 
-export async function registerAttendancePeriodRoutes(app: FastifyInstance, dependencies: Dependencies): Promise<void> {
-  const { mvpService: service, authenticate } = dependencies;
+export function registerAttendancePeriodRoutes(app: FastifyInstance, dependencies: Dependencies): Promise<void> {
+  return new Promise((resolve) => {
+    const { mvpService: service, authenticate } = dependencies;
 
-  app.get<{ Params: PeriodParams }>(
-    "/api/v1/attendance-periods/:year/:month",
-    { config: { rateLimit: readRateLimit }, schema: { params: periodParams } },
-    async (request, reply) => {
-      const { actor } = await authenticate(request);
-      requirePermission(actor, "reports", "read");
-      const result = await service.getAttendancePeriod(actor, request.params.year, request.params.month);
-      etag(reply, result.revision);
-      return result;
-    }
-  );
+    app.get<{ Params: PeriodParams }>(
+      "/api/v1/attendance-periods/:year/:month",
+      { config: { rateLimit: readRateLimit }, schema: { params: periodParams } },
+      async (request, reply) => {
+        const { actor } = await authenticate(request);
+        requirePermission(actor, "reports", "read");
+        const result = await service.getAttendancePeriod(actor, request.params.year, request.params.month);
+        etag(reply, result.revision);
+        return result;
+      }
+    );
 
-  app.post<{ Params: PeriodParams; Headers: TransitionHeaders; Body: AttendancePeriodTransitionWrite }>(
-    "/api/v1/attendance-periods/:year/:month/review",
-    { config: { rateLimit: transitionRateLimit }, schema: { params: periodParams, headers: transitionHeaders, body: transitionBody } },
-    async (request, reply) => {
-      const { actor } = await authenticate(request);
-      requirePermission(actor, "reports", "write");
-      requireRole(actor, ["admin"]);
-      const result = await service.startAttendancePeriodReview(actor, request.params.year, request.params.month,
-        request.body, revision(request.headers["if-match"]), request.headers["idempotency-key"], request.id);
-      etag(reply, result.revision);
-      return result;
-    }
-  );
+    app.post<{ Params: PeriodParams; Headers: TransitionHeaders; Body: AttendancePeriodTransitionWrite }>(
+      "/api/v1/attendance-periods/:year/:month/review",
+      { config: { rateLimit: transitionRateLimit }, schema: { params: periodParams, headers: transitionHeaders, body: transitionBody } },
+      async (request, reply) => {
+        const { actor } = await authenticate(request);
+        requirePermission(actor, "reports", "write");
+        requireRole(actor, ["admin"]);
+        const result = await service.startAttendancePeriodReview(actor, request.params.year, request.params.month,
+          request.body, revision(request.headers["if-match"]), request.headers["idempotency-key"], request.id);
+        etag(reply, result.revision);
+        return result;
+      }
+    );
 
-  app.post<{ Params: PeriodParams; Headers: TransitionHeaders; Body: AttendancePeriodTransitionWrite }>(
-    "/api/v1/attendance-periods/:year/:month/finalize",
-    { config: { rateLimit: transitionRateLimit }, schema: { params: periodParams, headers: transitionHeaders, body: transitionBody } },
-    async (request, reply) => {
-      const { actor } = await authenticate(request);
-      requirePermission(actor, "reports", "write");
-      requireRole(actor, ["admin"]);
-      const result = await service.finalizeAttendancePeriod(actor, request.params.year, request.params.month,
-        request.body, revision(request.headers["if-match"]), request.headers["idempotency-key"], request.id);
-      etag(reply, result.revision);
-      return result;
-    }
-  );
+    app.post<{ Params: PeriodParams; Headers: TransitionHeaders; Body: AttendancePeriodTransitionWrite }>(
+      "/api/v1/attendance-periods/:year/:month/finalize",
+      { config: { rateLimit: transitionRateLimit }, schema: { params: periodParams, headers: transitionHeaders, body: transitionBody } },
+      async (request, reply) => {
+        const { actor } = await authenticate(request);
+        requirePermission(actor, "reports", "write");
+        requireRole(actor, ["admin"]);
+        const result = await service.finalizeAttendancePeriod(actor, request.params.year, request.params.month,
+          request.body, revision(request.headers["if-match"]), request.headers["idempotency-key"], request.id);
+        etag(reply, result.revision);
+        return result;
+      }
+    );
 
-  app.post<{ Params: PeriodParams; Headers: TransitionHeaders; Body: AttendancePeriodTransitionWrite }>(
-    "/api/v1/attendance-periods/:year/:month/close",
-    { config: { rateLimit: transitionRateLimit }, schema: { params: periodParams, headers: transitionHeaders, body: transitionBody } },
-    async (request, reply) => {
-      const { actor } = await authenticate(request);
-      requirePermission(actor, "reports", "write");
-      requireRole(actor, ["admin"]);
-      const result = await service.closeAttendancePeriod(actor, request.params.year, request.params.month,
-        request.body, revision(request.headers["if-match"]), request.headers["idempotency-key"], request.id);
-      etag(reply, result.revision);
-      return result;
-    }
-  );
+    app.post<{ Params: PeriodParams; Headers: TransitionHeaders; Body: AttendancePeriodTransitionWrite }>(
+      "/api/v1/attendance-periods/:year/:month/close",
+      { config: { rateLimit: transitionRateLimit }, schema: { params: periodParams, headers: transitionHeaders, body: transitionBody } },
+      async (request, reply) => {
+        const { actor } = await authenticate(request);
+        requirePermission(actor, "reports", "write");
+        requireRole(actor, ["admin"]);
+        const result = await service.closeAttendancePeriod(actor, request.params.year, request.params.month,
+          request.body, revision(request.headers["if-match"]), request.headers["idempotency-key"], request.id);
+        etag(reply, result.revision);
+        return result;
+      }
+    );
 
-  app.post<{ Params: PeriodParams; Headers: TransitionHeaders; Body: AttendancePeriodTransitionWrite }>(
-    "/api/v1/attendance-periods/:year/:month/reopen",
-    { config: { rateLimit: transitionRateLimit }, schema: { params: periodParams, headers: transitionHeaders, body: transitionBody } },
-    async (request, reply) => {
-      const { actor } = await authenticate(request);
-      requirePermission(actor, "reports", "write");
-      requireRole(actor, ["admin"]);
-      const result = await service.reopenAttendancePeriod(actor, request.params.year, request.params.month,
-        request.body, revision(request.headers["if-match"]), request.headers["idempotency-key"], request.id);
-      etag(reply, result.revision);
-      return result;
-    }
-  );
+    app.post<{ Params: PeriodParams; Headers: TransitionHeaders; Body: AttendancePeriodTransitionWrite }>(
+      "/api/v1/attendance-periods/:year/:month/reopen",
+      { config: { rateLimit: transitionRateLimit }, schema: { params: periodParams, headers: transitionHeaders, body: transitionBody } },
+      async (request, reply) => {
+        const { actor } = await authenticate(request);
+        requirePermission(actor, "reports", "write");
+        requireRole(actor, ["admin"]);
+        const result = await service.reopenAttendancePeriod(actor, request.params.year, request.params.month,
+          request.body, revision(request.headers["if-match"]), request.headers["idempotency-key"], request.id);
+        etag(reply, result.revision);
+        return result;
+      }
+    );
+    resolve();
+  });
 }

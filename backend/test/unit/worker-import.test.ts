@@ -30,6 +30,13 @@ test("import canonical boundary rejects implicit defaults, extra PII and malform
   assert.throws(() => normalizeInput({ fileChecksum: "a".repeat(64), parserVersion: "../file", rows: [row] }), { code: "VALIDATION_FAILED" });
 });
 
+test("linear import email validation preserves the existing bounded acceptance policy", () => {
+  const accepted = ["a@b.c", "A+B@EXAMPLE.INVALID", "a@b..", "a@.b.c", "a@b.c.", "ä@ö.ü", " TEST@EXAMPLE.INVALID "];
+  const rejected = ["a@b", "@b.c", "a@.b", "a@b.", "a@@b.c", "a b@c.d", "a@b.c\nd", `a@${".".repeat(319)}`];
+  for (const email of accepted) assert.equal(normalizeRows([{ ...row, email }])[0]?.email, email.trim().toLowerCase());
+  for (const email of rejected) assert.throws(() => normalizeRows([{ ...row, email }]), { code: "VALIDATION_FAILED" });
+});
+
 test("every import store entry denies non-Admin roles before opening a database connection", async () => {
   const pool = { connect: () => assert.fail("Unauthorized request opened DB connection") } as unknown as pg.Pool;
   const store = new PgWorkerImportStore(pool);

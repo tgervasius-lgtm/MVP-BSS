@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { access, mkdtemp, rm, statfs, writeFile } from "node:fs/promises";
+import { access, lstat, mkdtemp, rm, statfs, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { promisify } from "node:util";
 import { AppError } from "../domain/errors.js";
@@ -15,7 +15,7 @@ const isObject = (value: unknown): value is Record<string, unknown> => !!value &
 
 function name(value: string): string {
   // qpdf v2 resolves PDF name escapes; n: preserves binary names in PDF syntax.
-  return value.startsWith("n:/") ? value.slice(2).replace(/#([0-9a-f]{2})/gi, (_, hex: string) => String.fromCharCode(parseInt(hex, 16))) : value;
+  return value.startsWith("n:/") ? value.slice(2).replace(/#([0-9a-f]{2})/gi, (_, hex: string) => String.fromCodePoint(Number.parseInt(hex, 16))) : value;
 }
 
 /** Inspect every resolved object, including object streams and unreferenced objects.
@@ -55,11 +55,14 @@ export function assertPdfStructure(document: unknown): void {
 export async function inspectPdf(bytes: Buffer): Promise<void> {
   if (!bytes.length || bytes.length > MAX_DOCUMENT_BYTES) throw invalid();
   let directory: string | undefined;
+  let failure: AppError | undefined;
   try {
     if (process.platform !== "linux" || (await statfs("/dev/shm")).type !== TMPFS_MAGIC) throw unavailable();
     await access(QPDF_PATH);
     await access("/usr/bin/prlimit");
     directory = await mkdtemp("/dev/shm/bss-pdf-"); // mode 0700
+    const permissions = await lstat(directory);
+    if (!permissions.isDirectory() || permissions.uid !== process.geteuid!() || (permissions.mode & 0o777) !== 0o700) throw unavailable();
     const input = join(directory, "input.pdf");
     await writeFile(input, bytes, { mode: 0o600, flag: "wx" });
     const run = async (args: string[]) => {
@@ -85,11 +88,14 @@ export async function inspectPdf(bytes: Buffer): Promise<void> {
     try { parsed = JSON.parse(json); } catch { throw unavailable(); }
     assertPdfStructure(parsed);
   } catch (error) {
-    if (error instanceof AppError) throw error;
-    throw unavailable();
-  } finally {
-    if (directory) {
-      try { await rm(directory, { recursive: true, force: true }); } catch { throw unavailable(); }
+    failure = error instanceof AppError ? error : unavailable();
+  }
+  if (directory) {
+    try { await rm(directory, { recursive: true, force: true }); } catch {
+      // Cleanup infrastructure failure has explicit 503 precedence. Never expose
+      // parser/filesystem errors or metadata, and never accept an uncleaned input.
+      failure = unavailable();
     }
   }
+  if (failure) throw failure;
 }
