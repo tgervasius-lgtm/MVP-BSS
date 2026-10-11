@@ -231,4 +231,8 @@ Use a readable list with document title, type/month and direct PDF download. Wor
 
 ### Hrvatski odabir pojedinačnog datuma
 
+Vrijeme u korekcijama i obrascima smjena koristi označeni 24-satni izbor sati (00–23) i minuta (00–59), neovisan o jeziku preglednika. Vrijednosti ostaju `HH:mm`; ponoć i noćne smjene zadržavaju postojeću poslovnu validaciju. Izvorni time input i njegova ograničenja ostaju autoritet za vrijednost, a nedopušten izbor prikazuje hrvatsku poruku i ne šalje valjanu vrijednost.
+
+Statusne oznake tablice odobrenja u tamnoj temi koriste odgovarajuće semantičke statusne tokene umjesto fiksnih boja za svijetlu temu; čitljivost se provjerava i na radničkim korekcijama.
+
 Datumi u korekcijama, godišnjem i neradnim danima koriste označene kontrole za dan, hrvatski mjesec i godinu. Izvorna ISO vrijednost i ograničenja datuma ostaju očuvani. Nepostojeći ili nedopušten datum prikazuje hrvatsku poruku i ne daje valjanu vrijednost za slanje. Mjesečni filtri obrađuju se zasebno u #262.

@@ -1,4 +1,4 @@
-/* global state */
+/* global state, correctionDraft */
 const {test,expect}=require('@playwright/test');
 const {AxeBuilder}=require('@axe-core/playwright');
 
@@ -290,6 +290,36 @@ test('dokument API sučelje: primatelj, nacrt, potvrda objave i preuzimanje PDF-
   const downloadPromise=page.waitForEvent('download');await page.getByRole('button',{name:/Preuzmi PDF/}).click();const download=await downloadPromise;expect(download.suggestedFilename()).toBe('BSS-fixture.pdf');
   expect(errors).toEqual([]);
 });
+});
+
+test('24-satni birači ne prikazuju AM/PM i čuvaju korekcije i noćne smjene',async({page},testInfo)=>{
+  const errors=trackErrors(page);await loginAs(page,'worker');
+  await page.evaluate(()=>window.navigate('corrections'));
+  const hours=page.getByRole('combobox',{name:'Ispravan odlazak — sati',exact:true});
+  const minutes=page.getByRole('combobox',{name:'Ispravan odlazak — minute',exact:true});
+  await hours.selectOption('16');await minutes.selectOption('00');
+  await expect(page.locator('#corrEnd')).toHaveValue('16:00');
+  expect(await page.evaluate(()=>correctionDraft.end)).toBe('16:00');
+  expect(await page.locator('.time-picker').allTextContents()).not.toEqual(expect.arrayContaining([expect.stringMatching(/AM|PM/)]));
+  for(const theme of ['light','dark']){
+    await page.evaluate(value=>{if(document.documentElement.dataset.theme!==value)window.toggleTheme();},theme);
+    // Allow theme transitions to start before auditing settled colors.
+    await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+    await expect.poll(()=>page.evaluate(()=>document.getAnimations().filter(animation=>animation.constructor.name==='CSSTransition'&&animation.playState==='running').length)).toBe(0);
+    expect(await seriousAxeViolations(page)).toEqual([]);
+    expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  }
+  await page.locator('.correction-form-card').screenshot({path:testInfo.outputPath('time-correction.png')});
+  await page.evaluate(()=>{window.switchRole('admin');window.openShiftModal();});
+  await page.getByLabel('Naziv',{exact:true}).fill('Ogledna noćna');
+  await page.getByRole('combobox',{name:'Početak — sati',exact:true}).selectOption('18');
+  await page.getByRole('combobox',{name:'Završetak — sati',exact:true}).selectOption('06');
+  await expect(page.locator('#shiftStart')).toHaveValue('18:00');await expect(page.locator('#shiftEnd')).toHaveValue('06:00');
+  expect(await seriousAxeViolations(page)).toEqual([]);
+  await page.locator('#modal').screenshot({path:testInfo.outputPath('time-shift.png')});
+  await page.getByRole('button',{name:'Spremi',exact:true}).click();
+  expect(await page.evaluate(()=>state.shifts.find(item=>item.name==='Ogledna noćna').end)).toBe('06:00');
+  expect(errors).toEqual([]);
 });
 
 test('hrvatski birači datuma čuvaju ISO i mobilnu čitljivost',async({page},testInfo)=>{

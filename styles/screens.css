@@ -1593,3 +1593,11 @@ button.day:hover{outline:2px solid var(--bss-color-accent-text);outline-offset:1
 .date-picker select{flex:1;width:100%}
 .date-picker input{width:84px!important;flex:0 0 84px}
 .date-field input[hidden]{display:none!important}
+
+/* Time choices are always 24-hour, independent of the browser language. */
+.time-field{border:0;padding:0;margin:0;min-width:0}
+.time-field legend{padding:0;margin-bottom:6px;font-size:inherit;font-weight:600}
+.time-picker{display:flex;gap:6px;align-items:center;min-width:0}
+.time-picker select{flex:1;width:100%;min-width:0!important;min-height:44px}
+.time-field input[hidden]{display:none!important}
+.time-error{display:block;font-size:12px;color:var(--bss-color-text)}
