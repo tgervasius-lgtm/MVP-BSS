@@ -37,7 +37,7 @@ concurrency:
 jobs:
   openapi-lint:
     name: OpenAPI structural validation
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     env:
       REDOCLY_TELEMETRY: 'off'
@@ -60,7 +60,7 @@ jobs:
   dependency-review:
     name: New dependency vulnerability and license review
     if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - name: Checkout
