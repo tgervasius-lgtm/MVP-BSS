@@ -9,6 +9,10 @@
 :root[data-theme="dark"] .notice.info,:root[data-theme="dark"] .leave-request-preview{border-color:#315b84;background:var(--bss-color-info-soft);color:#bfdbfe}
 :root[data-theme="dark"] .pill{border-color:var(--bss-color-border);background:var(--bss-color-bg-subtle)}
 :root[data-theme="dark"] .pill.gray{border-color:var(--bss-color-border);background:var(--bss-color-bg-subtle);color:var(--bss-color-text-muted)}
+:root[data-theme="dark"] .approval-table-card td .pill.green{color:var(--bss-color-success)}
+:root[data-theme="dark"] .approval-table-card td .pill.orange{color:var(--bss-color-warning)}
+:root[data-theme="dark"] .approval-table-card td .pill.red{color:var(--bss-color-danger)}
+:root[data-theme="dark"] .approval-table-card td .pill.gray{color:var(--bss-color-text-muted)}
 :root[data-theme="dark"] .table-wrap::-webkit-scrollbar-thumb{background:var(--bss-color-border-strong);border-color:var(--bss-color-bg-surface)}
 :root[data-theme="dark"] .table-wrap::-webkit-scrollbar-track,:root[data-theme="dark"] th,:root[data-theme="dark"] .table-scroll-hint{background:var(--bss-color-bg-subtle)}
 :root[data-theme="dark"] tbody tr:hover{background:var(--bss-color-bg-hover)}

@@ -229,8 +229,22 @@ must describe only actions already available to the active role. See
 
 Use a readable list with document title, type/month and direct PDF download. Worker sees personal published documents only. Admin/accountant preparation is a separate draft/review/publish flow that always displays worker name and code before publication. Provide loading, empty, disabled, error and stale-state recovery; every action supports keyboard/focus and narrow screens. Never label a download as confirmed reading or acceptance. Existing color tokens remain in use.
 
+## Design audit refinement — 09.10.2026.
+
+Month-period controls display Croatian month names plus a numeric year independently of the browser's locale. Their underlying value remains `YYYY-MM`; existing filters and API contracts are unchanged. Optional document-period filters can be cleared. Date controls show Croatian months and time controls use 24-hour hours/minutes; app-rendered calendar headings and dates use `hr-HR`.
+
+Primary request and daily-attendance action columns remain visible inside horizontally scrollable tables. Surface text uses semantic text tokens in both themes, including terminal titles and status labels. The public synthetic scenario uses the clearly labelled demo date 10.07.2026.; API sessions retain the organization-timezone clock supplied by hydration.
+
+### Hrvatski odabir pojedinačnog datuma
+
+Vrijeme u korekcijama i obrascima smjena koristi označeni 24-satni izbor sati (00–23) i minuta (00–59), neovisan o jeziku preglednika. Vrijednosti ostaju `HH:mm`; ponoć i noćne smjene zadržavaju postojeću poslovnu validaciju. Izvorni time input i njegova ograničenja ostaju autoritet za vrijednost, a nedopušten izbor prikazuje hrvatsku poruku i ne šalje valjanu vrijednost.
+
+Statusne oznake tablice odobrenja u tamnoj temi koriste odgovarajuće semantičke statusne tokene umjesto fiksnih boja za svijetlu temu; čitljivost se provjerava i na radničkim korekcijama.
+
+Datumi u korekcijama, godišnjem i neradnim danima koriste označene kontrole za dan, hrvatski mjesec i godinu. Izvorna ISO vrijednost i ograničenja datuma ostaju očuvani. Nepostojeći ili nedopušten datum prikazuje hrvatsku poruku i ne daje valjanu vrijednost za slanje. Mjesečni filtri obrađuju se zasebno u #262.
+
 ## Import/onboarding UX candidate — 2026-10-09 (#237)
 
-Status: **PROPOSED UX / SYNTHETIC PREVIEW ONLY**, not an accepted production screen or H2-2 API integration. Review `/design-system/import-onboarding.html` independently of the application navigation. Reuse semantic tokens, labelled 44px controls, keyboard focus, text-backed statuses and bounded horizontal table regions in both themes.
+Status: **ACCEPTED UX DIRECTION / SYNTHETIC PREVIEW ONLY** (owner review 2026-10-09), not an accepted production screen or H2-2 API integration. Review `/design-system/import-onboarding.html` independently of the application navigation. Reuse semantic tokens, labelled 44px controls, keyboard focus, text-backed statuses and bounded horizontal table regions in both themes.
 
 The import proposal separates source selection, explicit mapping, whole-batch preview and approval. One blocked row blocks the whole batch. Editing mapping or refreshing a stale review clears approval. An uncertain commit offers read-back before any new import; commit success remains separate from user invitations and RFID assignment. Onboarding distinguishes verified prerequisites, computed readiness and separate operator approval; visited screens never certify readiness. See [review scope and acceptance](docs/ux/IMPORT_ONBOARDING_UX_PREVIEW_2026-10-09.md).
