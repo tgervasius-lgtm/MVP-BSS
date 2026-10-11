@@ -34,7 +34,9 @@ const coreSources = [
   'src/views/audit-operational.js',
   'src/views/contextual-help.js',
   'src/views/documents.js',
-  'src/views/month-picker.js'
+  'src/views/month-picker.js',
+  'src/views/date-picker.js',
+  'src/views/time-picker.js'
 ].map(path=>fs.readFileSync(path,'utf8'));
 const styleEntry = fs.readFileSync('styles.css','utf8');
 const styleLayerPaths = [
@@ -1946,7 +1948,7 @@ test('aplikacija povezuje vodič i offline predmemorira cijeli Design System',()
   for(const asset of ['design-system/index.html','design-system/tokens.css','design-system/guide.css','design-system/guide.js']){
     assert.match(serviceWorker,new RegExp(asset.replaceAll('.','\\.')));
   }
-  assert.match(serviceWorker,/bss-backend-mvp-v1-r8/);
+  assert.match(serviceWorker,/bss-backend-mvp-v1-r11/);
 });
 
 test('Brand Book v1.0 pokriva svih devet dogovorenih područja',()=>{
@@ -2010,7 +2012,7 @@ test('aplikacija povezuje Brand Book i cijeli paket radi offline',()=>{
     'bss-presentation-cover.svg','bss-terminal-label.svg',
     'BSS_BRAND-BOOK_v1.0_11.07.2026.pdf'
   ]) assert.match(serviceWorker,new RegExp(asset.replaceAll('.','\\.')));
-  assert.match(serviceWorker,/bss-backend-mvp-v1-r8/);
+  assert.match(serviceWorker,/bss-backend-mvp-v1-r11/);
   assert.match(serviceWorker,/path\.includes\('\/brand-book'\)/);
 });
 
@@ -2112,11 +2114,11 @@ test('Backend MVP učitava API adaptere prije aplikacije i sprema shell za offli
   ]){
     assert.match(serviceWorker,new RegExp(asset.replaceAll('.','\\.')));
   }
-  assert.match(serviceWorker,/bss-backend-mvp-v1-r8/);
+  assert.match(serviceWorker,/bss-backend-mvp-v1-r11/);
 });
 
 test('cache invalidation hotfix osvježava app shell i odmah preuzima otvorene klijente',()=>{
-  assert.match(serviceWorker,/const CACHE_NAME = 'bss-backend-mvp-v1-r8'/);
+  assert.match(serviceWorker,/const CACHE_NAME = 'bss-backend-mvp-v1-r11'/);
   assert.match(serviceWorker,/new Request\(asset,\{cache:'reload'\}\)/);
   assert.match(serviceWorker,/new Request\(request,\{cache:'no-store'\}\)/);
   assert.match(serviceWorker,/new Request\(request,\{cache:'no-cache'\}\)/);
@@ -2927,4 +2929,63 @@ test('month picker extraction preserves current reference year, validation and s
   assert.equal(value.value,'');assert.equal(changes,2);
   year.value='1';year.dispatchEvent(new app.window.Event('change',{bubbles:true}));
   assert.equal(value.value,'0001-02');assert.equal(changes,3);
+});
+
+test('Croatian date controls preserve leap days, bounds, blank values and one delegated change',()=>{
+  const app=boot();const modal=app.document.querySelector('#modal');
+  modal.innerHTML='<label>Datum<input id="fixtureDate" type="date" min="2024-01-01" max="2024-12-31" value="2024-02-29"></label>';
+  const value=modal.querySelector('#fixtureDate');let changes=0;value.addEventListener('change',()=>{changes++;});
+  app.window.showModal(modal);app.window.showModal(modal);
+  const day=modal.querySelector('[aria-label="Datum — dan"]'),month=modal.querySelector('[aria-label="Datum — mjesec"]'),year=modal.querySelector('[aria-label="Datum — godina"]');
+  assert.equal(modal.querySelectorAll('.date-picker').length,1);assert.equal(value.value,'2024-02-29');
+  assert.equal(month.options[2].textContent,'veljača');assert.equal(day.value,'29');
+  year.value='2025';year.dispatchEvent(new app.window.Event('change',{bubbles:true}));
+  assert.equal(value.value,'');assert.equal(changes,1);assert.match(modal.querySelector('.date-error').textContent,/valjan datum/);
+  year.value='2024';month.value='04';day.value='31';month.dispatchEvent(new app.window.Event('change',{bubbles:true}));assert.equal(value.value,'');
+  day.value='30';day.dispatchEvent(new app.window.Event('change',{bubbles:true}));assert.equal(value.value,'2024-04-30');
+  assert.equal(modal.querySelector('.date-error').textContent,'');
+  month.value='';month.dispatchEvent(new app.window.Event('change',{bubbles:true}));assert.equal(value.value,'');assert.equal(changes,4);
+});
+
+test('24-hour time choices retain midnight, bounds, step and one change event',()=>{
+  const app=boot();const modal=app.document.querySelector('#modal');
+  modal.innerHTML='<label>Vrijeme<input id="fixtureTime" type="time" min="08:00" max="18:00" step="900" value="08:00"></label>';
+  const value=modal.querySelector('#fixtureTime');let changes=0;value.addEventListener('change',()=>{changes++;});
+  app.window.showModal(modal);app.window.showModal(modal);
+  const hours=modal.querySelector('[aria-label="Vrijeme — sati"]'),minutes=modal.querySelector('[aria-label="Vrijeme — minute"]');
+  assert.equal(modal.querySelectorAll('.time-picker').length,1);assert.equal(hours.options.length,25);assert.equal(minutes.options.length,61);
+  assert.equal(hours.value,'08');assert.equal(minutes.value,'00');
+  hours.value='00';hours.dispatchEvent(new app.window.Event('change',{bubbles:true}));
+  assert.equal(value.value,'');assert.equal(changes,1);assert.match(modal.querySelector('.time-error').textContent,/valjano vrijeme/);
+  hours.value='08';minutes.value='01';minutes.dispatchEvent(new app.window.Event('change',{bubbles:true}));assert.equal(value.value,'');
+  minutes.value='15';minutes.dispatchEvent(new app.window.Event('change',{bubbles:true}));assert.equal(value.value,'08:15');assert.equal(changes,3);
+  assert.equal(hours.getAttribute('aria-invalid'),'false');
+  value.removeAttribute('min');value.removeAttribute('max');value.removeAttribute('step');
+  hours.value='00';minutes.value='00';hours.dispatchEvent(new app.window.Event('change',{bubbles:true}));assert.equal(value.value,'00:00');
+  hours.value='23';minutes.value='59';minutes.dispatchEvent(new app.window.Event('change',{bubbles:true}));assert.equal(value.value,'23:59');
+  minutes.value='';minutes.dispatchEvent(new app.window.Event('change',{bubbles:true}));assert.equal(value.value,'');
+  value.value='12:30';value.dispatchEvent(new app.window.Event('change',{bubbles:true}));assert.equal(hours.value,'12');assert.equal(minutes.value,'30');
+  value.value='';value.dispatchEvent(new app.window.Event('change',{bubbles:true}));assert.equal(hours.value,'');assert.equal(minutes.value,'');
+});
+
+test('24-hour controls refresh correction preview and save an overnight shift unchanged',()=>{
+  const app=boot('worker');app.window.navigate('corrections');
+  const hours=app.document.querySelector('[aria-label="Ispravan odlazak — sati"]'),minutes=app.document.querySelector('[aria-label="Ispravan odlazak — minute"]');
+  hours.value='16';minutes.value='00';minutes.dispatchEvent(new app.window.Event('change',{bubbles:true}));
+  assert.equal(app.document.querySelector('#corrEnd').value,'16:00');assert.equal(app.evaluate('correctionDraft.end'),'16:00');
+  app.window.switchRole('admin');app.window.openShiftModal();
+  const choose=(label,part,value)=>{const select=app.document.querySelector(`[aria-label="${label} — ${part}"]`);select.value=value;select.dispatchEvent(new app.window.Event('change',{bubbles:true}));};
+  app.document.querySelector('#shiftName').value='Ogledna noćna';
+  choose('Početak','sati','18');choose('Početak','minute','00');choose('Završetak','sati','06');choose('Završetak','minute','00');
+  app.window.saveShift(null);const shift=app.state().shifts.find(item=>item.name==='Ogledna noćna');
+  assert.equal(shift.start,'18:00');assert.equal(shift.end,'06:00');
+});
+
+test('worker correction and leave dates use Croatian controls and refresh existing previews',()=>{
+  const app=boot('worker');app.window.navigate('corrections');
+  const month=app.document.querySelector('[aria-label="Datum — mjesec"]');assert.ok(month);
+  const value=app.document.querySelector('#corrDate'),day=app.document.querySelector('[aria-label="Datum — dan"]');
+  day.value='01';day.dispatchEvent(new app.window.Event('change',{bubbles:true}));assert.match(value.value,/-01$/);
+  app.window.navigate('requests');assert.equal(app.document.querySelectorAll('.date-picker').length,2);
+  assert.equal(app.document.querySelector('[aria-label="Od — mjesec"]').options[7].textContent,'srpanj');
 });

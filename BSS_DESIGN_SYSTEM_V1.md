@@ -231,6 +231,14 @@ Use a readable list with document title, type/month and direct PDF download. Wor
 
 ## Design audit refinement — 09.10.2026.
 
-Month-period controls display Croatian month names plus a numeric year independently of the browser's locale. Their underlying value remains `YYYY-MM`; existing filters and API contracts are unchanged. Optional document-period filters can be cleared. Native day/date and time picker popovers remain browser/OS controls and may follow device language; app-rendered calendar headings and dates use `hr-HR`.
+Month-period controls display Croatian month names plus a numeric year independently of the browser's locale. Their underlying value remains `YYYY-MM`; existing filters and API contracts are unchanged. Optional document-period filters can be cleared. Date controls show Croatian months and time controls use 24-hour hours/minutes; app-rendered calendar headings and dates use `hr-HR`.
 
 Primary request and daily-attendance action columns remain visible inside horizontally scrollable tables. Surface text uses semantic text tokens in both themes, including terminal titles and status labels. The public synthetic scenario uses the clearly labelled demo date 10.07.2026.; API sessions retain the organization-timezone clock supplied by hydration.
+
+### Hrvatski odabir pojedinačnog datuma
+
+Vrijeme u korekcijama i obrascima smjena koristi označeni 24-satni izbor sati (00–23) i minuta (00–59), neovisan o jeziku preglednika. Vrijednosti ostaju `HH:mm`; ponoć i noćne smjene zadržavaju postojeću poslovnu validaciju. Izvorni time input i njegova ograničenja ostaju autoritet za vrijednost, a nedopušten izbor prikazuje hrvatsku poruku i ne šalje valjanu vrijednost.
+
+Statusne oznake tablice odobrenja u tamnoj temi koriste odgovarajuće semantičke statusne tokene umjesto fiksnih boja za svijetlu temu; čitljivost se provjerava i na radničkim korekcijama.
+
+Datumi u korekcijama, godišnjem i neradnim danima koriste označene kontrole za dan, hrvatski mjesec i godinu. Izvorna ISO vrijednost i ograničenja datuma ostaju očuvani. Nepostojeći ili nedopušten datum prikazuje hrvatsku poruku i ne daje valjanu vrijednost za slanje. Mjesečni filtri obrađuju se zasebno u #262.

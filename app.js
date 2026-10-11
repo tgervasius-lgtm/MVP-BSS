@@ -659,6 +659,8 @@ function showModal(modal){
   globalThis.BSSTerminalCredential?.clear();
   if(!modal)return;
   BSS_VIEWS.monthPicker.enhance(modal,DEMO_TODAY);
+  BSS_VIEWS.datePicker.enhance(modal);
+  BSS_VIEWS.timePicker.enhance(modal);
   const heading=modal.querySelector('h2');if(heading){heading.id='activeModalTitle';modal.setAttribute('aria-labelledby',heading.id);}
   layerReturnFocus=document.activeElement;modal.classList.add('open');modal.setAttribute('aria-hidden','false');focusFirst(modal);
 }
@@ -676,6 +678,8 @@ function openResetDemoDialog(){
 }
 function enhanceRenderedUi(){
   BSS_VIEWS.monthPicker.enhance(document,DEMO_TODAY);
+  BSS_VIEWS.datePicker.enhance(document);
+  BSS_VIEWS.timePicker.enhance(document);
   const [heading]=topCopy();document.title=`${heading} | BSS ${APP_VERSION}`;
   document.querySelectorAll('.table-wrap').forEach((wrapper,index)=>{
     const tableTitle=wrapper.closest('.card')?.querySelector('h2')?.textContent?.trim()||`Tablični prikaz ${index+1}`;

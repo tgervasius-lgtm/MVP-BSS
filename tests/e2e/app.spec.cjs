@@ -1,4 +1,4 @@
-/* global state */
+/* global state, correctionDraft */
 const {test,expect}=require('@playwright/test');
 const {AxeBuilder}=require('@axe-core/playwright');
 
@@ -115,7 +115,7 @@ test('radnik ima osobni mjesečni pregled i stanje godišnjeg s pripadajućim ak
   await page.locator('.mytime-summary-grid').getByRole('button',{name:/Odrađeno/}).click();
   await expect(page.locator('#myTimeRecords')).toBeFocused();
   await expect(page.locator('.attendance-kpis')).toHaveCount(0);
-  await expect(page.locator('#corrDate')).toBeVisible();
+  await expect(page.getByRole('combobox',{name:'Datum — mjesec',exact:true})).toBeVisible();
   await expect(page.getByRole('button',{name:'Pošalji zahtjev',exact:true})).toBeVisible();
   expect(await seriousAxeViolations(page)).toEqual([]);
 
@@ -322,4 +322,52 @@ test('design audit: localized month, visible decisions and readable terminal in 
     expect(await seriousAxeViolations(page)).toEqual([]);
     await page.screenshot({path:testInfo.outputPath(`terminal-${theme}.png`)});
   }
+});
+
+test('24-satni birači ne prikazuju AM/PM i čuvaju korekcije i noćne smjene',async({page},testInfo)=>{
+  const errors=trackErrors(page);await loginAs(page,'worker');
+  await page.evaluate(()=>window.navigate('corrections'));
+  const hours=page.getByRole('combobox',{name:'Ispravan odlazak — sati',exact:true});
+  const minutes=page.getByRole('combobox',{name:'Ispravan odlazak — minute',exact:true});
+  await hours.selectOption('16');await minutes.selectOption('00');
+  await expect(page.locator('#corrEnd')).toHaveValue('16:00');
+  expect(await page.evaluate(()=>correctionDraft.end)).toBe('16:00');
+  expect(await page.locator('.time-picker').allTextContents()).not.toEqual(expect.arrayContaining([expect.stringMatching(/AM|PM/)]));
+  for(const theme of ['light','dark']){
+    await page.evaluate(value=>{if(document.documentElement.dataset.theme!==value)window.toggleTheme();},theme);
+    // Allow theme transitions to start before auditing settled colors.
+    await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+    await expect.poll(()=>page.evaluate(()=>document.getAnimations().filter(animation=>animation.constructor.name==='CSSTransition'&&animation.playState==='running').length)).toBe(0);
+    expect(await seriousAxeViolations(page)).toEqual([]);
+    expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  }
+  await page.locator('.correction-form-card').screenshot({path:testInfo.outputPath('time-correction.png')});
+  await page.evaluate(()=>{window.switchRole('admin');window.openShiftModal();});
+  await page.getByLabel('Naziv',{exact:true}).fill('Ogledna noćna');
+  await page.getByRole('combobox',{name:'Početak — sati',exact:true}).selectOption('18');
+  await page.getByRole('combobox',{name:'Završetak — sati',exact:true}).selectOption('06');
+  await expect(page.locator('#shiftStart')).toHaveValue('18:00');await expect(page.locator('#shiftEnd')).toHaveValue('06:00');
+  expect(await seriousAxeViolations(page)).toEqual([]);
+  await page.locator('#modal').screenshot({path:testInfo.outputPath('time-shift.png')});
+  await page.getByRole('button',{name:'Spremi',exact:true}).click();
+  expect(await page.evaluate(()=>state.shifts.find(item=>item.name==='Ogledna noćna').end)).toBe('06:00');
+  expect(errors).toEqual([]);
+});
+
+test('hrvatski birači datuma čuvaju ISO i mobilnu čitljivost',async({page},testInfo)=>{
+  const errors=trackErrors(page);await loginAs(page,'worker');
+  await page.evaluate(()=>window.navigate('corrections'));
+  const month=page.getByRole('combobox',{name:'Datum — mjesec',exact:true});
+  await expect(month.locator('option').filter({hasText:/^srpanj$/})).toHaveCount(1);
+  await page.getByRole('combobox',{name:'Datum — dan',exact:true}).selectOption('01');
+  await expect(page.locator('#corrDate')).toHaveValue(/-01$/);
+  await page.locator('.date-field').scrollIntoViewIfNeeded();
+  await expect(page.locator('.date-field')).toBeInViewport();
+  expect(await seriousAxeViolations(page)).toEqual([]);
+  await page.evaluate(()=>window.navigate('requests'));
+  await expect(page.locator('.date-picker')).toHaveCount(2);
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  expect(await seriousAxeViolations(page)).toEqual([]);
+  await page.locator(".leave-form-card").screenshot({path:`docs/ux/DATE_PICKER_${testInfo.project.name}.png`});
+  expect(errors).toEqual([]);
 });

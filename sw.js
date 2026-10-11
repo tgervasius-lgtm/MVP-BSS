@@ -1,6 +1,7 @@
-const CACHE_NAME = 'bss-backend-mvp-v1-r8';
+const CACHE_NAME = 'bss-backend-mvp-v1-r11';
 const ASSETS = [
-  './src/views/contextual-help.js','./src/views/documents.js','./src/views/month-picker.js',
+  './src/views/time-picker.js',
+  './src/views/contextual-help.js','./src/views/documents.js','./src/views/month-picker.js','./src/views/date-picker.js',
   './index.html','./styles.css','./app.js','./manifest.json','./icons/icon.svg',
   './styles/base.css','./styles/layouts.css','./styles/components.css','./styles/screens.css',
   './styles/navigation.css','./styles/themes.css','./styles/responsive.css','./src/demo-auth.css',
