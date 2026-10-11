@@ -15,7 +15,7 @@ concurrency:
 jobs:
   validate-change-impact:
     name: Validate change impact
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
       - name: Validate coupled files and conditional evidence

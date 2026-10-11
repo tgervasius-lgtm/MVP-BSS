@@ -19,7 +19,7 @@ concurrency:
 jobs:
   trivy-baseline:
     name: Trivy filesystem/config baseline
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       - name: Checkout
