@@ -14,7 +14,7 @@ concurrency:
 jobs:
   validate-pr-governance:
     name: Validate PR governance
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
       - name: Validate title and required evidence

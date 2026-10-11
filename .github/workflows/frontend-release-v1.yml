@@ -13,7 +13,7 @@ permissions:
 jobs:
   release:
     name: publish-frontend-v1.0.0
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout release commit
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
