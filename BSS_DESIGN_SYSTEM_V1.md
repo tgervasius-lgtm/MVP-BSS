@@ -229,6 +229,12 @@ must describe only actions already available to the active role. See
 
 Use a readable list with document title, type/month and direct PDF download. Worker sees personal published documents only. Admin/accountant preparation is a separate draft/review/publish flow that always displays worker name and code before publication. Provide loading, empty, disabled, error and stale-state recovery; every action supports keyboard/focus and narrow screens. Never label a download as confirmed reading or acceptance. Existing color tokens remain in use.
 
+## Design audit refinement — 09.10.2026.
+
+Month-period controls display Croatian month names plus a numeric year independently of the browser's locale. Their underlying value remains `YYYY-MM`; existing filters and API contracts are unchanged. Optional document-period filters can be cleared. Date controls show Croatian months and time controls use 24-hour hours/minutes; app-rendered calendar headings and dates use `hr-HR`.
+
+Primary request and daily-attendance action columns remain visible inside horizontally scrollable tables. Surface text uses semantic text tokens in both themes, including terminal titles and status labels. The public synthetic scenario uses the clearly labelled demo date 10.07.2026.; API sessions retain the organization-timezone clock supplied by hydration.
+
 ### Hrvatski odabir pojedinačnog datuma
 
 Vrijeme u korekcijama i obrascima smjena koristi označeni 24-satni izbor sati (00–23) i minuta (00–59), neovisan o jeziku preglednika. Vrijednosti ostaju `HH:mm`; ponoć i noćne smjene zadržavaju postojeću poslovnu validaciju. Izvorni time input i njegova ograničenja ostaju autoritet za vrijednost, a nedopušten izbor prikazuje hrvatsku poruku i ne šalje valjanu vrijednost.
