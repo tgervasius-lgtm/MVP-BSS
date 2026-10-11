@@ -155,7 +155,8 @@ const shift: ShiftView = {
 // Evaluate immediately and convert a thrown fixture error into a rejection,
 // preserving the Promise contract of the real service without a dummy await.
 function fixtureResult<T>(value: () => T): Promise<T> {
-  return new Promise((resolve) => { resolve(value()); });
+  try { return Promise.resolve(value()); }
+  catch (error) { return Promise.reject(error); }
 }
 
 export class FakePhaseAService implements MvpService {
