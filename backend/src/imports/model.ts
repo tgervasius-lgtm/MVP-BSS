@@ -52,6 +52,12 @@ function textField(value: unknown, min: number, max: number): string {
   if ([...result].length < min || [...result].length > max) invalid();
   return result;
 }
+function isImportEmail(value: string): boolean {
+  const at = value.indexOf("@");
+  const dot = value.indexOf(".", at + 2);
+  return at > 0 && at === value.lastIndexOf("@") && dot > at + 1
+    && dot < value.length - 1 && !/\s/.test(value);
+}
 export function normalizeRows(input: unknown): ImportWorker[] {
   if (!Array.isArray(input) || input.length < 1 || input.length > IMPORT_POLICY.maxRows) invalid();
   return input.map((value: unknown) => {
@@ -64,7 +70,7 @@ export function normalizeRows(input: unknown): ImportWorker[] {
       || row.annualLeaveAllowance < 0 || row.annualLeaveAllowance > 366) invalid();
     const email = row.email === null || row.email === undefined || row.email === ""
       ? null : textField(row.email, 3, 320).toLowerCase();
-    if (email !== null && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) invalid();
+    if (email !== null && !isImportEmail(email)) invalid();
     return { code: textField(row.code, 1, 40), name: textField(row.name, 2, 160), email,
       departmentId: row.departmentId.toLowerCase(), shiftId: row.shiftId.toLowerCase(),
       annualLeaveAllowance: row.annualLeaveAllowance };
