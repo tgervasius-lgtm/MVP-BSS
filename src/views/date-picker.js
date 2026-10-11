@@ -15,6 +15,7 @@
       const day=makeSelect('dan','Dan'),month=makeSelect('mjesec','Mjesec');
       const year=document.createElement('input');year.type='number';year.step='1';year.min='1';year.max='9999';
       year.setAttribute('aria-label',`${label} — godina`);year.placeholder='Godina';
+      for(const part of [day,month,year])part.disabled=input.disabled||input.readOnly;
       for(let value=1;value<=31;value++){
         const option=document.createElement('option');option.value=String(value).padStart(2,'0');option.textContent=String(value);day.append(option);
       }
@@ -30,18 +31,24 @@
       if(outerLabel){outerLabel.replaceWith(field);field.append(input,control);}else{input.after(field);field.append(control);}
       control.append(day,month,year);
       const error=document.createElement('span');error.className='date-error';error.setAttribute('aria-live','polite');field.append(error);
+      let syncing=false;
       const sync=()=>{
         const candidate=day.value&&month.value&&year.value&&year.validity.valid?`${year.value.padStart(4,'0')}-${month.value}-${day.value}`:'';
         input.value=candidate;
         const invalid=(Boolean(year.value)&&!year.validity.valid)||(Boolean(candidate)&&(!input.value||!input.validity.valid));
         day.setCustomValidity(invalid?'Odaberite valjan datum unutar dopuštenog razdoblja.':'');
         error.textContent=day.validationMessage;
-        day.setAttribute('aria-invalid',String(invalid));
+        for(const part of [day,month,year])part.setAttribute('aria-invalid',String(invalid));
         if(invalid)input.value='';
-        input.dispatchEvent(new Event('change',{bubbles:true}));
+        syncing=true;
+        try{input.dispatchEvent(new Event('change',{bubbles:true}));}finally{syncing=false;}
       };
       day.addEventListener('change',sync);month.addEventListener('change',sync);year.addEventListener('change',sync);
-      input.addEventListener('change',()=>{if(input.value)load();});
+      input.addEventListener('change',()=>{
+        if(syncing)return;
+        load();day.setCustomValidity('');error.textContent='';
+        for(const part of [day,month,year])part.setAttribute('aria-invalid','false');
+      });
     });
   }
 

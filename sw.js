@@ -1,4 +1,4 @@
-const CACHE_NAME = 'bss-backend-mvp-v1-r11';
+const CACHE_NAME = 'bss-backend-mvp-v1-r12';
 const ASSETS = [
   './src/views/time-picker.js',
   './src/views/contextual-help.js','./src/views/documents.js','./src/views/month-picker.js','./src/views/date-picker.js',

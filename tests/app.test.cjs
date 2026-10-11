@@ -1948,7 +1948,7 @@ test('aplikacija povezuje vodič i offline predmemorira cijeli Design System',()
   for(const asset of ['design-system/index.html','design-system/tokens.css','design-system/guide.css','design-system/guide.js']){
     assert.match(serviceWorker,new RegExp(asset.replaceAll('.','\\.')));
   }
-  assert.match(serviceWorker,/bss-backend-mvp-v1-r11/);
+  assert.match(serviceWorker,/bss-backend-mvp-v1-r12/);
 });
 
 test('Brand Book v1.0 pokriva svih devet dogovorenih područja',()=>{
@@ -2012,7 +2012,7 @@ test('aplikacija povezuje Brand Book i cijeli paket radi offline',()=>{
     'bss-presentation-cover.svg','bss-terminal-label.svg',
     'BSS_BRAND-BOOK_v1.0_11.07.2026.pdf'
   ]) assert.match(serviceWorker,new RegExp(asset.replaceAll('.','\\.')));
-  assert.match(serviceWorker,/bss-backend-mvp-v1-r11/);
+  assert.match(serviceWorker,/bss-backend-mvp-v1-r12/);
   assert.match(serviceWorker,/path\.includes\('\/brand-book'\)/);
 });
 
@@ -2114,11 +2114,11 @@ test('Backend MVP učitava API adaptere prije aplikacije i sprema shell za offli
   ]){
     assert.match(serviceWorker,new RegExp(asset.replaceAll('.','\\.')));
   }
-  assert.match(serviceWorker,/bss-backend-mvp-v1-r11/);
+  assert.match(serviceWorker,/bss-backend-mvp-v1-r12/);
 });
 
 test('cache invalidation hotfix osvježava app shell i odmah preuzima otvorene klijente',()=>{
-  assert.match(serviceWorker,/const CACHE_NAME = 'bss-backend-mvp-v1-r11'/);
+  assert.match(serviceWorker,/const CACHE_NAME = 'bss-backend-mvp-v1-r12'/);
   assert.match(serviceWorker,/new Request\(asset,\{cache:'reload'\}\)/);
   assert.match(serviceWorker,/new Request\(request,\{cache:'no-store'\}\)/);
   assert.match(serviceWorker,/new Request\(request,\{cache:'no-cache'\}\)/);
@@ -2945,6 +2945,29 @@ test('Croatian date controls preserve leap days, bounds, blank values and one de
   day.value='30';day.dispatchEvent(new app.window.Event('change',{bubbles:true}));assert.equal(value.value,'2024-04-30');
   assert.equal(modal.querySelector('.date-error').textContent,'');
   month.value='';month.dispatchEvent(new app.window.Event('change',{bubbles:true}));assert.equal(value.value,'');assert.equal(changes,4);
+});
+
+test('date controls follow external clears and replacement values without stale validation',()=>{
+  const app=boot();const modal=app.document.querySelector('#modal');
+  modal.innerHTML='<label>Datum<input id="fixtureDate" type="date" max="2024-12-31" value="2024-02-29"></label>';
+  app.window.showModal(modal);
+  const value=modal.querySelector('#fixtureDate'),day=modal.querySelector('[aria-label="Datum — dan"]'),month=modal.querySelector('[aria-label="Datum — mjesec"]'),year=modal.querySelector('[aria-label="Datum — godina"]');
+  year.value='2025';year.dispatchEvent(new app.window.Event('change',{bubbles:true}));
+  assert.match(modal.querySelector('.date-error').textContent,/valjan datum/);
+  assert.equal(year.value,'2025');assert.equal(day.value,'29');
+  value.value='2024-04-30';value.dispatchEvent(new app.window.Event('change',{bubbles:true}));
+  assert.equal(year.value,'2024');assert.equal(month.value,'04');assert.equal(day.value,'30');
+  assert.equal(modal.querySelector('.date-error').textContent,'');assert.equal(day.validity.valid,true);
+  value.value='';value.dispatchEvent(new app.window.Event('change',{bubbles:true}));
+  assert.equal(year.value,'');assert.equal(month.value,'');assert.equal(day.value,'');
+});
+
+test('date controls preserve disabled and read-only source fields',()=>{
+  const app=boot();const modal=app.document.querySelector('#modal');
+  modal.innerHTML='<label>Zaključan datum<input type="date" disabled value="2024-02-29"></label><label>Datum za pregled<input type="date" readonly value="2024-03-01"></label>';
+  app.window.showModal(modal);
+  for(const control of modal.querySelectorAll('.date-picker select,.date-picker input'))assert.equal(control.disabled,true);
+  assert.equal(modal.querySelectorAll('.date-picker').length,2);
 });
 
 test('24-hour time choices retain midnight, bounds, step and one change event',()=>{

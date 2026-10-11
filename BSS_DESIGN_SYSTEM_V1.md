@@ -243,6 +243,8 @@ Statusne oznake tablice odobrenja u tamnoj temi koriste odgovarajuće semantičk
 
 Datumi u korekcijama, godišnjem i neradnim danima koriste označene kontrole za dan, hrvatski mjesec i godinu. Izvorna ISO vrijednost i ograničenja datuma ostaju očuvani. Nepostojeći ili nedopušten datum prikazuje hrvatsku poruku i ne daje valjanu vrijednost za slanje. Mjesečni filtri obrađuju se zasebno u #262.
 
+Dnevni birač preuzima početno zaključano stanje izvornog polja (`disabled` ili `readOnly`). Vanjska promjena vrijednosti uz događaj `change`, uključujući brisanje, usklađuje sve tri prikazane kontrole i uklanja zastarjelu pogrešku prethodnog korisničkog izbora. Nevaljan korisnički izbor ostaje vidljiv za ispravak; ne briše se zbog vlastitog delegiranog događaja. Sve tri kontrole označavaju nevaljan izbor za pomoćnu tehnologiju.
+
 ## Import/onboarding UX candidate — 2026-10-09 (#237)
 
 Status: **ACCEPTED UX DIRECTION / SYNTHETIC PREVIEW ONLY** (owner review 2026-10-09), not an accepted production screen or H2-2 API integration. Review `/design-system/import-onboarding.html` independently of the application navigation. Reuse semantic tokens, labelled 44px controls, keyboard focus, text-backed statuses and bounded horizontal table regions in both themes.
