@@ -58,6 +58,11 @@ export async function inspectPdf(bytes: Buffer): Promise<void> {
   let failure: AppError | undefined;
   try {
     if (process.platform !== "linux" || (await statfs("/dev/shm")).type !== TMPFS_MAGIC) throw unavailable();
+    const parent = await lstat("/dev/shm");
+    // A writable parent without sticky protection permits another UID to rename
+    // even a private child. Trust only root/app ownership and a real directory.
+    if (!parent.isDirectory() || (parent.uid !== 0 && parent.uid !== process.geteuid!())
+      || ((parent.mode & 0o022) !== 0 && (parent.mode & 0o1000) === 0)) throw unavailable();
     await access(QPDF_PATH);
     await access("/usr/bin/prlimit");
     directory = await mkdtemp("/dev/shm/bss-pdf-"); // mode 0700

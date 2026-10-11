@@ -15,6 +15,9 @@ test("PDF inspection rejects runtime and cleanup faults without exposing metadat
   let parserRejects = false;
   let unsafeMode = false;
   let unsafeOwner = false;
+  let parentMode: number | undefined;
+  let parentOwner: number | undefined;
+  let parentIsDirectory = true;
   let executions = 0;
   let removals = 0;
   t.after(async () => {
@@ -31,8 +34,14 @@ test("PDF inspection rejects runtime and cleanup faults without exposing metadat
   });
   t.mock.method(fs, "lstat", async (path: string) => {
     const result = await permissions(path);
-    if (unsafeMode) result.mode = (result.mode & ~0o777) | 0o755;
-    if (unsafeOwner) result.uid += 1;
+    if (path === "/dev/shm") {
+      if (parentMode !== undefined) result.mode = (result.mode & ~0o7777) | parentMode;
+      if (parentOwner !== undefined) result.uid = parentOwner;
+      if (!parentIsDirectory) result.isDirectory = () => false;
+    } else {
+      if (unsafeMode) result.mode = (result.mode & ~0o777) | 0o755;
+      if (unsafeOwner) result.uid += 1;
+    }
     return result;
   });
   t.mock.method(fs, "rm", async (path: string, options: Parameters<typeof fs.rm>[1]) => {
@@ -93,5 +102,30 @@ test("PDF inspection rejects runtime and cleanup faults without exposing metadat
     unsafeOwner = false;
     assert.equal(executions, before);
     assert.equal(removals, 6);
+  });
+  await t.test("unsafe parent rejects before creating or parsing sensitive input", async () => {
+    const created = owned.length;
+    const before = executions;
+    for (const mode of [0o777, 0o770, 0o722]) {
+      parentMode = mode;
+      await assert.rejects(inspectPdf(bytes), { code: "DOCUMENTS_UNAVAILABLE", statusCode: 503 });
+    }
+    parentMode = undefined;
+    parentOwner = process.geteuid!() + 1;
+    await assert.rejects(inspectPdf(bytes), { code: "DOCUMENTS_UNAVAILABLE", statusCode: 503 });
+    parentOwner = undefined;
+    parentIsDirectory = false;
+    await assert.rejects(inspectPdf(bytes), { code: "DOCUMENTS_UNAVAILABLE", statusCode: 503 });
+    parentIsDirectory = true;
+    assert.equal(owned.length, created);
+    assert.equal(executions, before);
+  });
+  await t.test("trusted private or sticky parent preserves upload and cleanup", async () => {
+    for (const mode of [0o700, 0o755, 0o1777]) {
+      parentMode = mode;
+      await inspectPdf(bytes);
+      await assert.rejects(permissions(owned.at(-1)!), { code: "ENOENT" });
+    }
+    parentMode = undefined;
   });
 });

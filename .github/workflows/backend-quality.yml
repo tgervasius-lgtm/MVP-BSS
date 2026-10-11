@@ -87,7 +87,7 @@ jobs:
           POSTGRES_PASSWORD: postgres
           POSTGRES_DB: bss_test
         ports:
-          - 5432:5432
+          - "127.0.0.1:5432:5432"
         options: >-
           --health-cmd "pg_isready -U postgres -d bss_test"
           --health-interval 5s
@@ -97,6 +97,18 @@ jobs:
       run:
         working-directory: backend
     steps:
+      - name: Verify test PostgreSQL loopback isolation
+        working-directory: ${{ runner.temp }}
+        env:
+          CI_POSTGRES_CONTAINER: ${{ job.services.postgres.id }}
+        run: |
+          docker_version="$(docker version --format '{{.Server.Version}}')"
+          # Older Docker versions have a known localhost-publish isolation gap.
+          [[ "${docker_version%%.*}" -ge 28 ]]
+          binding="$(docker port "$CI_POSTGRES_CONTAINER" 5432/tcp)"
+          [[ "$binding" == "127.0.0.1:5432" ]]
+          printf 'Disposable test PostgreSQL loopback binding verified (Docker %s)\n' "$docker_version"
+
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Node.js 22
@@ -115,6 +127,8 @@ jobs:
           sudo apt-get install -y clamav-daemon clamav-freshclam postgresql-client-16
       - name: Install pinned structural PDF inspector
         run: bash scripts/install-qpdf-ci.sh
+      - name: Synthetic cross-UID PDF parent isolation proof
+        run: sudo env BSS_PDF_PARENT_SYNTHETIC_CI=synthetic-ci-only /usr/bin/python3 -I -B scripts/prove-pdf-parent-isolation.py
       - name: Official signatures and isolated local scanner
         run: |
           umask 077
@@ -201,7 +215,7 @@ jobs:
           POSTGRES_PASSWORD: postgres
           POSTGRES_DB: bss_test
         ports:
-          - 5432:5432
+          - "127.0.0.1:5432:5432"
         options: >-
           --health-cmd "pg_isready -U postgres -d bss_test"
           --health-interval 5s
@@ -213,6 +227,18 @@ jobs:
         working-directory: backend
 
     steps:
+      - name: Verify test PostgreSQL loopback isolation
+        working-directory: ${{ runner.temp }}
+        env:
+          CI_POSTGRES_CONTAINER: ${{ job.services.postgres.id }}
+        run: |
+          docker_version="$(docker version --format '{{.Server.Version}}')"
+          # Older Docker versions have a known localhost-publish isolation gap.
+          [[ "${docker_version%%.*}" -ge 28 ]]
+          binding="$(docker port "$CI_POSTGRES_CONTAINER" 5432/tcp)"
+          [[ "$binding" == "127.0.0.1:5432" ]]
+          printf 'Disposable test PostgreSQL loopback binding verified (Docker %s)\n' "$docker_version"
+
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
