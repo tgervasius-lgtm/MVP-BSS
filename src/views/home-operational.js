@@ -32,7 +32,7 @@
   function admin(context){
     const {metrics,weekly,alerts,state,title,weeklyAttendanceTable,escapeHtml,pill}=context;
     const absentToday=metrics.absent+metrics.vacation+metrics.sick;
-    const dateLabel=new Date().toLocaleDateString('hr-HR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+    const dateLabel=new Date(`${context.today}T12:00:00`).toLocaleDateString('hr-HR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
     const summary=summaryStrip([
       {key:'present',value:metrics.present,label:'Prisutni',detail:'Trenutačno evidentirani',action:"openWorkerStatus('Prisutni')"},
       {key:'review',value:metrics.review,label:'Za provjeru',detail:'Zapisi koji traže pažnju',action:'openAttendanceReview()'},
@@ -82,7 +82,7 @@
         eyebrow:'Današnji operativni pregled',
         heading:'Stanje dodijeljenog tima',
         description:'Prisutnost, iznimke i odluke unutar voditeljeva opsega.',
-        period:new Date().toLocaleDateString('hr-HR',{weekday:'long',day:'numeric',month:'long',year:'numeric'}),
+        period:new Date(`${context.today}T12:00:00`).toLocaleDateString('hr-HR',{weekday:'long',day:'numeric',month:'long',year:'numeric'}),
         scope,
         roleLabel:'Voditelj',
         escapeHtml
@@ -98,7 +98,7 @@
   }
 
   function worker(context){
-    const {worker,shift,ownRequests,todayRecord,title,pill,escapeHtml,formatMinutes,recordMinutes,vacationRemaining}=context;
+    const {worker,shift,ownRequests,todayRecord,title,pill,escapeHtml,formatMinutes,recordMinutes,vacationBalance}=context;
     const isPresent=['Prisutan','Kasni'].includes(worker.status);
     const checkIn=todayRecord?.start||worker.todayStart||'—';
     const recorded=todayRecord?formatMinutes(recordMinutes(todayRecord,true)):'—';
@@ -116,7 +116,7 @@
         </section>
         <aside class="card worker-summary-card">
           <div class="worker-summary-head"><span class="worker-kicker">Moj pregled</span><h2>Odsutnosti i zahtjevi</h2></div>
-          <button class="worker-summary-row" data-bss-action="navigate('vacations')"><span><b>Preostali godišnji</b><small>Raspoloživo za planiranje</small></span><strong>${vacationRemaining(worker.id)} dana</strong></button>
+          <button class="worker-summary-row" data-bss-action="navigate('vacations')"><span><b>Raspoloživi godišnji</b><small>Nakon rezerviranih zahtjeva</small></span><strong>${vacationBalance.available} dana</strong></button>
           <button class="worker-summary-row" data-bss-action="openPendingRequests()"><span><b>Otvoreni zahtjevi</b><small>Zahtjevi koji čekaju odluku</small></span><strong>${pending}</strong></button>
           <button class="btn block" data-bss-action="navigate('requests')">Moji zahtjevi</button>
         </aside>

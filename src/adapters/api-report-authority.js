@@ -51,12 +51,12 @@
     if(renderLoading)render();
     try{
       const result=await BSS_API.post('/report-previews',body);
-      if(!sameFilters(result.filters,body))throw new Error('Server preview nije vratio isti normalizirani skup kriterija.');
+      if(!sameFilters(result.filters,body))throw new Error('Zaprimljeni pregled ne odgovara odabranim kriterijima. Pokušajte ponovno.');
       preview=result;
       return true;
     }catch(error){
       preview=null;
-      previewError=callbacks?.apiMessage?.(error)||error?.message||'Server preview nije dostupan.';
+      previewError=callbacks?.apiMessage?.(error)||error?.message||'Službeni pregled nije dostupan.';
       return false;
     }finally{
       previewLoading=false;
@@ -76,25 +76,25 @@
 
   function previewHtml(){
     if(!root.BSS_API_ACTIVE||!allowed())return'';
-    if(previewLoading)return '<section class="card report-authoritative-state" aria-live="polite"><b>Učitavam službeni preview…</b><span>Podaci se dohvaćaju iz server-authoritative report endpointa.</span></section>';
-    if(previewError)return `<section class="card report-authoritative-state danger"><b>Službeni preview nije dostupan</b><span>${escapeHtml(previewError)}</span><button class="btn secondary" data-bss-action="reloadReportPreview()">Pokušaj ponovno</button></section>`;
-    if(!preview)return '<section class="card report-authoritative-state"><b>Službeni preview nije učitan</b><span>Lokalni prikaz se ne predstavlja kao službeni report dataset.</span><button class="btn secondary" data-bss-action="reloadReportPreview()">Učitaj preview</button></section>';
+    if(previewLoading)return '<section class="card report-authoritative-state" aria-live="polite"><b>Učitavam službeni pregled…</b><span>Dohvaćam podatke izvještaja s poslužitelja.</span></section>';
+    if(previewError)return `<section class="card report-authoritative-state danger"><b>Službeni pregled nije dostupan</b><span>${escapeHtml(previewError)}</span><button class="btn secondary" data-bss-action="reloadReportPreview()">Pokušaj ponovno</button></section>`;
+    if(!preview)return '<section class="card report-authoritative-state"><b>Službeni pregled nije učitan</b><span>Ogledni podaci nisu službeni podaci izvještaja.</span><button class="btn secondary" data-bss-action="reloadReportPreview()">Učitaj pregled</button></section>';
 
     const filters=callbacks.getReportFilters(),columns=preview.columns||[],rows=preview.rows||[],config=REPORT_TYPE_CONFIG[filters.type]||{};
     const body=rows.map(row=>`<tr>${columns.map(column=>`<td>${cell(row?.[column.key])}</td>`).join('')}</tr>`).join('');
     const dataset=preview.datasetVersion||'—';
     return `<div class="card table-card report-preview report-authoritative-preview" data-authoritative-preview="true">
-      <div class="table-card-heading"><div><h2>${escapeHtml(config.label||'Službeni pregled')}</h2><p>Server-authoritative preview · dataset <span class="mono">${escapeHtml(dataset)}</span></p></div><span class="pill gray">${Number(preview.totals?.rowCount??rows.length)} redaka</span></div>
-      ${preview.truncated?'<div class="notice warning report-preview-truncated">Prikaz je ograničen. Izvoz može sadržavati više redaka od ovog previewa.</div>':''}
-      <div class="table-wrap"><table class="report-table"><thead><tr>${columns.map(column=>`<th>${escapeHtml(column.label)}</th>`).join('')}</tr></thead><tbody>${body||`<tr><td colspan="${Math.max(columns.length,1)}"><div class="empty-state">Server nije vratio retke za odabrane kriterije.</div></td></tr>`}</tbody></table></div>
-      <div class="table-summary"><span>${escapeHtml(preview.filters?.periodFrom||'')} – ${escapeHtml(preview.filters?.periodTo||'')}</span><span>Dataset verzija: <span class="mono">${escapeHtml(dataset)}</span></span></div>
+      <div class="table-card-heading"><div><h2>${escapeHtml(config.label||'Službeni pregled')}</h2><p>Službeni pregled · verzija podataka <span class="mono">${escapeHtml(dataset)}</span></p></div><span class="pill gray">${Number(preview.totals?.rowCount??rows.length)} redaka</span></div>
+      ${preview.truncated?'<div class="notice warning report-preview-truncated">Prikaz je ograničen. Izvoz može sadržavati više redaka od ovog pregleda.</div>':''}
+      <div class="table-wrap"><table class="report-table"><thead><tr>${columns.map(column=>`<th>${escapeHtml(column.label)}</th>`).join('')}</tr></thead><tbody>${body||`<tr><td colspan="${Math.max(columns.length,1)}"><div class="empty-state">Nema podataka za odabrane kriterije.</div></td></tr>`}</tbody></table></div>
+      <div class="table-summary"><span>${escapeHtml(preview.filters?.periodFrom||'')} – ${escapeHtml(preview.filters?.periodTo||'')}</span><span>Verzija podataka: <span class="mono">${escapeHtml(dataset)}</span></span></div>
     </div>`;
   }
 
   function metricsHtml(){
     if(!root.BSS_API_ACTIVE||!allowed()||!preview||previewLoading||previewError)return'';
     const totals=preview.totals||{};
-    return `<section class="report-metrics report-authoritative-metrics" aria-label="Server-authoritative sažetak izvještaja">
+    return `<section class="report-metrics report-authoritative-metrics" aria-label="Službeni sažetak izvještaja">
       <div><span>Redaka</span><b>${Number(totals.rowCount||0)}</b></div>
       <div><span>Evidentirano</span><b>${formatMinutes(Number(totals.workedMinutes||0))}</b></div>
       <div><span>Planirano</span><b>${formatMinutes(Number(totals.plannedMinutes||0))}</b></div>
@@ -173,15 +173,15 @@
     const current=verificationState(exportId),data=current?.data;if(!data)return;
     const verified=data.verified===true&&data.artifactChecksumMatches===true&&data.datasetChecksumMatches===true;
     const modal=$('#modal');
-    modal.innerHTML=`<div class="modal-card report-verification-modal"><div class="modal-head"><div><div class="eyebrow">Provenance izvoza</div><h2>${verified?'Izvoz je provjeren':'Izvoz nije potvrđen'}</h2><div class="small-muted">Neovisna provjera spremljenog artefakta i dataseta.</div></div><button class="close-btn" data-bss-action="closeModal()">×</button></div>
-      <div class="notice ${verified?'info':'danger'}">${verified?'Checksum artefakta i dataseta odgovara spremljenoj provenance evidenciji.':'Jedna ili više provjera nisu potvrdile artefakt/dataset. Ovaj izvoz nemoj tretirati kao provjeren.'}</div>
+    modal.innerHTML=`<div class="modal-card report-verification-modal"><div class="modal-head"><div><div class="eyebrow">Provjera izvornosti izvoza</div><h2>${verified?'Izvoz je provjeren':'Izvoz nije potvrđen'}</h2><div class="small-muted">Neovisna provjera spremljene datoteke i podataka izvještaja.</div></div><button class="close-btn" data-bss-action="closeModal()">×</button></div>
+      <div class="notice ${verified?'info':'danger'}">${verified?'Kontrolni zbrojevi datoteke i podataka odgovaraju spremljenoj evidenciji izvoza.':'Jedna ili više provjera nisu potvrdile datoteku ili podatke. Ovaj izvoz nemoj tretirati kao provjeren.'}</div>
       <div class="report-verification-grid">
-        <div><span>Artifact checksum</span><b>${data.artifactChecksumMatches?'Podudara se':'NE PODUDARA SE'}</b></div>
-        <div><span>Dataset checksum</span><b>${data.datasetChecksumMatches?'Podudara se':'NE PODUDARA SE'}</b></div>
-        <div><span>Dataset verzija</span><b class="mono">${escapeHtml(data.datasetVersion||'—')}</b></div>
-        <div><span>Period verzija</span><b class="mono">${escapeHtml(data.periodVersionId||'Nije zaključan')}</b></div>
-        <div><span>Calculation verzije</span><b>${escapeHtml((data.calculationVersions||[]).join(', ')||'—')}</b></div>
-        <div><span>Template verzija</span><b>${escapeHtml(data.templateVersion||'—')}</b></div>
+        <div><span>Kontrolni zbroj datoteke</span><b>${data.artifactChecksumMatches?'Podudara se':'NE PODUDARA SE'}</b></div>
+        <div><span>Kontrolni zbroj podataka</span><b>${data.datasetChecksumMatches?'Podudara se':'NE PODUDARA SE'}</b></div>
+        <div><span>Verzija podataka</span><b class="mono">${escapeHtml(data.datasetVersion||'—')}</b></div>
+        <div><span>Verzija razdoblja</span><b class="mono">${escapeHtml(data.periodVersionId||'Nije zaključan')}</b></div>
+        <div><span>Verzije obračuna sati</span><b>${escapeHtml((data.calculationVersions||[]).join(', ')||'—')}</b></div>
+        <div><span>Verzija predloška</span><b>${escapeHtml(data.templateVersion||'—')}</b></div>
       </div>
       <div class="small-muted">Provjereno: ${escapeHtml(data.verifiedAt||'—')}</div>
       <div class="btns"><button class="btn secondary" data-bss-action="closeModal()">Zatvori</button></div></div>`;
