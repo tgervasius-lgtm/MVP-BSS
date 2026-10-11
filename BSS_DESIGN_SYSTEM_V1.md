@@ -228,3 +228,7 @@ must describe only actions already available to the active role. See
 ## Personal documents pattern — 2026-10-06 (#256)
 
 Use a readable list with document title, type/month and direct PDF download. Worker sees personal published documents only. Admin/accountant preparation is a separate draft/review/publish flow that always displays worker name and code before publication. Provide loading, empty, disabled, error and stale-state recovery; every action supports keyboard/focus and narrow screens. Never label a download as confirmed reading or acceptance. Existing color tokens remain in use.
+
+### Hrvatski odabir pojedinačnog datuma
+
+Datumi u korekcijama, godišnjem i neradnim danima koriste označene kontrole za dan, hrvatski mjesec i godinu. Izvorna ISO vrijednost i ograničenja datuma ostaju očuvani. Nepostojeći ili nedopušten datum prikazuje hrvatsku poruku i ne daje valjanu vrijednost za slanje. Mjesečni filtri obrađuju se zasebno u #262.

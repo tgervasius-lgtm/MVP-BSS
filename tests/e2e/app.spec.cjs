@@ -114,7 +114,7 @@ test('radnik ima osobni mjesečni pregled i stanje godišnjeg s pripadajućim ak
   await page.locator('.mytime-summary-grid').getByRole('button',{name:/Odrađeno/}).click();
   await expect(page.locator('#myTimeRecords')).toBeFocused();
   await expect(page.locator('.attendance-kpis')).toHaveCount(0);
-  await expect(page.locator('#corrDate')).toBeVisible();
+  await expect(page.getByRole('combobox',{name:'Datum — mjesec',exact:true})).toBeVisible();
   await expect(page.getByRole('button',{name:'Pošalji zahtjev',exact:true})).toBeVisible();
   expect(await seriousAxeViolations(page)).toEqual([]);
 
@@ -290,4 +290,22 @@ test('dokument API sučelje: primatelj, nacrt, potvrda objave i preuzimanje PDF-
   const downloadPromise=page.waitForEvent('download');await page.getByRole('button',{name:/Preuzmi PDF/}).click();const download=await downloadPromise;expect(download.suggestedFilename()).toBe('BSS-fixture.pdf');
   expect(errors).toEqual([]);
 });
+});
+
+test('hrvatski birači datuma čuvaju ISO i mobilnu čitljivost',async({page},testInfo)=>{
+  const errors=trackErrors(page);await loginAs(page,'worker');
+  await page.evaluate(()=>window.navigate('corrections'));
+  const month=page.getByRole('combobox',{name:'Datum — mjesec',exact:true});
+  await expect(month.locator('option').filter({hasText:/^srpanj$/})).toHaveCount(1);
+  await page.getByRole('combobox',{name:'Datum — dan',exact:true}).selectOption('01');
+  await expect(page.locator('#corrDate')).toHaveValue(/-01$/);
+  await page.locator('.date-field').scrollIntoViewIfNeeded();
+  await expect(page.locator('.date-field')).toBeInViewport();
+  expect(await seriousAxeViolations(page)).toEqual([]);
+  await page.evaluate(()=>window.navigate('requests'));
+  await expect(page.locator('.date-picker')).toHaveCount(2);
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  expect(await seriousAxeViolations(page)).toEqual([]);
+  await page.locator(".leave-form-card").screenshot({path:`docs/ux/DATE_PICKER_${testInfo.project.name}.png`});
+  expect(errors).toEqual([]);
 });

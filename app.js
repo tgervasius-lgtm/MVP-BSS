@@ -651,6 +651,7 @@ function closeDrawer(restoreFocus=false){
 function showModal(modal){
   globalThis.BSSTerminalCredential?.clear();
   if(!modal)return;
+  BSS_VIEWS.datePicker.enhance(modal);
   const heading=modal.querySelector('h2');if(heading){heading.id='activeModalTitle';modal.setAttribute('aria-labelledby',heading.id);}
   layerReturnFocus=document.activeElement;modal.classList.add('open');modal.setAttribute('aria-hidden','false');focusFirst(modal);
 }
@@ -667,6 +668,7 @@ function openResetDemoDialog(){
   showModal(modal);layerReturnFocus=trigger;
 }
 function enhanceRenderedUi(){
+  BSS_VIEWS.datePicker.enhance(document);
   const [heading]=topCopy();document.title=`${heading} | BSS ${APP_VERSION}`;
   document.querySelectorAll('.table-wrap').forEach((wrapper,index)=>{
     const tableTitle=wrapper.closest('.card')?.querySelector('h2')?.textContent?.trim()||`Tablični prikaz ${index+1}`;

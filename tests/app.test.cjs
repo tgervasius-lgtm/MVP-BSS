@@ -33,6 +33,7 @@ const coreSources = [
   'src/views/access-operational.js',
   'src/views/audit-operational.js',
   'src/views/contextual-help.js',
+  'src/views/date-picker.js',
   'src/views/documents.js'
 ].map(path=>fs.readFileSync(path,'utf8'));
 const styleEntry = fs.readFileSync('styles.css','utf8');
@@ -1913,7 +1914,7 @@ test('aplikacija povezuje vodič i offline predmemorira cijeli Design System',()
   for(const asset of ['design-system/index.html','design-system/tokens.css','design-system/guide.css','design-system/guide.js']){
     assert.match(serviceWorker,new RegExp(asset.replaceAll('.','\\.')));
   }
-  assert.match(serviceWorker,/bss-backend-mvp-v1-r7/);
+  assert.match(serviceWorker,/bss-backend-mvp-v1-r9/);
 });
 
 test('Brand Book v1.0 pokriva svih devet dogovorenih područja',()=>{
@@ -1977,7 +1978,7 @@ test('aplikacija povezuje Brand Book i cijeli paket radi offline',()=>{
     'bss-presentation-cover.svg','bss-terminal-label.svg',
     'BSS_BRAND-BOOK_v1.0_11.07.2026.pdf'
   ]) assert.match(serviceWorker,new RegExp(asset.replaceAll('.','\\.')));
-  assert.match(serviceWorker,/bss-backend-mvp-v1-r7/);
+  assert.match(serviceWorker,/bss-backend-mvp-v1-r9/);
   assert.match(serviceWorker,/path\.includes\('\/brand-book'\)/);
 });
 
@@ -2078,11 +2079,11 @@ test('Backend MVP učitava API adaptere prije aplikacije i sprema shell za offli
   ]){
     assert.match(serviceWorker,new RegExp(asset.replaceAll('.','\\.')));
   }
-  assert.match(serviceWorker,/bss-backend-mvp-v1-r7/);
+  assert.match(serviceWorker,/bss-backend-mvp-v1-r9/);
 });
 
 test('cache invalidation hotfix osvježava app shell i odmah preuzima otvorene klijente',()=>{
-  assert.match(serviceWorker,/const CACHE_NAME = 'bss-backend-mvp-v1-r7'/);
+  assert.match(serviceWorker,/const CACHE_NAME = 'bss-backend-mvp-v1-r9'/);
   assert.match(serviceWorker,/new Request\(asset,\{cache:'reload'\}\)/);
   assert.match(serviceWorker,/new Request\(request,\{cache:'no-store'\}\)/);
   assert.match(serviceWorker,/new Request\(request,\{cache:'no-cache'\}\)/);
@@ -2841,4 +2842,29 @@ test('stvarni API adapter šalje uneseno obrazloženje i reviziju bez generičke
   assert.match(sent[0].url,/\/reject$/);
   assert.deepEqual(JSON.parse(sent[0].body),{note:'Provjerite odjavu sa svojim voditeljem.'});
   assert.equal(sent[0].headers['If-Match'],'"7"');
+});
+
+test('Croatian date controls preserve leap days, bounds, blank values and one delegated change',()=>{
+  const app=boot();const modal=app.document.querySelector('#modal');
+  modal.innerHTML='<label>Datum<input id="fixtureDate" type="date" min="2024-01-01" max="2024-12-31" value="2024-02-29"></label>';
+  const value=modal.querySelector('#fixtureDate');let changes=0;value.addEventListener('change',()=>{changes++;});
+  app.window.showModal(modal);app.window.showModal(modal);
+  const day=modal.querySelector('[aria-label="Datum — dan"]'),month=modal.querySelector('[aria-label="Datum — mjesec"]'),year=modal.querySelector('[aria-label="Datum — godina"]');
+  assert.equal(modal.querySelectorAll('.date-picker').length,1);assert.equal(value.value,'2024-02-29');
+  assert.equal(month.options[2].textContent,'veljača');assert.equal(day.value,'29');
+  year.value='2025';year.dispatchEvent(new app.window.Event('change',{bubbles:true}));
+  assert.equal(value.value,'');assert.equal(changes,1);assert.match(modal.querySelector('.date-error').textContent,/valjan datum/);
+  year.value='2024';month.value='04';day.value='31';month.dispatchEvent(new app.window.Event('change',{bubbles:true}));assert.equal(value.value,'');
+  day.value='30';day.dispatchEvent(new app.window.Event('change',{bubbles:true}));assert.equal(value.value,'2024-04-30');
+  assert.equal(modal.querySelector('.date-error').textContent,'');
+  month.value='';month.dispatchEvent(new app.window.Event('change',{bubbles:true}));assert.equal(value.value,'');assert.equal(changes,4);
+});
+
+test('worker correction and leave dates use Croatian controls and refresh existing previews',()=>{
+  const app=boot('worker');app.window.navigate('corrections');
+  const month=app.document.querySelector('[aria-label="Datum — mjesec"]');assert.ok(month);
+  const value=app.document.querySelector('#corrDate'),day=app.document.querySelector('[aria-label="Datum — dan"]');
+  day.value='01';day.dispatchEvent(new app.window.Event('change',{bubbles:true}));assert.match(value.value,/-01$/);
+  app.window.navigate('requests');assert.equal(app.document.querySelectorAll('.date-picker').length,2);
+  assert.equal(app.document.querySelector('[aria-label="Od — mjesec"]').options[7].textContent,'srpanj');
 });
