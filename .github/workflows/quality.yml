@@ -16,7 +16,7 @@ concurrency:
 
 jobs:
   quality:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     services:
       postgres:
@@ -26,13 +26,25 @@ jobs:
           POSTGRES_PASSWORD: postgres
           POSTGRES_DB: bss_e2e
         ports:
-          - 5432:5432
+          - "127.0.0.1:5432:5432"
         options: >-
           --health-cmd "pg_isready -U postgres -d bss_e2e"
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
     steps:
+      - name: Verify test PostgreSQL loopback isolation
+        working-directory: ${{ runner.temp }}
+        env:
+          CI_POSTGRES_CONTAINER: ${{ job.services.postgres.id }}
+        run: |
+          docker_version="$(docker version --format '{{.Server.Version}}')"
+          # Older Docker versions have a known localhost-publish isolation gap.
+          [[ "${docker_version%%.*}" -ge 28 ]]
+          binding="$(docker port "$CI_POSTGRES_CONTAINER" 5432/tcp)"
+          [[ "$binding" == "127.0.0.1:5432" ]]
+          printf 'Disposable test PostgreSQL loopback binding verified (Docker %s)\n' "$docker_version"
+
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
