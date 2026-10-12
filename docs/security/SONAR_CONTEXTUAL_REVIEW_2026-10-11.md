@@ -1,6 +1,22 @@
 # Remaining Sonar findings — contextual review and control hardening
 
-Status: IMPLEMENTED FOR REVIEW / NOT MERGED / NO SONAR DISPOSITION.
+## Completion readback — 2026-10-12
+
+Status: **PR267 MERGED VERIFIED / TWO MAIN DISPOSITIONS VERIFIED / MAIN QUALITY GATE OK**, scoped to protected-main implementation `441b902c07972bdaf20355a4b46c4690c731a24f`, reviewed source tree `ea86cfc4141dc014cf71d2f712daecdd50417565`. Original preparation text below is dated history, not current status.
+
+PR #267 merged at `2026-10-11T22:00:04Z`. Actual-main quality job `114586280618` and mailbox/scanner/synthetic-restore job `114586280707` proved the unsafe-parent rejection, non-sticky cross-UID rename negative control, sticky rename/private-input read denial, qpdf/ClamAV and actual Docker>=28 loopback binding. Existing main evidence: 92 backend unit/contract +28 PostgreSQL PASS and six operational synthetic checks PASS, zero failures/skips. These immutable jobs are CI proof; they are not staging, customer-data, physical-device, real PITR or RPO/RTO proof.
+
+With separate explicit owner authorization, main issue `AaEdGENiSplG0XCcTnBj` was resolved FALSE POSITIVE with its approved contextual comment at `2026-10-11T22:28:46Z`. Main issue `AaEdGEklSplG0XCcTnBo` was ACCEPTED, legacy WONTFIX resolution, with its approved comment at `2026-10-11T22:30:14Z`. The CI password is genuinely hard-coded; it was not called FIXED or FALSE POSITIVE. The approval is only for that disposable synthetic CI fixture, never a production credential. One exact approved comment per issue and status/gate readbacks were verified. No NOSONAR, exclusions, rule reduction, permission expansion or weakening of runtime controls.
+
+Analysis `6050da28-5801-4147-8bbd-7c49dfe6cf64` remains tied to this main implementation. Quality Gate OK, same-head GitHub Sonar check `114586589950` SUCCESS. Full New Code OPEN/CONFIRMED issue inventory read `2026-10-12T08:40:35Z`: 262 distinct CODE_SMELL / MAINTAINABILITY findings, including 30 HIGH /202 MEDIUM /30 LOW. GitHub's same-head summary still displays 575; cause remains unverified. These counts are not evidence that 262 findings were fixed or all historical/accepted/hotspot alerts were reviewed. The two PR267-only synthetic Python dispositions belong to their PR context and are not automatic cross-branch authorization or synchronization.
+
+Mailbox remains DISABLED BY DEFAULT; actual staging tmpfs/swap/crash cleanup, hostile root/same-UID threat boundaries, runtime scanner/key custody and customer privacy/backup controls remain separate. H2 stays inactive. Staging/Pilot/Commercial Production remain NOT PASS. Rollback would require a separately reviewed revert preserving the controls and explicit evidence; this documentation refresh changes no executable behavior.
+
+Evidence: [merged PR267](https://github.com/tgervasius-lgtm/MVP-BSS/pull/267), [main checks](https://github.com/tgervasius-lgtm/MVP-BSS/commit/441b902c07972bdaf20355a4b46c4690c731a24f/checks), [Sonar main issues](https://sonarcloud.io/project/issues?id=tgervasius-lgtm_MVP-BSS&branch=main). Re-read live state before another implementation or disposition; this is dated scoped proof.
+
+## Historical preparation — before merge and owner dispositions
+
+Historical status: IMPLEMENTED FOR REVIEW / NOT MERGED / NO SONAR DISPOSITION.
 Baseline: protected main `e1f5b0133e1b57e0022117e5c509ea7dd8bef714`,
 Sonar analysis `5fc18b93-847d-442d-b2e8-4e0a59178dc6`.
 Canonical coordination inputs read: Board v213, Source Map v58.
