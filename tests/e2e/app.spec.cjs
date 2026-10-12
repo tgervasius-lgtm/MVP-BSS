@@ -372,6 +372,26 @@ test('hrvatski birači datuma čuvaju ISO i mobilnu čitljivost',async({page},te
   expect(errors).toEqual([]);
 });
 
+test('dnevni birač briše zastarjelu validaciju i prati vanjsko pražnjenje',async({page})=>{
+  const errors=trackErrors(page);await loginAs(page,'worker');
+  await page.evaluate(()=>window.navigate('corrections'));
+  const day=page.getByRole('combobox',{name:'Datum — dan',exact:true});
+  const month=page.getByRole('combobox',{name:'Datum — mjesec',exact:true});
+  const year=page.getByRole('spinbutton',{name:'Datum — godina',exact:true});
+  await year.fill('2027');await year.press('Tab');
+  await expect(page.locator('.date-error')).toContainText('valjan datum');
+  await expect(day).toHaveAttribute('aria-invalid','true');
+  await page.evaluate(()=>{const input=document.querySelector('#corrDate');input.value='2026-07-01';input.dispatchEvent(new Event('change',{bubbles:true}));});
+  await expect(day).toHaveValue('01');await expect(month).toHaveValue('07');await expect(year).toHaveValue('2026');
+  await expect(page.locator('.date-error')).toBeEmpty();await expect(day).toHaveAttribute('aria-invalid','false');
+  await page.evaluate(()=>{const input=document.querySelector('#corrDate');input.value='';input.dispatchEvent(new Event('change',{bubbles:true}));});
+  await expect(day).toHaveValue('');await expect(month).toHaveValue('');await expect(year).toHaveValue('');
+  await day.selectOption('01');await month.selectOption('07');await year.fill('2026');await year.press('Tab');
+  await expect(page.locator('#corrDate')).toHaveValue('2026-07-01');
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  expect(await seriousAxeViolations(page)).toEqual([]);expect(errors).toEqual([]);
+});
+
 async function mapImportPreview(page,scenario='valid'){
   await page.goto('/design-system/import-onboarding.html');
   await page.getByLabel('Ogledni scenarij',{exact:true}).selectOption(scenario);
