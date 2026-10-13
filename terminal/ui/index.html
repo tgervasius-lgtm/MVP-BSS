@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="hr">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BSS · Testni terminal</title><link rel="stylesheet" href="/ui.css"><script src="/ui.js" defer></script>
+</head>
+<body>
+  <main>
+    <header><strong>BSS <span>Terminal</span></strong><span id="connection">Povezivanje…</span></header>
+    <div class="clock"><time id="time">--:--</time><p id="date"></p></div>
+    <h1>Evidencija radnog vremena</h1>
+    <fieldset class="actions" aria-label="Vrsta događaja">
+      <button id="arrival" type="button" aria-pressed="true">Dolazak</button>
+      <button id="departure" type="button" aria-pressed="false">Odlazak</button>
+    </fieldset>
+    <output id="feedback" aria-live="polite">Odaberite događaj i prislonite testnu karticu.</output>
+    <footer><span>TESTNI UREĐAJ · SINTETIČKI PODACI</span><span id="queue">Na čekanju: 0</span></footer>
+  </main>
+  <section class="simulator" aria-labelledby="sim-title">
+    <h2 id="sim-title">Simulator kartice</h2>
+    <div class="controls"><label for="card">Testni radnik</label><select id="card"></select>
+      <button id="tap" type="button" disabled>Prisloni testnu karticu</button>
+      <button id="network" type="button" aria-pressed="false">Isključi sinkronizaciju</button></div>
+    <label class="clock-toggle"><input id="trusted" type="checkbox"> Simuliraj pouzdan sat testnog uređaja</label>
+    <p>Bez ove opcije događaj ide na administratorsku provjeru vremena. Stvarni RTC/NTP i RFID čitač provjeravaju se na uređaju.</p>
+    <output id="result">Još nema događaja.</output>
+  </section>
+</body></html>
