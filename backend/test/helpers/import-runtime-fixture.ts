@@ -4,7 +4,7 @@ export async function importRuntimeFixture(url: string) {
   const f = await importFixture(url);
   try {
     await f.owner.query(`GRANT EXECUTE ON FUNCTION bss_import_healthy(),bss_import_admit(text,uuid),
-      bss_import_lease(uuid,text),bss_import_cleanup() TO ${f.role}`);
+      bss_import_lease(uuid,text),bss_import_cleanup(),bss_import_parser_budget(uuid) TO ${f.role}`);
     const events: string[] = [];
     const runtime = new PgImportRuntime(f.appPool, event => { events.push(event); });
     await runtime.start();

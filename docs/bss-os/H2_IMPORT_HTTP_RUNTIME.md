@@ -123,3 +123,45 @@ Native Windows baseline comparison also reproduces the existing date conversion
 assertion at postgres.test.ts:799 (local timezone yields 2026-06-20 instead of
 2026-06-21). Linux/UTC CI is authoritative for the full regression gate; no
 unrelated date/PDF code or platform guard is changed by this import slice.
+
+## Review corrections — 15 October 2026
+
+The original lease fenced publication but did not prevent an expired request from
+starting a parser after a delayed reservation. WorkerImportApi now enters
+PgImportRuntime.parse before invoking any parser. A dedicated backend PostgreSQL
+session holds advisory mutex (237,1701) until the parser promise settles. The
+secure parser settles only after its child/process-group close. A replacement
+admission cannot start another parser while that mutex is held, even after the
+old 20-second admission expires. Aborting never releases this mutex early.
+
+Additive migration 017 exposes only a private Admin/tenant/token-bound remaining
+budget, with fixed search_path and PUBLIC execution revoked. It changes no
+existing migration checksum and adds no production grants. The backend deducts
+the DB round trip from that budget, combines deadline and caller cancellation,
+aborts on connection loss and rechecks the token after parser completion.
+The original parser's own three-second isolation limit remains mandatory.
+Mutex acquisition/unlock uncertainty discards the connection rather than pooling
+a possibly locked session. This requires a direct or session-affine PostgreSQL
+connection, not transaction-pooling middleware. Runtime/network/process fault
+and containment proof remain target-environment activation gates.
+
+The import error handler now preserves Fastify RATE_LIMITED/429 and Retry-After,
+including the 61st same-IP request, while keeping unexpected error details private.
+
+Recovery additionally drains parser mutex holders. Migration 017 down refuses
+a held mutex, live admission or nonterminal source session. Reverse 017 before
+016 only after the existing disable/drain/purge procedure; successful workers,
+session results and audits remain. New real-PG regression covers expired and
+replaced tokens before parser entry, independent coordinators, deadline abort
+with delayed closure, tenant/role denial and mutex-aware 017 down/up. These
+controlled parser probes verify orchestration, not actual target sandbox capacity.
+
+Sonar triage: the initial 14 open code-smell findings are not a clean-review
+certificate despite a green check. Seven duplicated-literal suggestions and one
+newline-literal PL/SQL rule apply to the new PostgreSQL 016 file; do not rewrite
+its applied/tested checksum or suppress findings to remove them. The newline is
+valid PostgreSQL policy SQL, demonstrated by migration tests; exact analyzer
+applicability still needs explicit review. Route nested-ternary suggestions are
+addressed by a named error mapper. Remaining async-plugin/style/complexity
+suggestions require contextual assessment rather than adding dummy awaits or
+changing Fastify plugin completion semantics merely to satisfy a scanner.

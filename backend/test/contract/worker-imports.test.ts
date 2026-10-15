@@ -25,3 +25,15 @@ test("inactive import HTTP exposes limits but denies uploads, roles, origin and 
   assert.equal(disabled.statusCode,503);assert.equal(disabled.json().code,"IMPORT_UNAVAILABLE");assert.equal(disabled.headers["retry-after"],"60");
   assert.equal((await app.inject({url:"/api/v1/worker-imports/"+IDS.export,cookies:{bss_session:"admin"}})).statusCode,503);
 });
+
+test("import route preserves Fastify rate-limit status and retry contract", async t => {
+  const app = await buildApp({ config, authService: new FakeAuthService(), phaseAService: new FakePhaseAService(), logger: false });
+  t.after(() => app.close());
+  for (let i = 0; i < 60; i++)
+    assert.equal((await app.inject({ url: "/api/v1/worker-import-policy", cookies: { bss_session: "admin" } })).statusCode, 200);
+  const limited = await app.inject({ url: "/api/v1/worker-import-policy", cookies: { bss_session: "admin" } });
+  assert.equal(limited.statusCode, 429);
+  assert.equal(limited.json().code, "RATE_LIMITED");
+  assert.equal(limited.headers["retry-after"], "60");
+  assert.equal(limited.headers["cache-control"], "no-store, private");
+});

@@ -22,6 +22,21 @@ const key = (request: FastifyRequest): string => {
   return value as string;
 };
 
+
+function importProblem(error: unknown): AppError {
+  if (error instanceof AppError) return error;
+  const problem = error as { code?: string; statusCode?: number; validation?: unknown };
+  if (problem.statusCode === 429 || problem.code === "RATE_LIMITED")
+    return new AppError("RATE_LIMITED", "Previše zahtjeva. Pokušajte ponovno kasnije.");
+  if (problem.code === "FST_ERR_CTP_BODY_TOO_LARGE")
+    return new AppError("IMPORT_FILE_TOO_LARGE", "Datoteka je prevelika.");
+  if (problem.code === "FST_ERR_CTP_INVALID_MEDIA_TYPE")
+    return new AppError("IMPORT_FORMAT_UNSUPPORTED", "Vrsta sadržaja nije podržana.");
+  if (problem.statusCode === 400 || problem.validation)
+    return new AppError("VALIDATION_FAILED", "Zahtjev sadrži neispravna polja.");
+  return importUnavailable();
+}
+
 export async function registerWorkerImportRoutes(app: FastifyInstance,
   dependencies: { authenticate: Authenticate; imports?: WorkerImportApi }): Promise<void> {
   await app.register(async app => {
@@ -69,13 +84,7 @@ export async function registerWorkerImportRoutes(app: FastifyInstance,
     app.addHook("onError", async request => { await release(request); });
     app.addHook("onTimeout", async request => { context(request)?.controller.abort(); await release(request); });
     app.setErrorHandler((error, request, reply) => {
-      const code = (error as { code?: string }).code;
-      const problem = error instanceof AppError ? error
-        : code === "FST_ERR_CTP_BODY_TOO_LARGE" ? new AppError("IMPORT_FILE_TOO_LARGE", "Datoteka je prevelika.")
-        : code === "FST_ERR_CTP_INVALID_MEDIA_TYPE" ? new AppError("IMPORT_FORMAT_UNSUPPORTED", "Vrsta sadržaja nije podržana.")
-        : (error as { statusCode?: number }).statusCode === 400 || (error as { validation?: unknown }).validation
-          ? new AppError("VALIDATION_FAILED", "Zahtjev sadrži neispravna polja.")
-          : importUnavailable();
+      const problem = importProblem(error);
       if (request.method === "POST" && request.routeOptions.url === root) reply.header("Connection", "close");
       if (problem.statusCode === 429 || problem.statusCode === 503) reply.header("Retry-After", "60");
       return reply.code(problem.statusCode).send({ code: problem.code, message: problem.message, requestId: request.id,

@@ -242,7 +242,9 @@ paths:
         Content-Type must match format. CSV delimiter required; XLSX delimiter
         forbidden. No JSON/base64/multipart. One deployment-wide 20-second
         admission lease covers upload and parser; parser stays bounded to 3
-        seconds. Durable separate 10 create/10 commit attempts per tenant
+        seconds. Parser entry requires a live tenant/token fence and remaining
+        DB-clock budget; a session mutex is held until parser closure, including
+        cancellation and an expired admission's replacement. Durable separate 10 create/10 commit attempts per tenant
         rolling minute include retries and busy/health refusals after valid
         boundary authorization. At most two nonterminal sessions. 201 new
         session, 200 exact create replay. Auth/role/origin checked before body.

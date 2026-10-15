@@ -23,7 +23,7 @@ test("security-definer maintenance works with non-superuser owner, no PUBLIC exe
   // migration 016 and its definer functions are exercised under NOSUPER/NOBYPASS.
   const previousDown=process.env.BSS_ALLOW_DOWN_MIGRATIONS;
   process.env.BSS_ALLOW_DOWN_MIGRATIONS="true";
-  try{await migrateDown(f.owner);}finally{if(previousDown===undefined)delete process.env.BSS_ALLOW_DOWN_MIGRATIONS;else process.env.BSS_ALLOW_DOWN_MIGRATIONS=previousDown;}
+  try{await migrateDown(f.owner);await migrateDown(f.owner);}finally{if(previousDown===undefined)delete process.env.BSS_ALLOW_DOWN_MIGRATIONS;else process.env.BSS_ALLOW_DOWN_MIGRATIONS=previousDown;}
   const due=await f.prepare([f.worker("non-super")]);await f.age(due.id,"25 hours");
   await f.owner.query(`GRANT CREATE,USAGE ON SCHEMA public TO ${ddl}`);
   await f.owner.query(`GRANT REFERENCES ON organizations TO ${ddl}`);
@@ -38,14 +38,22 @@ test("security-definer maintenance works with non-superuser owner, no PUBLIC exe
   await f.owner.query("RESET ROLE");
   await f.owner.query(`GRANT USAGE ON SCHEMA public TO ${f.role}`);
   await assert.rejects(f.appPool.query("SELECT bss_import_cleanup()"),{code:"42501"});
-  await f.owner.query(`GRANT EXECUTE ON FUNCTION bss_import_cleanup(),bss_import_healthy() TO ${f.role}`);
+  await assert.rejects(f.appPool.query("SELECT bss_import_parser_budget($1)",[randomUUID()]),{code:"42501"});
+  await f.owner.query(`GRANT EXECUTE ON FUNCTION bss_import_cleanup(),bss_import_healthy(),
+    bss_import_admit(text,uuid),bss_import_lease(uuid,text),bss_import_parser_budget(uuid) TO ${f.role}`);
   assert.equal((await f.appPool.query("SELECT bss_import_cleanup() AS count")).rows[0].count,1);
   assert.equal(await f.count("worker_import_staging"),0);
   assert.equal((await f.appPool.query("SELECT bss_import_healthy() AS healthy")).rows[0].healthy,true);
+  const guarded=new PgImportRuntime(f.appPool,()=>{});await guarded.start();
+  try{
+    const token=await guarded.admit(f.first.actor,"create","non-super-parser");
+    assert.equal(await guarded.parse(f.first.actor,token,new AbortController().signal,"non-super-budget",async()=>"ok"),"ok");
+    await guarded.release(f.first.actor,token,"release");
+  }finally{await guarded.stop();}
   await f.owner.query(`SET ROLE ${ddl}`);
   const before=process.env.BSS_ALLOW_DOWN_MIGRATIONS;process.env.BSS_ALLOW_DOWN_MIGRATIONS="true";
   try{
-    await migrateDown(f.owner);
+    await migrateDown(f.owner);await migrateDown(f.owner);
     assert.equal((await f.owner.query("SELECT to_regclass('worker_import_runtime') AS relation")).rows[0].relation,null);
     await migrateUp(f.owner);
     assert.equal((await f.owner.query("SELECT count(*) FROM worker_import_runtime")).rows[0].count,"1");
@@ -102,7 +110,7 @@ test("016 rollback refuses live leases and nonterminal source imports",options,a
     await assert.rejects(migrateDown(f.owner),/Stop imports and purge/);
     assert.equal((await store.get(f.first.actor,pending.session.id,"kept")).session.state,"PARSING");
     await store.cancel(f.first.actor,pending.session.id,pending.session.revision,"cancel");
-    await f.runtime.stop();await migrateDown(f.owner);
+    await f.runtime.stop();await migrateDown(f.owner);await migrateDown(f.owner);
   }finally{if(before===undefined)delete process.env.BSS_ALLOW_DOWN_MIGRATIONS;else process.env.BSS_ALLOW_DOWN_MIGRATIONS=before;}
 });
 test("global cleanup audit failure rolls back purge, state and heartbeat; next pass recovers",options,async t=>{

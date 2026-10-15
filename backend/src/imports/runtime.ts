@@ -1,8 +1,10 @@
 import { randomUUID } from "node:crypto";
+import { performance } from "node:perf_hooks";
+import { requireRole } from "../security/rbac.js";
 import type pg from "pg";
 import { AppError } from "../domain/errors.js";
 import type { ActorContext } from "../domain/types.js";
-import { importTransaction } from "./transaction.js";
+import { ImportTransaction, importTransaction } from "./transaction.js";
 
 export const IMPORT_RUNTIME = Object.freeze({ uploadMs: 15_000, leaseSeconds: 20, cleanupMs: 60_000, deadlineSeconds: 300 });
 export const importUnavailable = () => new AppError("IMPORT_UNAVAILABLE", "Siguran uvoz trenutno nije dostupan.");
@@ -62,7 +64,69 @@ export class PgImportRuntime {
     if (status !== "ADMITTED") throw importUnavailable();
     return token;
   }
+
+  // Keep a session-scoped mutex until the parser promise settles (secure parser
+  // settles only after child close). Expiring admission alone cannot bound work.
+  async parse<T>(actor: ActorContext, token: string, signal: AbortSignal, requestId: string,
+    operation: (signal: AbortSignal) => Promise<T>): Promise<T> {
+    requireRole(actor, ["admin"]);
+    if (this.stopped || !this.initialized || signal.aborted) throw importUnavailable();
+    const client = await this.pool.connect();
+    const controller = new AbortController();
+    let locked: boolean | undefined;
+    let discard = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const lostConnection = () => { discard = true; controller.abort(); };
+    client.on("error", lostConnection);
+    try {
+      locked = (await client.query<{ acquired: boolean }>(
+        "SELECT pg_try_advisory_lock(237,1701) AS acquired")).rows[0]?.acquired === true;
+      if (!locked) throw importUnavailable();
+      const remaining = await parserBudget(client, actor, token, requestId);
+      const combined = AbortSignal.any([signal, controller.signal]);
+      if (remaining <= 0 || combined.aborted) throw importUnavailable();
+      timer = setTimeout(() => controller.abort(), remaining);
+      const result = await operation(combined);
+      if (combined.aborted) throw importUnavailable();
+      const remainingAfter = await parserBudget(client, actor, token, requestId);
+      if (combined.aborted || remainingAfter <= 0) throw importUnavailable();
+      return result;
+    } finally {
+      clearTimeout(timer);
+      if (locked === undefined) discard = true;
+      if (locked && !discard) {
+        try {
+          const released = await client.query<{ released: boolean }>(
+            "SELECT pg_advisory_unlock(237,1701) AS released");
+          discard = released.rows[0]?.released !== true;
+        } catch { discard = true; }
+      }
+      client.removeListener("error", lostConnection);
+      client.release(discard);
+    }
+  }
+
   async release(actor: ActorContext, token: string, requestId: string): Promise<void> {
     await importTransaction(this.pool, actor, requestId, tx => tx.query("SELECT bss_import_lease($1,'release')", [token]));
+  }
+}
+
+async function parserBudget(client: pg.PoolClient, actor: ActorContext, token: string, requestId: string): Promise<number> {
+  const started = performance.now();
+  await client.query("BEGIN");
+  try {
+    const tx = new ImportTransaction(client);
+    await tx.query(`SELECT set_config('bss.organization_id',$1,true),set_config('bss.actor_role',$2,true),
+      set_config('bss.actor_id',$3,true),set_config('bss.request_id',$4,true),
+      set_config('lock_timeout','1s',true),set_config('idle_in_transaction_session_timeout','5s',true)`,
+    [actor.organizationId, actor.role, actor.userId, requestId]);
+    const budget = (await tx.query<{ budget: number | null }>(
+      "SELECT bss_import_parser_budget($1) AS budget", [token])).rows[0]?.budget ?? 0;
+    await tx.query("COMMIT");
+    // Subtract the entire round trip, including COMMIT; clocks need not agree.
+    return budget - Math.ceil(performance.now() - started);
+  } catch (error) {
+    try { await client.query("ROLLBACK"); } catch { /* The outer mutex release discards an unusable connection. */ }
+    throw error;
   }
 }

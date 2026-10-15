@@ -72,7 +72,8 @@ export class WorkerImportApi {
     const reserved = await this.store.reserve(actor, { ...input, fileChecksum }, key, requestId);
     if (reserved.replayed) return { session: reserved.session, replayed: true };
     try {
-      const table = await this.parser(bytes, input.format, input.delimiter, signal);
+      const table = await this.runtime.parse(actor, token, signal, requestId,
+        boundedSignal => this.parser(bytes, input.format, input.delimiter, boundedSignal));
       if (signal.aborted) throw importUnavailable();
       return { session: await this.store.publish(actor, reserved.session.id, reserved.session.revision,
         reserved.lease!, table, requestId, token), replayed: false };
