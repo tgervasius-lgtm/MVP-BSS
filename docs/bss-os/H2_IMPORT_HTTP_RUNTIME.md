@@ -165,3 +165,37 @@ applicability still needs explicit review. Route nested-ternary suggestions are
 addressed by a named error mapper. Remaining async-plugin/style/complexity
 suggestions require contextual assessment rather than adding dummy awaits or
 changing Fastify plugin completion semantics merely to satisfy a scanner.
+
+## Final review: bounded invalid-batch diagnostics
+
+The final review reproduced a pre-existing source-mapping defect reachable
+through the new HTTP API: 1,000 validly parsed invalid CSV rows generated
+7,000 diagnostics, exceeding migration 015's 6,000-entry staging bound.
+Mapping returned 409/CONFLICT and retained NEEDS_MAPPING instead of returning
+the complete INVALID preview. A 750-row control succeeded; no workers were
+written. The source-mapping and 015 blobs match current main, so this was a
+latent baseline defect rather than a regression in the parser mutex fix.
+
+Mapping now keeps the first actionable diagnostic per row/field. Required-text
+errors take precedence over dependent reference errors for the same empty
+field; present text without a binding still reports REFERENCE_MAPPING_REQUIRED.
+All rows and all independently invalid fields remain represented. At six
+fields the worst case is exactly 6,000 entries; existing database/byte bounds,
+migrations, checksums, source fingerprint and valid-worker rules stay intact.
+
+A unit regression exercises all 1,000 rows and six fields. A real-PG HTTP
+regression covers CSV/string and XLSX/typed-cell shapes, reads every one of ten
+preview pages, rejects commit of the invalid batch and verifies cancel/purge.
+The injected parser is orchestration evidence; actual format/sandbox evidence
+remains the separate Linux parser proof.
+
+The same review explained an intermittent disconnected-upload regression with a
+deterministic real-PG/network probe on unchanged head 82b04e0. If a socket aborted
+while runtime.admit was still returning a committed token, release() marked the
+request released before the token had been assigned. The eventual token then
+remained held until lease expiry and the next upload could receive 503.
+Release now marks completion only when a token is present. The post-admission
+abort branch releases that eventual token exactly once. A gated real HTTP test
+disconnects between DB commit and token delivery, waits for actual release and
+requires the next upload to succeed. No lease duration, rate limit or test
+assertion was relaxed.

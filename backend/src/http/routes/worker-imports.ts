@@ -46,9 +46,9 @@ export async function registerWorkerImportRoutes(app: FastifyInstance,
     const context = (request: FastifyRequest) => contexts.get(request)!;
     const release = async (request: FastifyRequest) => {
       const ctx = contexts.get(request);
-      if (!ctx || ctx.processing || ctx.released) return;
+      if (!ctx || ctx.processing || ctx.released || !ctx.token) return;
       ctx.released = true;
-      if (ctx.token) await service().runtime.release(ctx.actor, ctx.token, request.id).catch(() =>
+      await service().runtime.release(ctx.actor, ctx.token, request.id).catch(() =>
         request.log.error({ event: "import_lease_release_failed", requestId: request.id }, "Import lease release failed"));
     };
     app.addHook("onRequest", async request => {

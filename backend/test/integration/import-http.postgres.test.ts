@@ -91,3 +91,88 @@ test("real chunked HTTP is bounded, authorizes before body and recovers after di
   assert.equal(await f.count("worker_import_staging"),0);
   assert.equal((await f.app.inject({method:"POST",url:path,headers:{...headers,"idempotency-key":randomUUID()},cookies:{bss_session:"admin"},payload:Buffer.from("valid")})).statusCode,201);
 });
+
+test("1,000 invalid CSV/XLSX rows persist complete bounded field diagnostics and never commit", options, async t => {
+  // Controlled adapter isolates HTTP/mapping persistence; actual Linux format
+  // parsing and sandbox/child-close behavior have their separate CI proof.
+  const f = await fixture(async (bytes, format) => ({
+    version: TABULAR_VERSION, fileChecksum: createHash("sha256").update(bytes).digest("hex"),
+    headers: ["Code", "Name", "Email", "Department", "Shift", "Days"],
+    rows: Array.from({ length: 1000 }, () => ["", "", format === "xlsx" ? 0 : "", "", "", "invalid"])
+  }));
+  t.after(() => f.dispose());
+  const mapping = { columns: ["code", "name", "email", "department", "shift", "annualLeaveAllowance"], departments: [], shifts: [] };
+  for (const format of ["csv", "xlsx"] as const) {
+    const raw = format === "csv" ? Buffer.from("Code,Name,Email,Department,Shift,Days\n" + ",,,,,invalid\n".repeat(1000))
+      : Buffer.from("controlled XLSX parser fixture");
+    const uploadUrl = format === "csv" ? path : "/api/v1/worker-imports?format=xlsx&policyVersion=" + IMPORT_POLICY.version;
+    const created = await f.app.inject({ method: "POST", url: uploadUrl, cookies: { bss_session: "admin" },
+      headers: { ...headers, "idempotency-key": randomUUID(), "content-type": format === "csv" ? "text/csv"
+        : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }, payload: raw });
+    assert.equal(created.statusCode, 201, created.body);
+    const route = "/api/v1/worker-imports/" + created.json().id;
+    const mapped = await f.app.inject({ method: "PATCH", url: route + "/mapping", cookies: { bss_session: "admin" },
+      headers: { origin: config.publicOrigin, "if-match": created.headers.etag! }, payload: mapping });
+    assert.equal(mapped.statusCode, 200, mapped.body);
+    assert.equal(mapped.json().state, "INVALID");
+    assert.equal(mapped.json().counts.blocked, 1000);
+    const expectedFields = format === "csv" ? 5 : 6, observed = new Set<string>();
+    let next: string | null = null, pages = 0;
+    do {
+      const previewUrl: string = route + "/rows?revision=" + mapped.json().revision + "&limit=100"
+        + (next ? "&cursor=" + encodeURIComponent(next) : "");
+      const preview = await f.app.inject({ url: previewUrl, cookies: { bss_session: "admin" } });
+      assert.equal(preview.statusCode, 200, preview.body);
+      const page = preview.json(); assert.equal(page.sourceRows.length, 100);
+      assert.equal(page.issues.length, expectedFields * 100);
+      for (const issue of page.issues) {
+        const field = issue.rowNumber + ":" + issue.field;
+        assert.equal(observed.has(field), false); observed.add(field);
+      }
+      next = page.nextCursor; pages++;
+      assert.ok(pages <= 10);
+    } while (next);
+    assert.equal(pages, 10); assert.equal(observed.size, 1000 * expectedFields);
+    const commit = await f.app.inject({ method: "POST", url: route + "/commit", cookies: { bss_session: "admin" },
+      headers: { origin: config.publicOrigin, "if-match": mapped.headers.etag!, "idempotency-key": randomUUID() },
+      payload: { approved: true, previewChecksum: "a".repeat(64) } });
+    assert.equal(commit.statusCode, 409); assert.equal(await f.count("workers"), 0);
+    const cancelled = await f.app.inject({ method: "POST", url: route + "/cancel", cookies: { bss_session: "admin" },
+      headers: { origin: config.publicOrigin, "if-match": mapped.headers.etag! } });
+    assert.equal(cancelled.statusCode, 200); assert.equal(await f.count("worker_import_staging"), 0);
+  }
+});
+
+test("disconnect during admission releases the eventual token before the next upload", options, async t => {
+  let continueAdmission!: () => void, admissionReady!: () => void, socketAborted!: () => void, released!: () => void;
+  const blocked = new Promise<void>(resolve => { continueAdmission = resolve; });
+  const admitted = new Promise<void>(resolve => { admissionReady = resolve; });
+  const aborted = new Promise<void>(resolve => { socketAborted = resolve; });
+  const releaseDone = new Promise<void>(resolve => { released = resolve; });
+  const f = await fixture();
+  let req: http.ClientRequest | undefined;
+  t.after(async () => { continueAdmission(); req?.destroy(); await f.dispose(); });
+  const realAdmit = f.runtime.admit.bind(f.runtime), realRelease = f.runtime.release.bind(f.runtime);
+  let first = true, releaseCalls = 0;
+  f.runtime.admit = async (actor, operation, requestId) => {
+    const token = await realAdmit(actor, operation, requestId);
+    if (first) { first = false; admissionReady(); await blocked; }
+    return token;
+  };
+  f.runtime.release = async (actor, token, requestId) => {
+    await realRelease(actor, token, requestId); releaseCalls++; released();
+  };
+  f.app.server.once("request", raw => { raw.once("aborted", socketAborted); });
+  await f.app.listen({ host: "127.0.0.1", port: 0 });
+  const address = f.app.server.address(); assert.ok(address && typeof address === "object");
+  req = http.request({ host: "127.0.0.1", port: address.port, path, method: "POST",
+    headers: { ...headers, cookie: "bss_session=admin", "transfer-encoding": "chunked" } });
+  req.on("error", () => {}); req.flushHeaders();
+  await admitted; req.destroy(); await aborted;
+  continueAdmission(); await releaseDone;
+  assert.equal(releaseCalls, 1);
+  assert.equal((await f.owner.query("SELECT lease_token FROM worker_import_runtime")).rows[0].lease_token, null);
+  const retry = await f.app.inject({ method: "POST", url: path, cookies: { bss_session: "admin" },
+    headers: { ...headers, "idempotency-key": randomUUID() }, payload: Buffer.from("valid") });
+  assert.equal(retry.statusCode, 201, retry.body);
+});

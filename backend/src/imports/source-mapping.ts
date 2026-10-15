@@ -55,7 +55,15 @@ export function mapImportSource(source: ParsedTable, mapping: SourceMapping): {
   const rows: ImportWorker[] = [];
   source.rows.forEach((row, index) => {
     const value = Object.fromEntries(mapping.columns.map((field, i) => [field, row[i]]));
-    const issue = (field: string, code: string) => issues.push({ rowNumber: index + 2, field, code });
+    // One actionable issue per field keeps the full 1,000-row batch within
+    // the existing six-fields/6,000-issues persistence bound. Required text
+    // takes precedence over the dependent missing-reference diagnostic.
+    const reported = new Set<string>();
+    const issue = (field: string, code: string) => {
+      if (reported.has(field)) return;
+      reported.add(field);
+      issues.push({ rowNumber: index + 2, field, code });
+    };
     const before = issues.length;
     for (const field of ["code", "name", "department", "shift"] as const)
       if (typeof value[field] !== "string" || !(value[field] as string).trim()) issue(field, "TEXT_REQUIRED");

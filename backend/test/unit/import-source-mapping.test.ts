@@ -76,3 +76,19 @@ test("oversized input and cancellation reject before starting a parser process",
   const controller = new AbortController(); controller.abort();
   await assert.rejects(parseImportFile(Buffer.from("synthetic"), "csv", ",", controller.signal), { kind: "CANCELLED" });
 });
+
+test("maximum invalid batch preserves every row and field without redundant diagnostics", () => {
+  const s = source();
+  s.rows = Array.from({ length: 1000 }, () => ["", "", "", "", "invalid", 0]);
+  const result = mapImportSource(s, { ...mapping(), departments: [], shifts: [] });
+  assert.equal(result.canonicalRows, null);
+  assert.equal(result.issues.length, 6000);
+  assert.equal(new Set(result.issues.map(issue => issue.rowNumber)).size, 1000);
+  assert.equal(new Set(result.issues.map(issue => issue.rowNumber + ":" + issue.field)).size, 6000);
+  assert.deepEqual(new Set(result.issues.filter(issue => issue.rowNumber === 2).map(issue => issue.field)),
+    new Set(["code", "name", "department", "shift", "annualLeaveAllowance", "email"]));
+  assert.ok(result.issues.filter(issue => issue.field === "department" || issue.field === "shift")
+    .every(issue => issue.code === "TEXT_REQUIRED"));
+  const missing = mapImportSource(source(), { ...mapping(), departments: [] });
+  assert.deepEqual(missing.issues, [{ rowNumber: 2, field: "department", code: "REFERENCE_MAPPING_REQUIRED" }]);
+});
