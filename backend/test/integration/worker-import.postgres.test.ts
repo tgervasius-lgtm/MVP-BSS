@@ -85,7 +85,7 @@ test("#237 PostgreSQL validation, revisions, tenant/RBAC isolation and two-sessi
   const roleFlags = await f.owner.query("SELECT rolsuper,rolbypassrls FROM pg_roles WHERE rolname=$1", [f.role]);
   assert.deepEqual(roleFlags.rows[0], { rolsuper: false, rolbypassrls: false });
   const rls = await f.owner.query("SELECT relrowsecurity,relforcerowsecurity FROM pg_class WHERE relname LIKE 'worker_import_%' AND relkind='r'");
-  assert.equal(rls.rowCount, 4); assert.ok(rls.rows.every((r) => r.relrowsecurity && r.relforcerowsecurity));
+  assert.equal(rls.rowCount, 6); assert.ok(rls.rows.every((r) => r.relrowsecurity && r.relforcerowsecurity));
   await f.store.cancel(f.first.actor, outside.id, outside.revision, "cancel");
   const updated = await f.store.replace(f.first.actor, invalid.id, invalid.revision, [f.worker("VALID")], "replace");
   assert.equal(updated.state, "READY"); assert.equal(updated.revision, "2"); assert.equal(updated.expiresAt, invalid.expiresAt);

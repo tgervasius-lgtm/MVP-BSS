@@ -734,7 +734,7 @@ test("all Backend MVP Phase B operations exist in OpenAPI and resolve to Fastify
   }
   assert.deepEqual([...expected].filter((operation) => !actual.has(operation)), []);
   const metadata = (document as { info?: { version?: string; "x-bss-status"?: string } }).info;
-  assert.equal(metadata?.version, "1.5.0");
+  assert.equal(metadata?.version, "1.6.0");
   assert.equal(metadata?.["x-bss-status"], "MVP_IMPLEMENTED");
   assert.equal(document.paths["/terminal/v1/events/batch"]?.post?.operationId, "ingestTerminalEventBatch");
 });
@@ -748,7 +748,7 @@ test("every route-level rate limiter has the shared OpenAPI 429 contract", async
       property.name.text === name
     );
   const limitedRoutes = new Set<string>();
-  for (const file of ["auth.ts", "phase-a.ts", "mvp.ts", "attendance-periods.ts", "documents.ts"]) {
+  for (const file of ["auth.ts", "phase-a.ts", "mvp.ts", "attendance-periods.ts", "documents.ts", "worker-imports.ts"]) {
     const path = join(repositoryRoot, "backend/src/http/routes", file);
     const sourceText = await readFile(path, "utf8");
     const source = ts.createSourceFile(path, sourceText, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
@@ -832,8 +832,8 @@ test("OpenAPI v1 and the post-freeze screen map preserve ownership and explicit 
       .map(([, operation]) => operation.operationId)
       .filter((operationId): operationId is string => typeof operationId === "string")
   );
-  assert.equal(Object.keys(paths).length, 58);
-  assert.equal(operationIds.length, 70);
+  assert.equal(Object.keys(paths).length, 65);
+  assert.equal(operationIds.length, 78);
   assert.equal(new Set(operationIds).size, operationIds.length);
 
   const nonSessionOperations = new Set(["login", "refreshSession", "acceptInvitation", "ingestTerminalEventBatch", "terminalHeartbeat"]);
@@ -882,16 +882,16 @@ test("OpenAPI v1 and the post-freeze screen map preserve ownership and explicit 
     contractGatesBeforeDesignFoundationPhaseB: string[];
   };
   assert.equal(screenMap.readiness, "RECONCILED_WITH_EXPLICIT_UI_GAPS");
-  assert.equal(screenMap.contractReviewStatus, "DOCUMENT_MAILBOX_IMPLEMENTATION_REVIEW_REQUIRED");
+  assert.equal(screenMap.contractReviewStatus, "H2_IMPORT_API_IMPLEMENTATION_REVIEW_REQUIRED");
   assert.deepEqual(screenMap.frontendBaseline, {
     commit: "91323c7cdbbbbf7b965c4926c94a11af6d31bf62",
     status: "HISTORICAL_FRONTEND_V1_REFERENCE",
     authority: "NOT_CURRENT_PRODUCT_AUTHORITY"
   });
-  assert.equal(screenMap.repositoryBaseline, "98c4a44e59e02dfac29de246ddf0bbe4c1067680");
-  assert.equal(screenMap.openapi.version, "1.5.0");
-  assert.equal(screenMap.openapi.paths, 58);
-  assert.equal(screenMap.openapi.operations, 70);
+  assert.equal(screenMap.repositoryBaseline, "26d157d5fa2fc2ecf7e704f195244f061fa16ff1");
+  assert.equal(screenMap.openapi.version, "1.6.0");
+  assert.equal(screenMap.openapi.paths, 65);
+  assert.equal(screenMap.openapi.operations, 78);
   const canonicalOpenApiSource = source.replace(/\r\n/g, "\n");
   assert.equal(screenMap.openapi.sha256, createHash("sha256").update(canonicalOpenApiSource).digest("hex"));
   assert.deepEqual(screenMap.contractGatesBeforeDesignFoundationPhaseB, ["ISSUE_157_BSS_OS_REVIEW_AND_MERGE"]);

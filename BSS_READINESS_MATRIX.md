@@ -185,3 +185,15 @@ PDF policy (owner accepted 2026-10-08): reject embedded-file PDFs through mandat
 ## Employee import parser dependency — #237 (2026-10-09)
 
 H2-1a canonical database foundation (#242), H2-1b isolated CSV/XLSX parser/mapping (#260) and H2-1c1 private source/mapping lifecycle (#261) are MERGED / INACTIVE. See [H2-1b scope and evidence](docs/bss-os/H2_IMPORT_PARSER_AND_MAPPING.md) and [H2-1c1 scope and recovery](docs/bss-os/H2_IMPORT_SOURCE_LIFECYCLE.md). Remaining H2-1c2 work is authenticated bounded HTTP/OpenAPI, deployment-wide parser admission/leases and create/commit attempt limits, startup/recurring monitored cleanup with fail-closed overdue admission. Admin UI/onboarding remain open. Per-session fencing and tenant cleanup do not establish the global admission or five-minute cleanup guarantee. Native sandbox/PG CI does not prove deployment identity, customer-data/privacy/backup clearance, Staging or Pilot. Complete #237 stays OPEN.
+
+## H2-1c2 HTTP/runtime implementation candidate — #237 (2026-10-15)
+
+This branch adds Admin-only OpenAPI 1.6 HTTP integration, DB-backed global
+admission/fencing, separate durable tenant attempt limits and startup/recurring
+monitored cleanup with fail-closed overdue ingestion. It is **FOR REVIEW /
+INACTIVE BY DEFAULT**, not a deployed or customer-activated feature. See
+[scope, verification and recovery](docs/bss-os/H2_IMPORT_HTTP_RUNTIME.md).
+Relevant PostgreSQL/HTTP and migration evidence is recorded in the PR; native
+Windows broad checks retain existing Linux/PDF baseline failures. Required Linux
+CI, owner review, target-runtime/privacy/backup proof and activation remain
+independent gates. H2 UI/onboarding and complete #237 remain OPEN.

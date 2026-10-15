@@ -1,8 +1,8 @@
 {
-  "contract": "BSS post-freeze frontend screen ownership to Backend MVP API v1.5",
+  "contract": "BSS post-freeze frontend screen ownership to Backend MVP API v1.6",
   "readiness": "RECONCILED_WITH_EXPLICIT_UI_GAPS",
-  "contractReviewedAt": "2026-10-06",
-  "contractReviewStatus": "DOCUMENT_MAILBOX_IMPLEMENTATION_REVIEW_REQUIRED",
+  "contractReviewedAt": "2026-10-15",
+  "contractReviewStatus": "H2_IMPORT_API_IMPLEMENTATION_REVIEW_REQUIRED",
   "productAuthority": {
     "file": "BSS_V1_PRODUCT_CONTRACT.md",
     "version": "1.0",
@@ -13,14 +13,14 @@
     "status": "HISTORICAL_FRONTEND_V1_REFERENCE",
     "authority": "NOT_CURRENT_PRODUCT_AUTHORITY"
   },
-  "repositoryBaseline": "98c4a44e59e02dfac29de246ddf0bbe4c1067680",
+  "repositoryBaseline": "26d157d5fa2fc2ecf7e704f195244f061fa16ff1",
   "openapi": {
     "file": "openapi/bss-mvp-api-v1.yaml",
-    "sha256": "896803ca4611e883f09d56351f1c76cc53beb5127d353b01a5ef7e499eba640a",
-    "version": "1.5.0",
+    "sha256": "a6b374f08a36feaea80d8d892670e26bd87aecdc7b12b21e9550fbfd5ebfed1a",
+    "version": "1.6.0",
     "status": "MVP_IMPLEMENTED",
-    "paths": 58,
-    "operations": 70,
+    "paths": 65,
+    "operations": 78,
     "phaseAImplementedOperations": 30,
     "phaseBImplementedOperations": 63
   },
@@ -295,11 +295,20 @@
     {
       "id": "employee-import",
       "status": "contract-defined-gap",
-      "operations": [],
+      "operations": [
+        "getWorkerImportPolicy",
+        "listWorkerImports",
+        "createWorkerImport",
+        "getWorkerImport",
+        "previewWorkerImport",
+        "mapWorkerImport",
+        "commitWorkerImport",
+        "cancelWorkerImport"
+      ],
       "roles": [
         "admin"
       ],
-      "note": "Frozen Admin-only create/preview/validate/review/atomic-commit/cancel scope; no current registered screen or OpenAPI operation."
+      "note": "H2-1c2 HTTP/runtime code implemented for review, inactive by default; complete Admin UI, runtime grants/containment/privacy/backup and activation proof remain open."
     },
     {
       "id": "report-locked-version-selection",

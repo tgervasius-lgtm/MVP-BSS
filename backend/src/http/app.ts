@@ -5,6 +5,8 @@ import Fastify, { type FastifyInstance, type FastifyRequest } from "fastify";
 import rawBody from "fastify-raw-body";
 import type { AppConfig } from "../config.js";
 import { AppError } from "../domain/errors.js";
+import type { WorkerImportApi } from "../imports/api-service.js";
+import { registerWorkerImportRoutes } from "./routes/worker-imports.js";
 import type { ActorContext, SessionContext } from "../domain/types.js";
 import type { AuthService, MvpService } from "../services/contracts.js";
 import { registerAuthRoutes } from "./routes/auth.js";
@@ -19,6 +21,7 @@ export type AppDependencies = Readonly<{
   authService: AuthService;
   phaseAService: MvpService;
   documents?: DocumentService;
+  imports?: WorkerImportApi;
   logger?: boolean;
   readinessCheck?: () => Promise<void>;
 }>;
@@ -165,6 +168,11 @@ export async function buildApp(dependencies: AppDependencies): Promise<FastifyIn
     });
   });
 
+  if (dependencies.imports) {
+    app.addHook("onReady", async () => { await dependencies.imports!.runtime.start(); });
+    app.addHook("onClose", async () => { await dependencies.imports!.runtime.stop(); });
+  }
+  await registerWorkerImportRoutes(app, { authenticate, ...(dependencies.imports ? { imports: dependencies.imports } : {}) });
   await registerAuthRoutes(app, { config, authService, authenticate });
   await app.register(registerPhaseARoutes, { phaseAService, authenticate });
   await registerMvpRoutes(app, { mvpService: phaseAService, authenticate });

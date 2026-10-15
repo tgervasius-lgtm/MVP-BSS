@@ -83,7 +83,7 @@ test("#237 parsing fences cancellation, failure, crash, quota and late publicati
   await assert.rejects(f.sourceStore.publish(f.first.actor, a.session.id, a.session.revision, a.lease,
     { ...a.table, fileChecksum: "f".repeat(64) }, "wrong-file"), { code: "CONFLICT" });
   const b = await f.reserve(f.source("SECOND"));
-  await assert.rejects(f.reserve(f.source("THIRD")), { code: "CONFLICT" });
+  await assert.rejects(f.reserve(f.source("THIRD")), { code: "RATE_LIMITED" });
   await assert.rejects(f.prepare([f.worker("LEGACY_QUOTA")]), { code: "CONFLICT" });
   await f.sourceStore.cancel(f.first.actor, a.session.id, a.session.revision, "cancel-parsing");
   await assert.rejects(f.sourceStore.publish(f.first.actor, a.session.id, a.session.revision, a.lease, a.table, "late"), { code: "CONFLICT" });

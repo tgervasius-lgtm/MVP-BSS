@@ -17,6 +17,10 @@ export type ImportSourceIdentity = {
 type SourceStage = { source_json: ParsedTable; mapping_json: SourceMapping | null;
   mapping_issues: ImportIssue[]; rows_json: ImportWorker[] | null };
 const conflict = () => new AppError("CONFLICT", "Pripremu uvoza više nije moguće obraditi.");
+async function assertAdmission(tx: ImportTransaction, token?: string): Promise<void> {
+  if (token && !(await tx.query<{ valid: boolean }>("SELECT bss_import_lease($1,'fence') AS valid", [token])).rows[0]?.valid)
+    throw new AppError("IMPORT_UNAVAILABLE", "Isteklo je pravo obrade uvoza.");
+}
 
 async function sourceStage(tx: ImportTransaction, id: string): Promise<SourceStage> {
   const result = await tx.query<SourceStage>(`SELECT source_json, mapping_json, mapping_issues, rows_json
@@ -25,11 +29,24 @@ async function sourceStage(tx: ImportTransaction, id: string): Promise<SourceSta
   return result.rows[0];
 }
 
-/** Inactive internal boundary. Before calling reserve, a future coordinator MUST
- * enforce deployment-wide parser admission, durable attempt limits and monitored
- * cleanup health. The per-session fence here is not a global parser semaphore.
+/** Private source persistence. HTTP calls reserve through WorkerImportApi and
+ * PgImportRuntime admission/cleanup controls. Direct internal callers must supply
+ * equivalent controls; the per-session fence is not a global parser semaphore.
  */
 export class PgImportSourceStore extends PgWorkerImportStore {
+  async list(actor: ActorContext, after: string | null, limit: number, requestId: string) {
+    requireRole(actor, ["admin"]);
+    if (after) assertId(after);
+    if (!Number.isInteger(limit) || limit < 1 || limit > 100) invalid();
+    return this.run(actor, requestId, async tx => {
+      await this.cleanup(tx, actor, requestId);
+      const rows = await tx.query<SessionRow>(`SELECT ${SESSION_COLUMNS} FROM worker_import_sessions
+        WHERE source_format IS NOT NULL AND ($1::uuid IS NULL OR id > $1)
+        ORDER BY id LIMIT $2`, [after, limit + 1]);
+      return { items: rows.rows.slice(0, limit).map(sessionView), hasMore: rows.rows.length > limit };
+    });
+  }
+
   async reserve(actor: ActorContext, input: ImportSourceIdentity, createKey: string, requestId: string) {
     requireRole(actor, ["admin"]); assertChecksum(input.fileChecksum);
     if (!["csv", "xlsx"].includes(input.format) || ![",", ";"].includes(input.delimiter)) invalid();
@@ -51,7 +68,8 @@ export class PgImportSourceStore extends PgWorkerImportStore {
       await this.cleanup(tx, actor, requestId);
       const active = await tx.query<{ count: string }>(`SELECT count(*)::text FROM worker_import_sessions
         WHERE state IN ('PARSING','NEEDS_MAPPING','READY','INVALID')`);
-      if (Number(active.rows[0]?.count) >= IMPORT_POLICY.maxSessions) return conflict();
+      if (Number(active.rows[0]?.count) >= IMPORT_POLICY.maxSessions)
+        return new AppError("RATE_LIMITED", "Već postoje dvije otvorene pripreme uvoza.");
       const lease = randomUUID();
       const result = await tx.query<SessionRow>(`WITH stamp AS (SELECT clock_timestamp() AS now)
         INSERT INTO worker_import_sessions(organization_id, uploader_id, state, create_key_hash,
@@ -67,16 +85,18 @@ export class PgImportSourceStore extends PgWorkerImportStore {
     });
   }
 
-  async publish(actor: ActorContext, id: string, revision: string, lease: string, input: ParsedTable, requestId: string) {
+  async publish(actor: ActorContext, id: string, revision: string, lease: string, input: ParsedTable, requestId: string, admissionToken?: string) {
     requireRole(actor, ["admin"]); assertId(id); assertId(lease);
     const source = checkedParsedTable(input);
     return this.run(actor, requestId, async tx => {
+      await assertAdmission(tx, admissionToken);
       const row = await expire(tx, actor, requestId, await lockedSession(tx, id));
       if (row.state !== "PARSING") return conflict();
       assertRevision(row, revision);
       if (row.parse_lease !== lease || row.file_checksum !== source.fileChecksum || row.parser_version !== source.version) throw conflict();
       await tx.query(`INSERT INTO worker_import_staging(organization_id, session_id, source_json)
         VALUES ($1,$2,$3::jsonb)`, [actor.organizationId, id, JSON.stringify(source)]);
+      await assertAdmission(tx, admissionToken);
       // SQL clock check also fences a lease that expires during the staged write.
       const updated = await tx.query<SessionRow>(`UPDATE worker_import_sessions SET state = 'NEEDS_MAPPING',
         revision = revision + 1, total = $2, blocked = $2, parse_lease = NULL, parse_expires_at = NULL
