@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: BSS MVP API
-  version: 1.5.0
+  version: 1.6.0
   summary: Implemented Backend MVP contract for the frozen BSS Frontend v1.0.0.
   description: |
     Implemented versioned contract for the functional Backend MVP; deployment remains a separate
@@ -47,9 +47,853 @@ tags:
     description: Terminal identity, synchronization, event ingestion and heartbeat.
   - name: Documents
     description: Private finished PDF delivery; payroll calculation excluded.
+  - name: Worker imports
+    description: Admin-only create-only employee import; disabled by default.
 security:
   - sessionCookie: []
 paths:
+  /worker-import-policy:
+    get:
+      tags:
+        - Worker imports
+      operationId: getWorkerImportPolicy
+      summary: Read import limits and enabled status
+      description: Admin-only verified current session. Server derives tenant/role.
+        Same-origin mutations. No-store private responses. Disabled/unhealthy
+        runtime returns 503; no activation by this contract.
+      x-bss-roles:
+        - admin
+      x-bss-status: IMPLEMENTED_INACTIVE
+      parameters: []
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkerImportPolicy"
+        "401":
+          description: Stable problem; values, raw input and database details are omitted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "403":
+          description: Stable problem; values, raw input and database details are omitted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
+          description: Stable problem; values, raw input and database details are omitted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "409":
+          description: Stable problem; values, raw input and database details are omitted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "410":
+          description: Stable problem; values, raw input and database details are omitted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "413":
+          description: Stable problem; values, raw input and database details are omitted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "415":
+          description: Stable problem; values, raw input and database details are omitted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: Stable problem; values, raw input and database details are omitted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "503":
+          description: Stable problem; values, raw input and database details are omitted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          headers:
+            Retry-After:
+              schema:
+                type: integer
+                minimum: 1
+              description: Seconds before retry.
+  /worker-imports:
+    get:
+      tags:
+        - Worker imports
+      operationId: listWorkerImports
+      summary: List own tenant import sessions
+      description: Admin-only verified current session. Server derives tenant/role.
+        Same-origin mutations. No-store private responses. Disabled/unhealthy
+        runtime returns 503; no activation by this contract.
+      x-bss-roles:
+        - admin
+      x-bss-status: IMPLEMENTED_INACTIVE
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+        - name: cursor
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 1024
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkerImportSessionPage"
+        "401":
+          description: Stable problem; values, raw input and database details are omitted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "403":
+          description: Stable problem; values, raw input and database details are omitted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
+          description: Stable problem; values, raw input and database details are omitted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "409":
+          description: Stable problem; values, raw input and database details are omitted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "410":
+          description: Stable problem; values, raw input and database details are omitted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "413":
+          description: Stable problem; values, raw input and database details are omitted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "415":
+          description: Stable problem; values, raw input and database details are omitted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: Stable problem; values, raw input and database details are omitted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "503":
+          description: Stable problem; values, raw input and database details are omitted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          headers:
+            Retry-After:
+              schema:
+                type: integer
+                minimum: 1
+              description: Seconds before retry.
+    post:
+      tags:
+        - Worker imports
+      operationId: createWorkerImport
+      summary: Accept bounded raw CSV or XLSX
+      description: Admin-only verified current session. Server derives tenant/role.
+        Same-origin mutations. No-store private responses. Disabled/unhealthy
+        runtime returns 503; no activation by this contract. Raw body maximum
+        1048576 bytes including chunked streams; 15-second upload deadline.
+        Content-Type must match format. CSV delimiter required; XLSX delimiter
+        forbidden. No JSON/base64/multipart. One deployment-wide 20-second
+        admission lease covers upload and parser; parser stays bounded to 3
+        seconds. Parser entry requires a live tenant/token fence and remaining
+        DB-clock budget; a session mutex is held until parser closure, including
+        cancellation and an expired admission's replacement. Durable separate 10 create/10 commit attempts per tenant
+        rolling minute include retries and busy/health refusals after valid
+        boundary authorization. At most two nonterminal sessions. 201 new
+        session, 200 exact create replay. Auth/role/origin checked before body.
+      x-bss-roles:
+        - admin
+      x-bss-status: IMPLEMENTED_INACTIVE
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema:
+            type: string
+            pattern: ^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$
+        - name: policyVersion
+          in: query
+          required: true
+          schema:
+            type: string
+            maxLength: 80
+        - name: format
+          in: query
+          required: true
+          schema:
+            type: string
+            enum:
+              - csv
+              - xlsx
+        - name: delimiter
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - ","
+              - ;
+      responses:
+        "200":
+          description: Success
+          headers:
+            ETag:
+              description: Quoted current positive revision.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkerImportSession"
+        "201":
+          description: Success
+          headers:
+            ETag:
+              description: Quoted current positive revision.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkerImportSession"
+        "401":
+          description: Stable problem; values, raw input and database details are omitted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "403":
+          description: Stable problem; values, raw input and database details are omitted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
+          description: Stable problem; values, raw input and database details are omitted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "409":
+          description: Stable problem; values, raw input and database details are omitted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "410":
+          description: Stable problem; values, raw input and database details are omitted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "413":
+          description: Stable problem; values, raw input and database details are omitted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "415":
+          description: Stable problem; values, raw input and database details are omitted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: Stable problem; values, raw input and database details are omitted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "503":
+          description: Stable problem; values, raw input and database details are omitted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          headers:
+            Retry-After:
+              schema:
+                type: integer
+                minimum: 1
+              description: Seconds before retry.
+      requestBody:
+        required: true
+        content:
+          text/csv:
+            schema:
+              type: string
+              format: binary
+              maxLength: 1048576
+          application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+            schema:
+              type: string
+              format: binary
+              maxLength: 1048576
+  /worker-imports/{importId}:
+    get:
+      tags:
+        - Worker imports
+      operationId: getWorkerImport
+      summary: Read session and durable committed result
+      description: Admin-only verified current session. Server derives tenant/role.
+        Same-origin mutations. No-store private responses. Disabled/unhealthy
+        runtime returns 503; no activation by this contract.
+      x-bss-roles:
+        - admin
+      x-bss-status: IMPLEMENTED_INACTIVE
+      parameters:
+        - name: importId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Success
+          headers:
+            ETag:
+              description: Quoted current positive revision.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkerImportSession"
+        "401":
+          description: Stable problem; values, raw input and database details are omitted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "403":
+          description: Stable problem; values, raw input and database details are omitted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
+          description: Stable problem; values, raw input and database details are omitted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "409":
+          description: Stable problem; values, raw input and database details are omitted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "410":
+          description: Stable problem; values, raw input and database details are omitted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "413":
+          description: Stable problem; values, raw input and database details are omitted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "415":
+          description: Stable problem; values, raw input and database details are omitted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: Stable problem; values, raw input and database details are omitted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "503":
+          description: Stable problem; values, raw input and database details are omitted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          headers:
+            Retry-After:
+              schema:
+                type: integer
+                minimum: 1
+              description: Seconds before retry.
+  /worker-imports/{importId}/rows:
+    get:
+      tags:
+        - Worker imports
+      operationId: previewWorkerImport
+      summary: Read revision-bound private source and canonical preview
+      description: Admin-only verified current session. Server derives tenant/role.
+        Same-origin mutations. No-store private responses. Disabled/unhealthy
+        runtime returns 503; no activation by this contract.
+      x-bss-roles:
+        - admin
+      x-bss-status: IMPLEMENTED_INACTIVE
+      parameters:
+        - name: importId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: revision
+          in: query
+          required: true
+          schema:
+            type: string
+            pattern: ^[1-9][0-9]{0,18}$
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+        - name: cursor
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 1024
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkerImportSourcePage"
+        "401":
+          description: Stable problem; values, raw input and database details are omitted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "403":
+          description: Stable problem; values, raw input and database details are omitted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
+          description: Stable problem; values, raw input and database details are omitted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "409":
+          description: Stable problem; values, raw input and database details are omitted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "410":
+          description: Stable problem; values, raw input and database details are omitted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "413":
+          description: Stable problem; values, raw input and database details are omitted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "415":
+          description: Stable problem; values, raw input and database details are omitted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: Stable problem; values, raw input and database details are omitted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "503":
+          description: Stable problem; values, raw input and database details are omitted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          headers:
+            Retry-After:
+              schema:
+                type: integer
+                minimum: 1
+              description: Seconds before retry.
+  /worker-imports/{importId}/mapping:
+    patch:
+      tags:
+        - Worker imports
+      operationId: mapWorkerImport
+      summary: Replace mapping and revalidate all rows
+      description: Admin-only verified current session. Server derives tenant/role.
+        Same-origin mutations. No-store private responses. Disabled/unhealthy
+        runtime returns 503; no activation by this contract.
+      x-bss-roles:
+        - admin
+      x-bss-status: IMPLEMENTED_INACTIVE
+      parameters:
+        - name: importId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: If-Match
+          in: header
+          required: true
+          schema:
+            type: string
+            pattern: ^(?:W/)?(?:"[1-9][0-9]{0,18}"|[1-9][0-9]{0,18})$
+      responses:
+        "200":
+          description: Success
+          headers:
+            ETag:
+              description: Quoted current positive revision.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkerImportSession"
+        "401":
+          description: Stable problem; values, raw input and database details are omitted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "403":
+          description: Stable problem; values, raw input and database details are omitted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
+          description: Stable problem; values, raw input and database details are omitted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "409":
+          description: Stable problem; values, raw input and database details are omitted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "410":
+          description: Stable problem; values, raw input and database details are omitted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "413":
+          description: Stable problem; values, raw input and database details are omitted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "415":
+          description: Stable problem; values, raw input and database details are omitted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: Stable problem; values, raw input and database details are omitted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "503":
+          description: Stable problem; values, raw input and database details are omitted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          headers:
+            Retry-After:
+              schema:
+                type: integer
+                minimum: 1
+              description: Seconds before retry.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WorkerImportMapping"
+  /worker-imports/{importId}/commit:
+    post:
+      tags:
+        - Worker imports
+      operationId: commitWorkerImport
+      summary: Explicitly approve atomic create-only import
+      description: "Admin-only verified current session. Server derives tenant/role.
+        Same-origin mutations. No-store private responses. Disabled/unhealthy
+        runtime returns 503; no activation by this contract. Exact successful
+        replay resolves before revision/config checks, after current
+        authentication/role. All workers/history/audit/result and staging purge
+        commit in one transaction. No partial rows or updates/deletions.
+        Uncertain response: GET or retry identical
+        key/revision/checksum/approval."
+      x-bss-roles:
+        - admin
+      x-bss-status: IMPLEMENTED_INACTIVE
+      parameters:
+        - name: importId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: If-Match
+          in: header
+          required: true
+          schema:
+            type: string
+            pattern: ^(?:W/)?(?:"[1-9][0-9]{0,18}"|[1-9][0-9]{0,18})$
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema:
+            type: string
+            pattern: ^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkerImportResult"
+        "401":
+          description: Stable problem; values, raw input and database details are omitted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "403":
+          description: Stable problem; values, raw input and database details are omitted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
+          description: Stable problem; values, raw input and database details are omitted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "409":
+          description: Stable problem; values, raw input and database details are omitted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "410":
+          description: Stable problem; values, raw input and database details are omitted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "413":
+          description: Stable problem; values, raw input and database details are omitted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "415":
+          description: Stable problem; values, raw input and database details are omitted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: Stable problem; values, raw input and database details are omitted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "503":
+          description: Stable problem; values, raw input and database details are omitted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          headers:
+            Retry-After:
+              schema:
+                type: integer
+                minimum: 1
+              description: Seconds before retry.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WorkerImportApproval"
+  /worker-imports/{importId}/cancel:
+    post:
+      tags:
+        - Worker imports
+      operationId: cancelWorkerImport
+      summary: Cancel uncommitted session and atomically purge staging
+      description: Admin-only verified current session. Server derives tenant/role.
+        Same-origin mutations. No-store private responses. Disabled/unhealthy
+        runtime returns 503; no activation by this contract.
+      x-bss-roles:
+        - admin
+      x-bss-status: IMPLEMENTED_INACTIVE
+      parameters:
+        - name: importId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: If-Match
+          in: header
+          required: true
+          schema:
+            type: string
+            pattern: ^(?:W/)?(?:"[1-9][0-9]{0,18}"|[1-9][0-9]{0,18})$
+      responses:
+        "200":
+          description: Success
+          headers:
+            ETag:
+              description: Quoted current positive revision.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkerImportSession"
+        "401":
+          description: Stable problem; values, raw input and database details are omitted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "403":
+          description: Stable problem; values, raw input and database details are omitted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
+          description: Stable problem; values, raw input and database details are omitted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "409":
+          description: Stable problem; values, raw input and database details are omitted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "410":
+          description: Stable problem; values, raw input and database details are omitted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "413":
+          description: Stable problem; values, raw input and database details are omitted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "415":
+          description: Stable problem; values, raw input and database details are omitted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: Stable problem; values, raw input and database details are omitted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "503":
+          description: Stable problem; values, raw input and database details are omitted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          headers:
+            Retry-After:
+              schema:
+                type: integer
+                minimum: 1
+              description: Seconds before retry.
   /auth/login:
     post:
       tags: [Auth]
@@ -2278,6 +3122,464 @@ components:
           schema:
             $ref: '#/components/schemas/RateLimitedProblem'
   schemas:
+    WorkerImportCounts:
+      type: object
+      additionalProperties: false
+      required:
+        - total
+        - valid
+        - blocked
+      properties:
+        total:
+          type: integer
+          minimum: 0
+          maximum: 1000
+        valid:
+          type: integer
+          minimum: 0
+          maximum: 1000
+        blocked:
+          type: integer
+          minimum: 0
+          maximum: 1000
+    WorkerImportResult:
+      type: object
+      additionalProperties: false
+      required:
+        - commitId
+        - sessionId
+        - mappingChecksum
+        - fileChecksum
+        - previewChecksum
+        - schemaVersion
+        - parserVersion
+        - policyVersion
+        - uploaderId
+        - approvedBy
+        - approvedAt
+        - committedAt
+        - createdCount
+        - counts
+        - errors
+        - createdWorkerIds
+      properties:
+        commitId:
+          type: string
+          format: uuid
+        sessionId:
+          type: string
+          format: uuid
+        mappingChecksum:
+          anyOf:
+            - type: string
+              pattern: ^[a-f0-9]{64}$
+            - type: "null"
+        fileChecksum:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+        previewChecksum:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+        schemaVersion:
+          type: string
+          maxLength: 80
+        parserVersion:
+          type: string
+          maxLength: 80
+        policyVersion:
+          type: string
+          maxLength: 80
+        uploaderId:
+          type: string
+          format: uuid
+        approvedBy:
+          type: string
+          format: uuid
+        approvedAt:
+          type: string
+          format: date-time
+        committedAt:
+          type: string
+          format: date-time
+        createdCount:
+          type: integer
+          minimum: 1
+          maximum: 1000
+        counts:
+          $ref: "#/components/schemas/WorkerImportCounts"
+        errors:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: []
+            properties: {}
+          minItems: 0
+          maxItems: 0
+        createdWorkerIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+          minItems: 1
+          maxItems: 1000
+    WorkerImportSession:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - state
+        - revision
+        - uploaderId
+        - createdAt
+        - expiresAt
+        - fileChecksum
+        - parserVersion
+        - policyVersion
+        - schemaVersion
+        - counts
+        - previewChecksum
+        - mappingChecksum
+      properties:
+        id:
+          type: string
+          format: uuid
+        state:
+          type: string
+          enum:
+            - PARSING
+            - NEEDS_MAPPING
+            - READY
+            - INVALID
+            - COMMITTED
+            - CANCELLED
+            - EXPIRED
+            - FAILED
+        revision:
+          type: string
+          pattern: ^[1-9][0-9]{0,18}$
+        uploaderId:
+          type: string
+          format: uuid
+        createdAt:
+          type: string
+          format: date-time
+        expiresAt:
+          type: string
+          format: date-time
+        fileChecksum:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+        parserVersion:
+          type: string
+          maxLength: 80
+        policyVersion:
+          type: string
+          maxLength: 80
+        schemaVersion:
+          type: string
+          maxLength: 80
+        counts:
+          $ref: "#/components/schemas/WorkerImportCounts"
+        previewChecksum:
+          anyOf:
+            - type: string
+              pattern: ^[a-f0-9]{64}$
+            - type: "null"
+        mappingChecksum:
+          anyOf:
+            - type: string
+              pattern: ^[a-f0-9]{64}$
+            - type: "null"
+        result:
+          $ref: "#/components/schemas/WorkerImportResult"
+    WorkerImportMapping:
+      type: object
+      additionalProperties: false
+      required:
+        - columns
+        - departments
+        - shifts
+      properties:
+        columns:
+          type: array
+          items:
+            type: string
+            enum:
+              - code
+              - name
+              - email
+              - department
+              - shift
+              - annualLeaveAllowance
+          minItems: 5
+          maxItems: 6
+          uniqueItems: true
+        departments:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - source
+              - id
+            properties:
+              source:
+                type: string
+                maxLength: 1024
+                minLength: 1
+              id:
+                type: string
+                format: uuid
+          minItems: 0
+          maxItems: 1000
+        shifts:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - source
+              - id
+            properties:
+              source:
+                type: string
+                maxLength: 1024
+                minLength: 1
+              id:
+                type: string
+                format: uuid
+          minItems: 0
+          maxItems: 1000
+      description: Array order is source column order, covering every column once; all
+        fields except email are required. Existing active tenant references only.
+        Missing value bindings produce blocked rows.
+    WorkerImportWorker:
+      type: object
+      additionalProperties: false
+      required:
+        - code
+        - name
+        - email
+        - departmentId
+        - shiftId
+        - annualLeaveAllowance
+      properties:
+        code:
+          type: string
+          maxLength: 40
+        name:
+          type: string
+          maxLength: 160
+        email:
+          anyOf:
+            - type: string
+              maxLength: 320
+            - type: "null"
+        departmentId:
+          type: string
+          format: uuid
+        shiftId:
+          type: string
+          format: uuid
+        annualLeaveAllowance:
+          type: integer
+          minimum: 0
+          maximum: 366
+    WorkerImportIssue:
+      type: object
+      additionalProperties: false
+      required:
+        - rowNumber
+        - field
+        - code
+      properties:
+        rowNumber:
+          type: integer
+          minimum: 2
+          maximum: 1001
+        field:
+          type: string
+          maxLength: 80
+        code:
+          type: string
+          maxLength: 80
+    WorkerImportSourcePage:
+      type: object
+      additionalProperties: false
+      required:
+        - session
+        - offset
+        - headers
+        - mapping
+        - sourceRows
+        - canonicalRows
+        - counts
+        - issues
+        - requiresRefresh
+        - nextCursor
+      properties:
+        session:
+          $ref: "#/components/schemas/WorkerImportSession"
+        offset:
+          type: integer
+          minimum: 0
+          maximum: 1000
+        headers:
+          type: array
+          items:
+            type: string
+            maxLength: 80
+          minItems: 5
+          maxItems: 6
+        mapping:
+          anyOf:
+            - $ref: "#/components/schemas/WorkerImportMapping"
+            - type: "null"
+        sourceRows:
+          type: array
+          items:
+            type: array
+            items:
+              anyOf:
+                - type: string
+                  maxLength: 1024
+                - type: integer
+                  minimum: 0
+                  maximum: 366
+            minItems: 5
+            maxItems: 6
+          minItems: 0
+          maxItems: 100
+        canonicalRows:
+          anyOf:
+            - type: array
+              items:
+                $ref: "#/components/schemas/WorkerImportWorker"
+              minItems: 0
+              maxItems: 100
+            - type: "null"
+        counts:
+          $ref: "#/components/schemas/WorkerImportCounts"
+        issues:
+          type: array
+          items:
+            $ref: "#/components/schemas/WorkerImportIssue"
+          minItems: 0
+          maxItems: 800
+        requiresRefresh:
+          type: boolean
+        nextCursor:
+          anyOf:
+            - type: string
+              maxLength: 1024
+            - type: "null"
+      description: Private authorized plain-text values, never logs/audit. Source rows
+        exist before mapping; canonicalRows may be null. Full-session totals with
+        page-bounded issues. Re-map/re-preview when requiresRefresh is true.
+    WorkerImportSessionPage:
+      type: object
+      additionalProperties: false
+      required:
+        - items
+        - nextCursor
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/WorkerImportSession"
+          minItems: 0
+          maxItems: 100
+        nextCursor:
+          anyOf:
+            - type: string
+              maxLength: 1024
+            - type: "null"
+    WorkerImportApproval:
+      type: object
+      additionalProperties: false
+      required:
+        - approved
+        - previewChecksum
+      properties:
+        approved:
+          type: boolean
+          const: true
+        previewChecksum:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+    WorkerImportPolicy:
+      type: object
+      additionalProperties: false
+      required:
+        - version
+        - approvalStatus
+        - uploadEnabled
+        - maxUploadBytes
+        - maxRows
+        - maxColumns
+        - formats
+        - csvDelimiters
+        - sessionTtlSeconds
+        - cleanupDeadlineSeconds
+        - maxNonterminalSessions
+        - maxPreviewRows
+        - lifecycleNotice
+      properties:
+        version:
+          type: string
+          maxLength: 80
+        approvalStatus:
+          type: string
+          enum:
+            - APPROVED
+        uploadEnabled:
+          type: boolean
+        maxUploadBytes:
+          type: integer
+          minimum: 1
+          maximum: 1048576
+        maxRows:
+          type: integer
+          minimum: 1
+          maximum: 1000
+        maxColumns:
+          type: integer
+          minimum: 5
+          maximum: 6
+        formats:
+          type: array
+          items:
+            type: string
+            enum:
+              - csv
+              - xlsx
+          minItems: 2
+          maxItems: 2
+        csvDelimiters:
+          type: array
+          items:
+            type: string
+            enum:
+              - ","
+              - ;
+          minItems: 2
+          maxItems: 2
+        sessionTtlSeconds:
+          type: integer
+          const: 86400
+        cleanupDeadlineSeconds:
+          type: integer
+          const: 300
+        maxNonterminalSessions:
+          type: integer
+          const: 2
+        maxPreviewRows:
+          type: integer
+          const: 100
+        lifecycleNotice:
+          type: string
+          maxLength: 4000
     DocumentItem:
       type: object
       additionalProperties: false

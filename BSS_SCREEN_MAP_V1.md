@@ -62,3 +62,13 @@ Registrirani screen ID-evi ostaju stabilne frontend reference dok fokusirana, ve
 ## Personal documents extension — #256 (2026-10-06)
 
 `documents` → `viewDocuments`, OpenAPI 1.5: availability, minimal recipient lookup, list, draft upload, explicit publish, withdraw and private download. Admin/accountant tenant-wide delivery; worker own published only; manager denied. UI/API implementation is for review and production feature is disabled by default. See `docs/documents/WORKER_DOCUMENT_MAILBOX_V1.md` for the owner-authorized scope extension and activation blockers. Historical v1.1 reconciliation rows above retain their cited baseline.
+
+## H2 import API extension for review — #237 (2026-10-15)
+
+OpenAPI 1.6 adds eight Admin-only import operations: policy, list, raw create,
+session/result, source/canonical preview, mapping, atomic commit and cancel.
+No complete registered Admin import screen is added; the machine-readable map
+keeps this as an explicit UI gap. The default server reports upload disabled.
+See [H2 HTTP/runtime boundary](docs/bss-os/H2_IMPORT_HTTP_RUNTIME.md) for durable
+admission, cleanup, transport and activation/rollback limits. Earlier map snapshots
+above retain their historical baselines; none is deployment evidence.
