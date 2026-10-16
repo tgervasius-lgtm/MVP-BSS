@@ -94,7 +94,7 @@ PR #99 integration evidence includes green required repository checks, PostgreSQ
 | ID | Capability | MVP | UI | Core implementation | Security/test evidence | Production | Primary evidence / next action |
 |---|---:|---|---|---|---|---|---|
 | ONBOARD-001 | Resumable company setup through explicit go-live approval | Yes, frozen v1.0 scope | NONE | NONE | Product requirements are frozen; no implementation or environment evidence | NOT DEPLOYED | #237 and the implementation plan; tenant/go-live authority still requires a recorded decision, without bypassing AUDIT C |
-| IMPORT-001 | Admin-only atomic CSV/XLSX employee import with validation and preview | Yes, frozen v1.0 scope | NONE | NONE | Canonical fields, no-default rule, all-or-nothing commit and audit requirements are frozen; no importer evidence exists | NOT DEPLOYED | #237 and the implementation plan; approve limits/lifecycle, then prove tenant/privacy/atomicity/idempotency/capacity behavior |
+| IMPORT-001 | Admin-only atomic CSV/XLSX employee import with validation and preview | Yes, frozen v1.0 scope | IMPLEMENTED FOR REVIEW / H2-2 | H2-1c2 MERGED INACTIVE / H2-2 REVIEW | PR#273 backend; Admin owning screen, raw transport, complete mapping/preview, revision approval and read-back; see H2_ADMIN_IMPORT_UI_2026-10-16 | NOT DEPLOYED / INACTIVE | Owner review/merge and target-runtime/privacy/backup/activation proof remain; onboarding is separate under #237 |
 
 ## Experience and sales validation
 

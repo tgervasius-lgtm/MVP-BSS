@@ -199,3 +199,7 @@ abort branch releases that eventual token exactly once. A gated real HTTP test
 disconnects between DB commit and token delivery, waits for actual release and
 requires the next upload to succeed. No lease duration, rate limit or test
 assertion was relaxed.
+
+## H2-2 client implementation candidate — 16 October 2026
+
+The H2-1c2 code above was owner-approved and squash-merged through PR#273 as82fdcea4e6e0c4f21829e62b539fcd55210f155d, with an identical approved tree and successful applicable post-merge checks. Default composition remains inactive. The separate [H2-2 Admin UI candidate](../ux/H2_ADMIN_IMPORT_UI_2026-10-16.md) consumes the existing contract without changing runtime composition, grants, migrations, policy or parser controls. Onboarding and target-environment activation gates remain open.

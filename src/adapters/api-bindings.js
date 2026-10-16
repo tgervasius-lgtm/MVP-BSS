@@ -327,9 +327,16 @@
 
   root.BSSTerminalCredential?.configure({refresh:refreshApi});
 
+  root.BSSWorkerImports?.configure({
+    context:()=>({organizationId:sessionContext?.organization?.id,userId:sessionContext?.user?.id,role:currentRole,logged,api:root.BSS_API_ACTIVE&&!state.demoMode}),
+    changed:focus=>{if(screen==='workerImports'){render();if(focus)root.document.getElementById('content')?.focus({preventScroll:true});}},
+    navigate,refresh:()=>refreshApi()
+  });
+
   function installApiBindings(){
     root.BSS_API_ACTIVE=true;
     Object.assign(root,{
+    workerImportAction:(name,value)=>name==='open'?root.BSSWorkerImports.open():root.BSSWorkerImports.action(name,value),
     login:apiLogin,acceptInvitation:apiAcceptInvitation,logout:apiLogout,openWorkerModal:apiOpenWorkerModal,saveWorker:apiSaveWorker,toggleWorkerActive:apiToggleWorker,toggleCard:apiToggleCard,
     saveShift:apiSaveShift,toggleShift:()=>toast('Smjena s povijesnim zapisima ne deaktivira se u MVP-u.'),submitVacationRequest:apiSubmitVacation,decideRequest:apiDecideRequest,cancelVacationRequest:apiCancelVacation,
     submitCorrection:apiSubmitCorrection,updateCorrection:apiUpdateCorrection,cancelCorrection:apiCancelCorrection,reloadCorrections:()=>refreshApi('Statusi korekcija su osvježeni.'),downloadReport:apiDownloadReport,

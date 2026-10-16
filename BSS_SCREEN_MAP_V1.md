@@ -72,3 +72,7 @@ keeps this as an explicit UI gap. The default server reports upload disabled.
 See [H2 HTTP/runtime boundary](docs/bss-os/H2_IMPORT_HTTP_RUNTIME.md) for durable
 admission, cleanup, transport and activation/rollback limits. Earlier map snapshots
 above retain their historical baselines; none is deployment evidence.
+
+## H2-2 Admin import owning screen — #237 (2026-10-16)
+
+Implementation candidate from main82fdcea adds registered screen `workerImports` → `viewWorkerImports`, reached from Radnici only by an authenticated non-demo Admin. The current registry has19 screens. It owns all8 OpenAPI1.6 import operations: policy/list/raw create/session/rows/mapping/commit/cancel, with complete paged preview, explicit revision approval and uncertain-result read-back. The machine map moves employee-import from a UI gap to implemented-feature-disabled/for review. Onboarding and all real-environment activation gates stay OPEN; default server policy is still disabled. See [H2-2 scope and recovery](docs/ux/H2_ADMIN_IMPORT_UI_2026-10-16.md). Historical map snapshots above retain their baselines.

@@ -461,7 +461,7 @@ function roleNavItems(){ return [...(NAV_ITEMS[currentRole] || []),...(state.dem
 function allowedScreens(){
   const allowed = roleNavItems().map(item=>item[0]);
   if(['admin','manager'].includes(currentRole)) allowed.push('worker');
-  if(currentRole === 'admin') allowed.push('mytime');
+  if(currentRole === 'admin'){allowed.push('mytime');if(logged&&sessionContext&&!state.demoMode)allowed.push('workerImports');}
   return [...new Set(allowed)];
 }
 function navigate(next){
@@ -502,6 +502,7 @@ function topCopy(){
     attendance: ['Evidencija dolazaka','Filtrirani zapisi radnog vremena'],
     mytime: ['Moja evidencija',`${worker.name} · osobni podaci`],
     workers: ['Radnici',currentRole === 'manager' ? 'Radnici u mojem timu' : 'Zaposlenici, smjene i kartice'],
+    workerImports: ['Uvoz radnika','Učitavanje, provjera i izričita potvrda'],
     worker: ['Detalj radnika','Profil, evidencija i RFID kartica'],
     shifts: ['Smjene','Rasporedi i pravila evidencije'],
     requests: ['Zahtjevi','Godišnji odmor i slobodni dani'],
@@ -522,7 +523,7 @@ function topCopy(){
 function navButton(item,kind = 'drawer'){
   const [id,icon,label] = item;
   const count=navBadge(id);
-  const isActive=screen===id||(screen==='worker'&&id==='workers');
+  const isActive=screen===id||(['worker','workerImports'].includes(screen)&&id==='workers');
   if(kind === 'bottom') return `<button class="nav-item ${isActive?'active':''}" ${isActive?'aria-current="page"':''} aria-label="${escapeHtml(label)}${count?`, ${count} otvoreno`:''}" data-bss-action="navigate('${id}')"><span class="ico" aria-hidden="true">${icon}${count?`<i class="nav-dot">${count}</i>`:''}</span><span>${escapeHtml(label)}</span></button>`;
   return `<button class="drawer-item ${isActive?'active':''}" ${isActive?'aria-current="page"':''} data-bss-action="navigate('${id}')"><span class="nav-icon" aria-hidden="true">${icon}</span><span class="nav-label">${escapeHtml(label)}</span>${count?`<span class="nav-count" aria-label="${count} otvoreno">${count}</span>`:''}</button>`;
 }
@@ -613,6 +614,7 @@ function shell(){
 }
 function render(){
   globalThis.BSSDocuments?.syncIdentity();
+  globalThis.BSSWorkerImports?.syncIdentity();
   globalThis.BSSTerminalCredential?.clear();
   if(!allowedScreens().includes(screen)) screen = 'home';
   document.getElementById('root').innerHTML = shell();
@@ -937,10 +939,11 @@ function filteredWorkers(){
 function workerTable(workers){ return BSS_VIEWS.workersOperational.table(workers,{shiftById,escapeHtml,pill}); }
 function viewWorkers(){
   return BSS_VIEWS.workersOperational.screen({
-    workers:filteredWorkers(),isAdmin:currentRole==='admin',workerSearch,workerListTab,workerShiftFilter,
+    workers:filteredWorkers(),isAdmin:currentRole==='admin',importAvailable:Boolean(logged&&sessionContext&&!state.demoMode&&currentRole==='admin'),workerSearch,workerListTab,workerShiftFilter,
     shiftById,escapeHtml,title,workerTable
   });
 }
+function viewWorkerImports(){return globalThis.BSSWorkerImports?.view()||title('Uvoz radnika','Prikaz trenutačno nije dostupan.');}
 function openWorker(id){
   if(!workerVisible(id) && currentRole!=='admin') return;
   activeWorkerId=Number(id);
