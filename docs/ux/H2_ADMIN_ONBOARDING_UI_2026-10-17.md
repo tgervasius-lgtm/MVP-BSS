@@ -141,3 +141,12 @@ script and provides an explicit lifecycle boundary, with a dedicated regression.
 Rendering helpers replace nested templates; braces and explicit actor selection
 clarify the fixture orchestration. No Sonar finding is suppressed/accepted. Final
 new-code findings and actual browser/PG outcomes belong in the PR receipt.
+
+The next head113071e passed backend102/55PG, root225, standalone50/full-stack6,
+existing import1440/390 and Sonar GateOK/0BUG/15MINOR. The new onboarding browser
+proof then timed out at its import link: the new named UI action had not been
+registered in the existing restricted dispatcher. Its buttons therefore did not
+execute. The registration now adds only onboardingAction; a real delegated-click
+regression covers the eight destinations and read-back, and browser navigation
+requires the setup DOM to detach and private state to clear. The failed run is
+preserved, not counted as an onboarding PASS. No wait/timeout is extended.

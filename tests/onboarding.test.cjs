@@ -174,3 +174,16 @@ test('H2 onboarding: explicit router notifications clear private state immediate
   const count=f.calls.length;await f.controller.action('load');assert.equal(f.calls.length,count);
   f.controller.syncIdentity('onboarding');await f.controller.action('load');assert.equal(f.controller.snapshot().data.submittedEvidence.length,1);
 });
+test('H2 onboarding: actual delegated button clicks dispatch the registered action and all setup destinations',async()=>{
+  const f=fixture();await f.controller.action('load');
+  const dom=new JSDOM('<div id="content"></div>',{runScripts:'outside-only'}),window=dom.window,requests=[];
+  window.onboardingAction=(name,value)=>{const result=f.controller.action(name,value);if(result?.then)requests.push(result);return result;};
+  vm.runInContext(fs.readFileSync('src/views/events.js','utf8'),dom.getInternalVMContext());
+  window.document.getElementById('content').innerHTML=f.controller.view();
+  const buttons=[...window.document.querySelectorAll('button[data-bss-action]')].filter(button=>button.dataset.bssAction.includes("'goto'"));
+  assert.equal(buttons.length,8);buttons.forEach(button=>button.click());
+  assert.deepEqual(f.visits,['company','departments','shifts','holidays','workers','import','roles','terminal']);
+  window.document.querySelector('[data-bss-action="onboardingAction(\'load\')"]').click();await Promise.all(requests);
+  assert.equal(f.calls.filter(call=>call.method==='GET').length,2);
+  assert.equal(window.BSSCore.views.events.parse('unapprovedAction()'),null);window.close();
+});

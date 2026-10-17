@@ -31,7 +31,10 @@ async function viewportProof(browser,viewport){
     const counts=()=>fetch(`${f.origin}/__test/onboarding-counts`).then(r=>r.json());assert.deepEqual(await counts(),{evidence:0,evaluations:0});
     // Visiting existing screens is never persisted as evidence or approval.
     for(const name of ['Podaci tvrtke','Odjeli','Smjene','Neradni dani','Prava pristupa','Terminali i kartice']){
-      await page.locator('.onboarding').getByRole('button',{name,exact:true}).click();await page.locator('#content .screen').waitFor();await opened(page);
+      await page.locator('.onboarding').getByRole('button',{name,exact:true}).click();
+      await page.locator('.onboarding').waitFor({state:'detached'});
+      assert.equal(await page.evaluate(()=>window.BSSOnboarding.snapshot().data),null,'Leaving setup clears private state');
+      await page.locator('#content .screen').waitFor();await opened(page);
     }
     assert.deepEqual(await counts(),{evidence:0,evaluations:0});
     await page.getByRole('button',{name:'Uvezi radnike',exact:true}).click();await page.getByRole('heading',{name:'1. Odaberite datoteku',exact:true}).waitFor();
