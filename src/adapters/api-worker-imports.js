@@ -159,7 +159,9 @@
     function changeColumn(index,value){
       if(model.busy||model.phase!=='mapping'||!Number.isInteger(index)||index<0||index>=model.headers.length||!Object.hasOwn(fields,value)&&value!=='')return;
       const previous=model.mapping.columns[index];model.mapping.columns[index]=value;model.approval=null;
-      for(const field of ['department','shift'])if(previous===field||value===field)model.mapping[field==='department'?'departments':'shifts']=[];
+      for(const [field,key] of Object.entries(referenceKeys)){
+        if([previous,value].includes(field))model.mapping[key]=[];
+      }
       notify(false);
     }
     function changeBinding(field,index,id){
@@ -226,6 +228,14 @@
       }
       notify(false);
     }
+    async function loadUploadedSession(session,current){
+      if(!current())return;
+      removeIntent();model.file=null;model.session=session;model.phase='stale';
+      try{await readSession(session.id,current);}
+      catch(error){
+        if(current()){clearRows();model.phase='stale';model.error=message(error);}
+      }
+    }
     async function upload(){
       if(!activePolicy()||!model.file||model.format==='csv'&&!model.policy.csvDelimiters.includes(model.delimiter))return;
       const file=model.file;
@@ -241,9 +251,7 @@
         try{
           const session=await api.upload(`/worker-imports${api.query({format:intent.format,policyVersion:intent.policyVersion,...(intent.format==='csv'?{delimiter:intent.delimiter}:{})})}`,
             file,{'Content-Type':intent.format==='csv'?'text/csv':'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet','Idempotency-Key':intent.key},signal);
-          if(!current())return;
-          removeIntent();model.file=null;model.session=session;model.phase='stale';
-          try{await readSession(session.id,current);}catch(error){if(current()){clearRows();model.phase='stale';model.error=message(error);}return;}
+          await loadUploadedSession(session,current);
         }catch(error){
           if(!current())return;
           if(!error.status||error.status>=500){model.phase='uncertain';model.retry=false;}

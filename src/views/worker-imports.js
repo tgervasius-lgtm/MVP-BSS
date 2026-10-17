@@ -97,7 +97,10 @@
   }
   function reviewTable(model){
     const errors=new Map();
-    for(const issue of model.issues){if(!errors.has(issue.rowNumber))errors.set(issue.rowNumber,[]);errors.get(issue.rowNumber).push(issue);}
+    for(const issue of model.issues){
+      if(!errors.has(issue.rowNumber)){errors.set(issue.rowNumber,[]);}
+      errors.get(issue.rowNumber).push(issue);
+    }
     const filtered=model.sourceRows.map((row,index)=>({row,index})).filter(({index})=>!model.onlyErrors||errors.has(index+2));
     const pages=Math.max(1,Math.ceil(filtered.length/100)),page=Math.min(model.page,pages-1),shown=filtered.slice(page*100,(page+1)*100);
     const headings=model.mapping.columns.length===model.headers.length?model.mapping.columns:model.headers.map(()=>null);
