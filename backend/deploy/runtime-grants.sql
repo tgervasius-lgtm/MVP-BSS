@@ -32,6 +32,9 @@ REVOKE ALL PRIVILEGES ON TABLE bss_schema_migrations FROM :"runtime_role";
 -- grant above expose private staging before the ingestion/cleanup gate exists.
 REVOKE ALL PRIVILEGES ON TABLE worker_import_sessions, worker_import_staging,
   worker_import_commits, worker_import_commit_workers FROM :"runtime_role";
+-- H2-3a remains inactive: keep private onboarding out of the broad SELECT.
+REVOKE ALL PRIVILEGES ON TABLE onboarding_sessions, onboarding_evidence,
+  onboarding_evaluations FROM :"runtime_role";
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO :"runtime_role";
 GRANT EXECUTE ON FUNCTION bss_auth_lookup(text) TO :"runtime_role";
 GRANT EXECUTE ON FUNCTION bss_session_lookup(bytea) TO :"runtime_role";

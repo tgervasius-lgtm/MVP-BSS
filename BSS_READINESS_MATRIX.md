@@ -201,3 +201,8 @@ independent gates. H2 UI/onboarding and complete #237 remain OPEN.
 ## H2-2 Admin import UI candidate — #237 (2026-10-16)
 
 H2-1c2 PR#273 is MERGED/INACTIVE on protected main82fdcea. This H2-2 candidate adds the Admin owning screen against existing OpenAPI1.6: raw upload, explicit source/reference mapping, all paged normalized rows/errors, approval bound to revision/checksum, atomic commit/result, cancellation/expiry and durable read-back. Status is IMPLEMENTED FOR REVIEW / INACTIVE BY DEFAULT; final local/CI evidence belongs in its PR. [Scope, private browser state and recovery](docs/ux/H2_ADMIN_IMPORT_UI_2026-10-16.md). No backend composition, migration, grant, deployment or activation change. H2-3/4 onboarding/operator identities, target-environment containment/capacity/alerts, privacy/backup/restore/erasure and customer/independent acceptance remain OPEN. #237, Staging, Pilot and production readiness are not closed by this frontend slice.
+
+
+## H2-3a onboarding evidence foundation candidate — 17 October 2026
+
+H2-1c2 #273 and Admin import UI #275 are MERGED/INACTIVE on reviewed protected maina922080f. This branch adds only the [H2-3a private resumable evidence backend](docs/bss-os/H2_ONBOARDING_EVIDENCE_FOUNDATION.md): three Admin-only OpenAPI1.7 operations, current configuration/read-back, unverified references and versioned blocked evaluation. No onboarding UI, trusted operator/provisioning/approval path, runtime composition or production grants. Full #237, H2-3/D3, H2-4 and environment/privacy/restore/customer acceptance remain OPEN; Staging/Pilot/Commercial readiness is not promoted. Code/test evidence and final exact head belong in its PR; high-risk merge/activation/deployment need their separate owner decisions.

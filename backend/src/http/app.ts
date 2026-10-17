@@ -15,6 +15,8 @@ import { registerMvpRoutes } from "./routes/mvp.js";
 import { registerAttendancePeriodRoutes } from "./routes/attendance-periods.js";
 import { registerDocumentRoutes } from "./routes/documents.js";
 import type { DocumentService } from "../documents/model.js";
+import type { OnboardingService } from "../onboarding/model.js";
+import { registerOnboardingRoutes } from "./routes/onboarding.js";
 
 export type AppDependencies = Readonly<{
   config: AppConfig;
@@ -22,6 +24,7 @@ export type AppDependencies = Readonly<{
   phaseAService: MvpService;
   documents?: DocumentService;
   imports?: WorkerImportApi;
+  onboarding?: OnboardingService;
   logger?: boolean;
   readinessCheck?: () => Promise<void>;
 }>;
@@ -173,6 +176,7 @@ export async function buildApp(dependencies: AppDependencies): Promise<FastifyIn
     app.addHook("onClose", async () => { await dependencies.imports!.runtime.stop(); });
   }
   await registerWorkerImportRoutes(app, { authenticate, ...(dependencies.imports ? { imports: dependencies.imports } : {}) });
+  await registerOnboardingRoutes(app, { authenticate, ...(dependencies.onboarding ? { onboarding: dependencies.onboarding } : {}) });
   await registerAuthRoutes(app, { config, authService, authenticate });
   await app.register(registerPhaseARoutes, { phaseAService, authenticate });
   await registerMvpRoutes(app, { mvpService: phaseAService, authenticate });

@@ -101,6 +101,8 @@ test("017 rollback refuses a still-running parser even after admission expires",
   const { migrateDown, migrateUp } = await import("../../src/db/migrate.js");
   const before = process.env.BSS_ALLOW_DOWN_MIGRATIONS; process.env.BSS_ALLOW_DOWN_MIGRATIONS = "true";
   try {
+    // 018 is empty here; then exercise the original held-parser 017 guard.
+    await migrateDown(f.owner);
     await assert.rejects(migrateDown(f.owner), /Stop imports and purge/);
     close.resolve(); assert.equal(await pending, "IMPORT_UNAVAILABLE");
     await migrateDown(f.owner);

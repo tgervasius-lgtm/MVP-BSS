@@ -2534,7 +2534,7 @@ test('pregled, reporting profil i implementirani API v1.3 zaključavaju tabličn
   assert.doesNotMatch(apiContractDraft,/payroll-calculation|gps-tracking|door-access-control/i);
 });
 
-test('Frontend Freeze v1.0 ostaje baza, a Backend MVP ugovor je verzioniran na v1.6',()=>{
+test('Frontend Freeze v1.0 ostaje baza, a Backend MVP ugovor je verzioniran na v1.7',()=>{
   const baseline='91323c7cdbbbbf7b965c4926c94a11af6d31bf62';
   for(const document of [frontendRelease,frontendFinalReview,backendHandoff,reportingProfile,designSystemDoc,screenMap,apiContractDraft]){
     assert.match(document,new RegExp(baseline));
@@ -2549,9 +2549,9 @@ test('Frontend Freeze v1.0 ostaje baza, a Backend MVP ugovor je verzioniran na v
     assert.ok(screenMap.includes(`\`${id}\``),`Screen Map ne sadrži ${id}`);
   }
   const pathsSection=apiContractDraft.match(/^paths:\r?\n([\s\S]*?)^components:/m)?.[1]||'';
-  assert.equal((pathsSection.match(/^ {2}\/[^\n]+:/gm)||[]).length,65);
-  assert.equal((apiContractDraft.match(/^ {6}operationId:/gm)||[]).length,78);
-  assert.match(apiContractDraft,/version: 1\.6\.0/);
+  assert.equal((pathsSection.match(/^ {2}\/[^\n]+:/gm)||[]).length,68);
+  assert.equal((apiContractDraft.match(/^ {6}operationId:/gm)||[]).length,81);
+  assert.match(apiContractDraft,/version: 1\.7\.0/);
   assert.match(apiContractDraft,/x-bss-status: MVP_IMPLEMENTED/);
   assert.match(apiContractDraft,/x-bss-frontend-release: frontend-v1\.0\.0/);
   assert.match(frontendReleaseWorkflow,/branches: \[main\]/);
