@@ -50,8 +50,9 @@ test("onboarding persists across fresh instances, attributes submitter and never
   const audit=(await f.owner.query("SELECT after_json::text AS value FROM audit_events WHERE entity_type='onboarding'")).rows;
   assert.equal(audit.length,2);assert.ok(audit.every(row=>!row.value.includes("Synthetic proof note")&&!row.value.includes("register:")));
   assert.equal((await f.owner.query("SELECT count(*) FROM onboarding_evaluations")).rows[0].count,"1");
-  await assert.rejects(f.owner.query("UPDATE onboarding_evidence SET reference='changed'"),/immutable/i);
-  await assert.rejects(f.owner.query("DELETE FROM onboarding_evaluations"),/immutable/i);
+  await assert.rejects(f.owner.query("UPDATE onboarding_evidence SET reference='changed'"),/onboarding_evidence is append-only/);
+  await assert.rejects(f.owner.query("DELETE FROM onboarding_evaluations"),/onboarding_evaluations is append-only/);
+  assert.deepEqual(await fresh.get(f.first.actor,"unchanged-history"),evaluated);
 });
 
 test("live prerequisite edits invalidate evaluation and submitted evidence without rewriting history",options,async t=>{

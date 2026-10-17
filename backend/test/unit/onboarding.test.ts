@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import type pg from "pg";
+import { PgOnboardingStore } from "../../src/onboarding/pg-onboarding-store.js";
+import type { EvidenceWrite } from "../../src/onboarding/model.js";
 import { evaluateSnapshot, type Snapshot } from "../../src/onboarding/evaluation.js";
 import { normalizeWrite, PROFILES } from "../../src/onboarding/model.js";
 
@@ -43,4 +46,20 @@ test("evidence accepts bounded opaque references and rejects forged authority an
     {...valid,items:Array.from({length:21},(_,i)=>({...valid.items[0],reference:String(i)}))},
     {...valid,items:[valid.items[0],valid.items[0]]},{...valid,configurationChecksum:"wrong"}])
     assert.throws(()=>normalizeWrite(input),{code:"VALIDATION_FAILED"});
+});
+
+
+test("every onboarding public entry rejects unauthorized roles as a Promise before DB or input work",async()=>{
+  let connections=0;
+  const pool={connect(){connections++;throw new Error("Unexpected database access");}} as unknown as pg.Pool;
+  const store=new PgOnboardingStore(pool,"INTERNAL");
+  const calls=(["worker","manager","accountant"] as const).flatMap(role=>{
+    const actor={organizationId:"synthetic",userId:"synthetic",role,departmentIds:[],selfWorkerId:null,sessionId:"synthetic"};
+    return [()=>store.get(actor,"denied"),()=>store.record(actor,"invalid",null as unknown as EvidenceWrite,"denied"),
+      ()=>store.evaluate(actor,"invalid","invalid","denied")];
+  });
+  await Promise.all(calls.map(async call=>{
+    const pending=call();assert.ok(pending instanceof Promise);await assert.rejects(pending,{code:"FORBIDDEN"});
+  }));
+  assert.equal(connections,0);
 });

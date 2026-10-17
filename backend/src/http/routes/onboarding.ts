@@ -15,7 +15,7 @@ const querystring = { type:"object",additionalProperties:false,properties:{} };
 
 export async function registerOnboardingRoutes(app: FastifyInstance,
   dependencies: { authenticate:Authenticate; onboarding?:OnboardingService }): Promise<void> {
-  await app.register(async app => {
+  await app.register((app, _options, done) => {
     const actors = new WeakMap<FastifyRequest,ActorContext>();
     const service = () => {
       if (!dependencies.onboarding) throw new AppError("ONBOARDING_UNAVAILABLE", "Priprema korisnika nije aktivirana.");
@@ -51,5 +51,6 @@ export async function registerOnboardingRoutes(app: FastifyInstance,
       const result=await service().evaluate(actors.get(request)!,revision,request.body.configurationChecksum,request.id);
       reply.header("ETag",'"'+result.revision+'"');return result;
     });
+    done();
   });
 }

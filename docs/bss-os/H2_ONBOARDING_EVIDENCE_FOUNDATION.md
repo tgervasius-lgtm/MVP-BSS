@@ -117,3 +117,11 @@ complete-company dry-run acceptance. D3 trusted identities/verifiers and immutab
 go-live decisions, H2-4, target-runtime/privacy/restore/customer acceptance and all
 Staging/Hardware9C/Pilot/Commercial gates remain open. High-risk merge and any later
 activation/deployment require their own concrete owner approval after review.
+
+## Review notes and initial CI corrections —17 October
+
+The initial102/55 target is distinct from actual first-head proof: first-head backend unit101 passed, PostgreSQL53passed/2failed; root204passed/1failed. Public store methods now consistently return rejected Promises before any DB/input work for denied roles; a pure regression covers all3methods/all3deniedroles. The append-only guard worked: its expected error wording was corrected and unchanged-state assertions retained. The root contract inventory now follows actual1.7/68/81. No role assertion, migration guard or gate was relaxed.
+
+Sonar initial GateOK/0BUG still exposed11OPEN CODE_SMELL findings, all read individually. The callback-style Fastify plugin and String.raw static SQL address two minor suggestions with identical query text. Three CRITICAL maintainability labels remain in new018: one repeated checksum-constraint regex and two PL/SQL newline-literal rules. These are not security/vulnerability classifications. PostgreSQL actually applies these fixed, multi-line policy statements and the real-PG tests exercise their RLS/down guards; repeated separate CHECK constraints deliberately enforce the same hash bound. 018 is preserved rather than rewritten solely for analyzer style. No finding was suppressed/accepted or gate changed; review the final exact-head list before merge.
+
+Remaining minor suggestions are contractual async methods (synchronous authorization/validation failures must reject a Promise) and bounded sequential awaits (one transaction/client, ordered actor/parent setup and cleanup). Do not add dummy awaits or parallelize a single transaction merely for a scanner. Final counts/status belong in the PR.

@@ -43,7 +43,7 @@ export class PgOnboardingStore implements OnboardingService {
     requireRole(actor,["admin"]);
     return withTenant(this.pool,actor,requestId,operation);
   }
-  get(actor: ActorContext, requestId: string): Promise<Onboarding> {
+  async get(actor: ActorContext, requestId: string): Promise<Onboarding> {
     return this.run(actor,requestId,async client => this.view(client,actor,await this.session(client,actor,false)));
   }
   private reviewed(view: Onboarding, revision: string, checksum: string): void {
@@ -55,7 +55,7 @@ export class PgOnboardingStore implements OnboardingService {
       VALUES($1,'user',$2,'admin',$3,'onboarding',$4,$5::jsonb,$6,'{}'::jsonb)`,
     [actor.organizationId,actor.userId,action,sessionId,JSON.stringify({ revision, profile:this.profile }),requestId]);
   }
-  record(actor: ActorContext, revision: string, input: EvidenceWrite, requestId: string): Promise<Onboarding> {
+  async record(actor: ActorContext, revision: string, input: EvidenceWrite, requestId: string): Promise<Onboarding> {
     requireRole(actor,["admin"]);
     const reviewedRevision = requireRevision(revision), body = normalizeWrite(input);
     return this.run(actor,requestId,async client => {
@@ -75,7 +75,7 @@ export class PgOnboardingStore implements OnboardingService {
         submittedEvidence:await this.evidence(client,actor,row.id,current.configurationChecksum) };
     });
   }
-  evaluate(actor: ActorContext, revision: string, checksum: string, requestId: string): Promise<Onboarding> {
+  async evaluate(actor: ActorContext, revision: string, checksum: string, requestId: string): Promise<Onboarding> {
     requireRole(actor,["admin"]); const reviewedRevision = requireRevision(revision); requireChecksum(checksum);
     return this.run(actor,requestId,async client => {
       const row = await this.session(client,actor,true), current = await this.view(client,actor,row);
