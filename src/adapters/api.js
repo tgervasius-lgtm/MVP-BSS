@@ -28,8 +28,10 @@
     try{return await root.fetch(url,{...options,signal:controller.signal});}
     catch(error){
       const timedOut=error?.name==='AbortError';
+      let code=timedOut?'NETWORK_TIMEOUT':'NETWORK_ERROR';
+      if(options.signal?.aborted)code='NETWORK_CANCELLED';
       throw new BssApiError({
-        code:options.signal?.aborted?'NETWORK_CANCELLED':timedOut?'NETWORK_TIMEOUT':'NETWORK_ERROR',
+        code,
         message:timedOut?'Poslužitelj nije odgovorio na vrijeme.':'Nije moguće povezati se s poslužiteljem.'
       },0);
     }finally{root.clearTimeout(timeout);options.signal?.removeEventListener('abort',abort);}

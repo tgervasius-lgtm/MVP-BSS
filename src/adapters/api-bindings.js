@@ -329,7 +329,11 @@
 
   root.BSSWorkerImports?.configure({
     context:()=>({organizationId:sessionContext?.organization?.id,userId:sessionContext?.user?.id,role:currentRole,logged,api:root.BSS_API_ACTIVE&&!state.demoMode}),
-    changed:focus=>{if(screen==='workerImports'){render();if(focus)root.document.getElementById('content')?.focus({preventScroll:true});}},
+    changed:focus=>{
+      if(!root.document.querySelector('.worker-import'))return;
+      render();
+      if(focus)root.document.getElementById('content')?.focus({preventScroll:true});
+    },
     navigate,refresh:()=>refreshApi()
   });
 

@@ -115,3 +115,14 @@ PR #274 was owner-approved and squash merged as 64a06b215cec864c9aaac7874a66d1fb
 The combined real HTTP disconnect test now waits for actual admission and completed release, retaining its lease-null, empty staging and successful next-upload assertions and adding exactly-one-release evidence. Its old initial-null polling could finish before admission; a controlled external probe reproduced that observation race on both Fastify versions. The separate gated disconnect-during-admission test remains unchanged. No timeout or security gate was relaxed.
 
 Earlier Windows browser failures remain recorded above. Their traces stopped during ordinary demo navigation/layout operations, including requests/shared-leave screens, rather than the authenticated import flow. The unchanged-main two-case comparison passed; this does not establish the precise cause of the first failures. Fresh focused, full-wrapper and CI evidence follows in the PR receipt.
+
+
+## Initial PR review and maintainability follow-up
+
+The initial PR #275 head 2d33d597 passed the actual Linux backend and quality workflows, including the guarded import UI proof, while Sonar rejected its new reliability rating. The native standalone suite passed all 50 cases with one worker after the unsafe eight-worker invocation was stopped; the original wrapper remains NOT PASS. Use explicit --workers=1 for this laptop and keep test workloads sequential. No timeout/assertion or checked-in CI parallelism was weakened.
+
+The four initial BUG labels were reviewed rather than suppressed: classic-script screen lookup conflicted with the analyzer's Window.screen model (the callback now scopes itself to the mounted component); reference bindings use an explicit field/key map; upload identity matching has a documented metadata boundary; and reference strings have an explicit Croatian comparison function. Existing role/reference/uncertain-upload tests exercise those branches.
+
+Pure escaped templates now live in src/views/worker-imports.js, loaded before the controller. Rendering by phase, page-shape/stability validation and reference-completeness helpers replace deeply nested callbacks and the large rendering function. Request cancellation code and worker action markup retain their behavior with clearer condition boundaries. Static cache r14 includes the new module; existing cache-version assertions were advanced with it.
+
+Async fake service adapters preserve Promise-based interfaces. Await-in-loop findings in the synthetic proof are deliberate: each mapped control redraws the form, role contexts require cleanup, and viewport fixtures must remain serial for isolation and bounded resources. Those findings are not suppressed or marked accepted. The new head must receive fresh lint, architecture/build, focused behavior and full CI results; previous-head PASS does not replace that review.
