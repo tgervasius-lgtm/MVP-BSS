@@ -150,3 +150,11 @@ execute. The registration now adds only onboardingAction; a real delegated-click
 regression covers the eight destinations and read-back, and browser navigation
 requires the setup DOM to detach and private state to clear. The failed run is
 preserved, not counted as an onboarding PASS. No wait/timeout is extended.
+
+Head2392eec then passed root226/standalone50/full-stack6 and the existing import
+proof and completed the desktop onboarding mutations through stale-config
+read-back. Its immediate dark-theme axe scan failed on role-badge/refresh-button
+contrast. Existing buttons animate color/background for180ms. The onboarding
+proof now uses the real theme toggle and waits for actual finite Web Animations
+to finish before the unchanged axe assertion; it adds no arbitrary sleep,
+contrast exclusion or relaxed deadline. The original failure is retained.

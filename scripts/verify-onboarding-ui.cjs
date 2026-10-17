@@ -13,6 +13,14 @@ async function submit(page,reference){
   await page.locator('#onboarding-reviewed').focus();await page.keyboard.press('Space');
   await page.getByRole('button',{name:'Spremi nepotvrđenu referencu',exact:true}).click();
 }
+async function darkTheme(page){
+  await page.evaluate(async()=>{
+    if(document.documentElement.dataset.theme!=='dark'){window.toggleTheme();}
+    await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+    const finite=document.getAnimations().filter(animation=>Number.isFinite(animation.effect?.getComputedTiming().endTime));
+    await Promise.all(finite.map(animation=>animation.finished.catch(()=>{})));
+  });
+}
 async function viewportProof(browser,viewport){
   const f=await start();let context,second,foreign;const errors=[];let expectedAbort=false,patches=0;
   try{
@@ -68,7 +76,7 @@ async function viewportProof(browser,viewport){
     const changed=await fetch(`${f.origin}/__test/onboarding-change`,{method:'POST',headers:{Origin:f.origin,'X-BSS-Synthetic-Probe':'onboarding-only'}});assert.equal(changed.status,200);
     await page.getByRole('button',{name:'Provjeri spremljeno stanje',exact:true}).click();await page.getByText('Postavke su promijenjene — potrebna nova provjera',{exact:true}).first().waitFor();
     assert.match(await page.locator('.onboarding').innerText(),/Aktualne postavke treba ponovno provjeriti/);await accessible(page);
-    await page.evaluate(()=>{document.documentElement.dataset.theme='dark';});await accessible(page);
+    await darkTheme(page);await accessible(page);
     assert.equal(await page.evaluate(()=>[localStorage,sessionStorage].some(store=>Object.keys(store).some(key=>String(store.getItem(key)).includes('register:synthetic-browser-first')))),false);
     foreign=await browser.newContext({serviceWorkers:'block'});await foreign.addCookies([{name:'bss_session',value:'foreign',url:f.origin}]);
     const foreignResponse=await foreign.request.get(`${f.origin}/api/v1/onboarding`);assert.equal(foreignResponse.status(),200);
