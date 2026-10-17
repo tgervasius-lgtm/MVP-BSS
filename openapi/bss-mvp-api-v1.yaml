@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: BSS MVP API
-  version: 1.6.0
+  version: 1.7.0
   summary: Implemented Backend MVP contract for the frozen BSS Frontend v1.0.0.
   description: |
     Implemented versioned contract for the functional Backend MVP; deployment remains a separate
@@ -21,6 +21,8 @@ servers:
   - url: /api/v1
     description: Same-origin application API
 tags:
+  - name: Onboarding
+    description: Inactive resumable setup evidence; no provisioning or go-live approval.
   - name: Auth
     description: Browser authentication, invitation acceptance and secure sessions.
   - name: Dashboard
@@ -2865,6 +2867,178 @@ paths:
               schema:
                 $ref: "#/components/schemas/Problem"
         "503": *a1
+  /onboarding:
+    get:
+      tags:
+        - Onboarding
+      operationId: getOnboarding
+      summary: Read resumable setup and current blockers
+      description: Existing separately provisioned tenant/profile only. Verified current Admin identity;
+        organization/role/actor never come from request data. No query parameters, URL fetching, tenant/profile creation,
+        profile promotion, external evidence verification or go-live approval. Missing identity is 404. Private no-store
+        response. Software configuration is observed from one database snapshot; actual
+        operator/independent/runtime/privacy/customer gates remain blocking.
+      x-bss-roles:
+        - admin
+      x-bss-status: IMPLEMENTED_INACTIVE
+      responses:
+        "200":
+          description: Server-owned state; neither references nor software observations authorize go-live.
+          headers:
+            ETag:
+              description: Quoted positive session revision.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Onboarding"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "503":
+          description: ONBOARDING_UNAVAILABLE. Default composition has no onboarding store; dependency failure also fails closed
+            without private details.
+          headers:
+            Retry-After:
+              schema:
+                type: integer
+                minimum: 1
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /onboarding/evidence:
+    patch:
+      tags:
+        - Onboarding
+      operationId: recordOnboardingEvidence
+      summary: Append unverified setup evidence references
+      description: Existing separately provisioned tenant/profile only. Verified current Admin identity;
+        organization/role/actor never come from request data. No query parameters, URL fetching, tenant/profile creation,
+        profile promotion, external evidence verification or go-live approval. Missing identity is 404. Private no-store
+        response. Software configuration is observed from one database snapshot; actual
+        operator/independent/runtime/privacy/customer gates remain blocking. If-Match and the reviewed
+        configurationChecksum must still match. After a lost response read GET; retrying the old revision cannot append
+        again. Evidence is bounded to 100 retained references, at most 20 per mutation, each UNVERIFIED; no uploaded
+        documents or credentials. PATCH invalidates the previous evaluation and preserves history.
+      x-bss-roles:
+        - admin
+      x-bss-status: IMPLEMENTED_INACTIVE
+      responses:
+        "200":
+          description: Server-owned state; neither references nor software observations authorize go-live.
+          headers:
+            ETag:
+              description: Quoted positive session revision.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Onboarding"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "503":
+          description: ONBOARDING_UNAVAILABLE. Default composition has no onboarding store; dependency failure also fails closed
+            without private details.
+          headers:
+            Retry-After:
+              schema:
+                type: integer
+                minimum: 1
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OnboardingEvidenceWrite"
+  /onboarding/evaluate:
+    post:
+      tags:
+        - Onboarding
+      operationId: evaluateOnboarding
+      summary: Persist a blocked, versioned prerequisite evaluation
+      description: Existing separately provisioned tenant/profile only. Verified current Admin identity;
+        organization/role/actor never come from request data. No query parameters, URL fetching, tenant/profile creation,
+        profile promotion, external evidence verification or go-live approval. Missing identity is 404. Private no-store
+        response. Software configuration is observed from one database snapshot; actual
+        operator/independent/runtime/privacy/customer gates remain blocking. If-Match and the reviewed
+        configurationChecksum must still match. After a lost response read GET; retrying the old revision cannot append
+        again. Evidence is bounded to 100 retained references, at most 20 per mutation, each UNVERIFIED; no uploaded
+        documents or credentials. PATCH invalidates the previous evaluation and preserves history.
+      x-bss-roles:
+        - admin
+      x-bss-status: IMPLEMENTED_INACTIVE
+      responses:
+        "200":
+          description: Server-owned state; neither references nor software observations authorize go-live.
+          headers:
+            ETag:
+              description: Quoted positive session revision.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Onboarding"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "503":
+          description: ONBOARDING_UNAVAILABLE. Default composition has no onboarding store; dependency failure also fails closed
+            without private details.
+          headers:
+            Retry-After:
+              schema:
+                type: integer
+                minimum: 1
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OnboardingEvaluationWrite"
 components:
   securitySchemes:
     sessionCookie:
@@ -3122,6 +3296,213 @@ components:
           schema:
             $ref: '#/components/schemas/RateLimitedProblem'
   schemas:
+    OnboardingEvidenceInput:
+      type: object
+      additionalProperties: false
+      required:
+        - step
+        - reference
+      properties:
+        step:
+          type: string
+          enum:
+            - COMPANY_SETUP
+            - PEOPLE_IMPORT
+            - ACCESS_SETUP
+            - TERMINAL_SETUP
+            - DRY_RUN
+        reference:
+          type: string
+          minLength: 1
+          maxLength: 500
+        note:
+          type: string
+          maxLength: 1000
+    OnboardingEvidenceWrite:
+      type: object
+      additionalProperties: false
+      required:
+        - configurationChecksum
+        - items
+      properties:
+        configurationChecksum:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+        items:
+          type: array
+          minItems: 1
+          maxItems: 20
+          items:
+            $ref: "#/components/schemas/OnboardingEvidenceInput"
+    OnboardingEvaluationWrite:
+      type: object
+      additionalProperties: false
+      required:
+        - configurationChecksum
+      properties:
+        configurationChecksum:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+    OnboardingSubmittedEvidence:
+      type: object
+      additionalProperties: false
+      required:
+        - step
+        - reference
+        - id
+        - submittedBy
+        - submittedAt
+        - configurationChecksum
+        - verification
+        - stale
+      properties:
+        step:
+          type: string
+          enum:
+            - COMPANY_SETUP
+            - PEOPLE_IMPORT
+            - ACCESS_SETUP
+            - TERMINAL_SETUP
+            - DRY_RUN
+        reference:
+          type: string
+          minLength: 1
+          maxLength: 500
+        note:
+          type: string
+          maxLength: 1000
+        id:
+          type: string
+          format: uuid
+        submittedBy:
+          type: string
+          format: uuid
+        submittedAt:
+          type: string
+          format: date-time
+        configurationChecksum:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+        verification:
+          type: string
+          const: UNVERIFIED
+        stale:
+          type: boolean
+    OnboardingBlocker:
+      type: object
+      additionalProperties: false
+      required:
+        - step
+        - code
+        - message
+      properties:
+        step:
+          type: string
+          enum:
+            - COMPANY_SETUP
+            - PEOPLE_IMPORT
+            - ACCESS_SETUP
+            - TERMINAL_SETUP
+            - DRY_RUN
+        code:
+          type: string
+          maxLength: 80
+        message:
+          type: string
+          maxLength: 500
+    Onboarding:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - revision
+        - profile
+        - contractVersion
+        - stage
+        - configurationChecksum
+        - evaluatedConfigurationChecksum
+        - evaluatedAt
+        - readyForGoLive
+        - goLiveApproved
+        - revalidationRequired
+        - softwarePrerequisites
+        - blockers
+        - submittedEvidence
+      properties:
+        id:
+          type: string
+          format: uuid
+        revision:
+          type: string
+          pattern: ^[1-9][0-9]{0,18}$
+        profile:
+          type: string
+          enum:
+            - DEMO
+            - INTERNAL
+            - PILOT
+            - PRODUCTION
+        contractVersion:
+          type: string
+          const: BSS-v1.0
+        stage:
+          type: string
+          enum:
+            - DRAFT
+            - COMPANY_SETUP
+            - PEOPLE_IMPORT
+            - ACCESS_SETUP
+            - TERMINAL_SETUP
+            - DRY_RUN
+        configurationChecksum:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+        evaluatedConfigurationChecksum:
+          type:
+            - string
+            - "null"
+          pattern: ^[a-f0-9]{64}$
+        evaluatedAt:
+          type:
+            - string
+            - "null"
+          format: date-time
+        readyForGoLive:
+          type: boolean
+          const: false
+        goLiveApproved:
+          type: boolean
+          const: false
+        revalidationRequired:
+          type: boolean
+        softwarePrerequisites:
+          type: object
+          additionalProperties: false
+          required:
+            - company
+            - people
+            - access
+            - terminal
+          properties:
+            company:
+              type: boolean
+            people:
+              type: boolean
+            access:
+              type: boolean
+            terminal:
+              type: boolean
+        blockers:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items:
+            $ref: "#/components/schemas/OnboardingBlocker"
+        submittedEvidence:
+          type: array
+          maxItems: 100
+          items:
+            $ref: "#/components/schemas/OnboardingSubmittedEvidence"
     WorkerImportCounts:
       type: object
       additionalProperties: false

@@ -1,8 +1,8 @@
 {
-  "contract": "BSS post-freeze frontend screen ownership to Backend MVP API v1.6",
+  "contract": "BSS post-freeze frontend screen ownership to Backend MVP API v1.7",
   "readiness": "RECONCILED_WITH_EXPLICIT_UI_GAPS",
-  "contractReviewedAt": "2026-10-16",
-  "contractReviewStatus": "H2_IMPORT_UI_IMPLEMENTATION_REVIEW_REQUIRED",
+  "contractReviewedAt": "2026-10-17",
+  "contractReviewStatus": "H2_ONBOARDING_BACKEND_IMPLEMENTATION_REVIEW_REQUIRED",
   "productAuthority": {
     "file": "BSS_V1_PRODUCT_CONTRACT.md",
     "version": "1.0",
@@ -13,14 +13,14 @@
     "status": "HISTORICAL_FRONTEND_V1_REFERENCE",
     "authority": "NOT_CURRENT_PRODUCT_AUTHORITY"
   },
-  "repositoryBaseline": "82fdcea4e6e0c4f21829e62b539fcd55210f155d",
+  "repositoryBaseline": "a922080f456edf6737545ed545f75b05b7034271",
   "openapi": {
     "file": "openapi/bss-mvp-api-v1.yaml",
-    "sha256": "1fdba604ebec0f3b3eee73221480c32921ee002fe2a8fbc4759f666aca17d0b7",
-    "version": "1.6.0",
+    "sha256": "004ad25c38f8c974dcf82463e3e215140359553c947b1822bd031647437ab182",
+    "version": "1.7.0",
     "status": "MVP_IMPLEMENTED",
-    "paths": 65,
-    "operations": 78,
+    "paths": 68,
+    "operations": 81,
     "phaseAImplementedOperations": 30,
     "phaseBImplementedOperations": 63
   },
@@ -305,11 +305,15 @@
     {
       "id": "customer-onboarding",
       "status": "contract-defined-gap",
-      "operations": [],
+      "operations": [
+        "getOnboarding",
+        "recordOnboardingEvidence",
+        "evaluateOnboarding"
+      ],
       "roles": [
         "admin"
       ],
-      "note": "Frozen v1 scope; no current registered screen or OpenAPI operation."
+      "note": "H2-3a backend evidence/read-back implemented for review, inactive; no registered onboarding screen, provisioning/profile promotion, trusted external verifier or go-live approval. H2-3/D3 and H2-4 remain incomplete."
     },
     {
       "id": "report-locked-version-selection",

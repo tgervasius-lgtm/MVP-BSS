@@ -205,3 +205,8 @@ AUDIT A targeted recheck is `PASS`; the BSS v1 Product Contract is `ACCEPTED / F
 ## Management rule
 
 The board tracks what BSS should do next. `BSS_READINESS_MATRIX.md` tracks whether each technical and operational capability has sufficient evidence. `PRODUCT_FEATURE_REGISTRY.md` tracks what the product actually implements. These documents must not contradict each other, and none of them may treat a merged software baseline or a green scanner as proof of production deployment.
+
+
+## H2-3a onboarding evidence foundation candidate — 17 October 2026
+
+H2-1c2 #273 and Admin import UI #275 are MERGED/INACTIVE on reviewed protected maina922080f. This branch adds only the [H2-3a private resumable evidence backend](H2_ONBOARDING_EVIDENCE_FOUNDATION.md): three Admin-only OpenAPI1.7 operations, current configuration/read-back, unverified references and versioned blocked evaluation. No onboarding UI, trusted operator/provisioning/approval path, runtime composition or production grants. Full #237, H2-3/D3, H2-4 and environment/privacy/restore/customer acceptance remain OPEN; Staging/Pilot/Commercial readiness is not promoted. Code/test evidence and final exact head belong in its PR; high-risk merge/activation/deployment need their separate owner decisions.

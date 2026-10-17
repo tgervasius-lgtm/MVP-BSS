@@ -1,5 +1,11 @@
 # Customer onboarding and employee import — implementation preparation
 
+## Current candidate boundary —17 October2026
+
+H2-1c2 #273 and H2-2 #275 are MERGED/INACTIVE. H2-3a now implements only resumable evidence/read-back and blocked evaluation for review; [scope and recovery](H2_ONBOARDING_EVIDENCE_FOUNDATION.md). Actual D3 operator identity/provisioning/approval and H2-4 remain OPEN. The original dated preparation record below remains history, not a renewed claim that merged import work is missing.
+
+## Original preparation snapshot —4 October2026
+
 Status: **FRAMEWORK ACCEPTED / H2-1 BACKEND IN PROGRESS / CUSTOMER FLOW NOT IMPLEMENTED**
 
 Reviewed: 2026-10-04 (Europe/Warsaw)

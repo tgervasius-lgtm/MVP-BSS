@@ -136,3 +136,8 @@ PR #99 integration evidence includes green required repository checks, PostgreSQ
 | ID | Capability | MVP | UI | Core implementation | Security/test evidence | Production | Primary evidence / next action |
 |---|---|---:|---|---|---|---|---|
 | DOC-001 | Admin/accountant publishes finished PDF to one worker; personal archive/download | Owner-approved extension | IMPLEMENTED FOR REVIEW | PARTIAL / PR REVIEW | New HTTP, encryption, RLS/migration and UI tests; final PR checks remain authority | NOT DEPLOYED / DISABLED | `docs/documents/WORKER_DOCUMENT_MAILBOX_V1.md`; actual scanner/key/restore/retention/capacity gates before activation |
+
+
+## H2-3a onboarding evidence foundation candidate — 17 October 2026
+
+H2-1c2 #273 and Admin import UI #275 are MERGED/INACTIVE on reviewed protected maina922080f. This branch adds only the [H2-3a private resumable evidence backend](H2_ONBOARDING_EVIDENCE_FOUNDATION.md): three Admin-only OpenAPI1.7 operations, current configuration/read-back, unverified references and versioned blocked evaluation. No onboarding UI, trusted operator/provisioning/approval path, runtime composition or production grants. Full #237, H2-3/D3, H2-4 and environment/privacy/restore/customer acceptance remain OPEN; Staging/Pilot/Commercial readiness is not promoted. Code/test evidence and final exact head belong in its PR; high-risk merge/activation/deployment need their separate owner decisions.
