@@ -22,13 +22,13 @@ async function darkTheme(page){
   });
 }
 async function viewportProof(browser,viewport){
-  const f=await start();let context,second,foreign;const errors=[];let expectedAbort=false,patches=0;
+  const f=await start();let context,second,foreign;const errors=[];let expectedAbort=false,patches=0,phase='initial-load';
   try{
     context=await browser.newContext({viewport,serviceWorkers:'block'});await context.addCookies([{name:'bss_session',value:'admin',url:f.origin}]);
     const page=await context.newPage();
     page.on('pageerror',error=>errors.push(error.message));
     page.on('console',message=>{if(message.type()==='error'&&!message.text().startsWith('Failed to load resource:'))errors.push(message.text());});
-    page.on('requestfailed',request=>{if(expectedAbort&&request.url().endsWith('/onboarding/evidence'))expectedAbort=false;else errors.push(request.failure()?.errorText||'Request failed');});
+    page.on('requestfailed',request=>{if(expectedAbort&&request.url().endsWith('/onboarding/evidence'))expectedAbort=false;else errors.push({phase,method:request.method(),path:new URL(request.url()).pathname,error:request.failure()?.errorText||'Request failed'});});
     page.on('response',response=>{if(response.status()>=500)errors.push(`Unexpected HTTP ${response.status()}`);});
     page.on('request',request=>{if(request.method()==='PATCH'&&request.url().endsWith('/onboarding/evidence'))patches+=1;});
     await page.goto(f.origin);await page.locator('#content .screen').waitFor();await opened(page);await accessible(page);
@@ -37,6 +37,7 @@ async function viewportProof(browser,viewport){
     }
     assert.match(await page.locator('.onboarding').innerText(),/Potrebni su aktivni radnici/);
     const counts=()=>fetch(`${f.origin}/__test/onboarding-counts`).then(r=>r.json());assert.deepEqual(await counts(),{evidence:0,evaluations:0});
+    phase='step-navigation';
     // Visiting existing screens is never persisted as evidence or approval.
     for(const name of ['Podaci tvrtke','Odjeli','Smjene','Neradni dani','Prava pristupa','Terminali i kartice']){
       await page.locator('.onboarding').getByRole('button',{name,exact:true}).click();
@@ -45,12 +46,14 @@ async function viewportProof(browser,viewport){
       await page.locator('#content .screen').waitFor();await opened(page);
     }
     assert.deepEqual(await counts(),{evidence:0,evaluations:0});
+    phase='worker-import';
     await page.getByRole('button',{name:'Uvezi radnike',exact:true}).click();await page.getByRole('heading',{name:'1. Odaberite datoteku',exact:true}).waitFor();
     await upload(page,'synthetic.csv','text/csv',Buffer.from(f.csv));await map(page);
     await page.getByRole('button',{name:'Nastavi na potvrdu',exact:true}).click();await page.locator('#import-approval').check();
     await page.getByRole('button',{name:'Dodaj sve radnike',exact:true}).click();await page.getByRole('heading',{name:'Radnici su dodani',exact:true}).waitFor();
     await opened(page);assert.doesNotMatch(await page.locator('.onboarding').innerText(),/Potrebni su aktivni radnici/);
     assert.deepEqual(await counts(),{evidence:0,evaluations:0});
+    phase='evidence-lost-response';
     await page.route('**/onboarding/evidence',async route=>{
       const response=await route.fetch();assert.equal(response.status(),200);expectedAbort=true;await route.abort('connectionreset');
     },{times:1});
@@ -58,27 +61,28 @@ async function viewportProof(browser,viewport){
     assert.equal(patches,1);assert.equal(await page.locator('#onboarding-reference').count(),0);
     await page.getByRole('button',{name:'Provjeri spremljeno stanje',exact:true}).click();await page.getByText('register:synthetic-browser-first',{exact:true}).waitFor();
     assert.equal(patches,1);assert.equal(expectedAbort,false);assert.deepEqual(await counts(),{evidence:1,evaluations:0});
-    await page.reload();await page.locator('#content .screen').waitFor();await opened(page);await page.getByText('register:synthetic-browser-first',{exact:true}).waitFor();
+    phase='reload';await page.reload();await page.locator('#content .screen').waitFor();await opened(page);await page.getByText('register:synthetic-browser-first',{exact:true}).waitFor();
     // Real browser logout/login HTTP entry, using the documented synthetic auth adapter.
-    await page.evaluate(()=>window.logout());await page.locator('#loginEmail').waitFor();
+    phase='logout-login';await page.evaluate(()=>window.logout());await page.locator('#loginEmail').waitFor();
     await page.locator('#loginEmail').fill('admin@example.test');await page.locator('#loginPassword').fill('synthetic-browser-password-only');
     await page.evaluate(()=>window.login());await page.locator('#content .screen').waitFor();await opened(page);
     await page.getByText('register:synthetic-browser-first',{exact:true}).waitFor();assert.equal(await page.locator('#onboarding-reviewed').isChecked(),false);
-    second=await browser.newContext({viewport,serviceWorkers:'block'});await second.addCookies([{name:'bss_session',value:'admin-second',url:f.origin}]);
+    phase='concurrent-admin';second=await browser.newContext({viewport,serviceWorkers:'block'});await second.addCookies([{name:'bss_session',value:'admin-second',url:f.origin}]);
     const other=await second.newPage();await other.goto(f.origin);await other.locator('#content .screen').waitFor();await opened(other);
     await page.locator('#onboarding-reference').fill('register:stale-admin-draft');await page.locator('#onboarding-reviewed').check();
     await submit(other,'register:second-admin');await other.getByText('register:second-admin',{exact:true}).waitFor();
     await page.getByRole('button',{name:'Spremi nepotvrđenu referencu',exact:true}).click();await page.getByRole('alert').waitFor();
     assert.match(await page.getByRole('alert').innerText(),/promijenile/);assert.deepEqual(await counts(),{evidence:2,evaluations:0});
     await page.getByRole('button',{name:'Provjeri spremljeno stanje',exact:true}).click();await page.getByText('register:second-admin',{exact:true}).waitFor();
+    phase='evaluation-config';
     await page.getByRole('button',{name:'Ponovno provjeri preduvjete',exact:true}).click();await page.getByText('Provjera je zabilježena. Otvoreni blokeri ostaju; rad uživo nije odobren.',{exact:true}).waitFor();
     assert.deepEqual(await counts(),{evidence:2,evaluations:1});
     const changed=await fetch(`${f.origin}/__test/onboarding-change`,{method:'POST',headers:{Origin:f.origin,'X-BSS-Synthetic-Probe':'onboarding-only'}});assert.equal(changed.status,200);
     await page.getByRole('button',{name:'Provjeri spremljeno stanje',exact:true}).click();await page.getByText('Postavke su promijenjene — potrebna nova provjera',{exact:true}).first().waitFor();
     assert.match(await page.locator('.onboarding').innerText(),/Aktualne postavke treba ponovno provjeriti/);await accessible(page);
-    await darkTheme(page);await accessible(page);
+    phase='dark-accessibility';await darkTheme(page);await accessible(page);
     assert.equal(await page.evaluate(()=>[localStorage,sessionStorage].some(store=>Object.keys(store).some(key=>String(store.getItem(key)).includes('register:synthetic-browser-first')))),false);
-    foreign=await browser.newContext({serviceWorkers:'block'});await foreign.addCookies([{name:'bss_session',value:'foreign',url:f.origin}]);
+    phase='tenant-role-separation';foreign=await browser.newContext({serviceWorkers:'block'});await foreign.addCookies([{name:'bss_session',value:'foreign',url:f.origin}]);
     const foreignResponse=await foreign.request.get(`${f.origin}/api/v1/onboarding`);assert.equal(foreignResponse.status(),200);
     assert.deepEqual((await foreignResponse.json()).submittedEvidence,[]);
     for(const role of ['manager','worker','accountant']){

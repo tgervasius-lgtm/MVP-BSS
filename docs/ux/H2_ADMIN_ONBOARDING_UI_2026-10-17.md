@@ -158,3 +158,12 @@ contrast. Existing buttons animate color/background for180ms. The onboarding
 proof now uses the real theme toggle and waits for actual finite Web Animations
 to finish before the unchanged axe assertion; it adds no arbitrary sleep,
 contrast exclusion or relaxed deadline. The original failure is retained.
+
+### Network-failure diagnostics
+
+The a92eb19 CI browser run reached the desktop proof final error assertion with
+one unidentified net::ERR_ABORTED. Its dark-theme axe check had passed. The proof
+now reports only synthetic phase/method/path/failure, without payloads, query
+strings, cookies or headers. No request failure is newly ignored; the exact
+zero-unexpected-error assertion remains. The cause is not inferred before a
+diagnostic run identifies the request.
