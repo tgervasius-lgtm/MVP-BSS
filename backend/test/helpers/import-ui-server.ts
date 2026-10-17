@@ -3,6 +3,7 @@ import { randomBytes, createHash } from "node:crypto";
 import { resolve } from "node:path";
 import ExcelJS from "exceljs";
 import { importRuntimeFixture } from "./import-runtime-fixture.js";
+import { prepareOnboardingUi } from "./onboarding-ui-fixture.js";
 import { FakeAuthService, FakePhaseAService } from "./fakes.js";
 import { loadConfig } from "../../src/config.js";
 import { buildApp } from "../../src/http/app.js";
@@ -20,14 +21,20 @@ const fixture = await importRuntimeFixture(process.env.BSS_TEST_DATABASE_URL);
 try {
   const config = loadConfig({ NODE_ENV: "test", PUBLIC_ORIGIN: origin, DATABASE_URL: "postgres://unused",
     LOG_LEVEL: "silent", COOKIE_SECURE: "false", FRONTEND_ROOT: resolve("../dist") });
+  const onboardingSetup = await prepareOnboardingUi(fixture);
   const auth = new FakeAuthService();
   auth.resolveAccessToken = async token => {
-    const current = await FakeAuthService.prototype.resolveAccessToken.call(auth, token === "foreign" ? "admin" : token);
-    const actor = token === "foreign" ? fixture.other.actor : fixture.first.actor;
+    const current = await FakeAuthService.prototype.resolveAccessToken.call(auth, ["foreign","admin-second"].includes(token) ? "admin" : token);
+    const actor = token === "foreign" ? fixture.other.actor : token === "admin-second" ? onboardingSetup.secondActor : fixture.first.actor;
     return { actor: { ...actor, role: current.actor.role, departmentIds: current.actor.role === "manager" ? [fixture.first.department] : [], selfWorkerId: current.actor.selfWorkerId }, context: {
       ...current.context, user: { ...current.context.user, id: actor.userId },
       organization: { ...current.context.organization, id: actor.organizationId, name: "H2 Synthetic UI" }
     } };
+  };
+  const originalLogin = auth.login.bind(auth);
+  auth.login = async (...args) => {
+    const result = await originalLogin(...args);
+    return { ...await auth.resolveAccessToken(result.tokens.accessToken), tokens:result.tokens };
   };
   const phase = new FakePhaseAService(), workers = new PgMvpService(fixture.appPool, config);
   phase.getOrganization = async () => ({ id: fixture.first.actor.organizationId, name: "H2 Synthetic UI",
@@ -59,8 +66,13 @@ try {
       return { version: TABULAR_VERSION, fileChecksum: createHash("sha256").update(bytes).digest("hex"),
         headers: source.headers, rows: source.rows };
     });
-  const app = await buildApp({ config, authService: auth, phaseAService: phase, imports, logger: false });
+  const app = await buildApp({ config, authService: auth, phaseAService: phase, imports, onboarding:onboardingSetup.store, logger: false });
   app.get("/__test/import-counts", async () => ({ workers: await fixture.count("workers"), staging: await fixture.count("worker_import_staging") }));
+  app.get("/__test/onboarding-counts",async()=>onboardingSetup.counts());
+  app.post("/__test/onboarding-change",async(request,reply)=>{
+    if(request.headers["x-bss-synthetic-probe"]!=="onboarding-only")return reply.code(403).send();
+    await onboardingSetup.changeConfiguration();return {changed:true};
+  });
   await app.listen({ host: "127.0.0.1", port });
   let closing: Promise<void> | undefined;
   const close = () => closing ??= (async () => { await app.close(); await fixture.dispose(); })();

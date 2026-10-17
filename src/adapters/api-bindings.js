@@ -337,10 +337,22 @@
     navigate,refresh:()=>refreshApi()
   });
 
+  root.BSSOnboarding?.configure({
+    context:()=>({organizationId:sessionContext?.organization?.id,userId:sessionContext?.user?.id,role:currentRole,logged,api:root.BSS_API_ACTIVE&&!state.demoMode,active:screen==='onboarding'}),
+    changed:focus=>{if(!root.document.querySelector('.onboarding'))return;render();if(focus)root.document.getElementById('onboarding-status')?.focus({preventScroll:true});},
+    navigate,goto:key=>{
+      const tabs={company:'company',departments:'organization',holidays:'holidays'};
+      if(Object.hasOwn(tabs,key)){settingsTab=tabs[key];navigate('settings');}
+      else if(key==='import')root.BSSWorkerImports.open();
+      else if(['workers','shifts','roles','terminal'].includes(key))navigate(key);
+    }
+  });
+
   function installApiBindings(){
     root.BSS_API_ACTIVE=true;
     Object.assign(root,{
     workerImportAction:(name,value)=>name==='open'?root.BSSWorkerImports.open():root.BSSWorkerImports.action(name,value),
+    onboardingAction:(name,value)=>root.BSSOnboarding.action(name,value),
     login:apiLogin,acceptInvitation:apiAcceptInvitation,logout:apiLogout,openWorkerModal:apiOpenWorkerModal,saveWorker:apiSaveWorker,toggleWorkerActive:apiToggleWorker,toggleCard:apiToggleCard,
     saveShift:apiSaveShift,toggleShift:()=>toast('Smjena s povijesnim zapisima ne deaktivira se u MVP-u.'),submitVacationRequest:apiSubmitVacation,decideRequest:apiDecideRequest,cancelVacationRequest:apiCancelVacation,
     submitCorrection:apiSubmitCorrection,updateCorrection:apiUpdateCorrection,cancelCorrection:apiCancelCorrection,reloadCorrections:()=>refreshApi('Statusi korekcija su osvježeni.'),downloadReport:apiDownloadReport,

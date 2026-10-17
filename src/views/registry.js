@@ -7,6 +7,7 @@
     mytime:'viewMyTime',
     workers:'viewWorkers',
     workerImports:'viewWorkerImports',
+    onboarding:'viewOnboarding',
     worker:'viewWorker',
     shifts:'viewShifts',
     requests:'viewRequests',

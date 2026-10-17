@@ -115,6 +115,6 @@ async function runViewport(browser,viewport){
 module.exports={start,upload,map,accessible};
 if(require.main===module)(async()=>{
   const browser=await chromium.launch({headless:true,...(process.env.BSS_IMPORT_UI_BROWSER_EXECUTABLE?{executablePath:process.env.BSS_IMPORT_UI_BROWSER_EXECUTABLE}:{})});
-  try{for(const viewport of [{width:1440,height:1000},{width:390,height:844}])await runViewport(browser,viewport);}
+  try{for(const viewport of [{width:1440,height:1000},{width:390,height:844}])await runViewport(browser,viewport);await require('./verify-onboarding-ui.cjs').run(browser);}
   finally{await browser.close();}
 })().catch(error=>{console.error(error);process.exitCode=1;});
