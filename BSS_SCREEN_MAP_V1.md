@@ -1,5 +1,10 @@
 # BSS Screen Map v1.1
 
+## Current H2-4a candidate boundary —17 October2026
+
+H2-1c2 #273, Admin import UI #275 and onboarding evidence backend #276 are **MERGED / INACTIVE** on reviewed protected mainbd376510. This candidate adds only the [Admin onboarding status/evidence owning UI](docs/ux/H2_ADMIN_ONBOARDING_UI_2026-10-17.md): existing server observations and blockers, unverified private references, revision/config review and GET recovery. It is **IMPLEMENTED FOR REVIEW / INACTIVE / PARTIAL H2-4**, with no new API, operator/provisioning/verification/go-live authority or production composition. Actual synthetic browser/PG and final exact-head verification belong in its PR. Full #237, D3/customer/independent acceptance, environment/privacy/restore and Staging/9C/Pilot/Commercial remain OPEN. Historical candidate/preparation blocks below describe their dated scopes; this entry does not rewrite the frozen contract or approve merge/activation/backend deployment.
+
+
 | Stavka | Vrijednost |
 | --- | --- |
 | Status | **POST-FREEZE RECONCILED / BSS OS REVIEW REQUIRED** |
@@ -76,3 +81,7 @@ above retain their historical baselines; none is deployment evidence.
 ## H2-2 Admin import owning screen — #237 (2026-10-16)
 
 Implementation candidate from main82fdcea adds registered screen `workerImports` → `viewWorkerImports`, reached from Radnici only by an authenticated non-demo Admin. The current registry has19 screens. It owns all8 OpenAPI1.6 import operations: policy/list/raw create/session/rows/mapping/commit/cancel, with complete paged preview, explicit revision approval and uncertain-result read-back. The machine map moves employee-import from a UI gap to implemented-feature-disabled/for review. Onboarding and all real-environment activation gates stay OPEN; default server policy is still disabled. See [H2-2 scope and recovery](docs/ux/H2_ADMIN_IMPORT_UI_2026-10-16.md). Historical map snapshots above retain their baselines.
+
+## H2-4a Admin onboarding owning screen — #237 (2026-10-17)
+
+Registered `onboarding` → `viewOnboarding` brings the current registry to20 screens. Authenticated non-demo Admin only; owns getOnboarding/recordOnboardingEvidence/evaluateOnboarding under unchanged OpenAPI1.7. The existing three operations move to the owning screen in the machine map; customer-onboarding retains an explicit full-workflow gap for D3/trusted verification/go-live and independent/customer acceptance. UI completion or visited settings are never live approval. See the current H2-4a candidate boundary above; no activation/backend deployment is performed.

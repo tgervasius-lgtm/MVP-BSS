@@ -457,7 +457,7 @@ const DEMO_NAV = {
   accountant: []
 };
 
-function roleNavItems(){ return [...(NAV_ITEMS[currentRole] || []),...(state.demoMode ? DEMO_NAV[currentRole] || [] : [])]; }
+function roleNavItems(){ return [...(NAV_ITEMS[currentRole] || []),...(logged&&sessionContext&&!state.demoMode&&currentRole==='admin'?[['onboarding','◇','Priprema tvrtke']]:[]),...(state.demoMode ? DEMO_NAV[currentRole] || [] : [])]; }
 function allowedScreens(){
   const allowed = roleNavItems().map(item=>item[0]);
   if(['admin','manager'].includes(currentRole)) allowed.push('worker');
@@ -503,6 +503,7 @@ function topCopy(){
     mytime: ['Moja evidencija',`${worker.name} · osobni podaci`],
     workers: ['Radnici',currentRole === 'manager' ? 'Radnici u mojem timu' : 'Zaposlenici, smjene i kartice'],
     workerImports: ['Uvoz radnika','Učitavanje, provjera i izričita potvrda'],
+    onboarding: ['Priprema tvrtke','Napredak pripreme i otvoreni blokeri'],
     worker: ['Detalj radnika','Profil, evidencija i RFID kartica'],
     shifts: ['Smjene','Rasporedi i pravila evidencije'],
     requests: ['Zahtjevi','Godišnji odmor i slobodni dani'],
@@ -615,6 +616,7 @@ function shell(){
 function render(){
   globalThis.BSSDocuments?.syncIdentity();
   globalThis.BSSWorkerImports?.syncIdentity();
+  globalThis.BSSOnboarding?.syncIdentity(screen);
   globalThis.BSSTerminalCredential?.clear();
   if(!allowedScreens().includes(screen)) screen = 'home';
   document.getElementById('root').innerHTML = shell();
@@ -944,6 +946,7 @@ function viewWorkers(){
   });
 }
 function viewWorkerImports(){return globalThis.BSSWorkerImports?.view()||title('Uvoz radnika','Prikaz trenutačno nije dostupan.');}
+function viewOnboarding(){return globalThis.BSSOnboarding?.view()||title('Priprema tvrtke','Prikaz trenutačno nije dostupan.');}
 function openWorker(id){
   if(!workerVisible(id) && currentRole!=='admin') return;
   activeWorkerId=Number(id);

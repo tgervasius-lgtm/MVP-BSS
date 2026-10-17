@@ -875,20 +875,20 @@ test("OpenAPI v1 and the post-freeze screen map preserve ownership and explicit 
     frontendBaseline: { commit: string; status: string; authority: string };
     repositoryBaseline: string;
     openapi: { sha256: string; version: string; paths: number; operations: number };
-    screens: Array<{ id: string; status: string; classification: string; operations: string[] }>;
+    screens: Array<{ id: string; status: string; classification: string; operations: string[]; roles?: string[] }>;
     nonScreenPatterns: Array<{ id: string; status: string; operations: string[] }>;
     contractDefinedUiGaps: Array<{ id: string; status: string; operations: string[]; roles: string[] }>;
     authorizationBoundary: { mode: string; uiVisibilityIsAuthorizationEvidence: boolean };
     contractGatesBeforeDesignFoundationPhaseB: string[];
   };
   assert.equal(screenMap.readiness, "RECONCILED_WITH_EXPLICIT_UI_GAPS");
-  assert.equal(screenMap.contractReviewStatus, "H2_ONBOARDING_BACKEND_IMPLEMENTATION_REVIEW_REQUIRED");
+  assert.equal(screenMap.contractReviewStatus, "H2_ONBOARDING_UI_IMPLEMENTATION_REVIEW_REQUIRED");
   assert.deepEqual(screenMap.frontendBaseline, {
     commit: "91323c7cdbbbbf7b965c4926c94a11af6d31bf62",
     status: "HISTORICAL_FRONTEND_V1_REFERENCE",
     authority: "NOT_CURRENT_PRODUCT_AUTHORITY"
   });
-  assert.equal(screenMap.repositoryBaseline, "a922080f456edf6737545ed545f75b05b7034271");
+  assert.equal(screenMap.repositoryBaseline, "bd376510d6bd11b588b65c8e37b3146d5de6ef2b");
   assert.equal(screenMap.openapi.version, "1.7.0");
   assert.equal(screenMap.openapi.paths, 68);
   assert.equal(screenMap.openapi.operations, 81);
@@ -897,7 +897,7 @@ test("OpenAPI v1 and the post-freeze screen map preserve ownership and explicit 
   assert.deepEqual(screenMap.contractGatesBeforeDesignFoundationPhaseB, ["ISSUE_157_BSS_OS_REVIEW_AND_MERGE"]);
   assert.equal(screenMap.authorizationBoundary.mode, "SERVER_ENFORCED_DENY_BY_DEFAULT");
   assert.equal(screenMap.authorizationBoundary.uiVisibilityIsAuthorizationEvidence, false);
-  assert.equal(screenMap.screens.length, 19);
+  assert.equal(screenMap.screens.length, 20);
   assert.deepEqual(screenMap.screens.filter((screen) => screen.status === "demo-only").map((screen) => screen.id).sort(), ["flow", "terminalDemo"]);
   assert.deepEqual(screenMap.screens.filter((screen) => screen.status === "demo-only").flatMap((screen) => screen.operations), []);
 
@@ -910,6 +910,12 @@ test("OpenAPI v1 and the post-freeze screen map preserve ownership and explicit 
   assert.equal(gapsById.has("attendance-period-lifecycle"), false);
   assert.equal(gapsById.has("employee-import"), false);
   assert.deepEqual(screenMap.screens.find(screen => screen.id === "workerImports")?.operations, ["getWorkerImportPolicy", "listWorkerImports", "createWorkerImport", "getWorkerImport", "previewWorkerImport", "mapWorkerImport", "commitWorkerImport", "cancelWorkerImport"]);
+  const onboardingScreen=screenMap.screens.find(screen=>screen.id==="onboarding");
+  assert.equal(onboardingScreen?.status,"implemented-feature-disabled");
+  assert.deepEqual(onboardingScreen?.roles,["admin"]);
+  assert.deepEqual(onboardingScreen?.operations,["getOnboarding","recordOnboardingEvidence","evaluateOnboarding"]);
+  assert.equal(gapsById.get("customer-onboarding")?.status,"contract-defined-gap");
+  assert.deepEqual(gapsById.get("customer-onboarding")?.operations,[]);
   assert.equal(gapsById.has("report-server-preview"), false);
   assert.equal(gapsById.has("report-export-verification"), false);
   assert.equal(gapsById.has("terminal-event-reconciliation"), false);

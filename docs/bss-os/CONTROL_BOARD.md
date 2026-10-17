@@ -1,5 +1,10 @@
 # BSS OS Control Board
 
+## Current H2-4a candidate boundary —17 October2026
+
+H2-1c2 #273, Admin import UI #275 and onboarding evidence backend #276 are **MERGED / INACTIVE** on reviewed protected mainbd376510. This candidate adds only the [Admin onboarding status/evidence owning UI](../ux/H2_ADMIN_ONBOARDING_UI_2026-10-17.md): existing server observations and blockers, unverified private references, revision/config review and GET recovery. It is **IMPLEMENTED FOR REVIEW / INACTIVE / PARTIAL H2-4**, with no new API, operator/provisioning/verification/go-live authority or production composition. Actual synthetic browser/PG and final exact-head verification belong in its PR. Full #237, D3/customer/independent acceptance, environment/privacy/restore and Staging/9C/Pilot/Commercial remain OPEN. Historical candidate/preparation blocks below describe their dated scopes; this entry does not rewrite the frozen contract or approve merge/activation/backend deployment.
+
+
 Last reviewed: 2026-10-12 (implementation/CI evidence snapshot; historical milestones retain their original dates)
 Operating phase: `POST-TERMINAL-UI / REMAINING CONTRACT GAPS + MINIMUM OPERATIONS PREPARATION`
 

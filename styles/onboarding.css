@@ -1,0 +1,28 @@
+.onboarding{display:grid;gap:var(--bss-space-4);min-width:0}
+.onboarding .card,.onboarding fieldset{min-width:0}
+.onboarding .section-title{display:flex;justify-content:space-between;align-items:flex-start;gap:var(--bss-space-4)}
+.onboarding h1{margin-bottom:var(--bss-space-2)}
+.onboarding h2,.onboarding h3{overflow-wrap:anywhere}
+.onboarding .notice.warning{background:var(--bss-color-warning-soft);color:var(--bss-color-warning);border-color:var(--bss-color-warning)}
+.onboarding-steps{list-style:none;padding:0;margin:var(--bss-space-4) 0 0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--bss-space-4)}
+.onboarding-step:last-child{grid-column:1/-1}
+.onboarding-blockers{padding-left:var(--bss-space-5);margin:var(--bss-space-3) 0;display:grid;gap:var(--bss-space-2)}
+.onboarding .btn{margin:var(--bss-space-2) var(--bss-space-2) var(--bss-space-2) 0;white-space:normal}
+.onboarding-meta{color:var(--bss-color-text-muted);overflow-wrap:anywhere}
+.onboarding-form{border:1px solid var(--bss-color-border);border-radius:var(--bss-radius-md);padding:var(--bss-space-4);display:grid;gap:var(--bss-space-4)}
+.onboarding-form legend{font-weight:600;padding:0 var(--bss-space-2)}
+.onboarding-form label{display:grid;gap:var(--bss-space-2);min-width:0}
+.onboarding-form input,.onboarding-form select,.onboarding-form textarea{max-width:100%;width:100%;font:inherit}
+.onboarding-form input:not([type=checkbox]),.onboarding-form select,.onboarding-form textarea{min-height:var(--bss-control-min-height);border:1px solid var(--bss-color-border);border-radius:var(--bss-radius-md);background:var(--bss-color-bg-surface);color:var(--bss-color-text);padding:var(--bss-space-3)}
+.onboarding-form textarea{resize:vertical}
+.onboarding-form .onboarding-check{display:flex;align-items:flex-start;gap:var(--bss-space-3);line-height:var(--bss-line-height-relaxed)}
+.onboarding-check input{width:20px;height:20px;flex:0 0 20px;margin-top:var(--bss-space-1)}
+.onboarding-evidence{padding-left:var(--bss-space-5);margin:0}
+.onboarding-evidence li{padding:var(--bss-space-3) 0;border-bottom:1px solid var(--bss-color-border)}
+.onboarding-reference,.onboarding-note{overflow-wrap:anywhere;white-space:pre-wrap}
+@media(max-width:700px){
+  .onboarding .section-title{flex-direction:column;align-items:stretch}
+  .onboarding-steps{grid-template-columns:minmax(0,1fr)}
+  .onboarding-form{padding:var(--bss-space-3)}
+  .onboarding-form input:not([type=checkbox]),.onboarding-form select,.onboarding-form textarea{font-size:1rem}
+}

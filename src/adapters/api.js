@@ -18,14 +18,20 @@
   const REFRESH_VERSION_KEY='bss-auth-refresh-version-v1';
   let refreshInFlight=null;
 
+  async function completeEmptyResponse(response){
+    // Chromium can cancel an unread 204 when the next session/navigation starts.
+    if(response.status===204)await response.text?.();
+    return response;
+  }
+
   async function fetchWithTimeout(url,options){
-    if(typeof root.AbortController!=='function')return root.fetch(url,options);
+    if(typeof root.AbortController!=='function')return completeEmptyResponse(await root.fetch(url,options));
     const controller=new root.AbortController();
     const timeout=root.setTimeout(()=>controller.abort(),REQUEST_TIMEOUT_MS);
     const abort=()=>controller.abort();
     options.signal?.addEventListener('abort',abort,{once:true});
     if(options.signal?.aborted)controller.abort();
-    try{return await root.fetch(url,{...options,signal:controller.signal});}
+    try{return await completeEmptyResponse(await root.fetch(url,{...options,signal:controller.signal}));}
     catch(error){
       const timedOut=error?.name==='AbortError';
       let code=timedOut?'NETWORK_TIMEOUT':'NETWORK_ERROR';

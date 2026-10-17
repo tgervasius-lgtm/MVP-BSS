@@ -2,7 +2,7 @@
   "contract": "BSS post-freeze frontend screen ownership to Backend MVP API v1.7",
   "readiness": "RECONCILED_WITH_EXPLICIT_UI_GAPS",
   "contractReviewedAt": "2026-10-17",
-  "contractReviewStatus": "H2_ONBOARDING_BACKEND_IMPLEMENTATION_REVIEW_REQUIRED",
+  "contractReviewStatus": "H2_ONBOARDING_UI_IMPLEMENTATION_REVIEW_REQUIRED",
   "productAuthority": {
     "file": "BSS_V1_PRODUCT_CONTRACT.md",
     "version": "1.0",
@@ -13,7 +13,7 @@
     "status": "HISTORICAL_FRONTEND_V1_REFERENCE",
     "authority": "NOT_CURRENT_PRODUCT_AUTHORITY"
   },
-  "repositoryBaseline": "a922080f456edf6737545ed545f75b05b7034271",
+  "repositoryBaseline": "bd376510d6bd11b588b65c8e37b3146d5de6ef2b",
   "openapi": {
     "file": "openapi/bss-mvp-api-v1.yaml",
     "sha256": "004ad25c38f8c974dcf82463e3e215140359553c947b1822bd031647437ab182",
@@ -271,6 +271,20 @@
         "cancelWorkerImport"
       ],
       "note": "H2-2 Admin UI implementation for review: raw upload, complete mapping/preview, explicit revision approval and durable read-back. Backend remains inactive by default; onboarding and target-environment activation gates remain open."
+    },
+    {
+      "id": "onboarding",
+      "status": "implemented-feature-disabled",
+      "classification": "CURRENT_BUT_UPDATE",
+      "roles": [
+        "admin"
+      ],
+      "operations": [
+        "getOnboarding",
+        "recordOnboardingEvidence",
+        "evaluateOnboarding"
+      ],
+      "note": "H2-4a Admin owning UI for H2-3a: server read-back, unverified private references, revision/config revalidation and blocked evaluation. Default server inactive. D3 and complete customer acceptance remain incomplete."
     }
   ],
   "nonScreenPatterns": [
@@ -305,15 +319,11 @@
     {
       "id": "customer-onboarding",
       "status": "contract-defined-gap",
-      "operations": [
-        "getOnboarding",
-        "recordOnboardingEvidence",
-        "evaluateOnboarding"
-      ],
+      "operations": [],
       "roles": [
         "admin"
       ],
-      "note": "H2-3a backend evidence/read-back implemented for review, inactive; no registered onboarding screen, provisioning/profile promotion, trusted external verifier or go-live approval. H2-3/D3 and H2-4 remain incomplete."
+      "note": "H2-4a owns the three implemented onboarding operations. Full onboarding remains a contract-defined gap: no trusted operator/provisioning/profile promotion/independent verifier or go-live decision path. Synthetic UI/HTTP/PG proof cannot close customer/runtime acceptance."
     },
     {
       "id": "report-locked-version-selection",

@@ -52,7 +52,7 @@ test('full-stack prije autentikacije posluĹľuje login ljusku stvarnog backenda
 test.describe('administratorski ekran i terminalska sigurnost',()=>{
 // Do not capture one-time credentials, including disposable test credentials.
 test('stvarni PostgreSQL backend prijavljuje administratora i otvara svaki ugovoreni ekran',async({page},testInfo)=>{
-  const errors=trackErrors(page);
+  const errors=trackErrors(page),expectedResponses=[];
   const response=await page.goto('/');
   expect(response?.headers()['cache-control']).toContain('no-store');
   await page.locator('#loginEmail').fill(adminEmail);
@@ -69,9 +69,21 @@ test('stvarni PostgreSQL backend prijavljuje administratora i otvara svaki ugovo
   expect(screens).toContain('workers');
   expect(screens).toContain('reports');
   expect(screens).toContain('terminal');
+  expect(screens).toContain('onboarding');
   for(const screen of screens){
+    const unavailable=screen==='onboarding'?page.waitForResponse(response=>new URL(response.url()).pathname==='/api/v1/onboarding'&&response.request().method()==='GET'):null;
     await page.evaluate(value=>window.navigate(value),screen);
     await expect(page.locator('#content .screen')).toBeVisible();
+    if(unavailable){
+      const response=await unavailable;
+      expect(response.status()).toBe(503);
+      expect((await response.json()).code).toBe('ONBOARDING_UNAVAILABLE');
+      expect(response.headers()['cache-control']).toContain('no-store');
+      await expect(page.locator('.onboarding')).toHaveAttribute('aria-busy','false');
+      await expect(page.getByRole('alert')).toContainText('nije aktivirana');
+      await expect(page.locator('#onboarding-reference')).toHaveCount(0);
+      expectedResponses.push(`response: 503 · ${response.url()}`);
+    }
     const overflow=await page.evaluate(()=>document.documentElement.scrollWidth-document.documentElement.clientWidth);
     expect(overflow,`admin/${screen} ima horizontalni overflow`).toBeLessThanOrEqual(1);
   }
@@ -83,7 +95,8 @@ test('stvarni PostgreSQL backend prijavljuje administratora i otvara svaki ugovo
   expect(violations).toEqual([]);
   await assertTerminalReconciliationDetail(page);
   if(testInfo.project.name==='desktop-chromium')await assertTerminalRotation(page,errors.pending);
-  expect(errors).toEqual([]);
+  expect(expectedResponses).toHaveLength(1);
+  expect(errors).toEqual(expectedResponses);
 });
 
 });
