@@ -1,7 +1,7 @@
 # H2-2 Admin import UI — 16 October 2026
 
 Status: **IMPLEMENTED FOR REVIEW / INACTIVE BY DEFAULT**. Owner: #237.
-Source baseline: protected main `82fdcea4e6e0c4f21829e62b539fcd55210f155d` (merged H2-1c2, PR #273).
+Source baseline: protected main `64a06b215cec864c9aaac7874a66d1fb2dd628f0` (merged H2-1c2 PR #273 and owner-approved Fastify 5.12.6 patch PR #274).
 Product authority: frozen Product Contract sections 11–12 and accepted D1/D2/D3.
 This is frontend behavior and test/documentation work. No backend contract, migration, runtime grant, production composition or activation changes.
 
@@ -106,3 +106,12 @@ This UI candidate is unpublished/unmerged and must resume from a patched main. D
 Executed local evidence:205/205 frontend tests PASS;15/15 HTTP/OpenAPI contracts PASS; lint/types/build and architecture99-source budget PASS; actual Chromium/HTTP/disposable-PG synthetic proof PASS at1440px and390px with controlled parser. Later mobile caption/hint/readability fixes still require their final visual/proof rerun. The full Windows PR frontend wrapper is NOT PASS:205 unit tests passed, but Admin/Manager30-second browser cases timed out; the suite was deliberately stopped at the security handoff. No timeout/gate changed and no baseline claim is made for those new browser failures.
 
 The separate H2 worktree/branch preserves all code. There is no H2 commit on main, UI PR publication, backend deployment, activation or new model run.
+
+
+## Resumed verification — 17 October 2026
+
+PR #274 was owner-approved and squash merged as 64a06b215cec864c9aaac7874a66d1fb2dd628f0; its tree equals the reviewed 4b641881 head. This UI branch was rebased onto that protected main. The original b9fc868f WIP remains on a local preservation branch. Backend dependencies now resolve to the verified 5.12.6 set; no runtime composition or activation changed.
+
+The combined real HTTP disconnect test now waits for actual admission and completed release, retaining its lease-null, empty staging and successful next-upload assertions and adding exactly-one-release evidence. Its old initial-null polling could finish before admission; a controlled external probe reproduced that observation race on both Fastify versions. The separate gated disconnect-during-admission test remains unchanged. No timeout or security gate was relaxed.
+
+Earlier Windows browser failures remain recorded above. Their traces stopped during ordinary demo navigation/layout operations, including requests/shared-leave screens, rather than the authenticated import flow. The unchanged-main two-case comparison passed; this does not establish the precise cause of the first failures. Fresh focused, full-wrapper and CI evidence follows in the PR receipt.
