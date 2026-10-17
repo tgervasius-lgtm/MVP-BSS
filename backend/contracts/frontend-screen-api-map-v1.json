@@ -1,8 +1,8 @@
 {
   "contract": "BSS post-freeze frontend screen ownership to Backend MVP API v1.6",
   "readiness": "RECONCILED_WITH_EXPLICIT_UI_GAPS",
-  "contractReviewedAt": "2026-10-15",
-  "contractReviewStatus": "H2_IMPORT_API_IMPLEMENTATION_REVIEW_REQUIRED",
+  "contractReviewedAt": "2026-10-16",
+  "contractReviewStatus": "H2_IMPORT_UI_IMPLEMENTATION_REVIEW_REQUIRED",
   "productAuthority": {
     "file": "BSS_V1_PRODUCT_CONTRACT.md",
     "version": "1.0",
@@ -13,7 +13,7 @@
     "status": "HISTORICAL_FRONTEND_V1_REFERENCE",
     "authority": "NOT_CURRENT_PRODUCT_AUTHORITY"
   },
-  "repositoryBaseline": "26d157d5fa2fc2ecf7e704f195244f061fa16ff1",
+  "repositoryBaseline": "82fdcea4e6e0c4f21829e62b539fcd55210f155d",
   "openapi": {
     "file": "openapi/bss-mvp-api-v1.yaml",
     "sha256": "1fdba604ebec0f3b3eee73221480c32921ee002fe2a8fbc4759f666aca17d0b7",
@@ -252,6 +252,25 @@
         "downloadWorkerDocument"
       ],
       "notes": "Owner approved first mailbox implementation on 2026-10-06 (#256); production activation, retention and scanner/key readiness remain separate gates. Worker sees only own published PDFs; manager denied."
+    },
+    {
+      "id": "workerImports",
+      "status": "implemented-feature-disabled",
+      "classification": "CURRENT_BUT_UPDATE",
+      "roles": [
+        "admin"
+      ],
+      "operations": [
+        "getWorkerImportPolicy",
+        "listWorkerImports",
+        "createWorkerImport",
+        "getWorkerImport",
+        "previewWorkerImport",
+        "mapWorkerImport",
+        "commitWorkerImport",
+        "cancelWorkerImport"
+      ],
+      "note": "H2-2 Admin UI implementation for review: raw upload, complete mapping/preview, explicit revision approval and durable read-back. Backend remains inactive by default; onboarding and target-environment activation gates remain open."
     }
   ],
   "nonScreenPatterns": [
@@ -291,24 +310,6 @@
         "admin"
       ],
       "note": "Frozen v1 scope; no current registered screen or OpenAPI operation."
-    },
-    {
-      "id": "employee-import",
-      "status": "contract-defined-gap",
-      "operations": [
-        "getWorkerImportPolicy",
-        "listWorkerImports",
-        "createWorkerImport",
-        "getWorkerImport",
-        "previewWorkerImport",
-        "mapWorkerImport",
-        "commitWorkerImport",
-        "cancelWorkerImport"
-      ],
-      "roles": [
-        "admin"
-      ],
-      "note": "H2-1c2 HTTP/runtime code implemented for review, inactive by default; complete Admin UI, runtime grants/containment/privacy/backup and activation proof remain open."
     },
     {
       "id": "report-locked-version-selection",

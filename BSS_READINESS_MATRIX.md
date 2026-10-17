@@ -197,3 +197,7 @@ Relevant PostgreSQL/HTTP and migration evidence is recorded in the PR; native
 Windows broad checks retain existing Linux/PDF baseline failures. Required Linux
 CI, owner review, target-runtime/privacy/backup proof and activation remain
 independent gates. H2 UI/onboarding and complete #237 remain OPEN.
+
+## H2-2 Admin import UI candidate — #237 (2026-10-16)
+
+H2-1c2 PR#273 is MERGED/INACTIVE on protected main82fdcea. This H2-2 candidate adds the Admin owning screen against existing OpenAPI1.6: raw upload, explicit source/reference mapping, all paged normalized rows/errors, approval bound to revision/checksum, atomic commit/result, cancellation/expiry and durable read-back. Status is IMPLEMENTED FOR REVIEW / INACTIVE BY DEFAULT; final local/CI evidence belongs in its PR. [Scope, private browser state and recovery](docs/ux/H2_ADMIN_IMPORT_UI_2026-10-16.md). No backend composition, migration, grant, deployment or activation change. H2-3/4 onboarding/operator identities, target-environment containment/capacity/alerts, privacy/backup/restore/erasure and customer/independent acceptance remain OPEN. #237, Staging, Pilot and production readiness are not closed by this frontend slice.

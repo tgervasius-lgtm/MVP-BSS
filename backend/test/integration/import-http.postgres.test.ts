@@ -78,14 +78,27 @@ test("real chunked HTTP is bounded, authorizes before body and recovers after di
   const slow=await request(port,{...wire,"idempotency-key":"slow-http-fixture"},req=>{req.write("unfinished");});
   assert.equal(slow.status,503,slow.body);assert.equal(JSON.parse(slow.body).code,"IMPORT_UNAVAILABLE");
   assert.equal((await f.owner.query("SELECT lease_token FROM worker_import_runtime")).rows[0].lease_token,null);
-  await new Promise<void>(resolve=>{
-    const req=http.request({host:"127.0.0.1",port,path,method:"POST",headers:{...wire,"idempotency-key":"aborted-fixture"}});
-    req.on("error",()=>resolve());req.write("partial");setTimeout(()=>req.destroy(),50);
-  });
-  // Fence admission observes either released upload or a bounded DB release in flight.
-  for(let i=0;i<20;i++){
-    if((await f.owner.query("SELECT lease_token FROM worker_import_runtime")).rows[0].lease_token===null)break;
-    await new Promise(resolve=>setTimeout(resolve,20));
+  // Wait for the actual admission and release: an initial null can precede
+  // admission, so polling it after a client error can finish too early.
+  let admissionReady!: () => void, uploadReleased!: () => void, releaseCalls = 0;
+  const admitted = new Promise<void>(resolve => { admissionReady = resolve; });
+  const released = new Promise<void>(resolve => { uploadReleased = resolve; });
+  const realAdmit = f.runtime.admit.bind(f.runtime), realRelease = f.runtime.release.bind(f.runtime);
+  let uploadRequest: http.ClientRequest | undefined;
+  try {
+    f.runtime.admit = async (...args) => {
+      const token = await realAdmit(...args); admissionReady(); return token;
+    };
+    f.runtime.release = async (...args) => {
+      await realRelease(...args); releaseCalls++; uploadReleased();
+    };
+    uploadRequest = http.request({host:"127.0.0.1",port,path,method:"POST",headers:{...wire,"idempotency-key":"aborted-fixture"}});
+    uploadRequest.on("error", () => {}); uploadRequest.write("partial");
+    await admitted; uploadRequest.destroy(); await released;
+    assert.equal(releaseCalls, 1);
+  } finally {
+    uploadRequest?.destroy();
+    f.runtime.admit = realAdmit; f.runtime.release = realRelease;
   }
   assert.equal((await f.owner.query("SELECT lease_token FROM worker_import_runtime")).rows[0].lease_token,null);
   assert.equal(await f.count("worker_import_staging"),0);

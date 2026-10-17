@@ -882,13 +882,13 @@ test("OpenAPI v1 and the post-freeze screen map preserve ownership and explicit 
     contractGatesBeforeDesignFoundationPhaseB: string[];
   };
   assert.equal(screenMap.readiness, "RECONCILED_WITH_EXPLICIT_UI_GAPS");
-  assert.equal(screenMap.contractReviewStatus, "H2_IMPORT_API_IMPLEMENTATION_REVIEW_REQUIRED");
+  assert.equal(screenMap.contractReviewStatus, "H2_IMPORT_UI_IMPLEMENTATION_REVIEW_REQUIRED");
   assert.deepEqual(screenMap.frontendBaseline, {
     commit: "91323c7cdbbbbf7b965c4926c94a11af6d31bf62",
     status: "HISTORICAL_FRONTEND_V1_REFERENCE",
     authority: "NOT_CURRENT_PRODUCT_AUTHORITY"
   });
-  assert.equal(screenMap.repositoryBaseline, "26d157d5fa2fc2ecf7e704f195244f061fa16ff1");
+  assert.equal(screenMap.repositoryBaseline, "82fdcea4e6e0c4f21829e62b539fcd55210f155d");
   assert.equal(screenMap.openapi.version, "1.6.0");
   assert.equal(screenMap.openapi.paths, 65);
   assert.equal(screenMap.openapi.operations, 78);
@@ -897,7 +897,7 @@ test("OpenAPI v1 and the post-freeze screen map preserve ownership and explicit 
   assert.deepEqual(screenMap.contractGatesBeforeDesignFoundationPhaseB, ["ISSUE_157_BSS_OS_REVIEW_AND_MERGE"]);
   assert.equal(screenMap.authorizationBoundary.mode, "SERVER_ENFORCED_DENY_BY_DEFAULT");
   assert.equal(screenMap.authorizationBoundary.uiVisibilityIsAuthorizationEvidence, false);
-  assert.equal(screenMap.screens.length, 18);
+  assert.equal(screenMap.screens.length, 19);
   assert.deepEqual(screenMap.screens.filter((screen) => screen.status === "demo-only").map((screen) => screen.id).sort(), ["flow", "terminalDemo"]);
   assert.deepEqual(screenMap.screens.filter((screen) => screen.status === "demo-only").flatMap((screen) => screen.operations), []);
 
@@ -908,6 +908,8 @@ test("OpenAPI v1 and the post-freeze screen map preserve ownership and explicit 
   const gapsById = new Map(screenMap.contractDefinedUiGaps.map((gap) => [gap.id, gap]));
   assert.equal(gapsById.has("attendance-recalculation-provenance"), false);
   assert.equal(gapsById.has("attendance-period-lifecycle"), false);
+  assert.equal(gapsById.has("employee-import"), false);
+  assert.deepEqual(screenMap.screens.find(screen => screen.id === "workerImports")?.operations, ["getWorkerImportPolicy", "listWorkerImports", "createWorkerImport", "getWorkerImport", "previewWorkerImport", "mapWorkerImport", "commitWorkerImport", "cancelWorkerImport"]);
   assert.equal(gapsById.has("report-server-preview"), false);
   assert.equal(gapsById.has("report-export-verification"), false);
   assert.equal(gapsById.has("terminal-event-reconciliation"), false);

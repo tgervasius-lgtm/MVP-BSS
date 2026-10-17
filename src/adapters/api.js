@@ -22,14 +22,19 @@
     if(typeof root.AbortController!=='function')return root.fetch(url,options);
     const controller=new root.AbortController();
     const timeout=root.setTimeout(()=>controller.abort(),REQUEST_TIMEOUT_MS);
+    const abort=()=>controller.abort();
+    options.signal?.addEventListener('abort',abort,{once:true});
+    if(options.signal?.aborted)controller.abort();
     try{return await root.fetch(url,{...options,signal:controller.signal});}
     catch(error){
       const timedOut=error?.name==='AbortError';
+      let code=timedOut?'NETWORK_TIMEOUT':'NETWORK_ERROR';
+      if(options.signal?.aborted)code='NETWORK_CANCELLED';
       throw new BssApiError({
-        code:timedOut?'NETWORK_TIMEOUT':'NETWORK_ERROR',
+        code,
         message:timedOut?'Poslužitelj nije odgovorio na vrijeme.':'Nije moguće povezati se s poslužiteljem.'
       },0);
-    }finally{root.clearTimeout(timeout);}
+    }finally{root.clearTimeout(timeout);options.signal?.removeEventListener('abort',abort);}
   }
 
   function refreshVersion(){
@@ -61,14 +66,15 @@
     return refreshInFlight;
   }
 
-  async function request(path,{method='GET',body,headers={},response='json',retrySession=true}={}){
+  async function request(path,{method='GET',body,rawBody,signal,headers={},response='json',retrySession=true}={}){
     const observedRefreshVersion=refreshVersion();
-    const options={method,credentials:'include',headers:{Accept:'application/json',...headers}};
+    const options={method,credentials:'include',headers:{Accept:'application/json',...headers},...(signal?{signal}:{})};
     if(body!==undefined){options.headers['Content-Type']='application/json';options.body=JSON.stringify(body);}
+    else if(rawBody!==undefined)options.body=rawBody;
     const result=await fetchWithTimeout(`${base}${path}`,options);
     if(result.status===401&&retrySession&&!path.startsWith('/auth/')){
       const refresh=await refreshSession(observedRefreshVersion);
-      if(refresh.ok)return request(path,{method,body,headers,response,retrySession:false});
+      if(refresh.ok)return request(path,{method,body,rawBody,signal,headers,response,retrySession:false});
     }
     if(!result.ok){
       let problem;
@@ -99,6 +105,7 @@
       const result=await request(`${path}${query(params)}`,{response:'response'});
       return {data:await result.json(),etag:(result.headers.get('etag')||'').replace(/^W\//,'').replace(/^"|"$/g,'')};
     },
+    upload:(path,file,headers,signal)=>request(path,{method:'POST',rawBody:file,headers,signal}),
     post:(path,body,headers)=>request(path,{method:'POST',body,headers}),
     put:(path,body,headers)=>request(path,{method:'PUT',body,headers}),
     patch:(path,body,headers)=>request(path,{method:'PATCH',body,headers}),

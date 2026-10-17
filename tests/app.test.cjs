@@ -1948,7 +1948,7 @@ test('aplikacija povezuje vodič i offline predmemorira cijeli Design System',()
   for(const asset of ['design-system/index.html','design-system/tokens.css','design-system/guide.css','design-system/guide.js']){
     assert.match(serviceWorker,new RegExp(asset.replaceAll('.','\\.')));
   }
-  assert.match(serviceWorker,/bss-backend-mvp-v1-r12/);
+  assert.match(serviceWorker,/bss-backend-mvp-v1-r14/);
 });
 
 test('Brand Book v1.0 pokriva svih devet dogovorenih područja',()=>{
@@ -2012,7 +2012,7 @@ test('aplikacija povezuje Brand Book i cijeli paket radi offline',()=>{
     'bss-presentation-cover.svg','bss-terminal-label.svg',
     'BSS_BRAND-BOOK_v1.0_11.07.2026.pdf'
   ]) assert.match(serviceWorker,new RegExp(asset.replaceAll('.','\\.')));
-  assert.match(serviceWorker,/bss-backend-mvp-v1-r12/);
+  assert.match(serviceWorker,/bss-backend-mvp-v1-r14/);
   assert.match(serviceWorker,/path\.includes\('\/brand-book'\)/);
 });
 
@@ -2114,11 +2114,11 @@ test('Backend MVP učitava API adaptere prije aplikacije i sprema shell za offli
   ]){
     assert.match(serviceWorker,new RegExp(asset.replaceAll('.','\\.')));
   }
-  assert.match(serviceWorker,/bss-backend-mvp-v1-r12/);
+  assert.match(serviceWorker,/bss-backend-mvp-v1-r14/);
 });
 
 test('cache invalidation hotfix osvježava app shell i odmah preuzima otvorene klijente',()=>{
-  assert.match(serviceWorker,/const CACHE_NAME = 'bss-backend-mvp-v1-r12'/);
+  assert.match(serviceWorker,/const CACHE_NAME = 'bss-backend-mvp-v1-r14'/);
   assert.match(serviceWorker,/new Request\(asset,\{cache:'reload'\}\)/);
   assert.match(serviceWorker,/new Request\(request,\{cache:'no-store'\}\)/);
   assert.match(serviceWorker,/new Request\(request,\{cache:'no-cache'\}\)/);
@@ -2433,7 +2433,7 @@ test('screen registry zaključava sve BSS ekrane i sigurno vraća početni prika
   const screens=evaluate('BSS_CORE.views.registry.screens');
   assert.deepEqual(Object.keys(screens).sort(),[
     'attendance','audit','corrections','documents','flow','home','mytime','reports','requests','roles','settings',
-    'sharedLeave','shifts','terminal','terminalDemo','vacations','worker','workers'
+    'sharedLeave','shifts','terminal','terminalDemo','vacations','worker','workerImports','workers'
   ]);
   assert.equal(evaluate("BSS_CORE.views.registry.has('reports')"),true);
   assert.equal(evaluate("BSS_CORE.views.registry.has('__proto__')"),false);
@@ -3115,3 +3115,5 @@ test('report-version UX blocks unavailable locked sources and invalidates edited
     assert.equal(prepare.disabled,true);
   }finally{dom.window.close();}
 });
+
+require('./worker-imports.test.cjs');

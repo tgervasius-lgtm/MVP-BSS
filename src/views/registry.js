@@ -6,6 +6,7 @@
     attendance:'viewAttendance',
     mytime:'viewMyTime',
     workers:'viewWorkers',
+    workerImports:'viewWorkerImports',
     worker:'viewWorker',
     shifts:'viewShifts',
     requests:'viewRequests',
