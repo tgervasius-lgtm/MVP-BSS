@@ -1,4 +1,4 @@
-const CACHE_NAME = 'bss-backend-mvp-v1-r15';
+const CACHE_NAME = 'bss-backend-mvp-v1-r16';
 const ASSETS = [
   './src/views/worker-imports.js','./src/adapters/api-worker-imports.js','./styles/worker-imports.css',
   './src/domain/onboarding.js','./src/views/onboarding.js','./src/adapters/api-onboarding.js','./styles/onboarding.css',

@@ -70,7 +70,7 @@ change or a401/403 clears private state; identity/navigation change aborts scope
 requests and fences late responses. Reopening/relogin requires a new GET from
 durable server state. Unknown dependency messages are not rendered.
 
-Static cache r15 adds only the new domain/view/controller/CSS assets. Existing
+Static cache r16 adds only the new domain/view/controller/CSS assets. Existing
 API-cache exclusion remains intact. The old synthetic design-only preview stays
 separate; it is not used as a source of runtime progress or authority.
 
@@ -167,3 +167,19 @@ now reports only synthetic phase/method/path/failure, without payloads, query
 strings, cookies or headers. No request failure is newly ignored; the exact
 zero-unexpected-error assertion remains. The cause is not inferred before a
 diagnostic run identifies the request.
+
+### Completed empty HTTP responses
+
+The 348bd2f diagnostic run identifies POST /auth/logout as the aborted request.
+A native one-CPU loopback probe using the unchanged-main HTTP adapter reproduces
+204/net::ERR_ABORTED with no routing, after the lost-response route and after its
+removal. Consuming the empty response completes normally. The first diagnostic
+probe had an unbounded response.finished wait; only its owned process/browser
+tree was stopped. The bounded follow-up closes all owned resources normally.
+
+The shared fetch boundary now consumes 204 before returning, including refresh
+and environments without AbortController. Existing error, timeout, session retry
+and authorization policies remain. A regression requires waiting for completion,
+propagating an empty-response read failure and no mutation replay. Static cache
+r16 refreshes the already-cached adapter. No logout/network error is waived.
+Final real browser/PG outcomes still belong in the final PR receipt.

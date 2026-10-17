@@ -201,6 +201,26 @@ test('API adapter koordinira refresh rotaciju između više browser tabova',asyn
   assert.equal(responses.every(item=>item.ok),true);
 });
 
+test('API adapter dovršava 204 prije uspjeha i ne ponavlja zahtjev kod greške čitanja',async()=>{
+  let calls=0,release,entered,settled=false;
+  const reading=new Promise(resolve=>{entered=resolve;});
+  const body=new Promise(resolve=>{release=resolve;});
+  const api=loadAdapter(apiAdapterSource,{AbortController,fetch:async(url,options)=>{
+    assert.equal(url,'/api/v1/auth/logout');assert.equal(options.method,'POST');calls+=1;
+    return{ok:true,status:204,text:()=>{
+      if(calls>1)throw new Error('Synthetic empty response read failure');
+      entered(true);return body;
+    }};
+  }}).api;
+  const pending=api.post('/auth/logout').then(value=>{settled=true;return value;});
+  assert.equal(await Promise.race([reading,pending.then(()=>false)]),true,'Read completion is required');
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(settled,false,'A response header alone is not completion');
+  release('');assert.equal(await pending,null);assert.equal(calls,1);
+  await assert.rejects(api.post('/auth/logout'),error=>error.code==='NETWORK_ERROR'&&error.status===0);
+  assert.equal(calls,2,'A failed response read does not replay the mutation');
+});
+
 test('API adapter prekida zaglavljeni mrežni zahtjev stabilnom pogreškom',async()=>{
   class ImmediateAbortController{
     constructor(){this.signal={};}
@@ -1948,7 +1968,7 @@ test('aplikacija povezuje vodič i offline predmemorira cijeli Design System',()
   for(const asset of ['design-system/index.html','design-system/tokens.css','design-system/guide.css','design-system/guide.js']){
     assert.match(serviceWorker,new RegExp(asset.replaceAll('.','\\.')));
   }
-  assert.match(serviceWorker,/bss-backend-mvp-v1-r15/);
+  assert.match(serviceWorker,/bss-backend-mvp-v1-r16/);
 });
 
 test('Brand Book v1.0 pokriva svih devet dogovorenih područja',()=>{
@@ -2012,7 +2032,7 @@ test('aplikacija povezuje Brand Book i cijeli paket radi offline',()=>{
     'bss-presentation-cover.svg','bss-terminal-label.svg',
     'BSS_BRAND-BOOK_v1.0_11.07.2026.pdf'
   ]) assert.match(serviceWorker,new RegExp(asset.replaceAll('.','\\.')));
-  assert.match(serviceWorker,/bss-backend-mvp-v1-r15/);
+  assert.match(serviceWorker,/bss-backend-mvp-v1-r16/);
   assert.match(serviceWorker,/path\.includes\('\/brand-book'\)/);
 });
 
@@ -2114,11 +2134,11 @@ test('Backend MVP učitava API adaptere prije aplikacije i sprema shell za offli
   ]){
     assert.match(serviceWorker,new RegExp(asset.replaceAll('.','\\.')));
   }
-  assert.match(serviceWorker,/bss-backend-mvp-v1-r15/);
+  assert.match(serviceWorker,/bss-backend-mvp-v1-r16/);
 });
 
 test('cache invalidation hotfix osvježava app shell i odmah preuzima otvorene klijente',()=>{
-  assert.match(serviceWorker,/const CACHE_NAME = 'bss-backend-mvp-v1-r15'/);
+  assert.match(serviceWorker,/const CACHE_NAME = 'bss-backend-mvp-v1-r16'/);
   assert.match(serviceWorker,/new Request\(asset,\{cache:'reload'\}\)/);
   assert.match(serviceWorker,/new Request\(request,\{cache:'no-store'\}\)/);
   assert.match(serviceWorker,/new Request\(request,\{cache:'no-cache'\}\)/);
