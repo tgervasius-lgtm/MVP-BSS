@@ -167,3 +167,10 @@ test('H2 onboarding: exact Unicode/control boundaries preserve backend reference
   }
   assert.throws(()=>domain.evidence({...valid,reference:'😀'.repeat(501)}));
 });
+test('H2 onboarding: explicit router notifications clear private state immediately on leaving and reload on return',async()=>{
+  const f=fixture({active:undefined});f.controller.syncIdentity('onboarding');await f.ready();await f.controller.action('save');
+  f.controller.edit('note','PRIVATE_ROUTE_DRAFT');f.controller.syncIdentity('workers');
+  assert.equal(f.controller.snapshot().data,null);assert.equal(f.controller.snapshot().draft.note,'');
+  const count=f.calls.length;await f.controller.action('load');assert.equal(f.calls.length,count);
+  f.controller.syncIdentity('onboarding');await f.controller.action('load');assert.equal(f.controller.snapshot().data.submittedEvidence.length,1);
+});

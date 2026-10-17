@@ -616,7 +616,7 @@ function shell(){
 function render(){
   globalThis.BSSDocuments?.syncIdentity();
   globalThis.BSSWorkerImports?.syncIdentity();
-  globalThis.BSSOnboarding?.syncIdentity();
+  globalThis.BSSOnboarding?.syncIdentity(screen);
   globalThis.BSSTerminalCredential?.clear();
   if(!allowedScreens().includes(screen)) screen = 'home';
   document.getElementById('root').innerHTML = shell();

@@ -25,7 +25,9 @@ try {
   const auth = new FakeAuthService();
   auth.resolveAccessToken = async token => {
     const current = await FakeAuthService.prototype.resolveAccessToken.call(auth, ["foreign","admin-second"].includes(token) ? "admin" : token);
-    const actor = token === "foreign" ? fixture.other.actor : token === "admin-second" ? onboardingSetup.secondActor : fixture.first.actor;
+    let actor = fixture.first.actor;
+    if(token === "foreign") actor = fixture.other.actor;
+    else if(token === "admin-second") actor = onboardingSetup.secondActor;
     return { actor: { ...actor, role: current.actor.role, departmentIds: current.actor.role === "manager" ? [fixture.first.department] : [], selfWorkerId: current.actor.selfWorkerId }, context: {
       ...current.context, user: { ...current.context.user, id: actor.userId },
       organization: { ...current.context.organization, id: actor.organizationId, name: "H2 Synthetic UI" }

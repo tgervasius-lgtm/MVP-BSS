@@ -6,11 +6,12 @@
   const empty=()=>({data:null,loaded:false,busy:false,denied:false,uncertain:false,needsReadback:false,error:'',notice:'',review:null,draft:emptyDraft()});
   const destinations=new Set(['company','departments','shifts','holidays','workers','import','roles','terminal']);
   function createController({api,context=()=>null,changed=()=>{},navigate=()=>{},goto=()=>{}}={}){
-    let config={context,changed,navigate,goto},model=empty(),identity='',generation=0,controller=null,expectedId=null,expectedProfile=null,wasActive=false;
+    let config={context,changed,navigate,goto},model=empty(),identity='',generation=0,controller=null,expectedId=null,expectedProfile=null,wasActive=false,routeActive=true;
     const allowed=()=>{const c=config.context();return Boolean(c?.logged&&c.api&&c.role==='admin'&&c.organizationId&&c.userId);};
-    const active=()=>config.context()?.active!==false;
+    const active=()=>{const value=config.context()?.active;return typeof value==='boolean'?value:routeActive;};
     function reset(){controller?.abort();generation+=1;model=empty();}
-    function syncIdentity(){
+    function syncIdentity(activeScreen){
+      if(typeof activeScreen==='string')routeActive=activeScreen==='onboarding';
       const c=config.context(),next=allowed()?`${c.organizationId}:${c.userId}`:'',visible=allowed()&&active();
       if(next!==identity){reset();identity=next;expectedId=null;expectedProfile=null;}
       else if(wasActive&&!visible)reset();

@@ -118,3 +118,26 @@ can remove this owning screen; it cannot undo imports or delete evidence/workers
 audit. Existing018 populated-state down refusal and reviewed forward recovery
 remain authoritative. High-risk merge and any later activation/deployment require
 their separate concrete owner decision after final review.
+
+## Initial PR verification follow-up
+
+Initial headfedaa807 retained: backend101unit/contractPASS/1FAIL because the
+backend screen-map regression still expected the earlier backend-review baseline
+and19screens. It now asserts the actual UI-review baseline/20screens, exact
+Admin-only onboarding operations and the explicitly retained full-workflow gap.
+No API/role or substantive assertion is removed.
+
+Initial general CI reached full-stack navigation, then rejected the expected503
+from the deliberately inactive onboarding service. The browser test now explicitly
+waits for that one exact GET, asserts503/ONBOARDING_UNAVAILABLE/no-store, an
+actionable status and no form, and requires the complete error list to equal
+that one proven response. Every other network/console/5xx failure remains a failure.
+Additional login failures were observed in that failed run; auth/retry/timeouts
+are unchanged and the new exact-head run must independently resolve them.
+
+The application router now passes its active route directly to the controller;
+this avoids the browser Window.screen typing ambiguity in a different classic
+script and provides an explicit lifecycle boundary, with a dedicated regression.
+Rendering helpers replace nested templates; braces and explicit actor selection
+clarify the fixture orchestration. No Sonar finding is suppressed/accepted. Final
+new-code findings and actual browser/PG outcomes belong in the PR receipt.

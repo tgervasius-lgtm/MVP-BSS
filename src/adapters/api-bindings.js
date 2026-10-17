@@ -338,8 +338,12 @@
   });
 
   root.BSSOnboarding?.configure({
-    context:()=>({organizationId:sessionContext?.organization?.id,userId:sessionContext?.user?.id,role:currentRole,logged,api:root.BSS_API_ACTIVE&&!state.demoMode,active:screen==='onboarding'}),
-    changed:focus=>{if(!root.document.querySelector('.onboarding'))return;render();if(focus)root.document.getElementById('onboarding-status')?.focus({preventScroll:true});},
+    context:()=>({organizationId:sessionContext?.organization?.id,userId:sessionContext?.user?.id,role:currentRole,logged,api:root.BSS_API_ACTIVE&&!state.demoMode}),
+    changed:focus=>{
+      if(!root.document.querySelector('.onboarding')){return;}
+      render();
+      if(focus){root.document.getElementById('onboarding-status')?.focus({preventScroll:true});}
+    },
     navigate,goto:key=>{
       const tabs={company:'company',departments:'organization',holidays:'holidays'};
       if(Object.hasOwn(tabs,key)){settingsTab=tabs[key];navigate('settings');}
