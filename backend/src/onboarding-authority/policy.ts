@@ -66,12 +66,18 @@ function authority(value: unknown): value is ResolvedInternalAuthority {
     && principal(value.principal) && interval(value.authenticatedAt, value.expiresAt)
     && (value.grant === null || grant(value.grant));
 }
+function preparerIdentities(value: unknown): value is readonly string[] {
+  if (!Array.isArray(value) || value.length === 0) return false;
+  for (let index = 0; index < value.length; index += 1) {
+    if (!Object.hasOwn(value, index) || !identifier(value[index])) return false;
+  }
+  return true;
+}
 function intent(value: unknown): value is ResolvedAuthorityIntent {
   if (!record(value) || !action(value.action) || !scope(value.scope)) return false;
   if (value.action === "VERIFY_ONBOARDING") {
     return exact(value, ["action", "scope", "preparerPersonIds"]) && value.scope.kind === "TENANT"
-      && Array.isArray(value.preparerPersonIds) && value.preparerPersonIds.length > 0
-      && value.preparerPersonIds.every(identifier);
+      && preparerIdentities(value.preparerPersonIds);
   }
   return exact(value, ["action", "scope"])
     && value.scope.kind === (value.action === "PROVISION_TENANT" ? "PROVISIONING_REQUEST" : "TENANT");

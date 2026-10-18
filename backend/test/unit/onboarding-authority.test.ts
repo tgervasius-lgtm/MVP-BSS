@@ -122,3 +122,14 @@ test("policy evaluation preserves its inputs and requires a current grant revisi
   const next = { ...context, grant: { ...context.grant, revision: "2" } };
   assert.deepEqual(assessInternalAuthority(next, request, NOW), { permitted: true, grantId: "synthetic-grant", grantRevision: "2" });
 });
+
+test("incomplete preparation history cannot establish reviewer independence", () => {
+  const { context, request } = fixture();
+  const missingOnly = new Array<string>(1);
+  const missingAfterKnown = ["synthetic-preparer-person"];
+  missingAfterKnown.length = 2;
+  const missingBeforeKnown = new Array<string>(2);
+  missingBeforeKnown[1] = "synthetic-preparer-person";
+  for (const preparerPersonIds of [missingOnly, missingAfterKnown, missingBeforeKnown])
+    denied(context, { ...request, preparerPersonIds }, "INVALID_AUTHORITY_INTENT");
+});

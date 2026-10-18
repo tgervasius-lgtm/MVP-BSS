@@ -127,7 +127,7 @@ The #277 browser evidence remains useful for its owning UI scope. Its synthetic 
 | Browser/full journey | Real existing setup APIs and customer auth, persistence/relogin, concurrent edits, denied roles, unknown response recovery, keyboard/axe/responsive behavior; fixture substitutions labeled |
 | Release/operations | Actual named private assignments, verified access/custody, current evidence, deployment/backup/restore/physical/legal/Pilot gates as applicable; unavailable evidence is not PASS |
 
-Do not repeat unrelated suites for this documentation-only change. Run the existing Docs verification wrapper and focused link/diff review; subsequent runtime changes require their own relevant tests, real PG evidence and required CI.
+The original documentation-only slice required the existing Docs wrapper and link/diff review. The current isolated policy slice also requires focused policy/onboarding regression tests, source/test type checks, backend build, architecture review and exact-head CI. Reject incomplete preparation-identity arrays, including missing entries, before assessing reviewer independence. No database or persistence change is included; later DB/RLS work requires its own real PostgreSQL evidence.
 
 ## 9. Delivery and decision sequence
 
