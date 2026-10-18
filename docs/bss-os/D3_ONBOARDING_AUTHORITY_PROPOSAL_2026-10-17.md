@@ -1,11 +1,11 @@
 # D3 — internal onboarding authority and complete rehearsal proposal
 
-Status: **PROPOSED FOR OWNER / TECHNICAL REVIEW — NO RUNTIME CHANGE**
+Status: **OWNER-ACCEPTED RULES / INACTIVE POLICY FOUNDATION FOR REVIEW / TRUST TRANSPORT OPEN**
 
 Prepared: 17 October 2026 (Europe/Warsaw). Tracking: [#237](https://github.com/tgervasius-lgtm/MVP-BSS/issues/237).
 Reviewed protected main: `57d1cf88d28f837af5ecb4a2d5f6629ac283c7be`, tree `1a2922e5958bae788a5c3f06a4ba8e278a6d0d32`; #277 is merged.
 
-This proposal makes the next D3 decisions reviewable. It does not accept a new authority model, appoint a person, provision an account, grant access, create a tenant, introduce a customer super-role, or authorize merge, deployment or live data. It leaves #237, full H2-3/D3 and H2-4 open.
+On 18 October 2026 at 11:44:14 CEST the owner accepted the seven rules in the Croatian review summary as a basis for further technical elaboration and testing. The approved direction covers customer/internal separation, scoped internal permissions, a distinct independent reviewer, attributable evidence, separate readiness/approval, revalidation and a synthetic full journey. It does not appoint a person, provision an account, assign an operational grant, accept an authentication transport, authorize merge/deployment/live data, or prove implementation. #237, full H2-3/D3 and H2-4 remain open.
 
 ## 1. Problem and authority
 
@@ -26,7 +26,7 @@ The source hierarchy remains [AGENTS.md](../../AGENTS.md). [OM-01](OPERATIONS_FO
 | [server.ts](../../backend/src/server.ts) | Default composition does not register import or onboarding services. |
 | [Admin UI](../ux/H2_ADMIN_ONBOARDING_UI_2026-10-17.md) | Existing setup navigation, private evidence, review and recovery; no internal authority or approval control. |
 
-This change is documentation only. It proposes a dedicated internal boundary and acceptance plan, rather than adding permissions to the customer API or growing the large MVP services. No current schema, migration, route, deployment grant, workflow, secret, access control or UI behavior changes.
+This candidate adds an isolated [policy calculation](../../backend/src/onboarding-authority/policy.ts) and [synthetic unit tests](../../backend/test/unit/onboarding-authority.test.ts). It evaluates exact server-resolved principal/grant/action/target bindings, authentication/grant time windows and revocation, and independent-person separation. It performs no credential/signature/MFA verification, issues no authority token, writes no data and computes no readiness/go-live approval. Inputs must come from a future reviewed authentication/private-registry adapter and server-owned preparation history; the calculation is not an authentication boundary. There is no application/route/service composition. Existing onboarding blockers and literal false live flags remain unchanged. No current API/schema/migration/deployment grant/workflow/secret/access control or UI behavior changes.
 
 ## 3. Responsibilities and tentative staffing
 
@@ -46,7 +46,7 @@ No actual operator/reviewer identity, engagement, budget, schedule or review out
 
 A product-wide technical review and each company's setup acceptance are separate evidence. A historical product audit cannot approve later code/configuration changes or every future customer. Automated tests and AI assistance do not impersonate the independent human reviewer.
 
-## 4. Recommended internal boundary — proposed, not accepted
+## 4. Internal boundary — accepted direction, transport review open
 
 Recommended direction: a dedicated server-side onboarding authority module with a trusted internal invocation adapter, a private scoped grant registry and append-only decision evidence. Retain the four customer roles unchanged.
 
@@ -131,9 +131,9 @@ Do not repeat unrelated suites for this documentation-only change. Run the exist
 
 ## 9. Delivery and decision sequence
 
-1. Review this proposal under #237 with #95/#59/#62 ownership. Accept the responsibility boundary and proposed grant/evidence model or record concrete changes. No actual person need be appointed for synthetic design.
+1. The owner accepted the seven-rule responsibility/permission/evidence direction on 18 October. Continue scoped technical elaboration under #237 with #95/#59/#62 ownership. Exact transport and implementation contracts still need review; no actual person need be appointed for synthetic design.
 2. Resolve the internal authentication/invocation trust contract before dependent mutations. Re-read current main/OpenAPI/RLS/audit/release contracts and prepare one focused implementation scope with acceptance/recovery.
-3. Build isolated synthetic domain validation and then the reviewed persistence/invocation slices. Keep production composition/grants absent and test adapters test-only. Each slice gets its own review/checks; owner approval remains required before high-risk merge/deploy.
+3. The current candidate supplies only isolated policy validation and synthetic tests. Then build reviewed persistence/invocation slices after their prerequisites are accepted. Keep production composition/grants absent and test adapters test-only. Each slice gets its own review/checks; owner approval remains required before high-risk merge/deploy.
 4. Extend the full synthetic-company journey against real existing services. Synchronize any changed OpenAPI and the frontend schemas that currently reject authority-promoting responses.
 5. Appoint actual private identities and verify environment/security/privacy/recovery/physical/Pilot gates before separately authorized activation. Full H2-3/H2-4 and #237 remain partial until their evidence exists.
 
@@ -141,6 +141,6 @@ Review questions concern the technical trust path and policy, not a request to h
 
 ## 10. Verification record for this proposal
 
-Implementation status: documentation only. No new runtime test, production authority, completed rehearsal or independent audit is claimed. Exact Docs-wrapper, local link/diff and PR-check results belong in the PR description and continuation checkpoint.
+Implementation status: isolated policy foundation for review. The synthetic tests exercise separate capabilities, exact tenant/request/environment/profile and principal binding, grant revocation/expiry, authentication windows, same-person aliases, malformed/forged shapes and non-live profile denial. They do not verify a real credential, private registry, RLS, mutation, complete company journey or independent human acceptance. Applicable native lint/build/Docs/Backend checks and exact-head CI results belong in the PR description and continuation checkpoint. No new DB/RLS/persistence code is added; existing PostgreSQL regression evidence is distinct from this policy's unit evidence.
 
-Rollback of this proposal removes its new document/link without touching runtime or retained business evidence. No high-risk merge, deployment, provider change, customer data, additional paid model run or access change is authorized by preparing this draft.
+Recovery removes the isolated module/tests and proposal/link, or keeps the optional boundary uncomposed; no retained business evidence is touched. No high-risk merge, deployment, provider change, customer data, additional paid model run or operational access change is authorized by this candidate.
