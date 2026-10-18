@@ -1,5 +1,9 @@
 # Customer onboarding and employee import — implementation preparation
 
+## D3 authority design proposal —17 October2026
+
+[Internal authority and complete rehearsal proposal](D3_ONBOARDING_AUTHORITY_PROPOSAL_2026-10-17.md): the owner accepted its seven-rule direction on18October2026,11:44:14CEST for further technical elaboration/testing. The current candidate adds only an **INACTIVE POLICY FOUNDATION FOR REVIEW**: isolated server-resolved grant/scope/independence checks and synthetic tests. No authentication transport, mutation, runtime composition or operational permission is supplied. Actual operator/reviewer assignments remain activation gates; real trusted invocation must be resolved before dependent mutations. Full H2-3/D3, H2-4 and#237 remainOPEN/PARTIAL. Older candidate snapshots below retain their dated scope.
+
 ## Current H2-4a candidate boundary —17 October2026
 
 H2-1c2 #273, Admin import UI #275 and onboarding evidence backend #276 are **MERGED / INACTIVE** on reviewed protected mainbd376510. This candidate adds only the [Admin onboarding status/evidence owning UI](../ux/H2_ADMIN_ONBOARDING_UI_2026-10-17.md): existing server observations and blockers, unverified private references, revision/config review and GET recovery. It is **IMPLEMENTED FOR REVIEW / INACTIVE / PARTIAL H2-4**, with no new API, operator/provisioning/verification/go-live authority or production composition. Actual synthetic browser/PG and final exact-head verification belong in its PR. Full #237, D3/customer/independent acceptance, environment/privacy/restore and Staging/9C/Pilot/Commercial remain OPEN. Historical candidate/preparation blocks below describe their dated scopes; this entry does not rewrite the frozen contract or approve merge/activation/backend deployment.
