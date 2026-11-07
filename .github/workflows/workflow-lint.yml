@@ -5,10 +5,12 @@ on:
     branches: [main]
     paths:
       - '.github/workflows/**'
+      - 'tests/pr-metadata-workflows.test.mjs'
   push:
     branches: [main]
     paths:
       - '.github/workflows/**'
+      - 'tests/pr-metadata-workflows.test.mjs'
   schedule:
     - cron: '31 5 * * 1'
   workflow_dispatch:
@@ -45,6 +47,9 @@ jobs:
 
       - name: Validate all GitHub Actions workflows
         run: actionlint -color
+
+      - name: Test metadata-only PR automation
+        run: node --test tests/pr-metadata-workflows.test.mjs
 
       - name: Enforce immutable remote action references
         run: |

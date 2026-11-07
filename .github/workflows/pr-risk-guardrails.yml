@@ -1,8 +1,10 @@
 name: BSS PR risk guardrails
 
 on:
-  pull_request_target:
-    types: [opened, synchronize, reopened, edited, ready_for_review]
+  # The existing read-only governance workflow covers the same PR events.
+  workflow_run:
+    workflows: [BSS PR governance gate]
+    types: [completed]
 
 permissions:
   contents: read
@@ -10,22 +12,70 @@ permissions:
   issues: write
 
 concurrency:
-  group: pr-risk-${{ github.event.pull_request.number }}
+  group: pr-risk-${{ github.event.workflow_run.pull_requests[0].number || github.event.workflow_run.id }}
   cancel-in-progress: true
 
 jobs:
   classify-risk:
     name: Classify PR size and risk
+    if: github.event.workflow_run.event == 'pull_request'
     runs-on: ubuntu-24.04
+    timeout-minutes: 5
     steps:
-      - name: Apply size and risk labels
+      - name: Resolve current PR from trusted workflow metadata
+        id: pr
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const run = context.payload.workflow_run;
+            const repository = context.payload.repository;
+            if (run.event !== 'pull_request' || run.path !== '.github/workflows/pr-governance.yml' ||
+                run.name !== 'BSS PR governance gate' || run.repository?.id !== repository.id ||
+                !/^[0-9a-f]{40}$/.test(run.head_sha)) {
+              throw new Error('Unexpected upstream workflow identity');
+            }
+            // Only GitHub API metadata is consumed: never artifacts, caches or PR code.
+            let candidates = run.pull_requests || [];
+            if (candidates.length === 0) {
+              candidates = await github.paginate(github.rest.repos.listPullRequestsAssociatedWithCommit, {
+                owner, repo, commit_sha: run.head_sha, per_page: 100,
+              });
+            }
+            const matches = [];
+            for (const number of new Set(candidates.map(pr => pr.number))) {
+              if (!Number.isSafeInteger(number) || number <= 0) throw new Error('Invalid PR number');
+              const { data: pr } = await github.rest.pulls.get({ owner, repo, pull_number: number });
+              if (pr.state === 'open' && pr.base.repo.id === repository.id &&
+                  pr.base.ref === repository.default_branch && pr.head.sha === run.head_sha) {
+                matches.push(pr);
+              }
+            }
+            if (matches.length === 0) {
+              core.notice('No current open PR for this run; stale or closed event ignored');
+              return;
+            }
+            if (matches.length !== 1) throw new Error('Ambiguous upstream PR association');
+            core.setOutput('number', String(matches[0].number));
+            core.setOutput('head', matches[0].head.sha);
+      - name: Apply size and risk labels
+        if: steps.pr.outputs.number != ''
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3
+        env:
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
+          PR_HEAD: ${{ steps.pr.outputs.head }}
         with:
           script: |
             const owner = context.repo.owner;
             const repo = context.repo.repo;
-            const issue_number = context.issue.number;
-            const pr = context.payload.pull_request;
+            const issue_number = Number(process.env.PR_NUMBER);
+            const { data: pr } = await github.rest.pulls.get({ owner, repo, pull_number: issue_number });
+            if (pr.state !== 'open' || pr.head.sha !== process.env.PR_HEAD ||
+                pr.base.repo.id !== context.payload.repository.id ||
+                pr.base.ref !== context.payload.repository.default_branch) {
+              core.notice('PR changed after resolution; ignored');
+              return;
+            }
 
             const changedFiles = pr.changed_files;
             const changedLines = pr.additions + pr.deletions;
@@ -34,6 +84,22 @@ jobs:
             if (changedFiles > 40 || changedLines > 2000) sizeLabel = 'size/XL';
             else if (changedFiles > 20 || changedLines > 1000) sizeLabel = 'size/L';
             else if (changedFiles > 8 || changedLines > 400) sizeLabel = 'size/M';
+
+            const files = await github.paginate(github.rest.pulls.listFiles, {
+              owner,
+              repo,
+              pull_number: issue_number,
+              per_page: 100,
+            });
+
+            if (files.length !== changedFiles) throw new Error('Incomplete PR file list');
+
+            const { data: currentPR } = await github.rest.pulls.get({ owner, repo, pull_number: issue_number });
+            if (currentPR.head.sha !== pr.head.sha || currentPR.state !== 'open' ||
+                currentPR.base.repo.id !== pr.base.repo.id || currentPR.base.ref !== pr.base.ref) {
+              core.notice('PR changed while listing files; ignored');
+              return;
+            }
 
             const labelDefinitions = {
               'size/S': ['0E8A16', 'Mala, fokusirana promjena'],
@@ -63,13 +129,6 @@ jobs:
               });
             }
 
-            const files = await github.paginate(github.rest.pulls.listFiles, {
-              owner,
-              repo,
-              pull_number: issue_number,
-              per_page: 100,
-            });
-
             const riskAreas = new Set();
             for (const file of files) {
               const path = file.filename;
@@ -94,7 +153,8 @@ jobs:
               issue_number,
               per_page: 100,
             });
-            const previous = comments.find(comment => comment.body?.includes(marker));
+            const previous = comments.find(comment => comment.user?.login === 'github-actions[bot]' &&
+              comment.user?.type === 'Bot' && comment.body?.includes(marker));
 
             if (shouldWarn) {
               const body = `${marker}\n## Automatska procjena rizika\n\n- veličina: **${sizeLabel.replace('size/', '')}**\n- promijenjene datoteke: **${changedFiles}**\n- dodane + obrisane linije: **${changedLines}**\n- rizična područja: **${[...riskAreas].join(', ') || 'nisu prepoznata'}**\n\nOvaj PR zahtijeva pojačan pregled. Ako obuhvaća više nepovezanih ciljeva, razdvojite ga prije mergea. Oznaka nije automatska zabrana mergea, nego kontrola tehničkog i poslovnog rizika.`;

@@ -1,8 +1,10 @@
 name: BSS PR auto-labeler
 
 on:
-  pull_request_target:
-    types: [opened, synchronize, reopened]
+  # Runs from the default branch, including for forks and Dependabot.
+  workflow_run:
+    workflows: [BSS PR governance gate]
+    types: [completed]
 
 permissions:
   contents: read
@@ -10,8 +12,48 @@ permissions:
 
 jobs:
   label:
+    if: github.event.workflow_run.event == 'pull_request'
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
+      - name: Resolve current PR from trusted workflow metadata
+        id: pr
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const run = context.payload.workflow_run;
+            const repository = context.payload.repository;
+            if (run.event !== 'pull_request' || run.path !== '.github/workflows/pr-governance.yml' ||
+                run.name !== 'BSS PR governance gate' || run.repository?.id !== repository.id ||
+                !/^[0-9a-f]{40}$/.test(run.head_sha)) {
+              throw new Error('Unexpected upstream workflow identity');
+            }
+            // Only GitHub API metadata is consumed: never artifacts, caches or PR code.
+            let candidates = run.pull_requests || [];
+            if (candidates.length === 0) {
+              candidates = await github.paginate(github.rest.repos.listPullRequestsAssociatedWithCommit, {
+                owner, repo, commit_sha: run.head_sha, per_page: 100,
+              });
+            }
+            const matches = [];
+            for (const number of new Set(candidates.map(pr => pr.number))) {
+              if (!Number.isSafeInteger(number) || number <= 0) throw new Error('Invalid PR number');
+              const { data: pr } = await github.rest.pulls.get({ owner, repo, pull_number: number });
+              if (pr.state === 'open' && pr.base.repo.id === repository.id &&
+                  pr.base.ref === repository.default_branch && pr.head.sha === run.head_sha) {
+                matches.push(pr);
+              }
+            }
+            if (matches.length === 0) {
+              core.notice('No current open PR for this run; stale or closed event ignored');
+              return;
+            }
+            if (matches.length !== 1) throw new Error('Ambiguous upstream PR association');
+            core.setOutput('number', String(matches[0].number));
+            core.setOutput('head', matches[0].head.sha);
       - name: Apply labels from changed files
+        if: steps.pr.outputs.number != ''
         uses: actions/labeler@bf12e9b00b37c5c0ca2b87b79b2daf7891dbda13 # v7.0.0
+        with:
+          pr-number: ${{ steps.pr.outputs.number }}
