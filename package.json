@@ -11,7 +11,7 @@
     "build": "node scripts/build.mjs",
     "serve:dist": "node scripts/serve-dist.mjs",
     "start:fullstack": "npm run build && npm --prefix backend run build && FRONTEND_ROOT=../dist npm --prefix backend run start",
-    "lint": "eslint .",
+    "lint": "node --test tests/eslint-minimatch-compat.test.mjs && eslint .",
     "pretest:e2e": "npm run build",
     "test:e2e": "playwright test",
     "check:frontend": "npm run lint && npm test && npm run build",
@@ -26,5 +26,13 @@
     "eslint": "^10.7.0",
     "globals": "^17.7.0",
     "jsdom": "30.1.1"
+  },
+  "overrides": {
+    "eslint": {
+      "minimatch": "11.0.5",
+      "@eslint/config-array": {
+        "minimatch": "11.0.5"
+      }
+    }
   }
 }
