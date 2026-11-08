@@ -178,3 +178,19 @@ test("relative and native absolute sendFile plus Unicode downloads remain compat
   assert.match(String(download.headers["content-disposition"]), /^attachment;/);
   assert.match(String(download.headers["content-disposition"]), /filename\*=UTF-8''izvje%C5%A1taj\.css/);
 });
+
+test("static allowedPath also authorizes the final selected index file", async (t) => {
+  const root = await fixture(t);
+  await writeFile(join(root, "private", "index.html"), secret);
+  const checked: string[] = [];
+  const app = Fastify();
+  t.after(() => app.close());
+  await app.register(fastifyStatic, {
+    root,
+    allowedPath: (path) => { checked.push(path); return path !== "/private/index.html"; },
+  });
+  const response = await app.inject({ method: "GET", url: "/private/" });
+  assert.equal(response.statusCode, 404, response.body);
+  assert.ok(!response.body.includes(secret));
+  assert.ok(checked.includes("/private/index.html"), "check the selected index, not just its directory");
+});
