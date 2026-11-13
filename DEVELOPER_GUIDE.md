@@ -4,7 +4,7 @@ Ovaj dokument je provjeren put od čistog klona do lokalnog BSS sustava. Fronten
 
 ## 1. Čisti lokalni start
 
-Preduvjeti su Git, Node.js 22.13+, npm 10+ i Docker s Compose podrškom. `.nvmrc` zaključava Node major verziju; minimum 22.13 usklađuje ESM učitavanje nove statičke ovisnosti i postojeći ESLint 10. Node 22.9 više nije podržan: `@fastify/static` 10.1.4 učitava ESM `content-disposition` 3 iz CommonJS-a. Prije nadogradnje provjerite `node --version`; CI zasebno provjerava minimum 22.13.0 i aktualni Node 22 na Windowsu.
+Preduvjeti su Git, Node.js 22.23.5 ili novije izdanje iz grane 22, npm 10+ i Docker s Compose podrškom. `.nvmrc` odabire glavnu verziju Nodea. Provjerite `node --version` prije instalacije ovisnosti. CI zasebno provjerava minimum 22.23.5 na Linuxu i podržano izdanje Nodea 22 na Windowsu.
 
 ```bash
 git clone https://github.com/tgervasius-lgtm/MVP-BSS.git
