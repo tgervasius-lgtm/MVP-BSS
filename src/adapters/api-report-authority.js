@@ -1,4 +1,4 @@
-/* global BSS_API, normalizeReportFilters, monthBounds, departmentByName, workerById, REPORT_TYPE_CONFIG, currentRole, render, toast, escapeHtml, formatMinutes, formatSignedMinutes, $, showModal */
+/* global BSS_API, normalizeReportFilters, monthBounds, departmentByName, workerById, REPORT_TYPE_CONFIG, currentRole, render, toast, escapeHtml, reportScopeLabel, formatMinutes, formatSignedMinutes, $, showModal, closeModal */
 (function registerReportAuthority(root){
   'use strict';
 
@@ -29,8 +29,7 @@
       periodTo:bounds.end,
       departmentId:department?.apiId||null,
       workerId:worker?.apiId||null,
-      attendanceStatus:null,
-      limit:100
+      attendanceStatus:null
     };
   }
 
@@ -50,7 +49,7 @@
     previewLoading=true;previewError='';
     if(renderLoading)render();
     try{
-      const result=await BSS_API.post('/report-previews',body);
+      const result=await BSS_API.post('/report-previews',{...body,limit:100});
       if(!sameFilters(result.filters,body))throw new Error('Zaprimljeni pregled ne odgovara odabranim kriterijima. Pokušajte ponovno.');
       preview=result;
       return true;
@@ -84,7 +83,7 @@
     const body=rows.map(row=>`<tr>${columns.map(column=>`<td>${cell(row?.[column.key])}</td>`).join('')}</tr>`).join('');
     const dataset=preview.datasetVersion||'—';
     return `<div class="card table-card report-preview report-authoritative-preview" data-authoritative-preview="true">
-      <div class="table-card-heading"><div><h2>${escapeHtml(config.label||'Službeni pregled')}</h2><p>Službeni pregled · verzija podataka <span class="mono">${escapeHtml(dataset)}</span></p></div><span class="pill gray">${Number(preview.totals?.rowCount??rows.length)} redaka</span></div>
+      <div class="table-card-heading"><div><h2>${escapeHtml(config.label||'Službeni pregled')}</h2><p>Službeni pregled · aktualni podaci · <span class="mono">${escapeHtml(dataset)}</span></p></div><span class="pill gray">${Number(preview.totals?.rowCount??rows.length)} redaka</span></div>
       ${preview.truncated?'<div class="notice warning report-preview-truncated">Prikaz je ograničen. Izvoz može sadržavati više redaka od ovog pregleda.</div>':''}
       <div class="table-wrap"><table class="report-table"><thead><tr>${columns.map(column=>`<th>${escapeHtml(column.label)}</th>`).join('')}</tr></thead><tbody>${body||`<tr><td colspan="${Math.max(columns.length,1)}"><div class="empty-state">Nema podataka za odabrane kriterije.</div></td></tr>`}</tbody></table></div>
       <div class="table-summary"><span>${escapeHtml(preview.filters?.periodFrom||'')} – ${escapeHtml(preview.filters?.periodTo||'')}</span><span>Verzija podataka: <span class="mono">${escapeHtml(dataset)}</span></span></div>
@@ -138,6 +137,75 @@
 
   function hasRows(){return Boolean(preview&&!previewLoading&&!previewError&&Number(preview.totals?.rowCount||0)>0);}
 
+  function openExport(format){
+    if(!root.BSS_API_ACTIVE||!allowed()||!['csv','xlsx','pdf'].includes(format))return;
+    const body=requestBody(),filters=callbacks.getReportFilters(),modal=$('#modal');
+    const versionPath=`/attendance-periods/${body.periodFrom.slice(0,4)}/${Number(body.periodFrom.slice(5,7))}/versions`;
+    const currentReady=()=>hasRows()&&sameFilters(preview.filters,body);
+    const userContext=callbacks.identity();
+    modal.innerHTML=`<div class="modal-card">
+      <div class="modal-head"><h2>Potvrdi izvoz izvještaja</h2><button class="close-btn" aria-label="Zatvori" data-bss-action="closeModal()">×</button></div>
+      <p><b>${escapeHtml(REPORT_TYPE_CONFIG[filters.type].label)}</b> · ${escapeHtml(body.periodFrom)} – ${escapeHtml(body.periodTo)} · ${escapeHtml(reportScopeLabel(filters))} · ${format.toUpperCase()}</p>
+      <div class="form">
+        <label>Izvor podataka<select id="reportExportSource">
+          <option value="current">Aktualni podaci</option><option value="locked">Spremljena verzija mjeseca</option>
+        </select></label>
+        <div id="reportExportVersionField" hidden><div class="form"><label for="reportExportVersion">Spremljena verzija</label><select id="reportExportVersion"></select></div></div>
+        <p id="reportExportStatus" role="status"></p>
+      </div>
+      <div class="btns"><button id="confirmReportExport" class="btn">Potvrdi i preuzmi</button><button class="btn secondary" data-bss-action="closeModal()">Odustani</button></div>
+    </div>`;
+    const source=modal.querySelector('#reportExportSource');
+    const versionField=modal.querySelector('#reportExportVersionField');
+    const selector=modal.querySelector('#reportExportVersion');
+    const status=modal.querySelector('#reportExportStatus');
+    const confirm=modal.querySelector('#confirmReportExport');
+    let versions=null,loading=false,error=false;
+
+    function update(){
+      const locked=source.value==='locked';
+      const selected=versions?.find(item=>item.id===selector.value);
+      versionField.hidden=!locked;
+      selector.disabled=!locked||!versions?.length;
+      confirm.disabled=locked?!selected:!currentReady();
+      status.textContent=locked
+        ? loading?'Učitavam spremljene verzije…'
+          : error?'Verzije nisu dostupne. Za ponovni pokušaj zatvorite i otvorite izvoz.'
+            : !versions?.length?'Za ovaj mjesec nema spremljenih verzija.'
+              : selected?'Izvoz koristi odabranu verziju. Pregled na stranici prikazuje aktualne podatke.':'Odaberite verziju za izvoz.'
+        : currentReady()?'Izvoz koristi aktualne podatke, bez zaključane verzije.':'Za odabrane filtre nema učitanih aktualnih podataka.';
+    }
+
+    source.addEventListener('change',async()=>{
+      selector.value='';
+      if(source.value!=='locked'||versions||loading){update();return;}
+      loading=true;error=false;update();
+      try{
+        const result=await callbacks.listVersions(versionPath);
+        const options=result.items.map((item,index)=>new Option(
+          `${callbacks.versionDate(item.finalizedAt)} · revizija ${item.periodRevision} · ${index===0?'najnovija':'ranija verzija'}`,item.id));
+        selector.replaceChildren(new Option('Odaberite verziju…',''),...options);
+        versions=result.items;
+      }catch{error=true;}
+      finally{loading=false;update();}
+    });
+    selector.addEventListener('change',update);
+    confirm.addEventListener('click',()=>{
+      if(confirm.disabled||!modal.classList.contains('open')||!allowed()||callbacks.identity()!==userContext)return;
+      if(!sameFilters(requestBody(),body)){
+        closeModal();
+        toast('Filtri su se promijenili. Ponovno otvorite izvoz.');
+        return;
+      }
+      const locked=source.value==='locked';
+      const selected=versions?.find(item=>item.id===selector.value);
+      if(locked?!selected:!currentReady())return;
+      closeModal();
+      callbacks.downloadExport({...body,format,...(locked?{periodVersionId:selected.id}:{})});
+    });
+    update();showModal(modal);
+  }
+
   function verificationState(exportId){return verifications.get(String(exportId))||null;}
 
   function historyAction(item){
@@ -189,6 +257,6 @@
   }
 
   root.BSSReportAuthority=Object.freeze({
-    configure,hydrate,loadPreview,previewHtml,metricsHtml,hasRows,historyAction,applyFilters,updateDepartment,setType,reload,verifyExport,openVerification
+    configure,hydrate,openExport,loadPreview,previewHtml,metricsHtml,hasRows,historyAction,applyFilters,updateDepartment,setType,reload,verifyExport,openVerification
   });
 })(typeof globalThis==='object'?globalThis:window);

@@ -1,5 +1,11 @@
 # BSS Readiness Matrix
 
+## REPORT-007 candidate — 2026-11-14
+
+**IMPLEMENTED FOR REVIEW.** In API mode, authorized report users can explicitly select an immutable month version for export. The dialog states whether the file uses current data or the selected saved version, and the export history identifies the source. The read-only version list returns metadata under the existing report permissions and tenant scope. The existing export endpoint continues to enforce worker and department visibility.
+
+Review evidence covers the synthetic PostgreSQL lifecycle, including identical CSV bytes for the original version after correction and refinalization, and desktop/mobile full-stack export flows. Deployment evidence remains open. This candidate does not change the Product Contract or close onboarding, Staging, Hardware 9C, Pilot or Commercial Production gates.
+
 ## Current H2-4a candidate boundary —17 October2026
 
 H2-1c2 #273, Admin import UI #275 and onboarding evidence backend #276 are **MERGED / INACTIVE** on reviewed protected mainbd376510. This candidate adds only the [Admin onboarding status/evidence owning UI](docs/ux/H2_ADMIN_ONBOARDING_UI_2026-10-17.md): existing server observations and blockers, unverified private references, revision/config review and GET recovery. It is **IMPLEMENTED FOR REVIEW / INACTIVE / PARTIAL H2-4**, with no new API, operator/provisioning/verification/go-live authority or production composition. Actual synthetic browser/PG and final exact-head verification belong in its PR. Full #237, D3/customer/independent acceptance, environment/privacy/restore and Staging/9C/Pilot/Commercial remain OPEN. Historical candidate/preparation blocks below describe their dated scopes; this entry does not rewrite the frozen contract or approve merge/activation/backend deployment.

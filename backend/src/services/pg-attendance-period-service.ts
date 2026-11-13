@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import type pg from "pg";
 import { withTenant, type TenantTransaction } from "../db/tenant.js";
 import { AppError } from "../domain/errors.js";
-import type { ActorContext } from "../domain/types.js";
+import type { ActorContext, Page } from "../domain/types.js";
 import { requireRole } from "../security/rbac.js";
 import {
   lockAttendancePeriod,
@@ -16,8 +16,10 @@ import {
 import type {
   AttendancePeriodTransitionWrite,
   AttendancePeriodUnresolvedCounts,
+  AttendancePeriodVersionView,
   AttendancePeriodView
 } from "./contracts.js";
+import { decodeUuidCursor, encodeUuidCursor } from "./cursors.js";
 import { lockTerminalEventLifecycle } from "./terminal-event-lock.js";
 
 type PeriodRow = {
@@ -242,6 +244,34 @@ export class PgAttendancePeriodService {
     requireRole(actor, ["admin", "manager", "accountant"]);
     validatePeriod(year, month);
     return withTenant(this.pool, actor, "attendance-period-read", (client) => periodView(client, actor, year, month));
+  }
+
+  async listVersions(actor: ActorContext, year: number, month: number, cursor: string | undefined,
+    limit: number): Promise<Page<AttendancePeriodVersionView>> {
+    requireRole(actor, ["admin", "manager", "accountant"]);
+    validatePeriod(year, month);
+    const after = decodeUuidCursor(cursor);
+    return withTenant(this.pool, actor, "attendance-period-versions", async (client) => {
+      const result = await client.query<{ id: string; finalized_at: Date; period_revision: string }>(
+        `SELECT id, finalized_at, period_revision::text AS period_revision
+         FROM attendance_period_versions AS version
+         WHERE organization_id = $1 AND year = $2 AND month = $3
+           AND ($4::uuid IS NULL OR version.period_revision < (
+             SELECT previous.period_revision FROM attendance_period_versions AS previous
+             WHERE previous.id = $4 AND previous.organization_id = $1 AND previous.year = $2 AND previous.month = $3
+           ))
+         ORDER BY version.period_revision DESC LIMIT $5`,
+        [actor.organizationId, year, month, after, limit + 1]
+      );
+      const items = result.rows.slice(0, limit).map((row) => ({
+        id: row.id, finalizedAt: row.finalized_at.toISOString(), periodRevision: row.period_revision
+      }));
+      const last = items.at(-1);
+      return { items, page: {
+        nextCursor: result.rows.length > limit && last ? encodeUuidCursor(last.id) : null,
+        total: null
+      } };
+    });
   }
 
   async startReview(actor: ActorContext, year: number, month: number, input: AttendancePeriodTransitionWrite,

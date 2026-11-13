@@ -127,6 +127,81 @@ test('radnik spremljen kroz UI odmah dolazi iz stvarnog API-ja i PostgreSQL baze
   expect(errors).toEqual([]);
 });
 
+test.describe('izvoz spremljene verzije mjeseca',()=>{
+  test.use({serviceWorkers:'block'});
+  test('izvoz u pregledniku traži izričit odabir starije spremljene verzije mjeseca',async({page},testInfo)=>{
+    const errors=trackErrors(page);
+    await login(page);
+    const month=String((testInfo.project.name==='desktop-chromium'?8:9)+2*testInfo.retry).padStart(2,'0');
+    const path=`/api/v1/attendance-periods/2032/${Number(month)}`;
+    const first=await page.evaluate(async path=>{
+      async function transition(action,revision){
+        const response=await fetch(`${path}/${action}`,{
+          method:'POST',headers:{'Content-Type':'application/json','If-Match':`"${revision}"`,'Idempotency-Key':crypto.randomUUID()},
+          body:JSON.stringify({reason:`Ogledni korak: ${action}`})
+        });
+        if(!response.ok)throw new Error(`Transition ${action} returned ${response.status}`);
+        return response.json();
+      }
+      const current=await fetch(path).then(response=>response.json());
+      const review=await transition('review',current.revision);
+      const first=await transition('finalize',review.revision);
+      const reopened=await transition('reopen',first.revision);
+      const nextReview=await transition('review',reopened.revision);
+      await transition('finalize',nextReview.revision);
+      return first.datasetVersion;
+    },path);
+
+    await page.evaluate(month=>{
+      window.navigate('reports');
+      document.querySelector('#reportMonth').value=`2032-${month}`;
+    },month);
+    await page.getByRole('button',{name:'Primijeni',exact:true}).click();
+    await expect(page.locator('.report-authoritative-preview')).toContainText(`2032-${month}-01`);
+    const versionPath=`${path}/versions`;
+    await page.route(`**${versionPath}?*`,route=>route.fulfill({status:503,json:{code:'UNAVAILABLE',message:'Testna nedostupnost'}}),{times:1});
+    await page.getByRole('button',{name:'Tehnički CSV'}).click();
+    const dialog=page.getByRole('dialog');
+    await dialog.getByLabel('Izvor podataka').selectOption('locked');
+    await expect(dialog.getByRole('status')).toContainText('Verzije nisu dostupne');
+    await expect(dialog.getByRole('button',{name:'Potvrdi i preuzmi'})).toBeDisabled();
+    await dialog.getByRole('button',{name:'Odustani'}).click();
+    await page.getByRole('button',{name:'Tehnički CSV'}).click();
+    await expect(dialog).toContainText('2032-'+month+'-01');
+    await expect(dialog.getByRole('combobox',{name:'Spremljena verzija',exact:true})).toBeHidden();
+    await dialog.getByLabel('Izvor podataka').selectOption('locked');
+    const versions=dialog.getByRole('combobox',{name:'Spremljena verzija',exact:true});
+    await expect(versions.locator('option')).toHaveCount(3);
+    await expect(versions.locator('option').nth(1)).toContainText('najnovija');
+    await expect(versions.locator('option').nth(2)).toContainText('ranija verzija');
+    const confirm=dialog.getByRole('button',{name:'Potvrdi i preuzmi'});
+    await expect(confirm).toBeDisabled();
+    await versions.selectOption(first);
+    await expect(confirm).toBeEnabled();
+    await dialog.getByLabel('Izvor podataka').selectOption('current');
+    await dialog.getByLabel('Izvor podataka').selectOption('locked');
+    await expect(confirm).toBeDisabled();
+    await versions.selectOption(first);
+    const overflow=await dialog.evaluate(element=>element.scrollWidth-element.clientWidth);
+    expect(overflow).toBeLessThanOrEqual(1);
+    expect((await new AxeBuilder({page}).include('#modal').withTags(['wcag2a','wcag2aa']).analyze()).violations
+      .filter(item=>['serious','critical'].includes(item.impact))).toEqual([]);
+    const exported=page.waitForResponse(response=>new URL(response.url()).pathname==='/api/v1/report-exports'&&response.request().method()==='POST');
+    const download=page.waitForEvent('download');
+    await confirm.click();
+    const response=await exported;
+    expect(response.status()).toBe(202);
+    expect(response.request().postDataJSON().periodVersionId).toBe(first);
+    expect((await response.json()).periodVersionId).toBe(first);
+    expect((await download).suggestedFilename()).toMatch(/\.csv$/);
+    const history=page.locator('.report-history');
+    await expect(history).toContainText(first);
+    await history.getByRole('button',{name:'Provjeri',exact:true}).first().click();
+    await expect(page.getByRole('dialog')).toContainText('Izvoz je provjeren');
+    expect(errors).toEqual([expect.stringMatching(new RegExp(`^response: 503 · .*${versionPath}\\?`))]);
+  });
+});
+
 async function assertTerminalReconciliationDetail(page){
   await page.evaluate(()=>{
     window.navigate('terminal');

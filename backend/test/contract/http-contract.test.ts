@@ -537,6 +537,21 @@ test("Backend MVP Phase B routes expose every operational flow with role and ori
   }
   const workerPeriod = await app.inject({ method: "GET", url: "/api/v1/attendance-periods/2026/7", cookies: session("worker") });
   assert.equal(workerPeriod.statusCode, 403);
+  for (const role of ["admin", "manager", "accountant", "worker"] as const) {
+    const versions = await app.inject({
+      method: "GET", url: "/api/v1/attendance-periods/2026/7/versions", cookies: session(role)
+    });
+    assert.equal(versions.statusCode, role === "worker" ? 403 : 200);
+    if (role !== "worker") {
+      assert.deepEqual(versions.json(), { items: [], page: { nextCursor: null, total: null } });
+      assert.equal(versions.headers["cache-control"], "no-store, private");
+    }
+  }
+  const invalidVersionLimit = await app.inject({
+    method: "GET", url: "/api/v1/attendance-periods/2026/7/versions?limit=201", cookies: session("admin")
+  });
+  assert.equal(invalidVersionLimit.statusCode, 422);
+
   const missingIdempotencyKey = await app.inject({
     method: "POST",
     url: "/api/v1/attendance-periods/2026/7/review",
@@ -713,7 +728,7 @@ test("all Backend MVP Phase B operations exist in OpenAPI and resolve to Fastify
     "listAttendance", "getWorkerAttendance", "recalculateAttendanceDay", "listApprovedLeaveCalendar",
     "listLeaveRequests", "createLeaveRequest", "listLeaveBalances", "approveLeaveRequest", "rejectLeaveRequest", "cancelOwnLeaveRequest",
     "listCorrectionRequests", "createCorrectionRequest", "approveCorrectionRequest", "rejectCorrectionRequest", "cancelOwnCorrectionRequest",
-    "getAttendancePeriod", "startAttendancePeriodReview", "finalizeAttendancePeriod", "closeAttendancePeriod", "reopenAttendancePeriod",
+    "getAttendancePeriod", "listAttendancePeriodVersions", "startAttendancePeriodReview", "finalizeAttendancePeriod", "closeAttendancePeriod", "reopenAttendancePeriod",
     "listReportExports", "createReportExport", "createReportPreview", "getReportExport", "downloadReportExport", "verifyReportExport",
     "listAuditEvents", "listTerminals", "pairTerminal", "revokeTerminal", "listTerminalSyncEvents",
     "ingestTerminalEventBatch", "terminalHeartbeat"
@@ -734,7 +749,7 @@ test("all Backend MVP Phase B operations exist in OpenAPI and resolve to Fastify
   }
   assert.deepEqual([...expected].filter((operation) => !actual.has(operation)), []);
   const metadata = (document as { info?: { version?: string; "x-bss-status"?: string } }).info;
-  assert.equal(metadata?.version, "1.7.0");
+  assert.equal(metadata?.version, "1.8.0");
   assert.equal(metadata?.["x-bss-status"], "MVP_IMPLEMENTED");
   assert.equal(document.paths["/terminal/v1/events/batch"]?.post?.operationId, "ingestTerminalEventBatch");
 });
@@ -832,8 +847,8 @@ test("OpenAPI v1 and the post-freeze screen map preserve ownership and explicit 
       .map(([, operation]) => operation.operationId)
       .filter((operationId): operationId is string => typeof operationId === "string")
   );
-  assert.equal(Object.keys(paths).length, 68);
-  assert.equal(operationIds.length, 81);
+  assert.equal(Object.keys(paths).length, 69);
+  assert.equal(operationIds.length, 82);
   assert.equal(new Set(operationIds).size, operationIds.length);
 
   const nonSessionOperations = new Set(["login", "refreshSession", "acceptInvitation", "ingestTerminalEventBatch", "terminalHeartbeat"]);
@@ -889,9 +904,9 @@ test("OpenAPI v1 and the post-freeze screen map preserve ownership and explicit 
     authority: "NOT_CURRENT_PRODUCT_AUTHORITY"
   });
   assert.equal(screenMap.repositoryBaseline, "bd376510d6bd11b588b65c8e37b3146d5de6ef2b");
-  assert.equal(screenMap.openapi.version, "1.7.0");
-  assert.equal(screenMap.openapi.paths, 68);
-  assert.equal(screenMap.openapi.operations, 81);
+  assert.equal(screenMap.openapi.version, "1.8.0");
+  assert.equal(screenMap.openapi.paths, 69);
+  assert.equal(screenMap.openapi.operations, 82);
   const canonicalOpenApiSource = source.replace(/\r\n/g, "\n");
   assert.equal(screenMap.openapi.sha256, createHash("sha256").update(canonicalOpenApiSource).digest("hex"));
   assert.deepEqual(screenMap.contractGatesBeforeDesignFoundationPhaseB, ["ISSUE_157_BSS_OS_REVIEW_AND_MERGE"]);
@@ -922,10 +937,10 @@ test("OpenAPI v1 and the post-freeze screen map preserve ownership and explicit 
   assert.equal(screenMap.screens.find((screen) => screen.id === "terminal")?.operations.includes("resolveTerminalEventReconciliation"), true);
   assert.equal(gapsById.has("terminal-credential-rotation"), false);
   assert.equal(screenMap.screens.find((screen) => screen.id === "terminal")?.operations.includes("rotateTerminalCredential"), true);
-  assert.deepEqual(gapsById.get("report-locked-version-selection")?.operations, ["getAttendancePeriod", "createReportExport"]);
+  assert.equal(gapsById.has("report-locked-version-selection"), false);
   const reportsOperations=screenMap.screens.find((screen) => screen.id === "reports")?.operations ?? [];
   assert.deepEqual(
-    ["getAttendancePeriod", "startAttendancePeriodReview", "finalizeAttendancePeriod", "closeAttendancePeriod", "reopenAttendancePeriod"]
+    ["getAttendancePeriod", "listAttendancePeriodVersions", "startAttendancePeriodReview", "finalizeAttendancePeriod", "closeAttendancePeriod", "reopenAttendancePeriod"]
       .filter((operationId) => !reportsOperations.includes(operationId)),
     []
   );

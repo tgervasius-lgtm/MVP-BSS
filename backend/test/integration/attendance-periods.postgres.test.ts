@@ -217,6 +217,8 @@ test("#146 PostgreSQL period lifecycle, RLS and correction/finalization/export c
 
   const open = await service.getAttendancePeriod(admin, 2030, 9);
   assert.equal(open.status, "open");
+  assert.deepEqual((await service.listAttendancePeriodVersions(admin, 2030, 9, undefined, 50)).items, []);
+  await assert.rejects(service.listAttendancePeriodVersions(worker, 2030, 9, undefined, 50), hasCode("FORBIDDEN"));
   assert.equal(open.revision, "0");
   assert.equal(open.unresolved.incomplete, 1);
   assert.equal((await service.getAttendancePeriod(managerA, 2030, 9)).unresolved.total, 0);
@@ -472,7 +474,27 @@ test("#146 PostgreSQL period lifecycle, RLS and correction/finalization/export c
   assert.equal(relockAudit?.before_json.datasetVersion, beforeRelock.datasetVersion);
   assert.equal(relockAudit?.after_json.datasetVersion, finalizedV2.datasetVersion);
   assert.ok(relockAudit && Number.isFinite(new Date(relockAudit.occurred_at).getTime()));
+  const newest = await service.listAttendancePeriodVersions(accountant, 2030, 9, undefined, 1);
+  assert.deepEqual(newest.items, [{
+    id: finalizedV2.datasetVersion, finalizedAt: newest.items[0]?.finalizedAt, periodRevision: finalizedV2.revision
+  }]);
+  assert.ok(Number.isFinite(Date.parse(newest.items[0]!.finalizedAt)));
+  assert.ok(newest.page.nextCursor);
+  const older = await service.listAttendancePeriodVersions(managerA, 2030, 9, newest.page.nextCursor, 50);
+  assert.equal(older.items.length, expectedVersionCount - 1);
+  assert.equal(older.items.at(-1)?.id, finalizedV1.datasetVersion);
+  assert.equal(older.page.nextCursor, null);
+  assert.deepEqual((await service.listAttendancePeriodVersions(otherTenantAdmin, 2030, 9, undefined, 50)).items, []);
+  assert.deepEqual((await service.listAttendancePeriodVersions(otherTenantAdmin, 2030, 9, newest.page.nextCursor, 50)).items, []);
+  assert.deepEqual((await service.listAttendancePeriodVersions(admin, 2030, 10, newest.page.nextCursor, 50)).items, []);
   const oldCsv = lockedArtifacts.get("csv")!;
+  const reexport = await service.createReportExport(admin, {
+    reportType: "attendance_journal", format: "csv", periodFrom: "2030-09-01", periodTo: "2030-09-30",
+    periodVersionId: older.items.at(-1)!.id
+  }, key("reexport-first-version"));
+  assert.equal(reexport.periodVersionId, finalizedV1.datasetVersion);
+  assert.equal(reexport.datasetChecksumSha256, finalizedV1.datasetChecksumSha256);
+  assert.equal((await service.downloadReportExport(admin, reexport.id)).checksumSha256, oldCsv.checksum);
   assert.equal((await service.downloadReportExport(admin, oldCsv.id)).checksumSha256, oldCsv.checksum);
   assert.equal((await service.verifyReportExport(admin, oldCsv.id)).verified, true);
 

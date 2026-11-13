@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: BSS MVP API
-  version: 1.7.0
+  version: 1.8.0
   summary: Implemented Backend MVP contract for the frozen BSS Frontend v1.0.0.
   description: |
     Implemented versioned contract for the functional Backend MVP; deployment remains a separate
@@ -1944,6 +1944,33 @@ paths:
           $ref: '#/components/responses/Unauthenticated'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+  /attendance-periods/{year}/{month}/versions:
+    get:
+      tags: [Reports]
+      operationId: listAttendancePeriodVersions
+      summary: List Saved Attendance Period Versions
+      description: Returns metadata for immutable versions of the tenant's selected month, newest first. Report export still applies the caller's effective data scope.
+      x-bss-roles: [admin, manager, accountant]
+      parameters:
+        - $ref: '#/components/parameters/PeriodYear'
+        - $ref: '#/components/parameters/PeriodMonth'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Saved version metadata. An unsaved month has an empty list.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AttendancePeriodVersionPage'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
         '429':
           $ref: '#/components/responses/RateLimited'
   /attendance-periods/{year}/{month}/review:
@@ -5060,6 +5087,29 @@ components:
           format: date-time
         lastReason:
           type: [string, 'null']
+    AttendancePeriodVersionPage:
+      type: object
+      additionalProperties: false
+      required: [items, page]
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [id, finalizedAt, periodRevision]
+            properties:
+              id:
+                type: string
+                format: uuid
+              finalizedAt:
+                type: string
+                format: date-time
+              periodRevision:
+                type: string
+                pattern: '^[0-9]{1,19}$'
+        page:
+          $ref: '#/components/schemas/PageMeta'
     ReportType:
       type: string
       enum: [monthly_summary, attendance_journal, exceptions, approved_absences, correction_log]

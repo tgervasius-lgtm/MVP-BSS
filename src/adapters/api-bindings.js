@@ -2,7 +2,6 @@
   'use strict';
 
   const apiRole={Administrator:'admin',Voditelj:'manager',Radnik:'worker',Knjigovođa:'accountant'};
-  const reportType={summary:'monthly_summary',attendance:'attendance_journal',exceptions:'exceptions',vacations:'approved_absences',corrections:'correction_log'};
   const typeCode={'Godišnji odmor':'annual_leave','Slobodan dan':'free_day'};
   const visibilityLabel={team:'Tim',department:'Odjel',organization:'Cijela organizacija'};
 
@@ -177,15 +176,17 @@
     await mutateApi(()=>BSS_API.post(`/correction-requests/${correction.apiId}/cancel`,undefined,revisionHeaders(correction.revision)),'Korekcija je poništena.');
   }
 
-  async function apiDownloadReport(format){
-    if(!['admin','manager','accountant'].includes(currentRole)||!['csv','xlsx','pdf'].includes(format))return;
-    reportFilters=normalizeReportFilters(reportFilters);const bounds=monthBounds(reportFilters.month),department=departmentByName(reportFilters.department),worker=reportFilters.workerId==='Svi'?null:workerById(reportFilters.workerId);
+  async function apiDownloadReport(input){
+    if(apiLoading||!logged||!['admin','manager','accountant'].includes(currentRole))return;
+    const {format,periodVersionId=null}=input;
     apiLoading=true;
     try{
-      let created=await BSS_API.post('/report-exports',{reportType:reportType[reportFilters.type],format,periodFrom:bounds.start,periodTo:bounds.end,departmentId:department?.apiId||null,workerId:worker?.apiId||null,attendanceStatus:null});
-      for(let attempt=0;created.status!=='ready'&&attempt<10;attempt+=1){await new Promise(resolve=>setTimeout(resolve,250));created=await BSS_API.get(`/report-exports/${created.id}`);}
+      let created=await BSS_API.post('/report-exports',input);
+      const exportPath=`/report-exports/${encodeURIComponent(created.id)}`;
+      for(let attempt=0;created.status!=='ready'&&attempt<10;attempt+=1){await new Promise(resolve=>setTimeout(resolve,250));created=await BSS_API.get(exportPath);}
       if(created.status!=='ready')throw new Error('Izvještaj još nije spreman za preuzimanje.');
-      const file=await BSS_API.download(created.downloadUrl||`/report-exports/${created.id}/download`);downloadBlob(file.blob,file.fileName);
+      if(created.periodVersionId!==periodVersionId)throw new Error('Izvezeni podaci ne odgovaraju odabranoj verziji.');
+      const file=await BSS_API.download(`${exportPath}/download`);downloadBlob(file.blob,file.fileName);
       await hydrateApi();render();toast(`${format.toUpperCase()} izvještaj je preuzet.`);
     }catch(error){apiError=apiMessage(error);render();toast(apiError);}
     finally{apiLoading=false;}
@@ -321,7 +322,13 @@
     baseOpenAttendanceRecord:root.openAttendanceRecord,
     baseApplyReportFilters:root.applyReportFilters
   });
-  root.BSSReportAuthority?.configure({apiMessage,getReportFilters:()=>reportFilters,setReportFilters:value=>{reportFilters=value;}});
+  root.BSSReportAuthority?.configure({
+    apiMessage,getReportFilters:()=>reportFilters,setReportFilters:value=>{reportFilters=value;},
+    listVersions:path=>BSS_API_STATE.getAllPages(BSS_API,path),
+    versionDate:value=>BSS_API_STATE.localDateTime(value,sessionContext?.organization?.timezone),
+    identity:()=>sessionContext,
+    downloadExport:apiDownloadReport
+  });
 
   root.BSSTerminalReconciliation?.configure({refresh:refreshApi});
 
@@ -359,7 +366,7 @@
     onboardingAction:(name,value)=>root.BSSOnboarding.action(name,value),
     login:apiLogin,acceptInvitation:apiAcceptInvitation,logout:apiLogout,openWorkerModal:apiOpenWorkerModal,saveWorker:apiSaveWorker,toggleWorkerActive:apiToggleWorker,toggleCard:apiToggleCard,
     saveShift:apiSaveShift,toggleShift:()=>toast('Smjena s povijesnim zapisima ne deaktivira se u MVP-u.'),submitVacationRequest:apiSubmitVacation,decideRequest:apiDecideRequest,cancelVacationRequest:apiCancelVacation,
-    submitCorrection:apiSubmitCorrection,updateCorrection:apiUpdateCorrection,cancelCorrection:apiCancelCorrection,reloadCorrections:()=>refreshApi('Statusi korekcija su osvježeni.'),downloadReport:apiDownloadReport,
+    submitCorrection:apiSubmitCorrection,updateCorrection:apiUpdateCorrection,cancelCorrection:apiCancelCorrection,reloadCorrections:()=>refreshApi('Statusi korekcija su osvježeni.'),downloadReport:root.BSSReportAuthority?.openExport,
     viewReports:root.BSSAttendanceLifecycle?.viewReports,
     setReportType:root.BSSReportAuthority?.setType||root.setReportType,
     applyReportFilters:root.BSSReportAuthority?.applyFilters||root.BSSAttendanceLifecycle?.applyReportFilters,
@@ -369,7 +376,6 @@
     openReportVerification:root.BSSReportAuthority?.openVerification,
     authoritativeReportPreviewHtml:root.BSSReportAuthority?.previewHtml,
     authoritativeReportMetricsHtml:root.BSSReportAuthority?.metricsHtml,
-    authoritativeReportHasRows:root.BSSReportAuthority?.hasRows,
     reportHistoryAuthorityAction:root.BSSReportAuthority?.historyAction,
     loadAttendancePeriod:root.BSSAttendanceLifecycle?.load,openPeriodTransition:root.BSSAttendanceLifecycle?.openTransition,submitPeriodTransition:root.BSSAttendanceLifecycle?.submitTransition,
     openAttendanceRecord:root.BSSAttendanceLifecycle?.openRecord,openAttendanceRecalculation:root.BSSAttendanceLifecycle?.openRecalculation,submitAttendanceRecalculation:root.BSSAttendanceLifecycle?.submitRecalculation,

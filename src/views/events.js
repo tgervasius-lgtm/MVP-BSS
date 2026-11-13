@@ -15,7 +15,7 @@
     'setSharedLeaveVisibility','setVacationDepartment','setWorkerDetailTab','setWorkerTab','showSharedLeaveDay','showVacationDay','simulateTerminalOffline',
     'startCorrectionFromRecord','submitCorrection','submitVacationRequest','switchRole','toggleAccessDepartmentFields',
     'toggleAccessUser','toggleCard','toggleDemoMode','toggleDepartment','toggleHoliday','toggleJobPosition','toggleShift',
-    'toggleTheme','toggleWorkerActive','updateCorrection','updateCorrectionPreview','updateReportDepartment',
+    'toggleTheme','toggleWorkerActive','updateCorrection','updateCorrectionPreview','updateReportDepartment','reloadReportPreview','verifyReportExport','openReportVerification',
     'openTerminalEvent','submitTerminalReconciliation','reloadTerminalEvents','reloadCorrections',
     'openTerminalRotation','submitTerminalRotation','changeTerminalRotationReason','revealTerminalCredential','copyTerminalCredential',
     'filterDocuments','reloadDocuments','moreDocuments','downloadDocument','openDocumentUpload','findDocumentRecipients','submitDocumentUpload','reviewDocument','confirmDocument',
