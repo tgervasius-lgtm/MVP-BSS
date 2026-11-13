@@ -4,7 +4,7 @@ Ovaj dokument je provjeren put od čistog klona do lokalnog BSS sustava. Fronten
 
 ## 1. Čisti lokalni start
 
-Preduvjeti su Git, Node.js 22.23.5 ili novije izdanje iz grane 22, npm 10+ i Docker s Compose podrškom. `.nvmrc` odabire glavnu verziju Nodea. Provjerite `node --version` prije instalacije ovisnosti. CI zasebno provjerava minimum 22.23.5 na Linuxu i podržano izdanje Nodea 22 na Windowsu.
+Preduvjeti su Git, Node.js 22.23.5 ili novije izdanje iz grane 22, npm 10+ i Docker s Compose podrškom. `.nvmrc` zadaje Node.js 22.23.5 za lokalni razvoj i izgradnju na Cloudflare Pagesu. Provjerite `node --version` prije instalacije ovisnosti. CI zasebno provjerava minimum 22.23.5 na Linuxu i podržano izdanje Nodea 22 na Windowsu.
 
 ```bash
 git clone https://github.com/tgervasius-lgtm/MVP-BSS.git
