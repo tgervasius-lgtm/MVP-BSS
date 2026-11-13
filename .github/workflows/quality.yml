@@ -106,7 +106,11 @@ jobs:
           BSS_E2E_FULLSTACK: "false"
 
       - name: Full-stack browser E2E and axe
-        run: npm run test:e2e -- --reporter=line
+        # Each viewport owns a backend lifecycle so shared loopback requests do not exhaust
+        # the other project's production-equivalent authentication and report limits.
+        run: |
+          npm run test:e2e -- --reporter=line --project=desktop-chromium
+          npm run test:e2e -- --reporter=line --project=mobile-chromium
         env:
           BSS_E2E_FULLSTACK: "true"
           BSS_E2E_BASE_URL: http://127.0.0.1:4173
