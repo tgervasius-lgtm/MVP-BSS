@@ -34,7 +34,9 @@ async function login(page){
   await page.goto('/');
   await page.locator('#loginEmail').fill(adminEmail);
   await page.locator('#loginPassword').fill(adminPassword);
+  const loginResponse=page.waitForResponse(response=>new URL(response.url()).pathname==='/api/v1/auth/login'&&response.request().method()==='POST');
   await page.getByRole('button',{name:'Prijavi se'}).click();
+  expect((await loginResponse).status(),'Testni administrator prijavljen kroz stvarni API').toBe(200);
   await expect(page.locator('#content .screen')).toBeVisible();
 }
 
@@ -150,8 +152,9 @@ test.describe('spremanje radnika i izvoz izvještaja',()=>{
       },path);
 
       await page.evaluate(()=>window.navigate('reports'));
-      await page.getByLabel('Mjesec — godina',{exact:true}).fill('2032');
-      await page.getByLabel('Mjesec — mjesec',{exact:true}).selectOption(month);
+      const filters=page.locator('.report-filter-bar');
+      await filters.getByLabel('Mjesec — godina',{exact:true}).fill('2032');
+      await filters.getByLabel('Mjesec — mjesec',{exact:true}).selectOption(month);
       const preview=page.waitForResponse(response=>new URL(response.url()).pathname==='/api/v1/report-previews'&&response.request().method()==='POST');
       await page.getByRole('button',{name:'Primijeni',exact:true}).click();
       expect((await preview).status()).toBe(200);
