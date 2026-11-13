@@ -1,5 +1,5 @@
 {
-  "contract": "BSS post-freeze frontend screen ownership to Backend MVP API v1.7",
+  "contract": "BSS post-freeze frontend screen ownership to Backend MVP API v1.8",
   "readiness": "RECONCILED_WITH_EXPLICIT_UI_GAPS",
   "contractReviewedAt": "2026-10-17",
   "contractReviewStatus": "H2_ONBOARDING_UI_IMPLEMENTATION_REVIEW_REQUIRED",
@@ -16,13 +16,13 @@
   "repositoryBaseline": "bd376510d6bd11b588b65c8e37b3146d5de6ef2b",
   "openapi": {
     "file": "openapi/bss-mvp-api-v1.yaml",
-    "sha256": "004ad25c38f8c974dcf82463e3e215140359553c947b1822bd031647437ab182",
-    "version": "1.7.0",
+    "sha256": "5fd925218197d5eee938c978c266abf85c14f3e8b274725f6a554e5ccaa5e97a",
+    "version": "1.8.0",
     "status": "MVP_IMPLEMENTED",
-    "paths": 68,
-    "operations": 81,
+    "paths": 69,
+    "operations": 82,
     "phaseAImplementedOperations": 30,
-    "phaseBImplementedOperations": 63
+    "phaseBImplementedOperations": 64
   },
   "statusLegend": {
     "current": "A registered current screen owns the listed operation family; this does not imply every Product Contract state or recovery path is implemented in UI.",
@@ -163,6 +163,7 @@
         "getReportExport",
         "downloadReportExport",
         "getAttendancePeriod",
+        "listAttendancePeriodVersions",
         "startAttendancePeriodReview",
         "finalizeAttendancePeriod",
         "closeAttendancePeriod",
@@ -170,7 +171,7 @@
         "createReportPreview",
         "verifyReportExport"
       ],
-      "note": "Attendance-period lifecycle, server-authoritative preview and stored export verification are implemented in API mode under server-enforced role/data scope. Explicit locked periodVersionId selection remains a separate boundary and is not claimed by this change."
+      "note": "Attendance-period lifecycle, server-authoritative preview and stored export verification are implemented in API mode under server-enforced role/data scope. Official locked export uses an explicitly selected saved periodVersionId with a separate confirmation and source in export history."
     },
     {
       "id": "terminal",
@@ -324,20 +325,6 @@
         "admin"
       ],
       "note": "H2-4a owns the three implemented onboarding operations. Full onboarding remains a contract-defined gap: no trusted operator/provisioning/profile promotion/independent verifier or go-live decision path. Synthetic UI/HTTP/PG proof cannot close customer/runtime acceptance."
-    },
-    {
-      "id": "report-locked-version-selection",
-      "status": "contract-defined-gap",
-      "operations": [
-        "getAttendancePeriod",
-        "createReportExport"
-      ],
-      "roles": [
-        "admin",
-        "manager",
-        "accountant"
-      ],
-      "note": "Existing API supports a named immutable periodVersionId; complete explicit selection for official export remains a separate UI gap. Report preview/verification completion does not close it."
     }
   ],
   "authorizationBoundary": {

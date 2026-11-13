@@ -3,6 +3,7 @@ import { AppError } from "../../domain/errors.js";
 import { requirePermission, requireRole } from "../../security/rbac.js";
 import type { AttendancePeriodTransitionWrite, MvpService } from "../../services/contracts.js";
 import type { Authenticate } from "../app.js";
+import { paginationSchema } from "../schema.js";
 
 type Dependencies = Readonly<{ mvpService: MvpService; authenticate: Authenticate }>;
 type PeriodParams = { year: number; month: number };
@@ -51,6 +52,20 @@ export function registerAttendancePeriodRoutes(app: FastifyInstance, dependencie
         const result = await service.getAttendancePeriod(actor, request.params.year, request.params.month);
         etag(reply, result.revision);
         return result;
+      }
+    );
+
+    app.get<{ Params: PeriodParams; Querystring: { cursor?: string; limit?: number } }>(
+      "/api/v1/attendance-periods/:year/:month/versions",
+      { config: { rateLimit: readRateLimit }, schema: {
+        params: periodParams,
+        querystring: { type: "object", additionalProperties: false, properties: paginationSchema }
+      } },
+      async (request) => {
+        const { actor } = await authenticate(request);
+        requirePermission(actor, "reports", "read");
+        return service.listAttendancePeriodVersions(actor, request.params.year, request.params.month,
+          request.query.cursor, request.query.limit ?? 50);
       }
     );
 

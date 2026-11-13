@@ -34,7 +34,9 @@ async function login(page){
   await page.goto('/');
   await page.locator('#loginEmail').fill(adminEmail);
   await page.locator('#loginPassword').fill(adminPassword);
+  const loginResponse=page.waitForResponse(response=>new URL(response.url()).pathname==='/api/v1/auth/login'&&response.request().method()==='POST');
   await page.getByRole('button',{name:'Prijavi se'}).click();
+  expect((await loginResponse).status(),'Testni administrator prijavljen kroz stvarni API').toBe(200);
   await expect(page.locator('#content .screen')).toBeVisible();
 }
 
@@ -101,30 +103,105 @@ test('stvarni PostgreSQL backend prijavljuje administratora i otvara svaki ugovo
 
 });
 
-test('radnik spremljen kroz UI odmah dolazi iz stvarnog API-ja i PostgreSQL baze',async({page},testInfo)=>{
-  const errors=trackErrors(page);
-  await login(page);
-  await page.evaluate(()=>window.navigate('workers'));
-  await page.getByRole('button',{name:'Dodaj radnika'}).click();
-  const suffix=`${testInfo.project.name.replace(/[^a-z]/gi,'').slice(0,8)}-${randomUUID().slice(0,8)}`;
-  const code=`E2E-${suffix}`;
-  const name=`E2E Radnik ${suffix}`;
-  await page.locator('#workerCode').fill(code);
-  await page.locator('#workerName').fill(name);
-  await page.locator('#workerEmail').fill(`${suffix.toLowerCase()}@example.test`);
-  await page.locator('#workerAllowance').fill('24');
-  await page.getByRole('button',{name:'Spremi'}).click();
-  await expect(page.locator('.workers-table')).toContainText(name);
+test.describe('spremanje radnika i izvoz izvještaja',()=>{
+  test.use({serviceWorkers:'block'});
+  test('stvarni API i PostgreSQL spremaju radnika i izvoze odabranu verziju mjeseca',async({page},testInfo)=>{
+    const errors=trackErrors(page);
+    await login(page);
+    await page.evaluate(()=>window.navigate('workers'));
+    await page.getByRole('button',{name:'Dodaj radnika'}).click();
+    const suffix=`${testInfo.project.name.replace(/[^a-z]/gi,'').slice(0,8)}-${randomUUID().slice(0,8)}`;
+    const code=`E2E-${suffix}`;
+    const name=`E2E Radnik ${suffix}`;
+    await page.locator('#workerCode').fill(code);
+    await page.locator('#workerName').fill(name);
+    await page.locator('#workerEmail').fill(`${suffix.toLowerCase()}@example.test`);
+    await page.locator('#workerAllowance').fill('24');
+    await page.getByRole('button',{name:'Spremi'}).click();
+    await expect(page.locator('.workers-table')).toContainText(name);
 
-  const stored=await page.evaluate(async expectedCode=>{
-    const response=await fetch('/api/v1/workers?limit=200',{credentials:'include'});
-    const body=await response.json();
-    return {status:response.status,worker:body.items.find(item=>item.code===expectedCode)};
-  },code);
-  expect(stored.status).toBe(200);
-  expect(stored.worker.name).toBe(name);
-  expect(stored.worker.annualLeaveAllowance).toBe(24);
-  expect(errors).toEqual([]);
+    const stored=await page.evaluate(async expectedCode=>{
+      const response=await fetch('/api/v1/workers?limit=200',{credentials:'include'});
+      const body=await response.json();
+      return {status:response.status,worker:body.items.find(item=>item.code===expectedCode)};
+    },code);
+    expect(stored.status).toBe(200);
+    expect(stored.worker.name).toBe(name);
+    expect(stored.worker.annualLeaveAllowance).toBe(24);
+    expect(errors).toEqual([]);
+
+    await test.step('Izvoz traži izričit odabir starije spremljene verzije mjeseca',async()=>{
+      const month=String((testInfo.project.name==='desktop-chromium'?8:9)+2*testInfo.retry).padStart(2,'0');
+      const path=`/api/v1/attendance-periods/2032/${Number(month)}`;
+      const first=await page.evaluate(async path=>{
+        async function transition(action,revision){
+          const response=await fetch(`${path}/${action}`,{
+            method:'POST',headers:{'Content-Type':'application/json','If-Match':`"${revision}"`,'Idempotency-Key':crypto.randomUUID()},
+            body:JSON.stringify({reason:`Ogledni korak: ${action}`})
+          });
+          if(!response.ok)throw new Error(`Transition ${action} returned ${response.status}`);
+          return response.json();
+        }
+        const current=await fetch(path).then(response=>response.json());
+        const review=await transition('review',current.revision);
+        const first=await transition('finalize',review.revision);
+        const reopened=await transition('reopen',first.revision);
+        const nextReview=await transition('review',reopened.revision);
+        await transition('finalize',nextReview.revision);
+        return first.datasetVersion;
+      },path);
+
+      await page.evaluate(()=>window.navigate('reports'));
+      const filters=page.locator('.report-filter-bar');
+      await filters.getByLabel('Mjesec — godina',{exact:true}).fill('2032');
+      await filters.getByLabel('Mjesec — mjesec',{exact:true}).selectOption(month);
+      const preview=page.waitForResponse(response=>new URL(response.url()).pathname==='/api/v1/report-previews'&&response.request().method()==='POST');
+      await page.getByRole('button',{name:'Primijeni',exact:true}).click();
+      expect((await preview).status()).toBe(200);
+      await expect(page.locator('.report-authoritative-preview')).toContainText(`2032-${month}-01`);
+      const versionPath=`${path}/versions`;
+      await page.route(`**${versionPath}?*`,route=>route.fulfill({status:503,json:{code:'UNAVAILABLE',message:'Testna nedostupnost'}}),{times:1});
+      await page.getByRole('button',{name:'Tehnički CSV'}).click();
+      const dialog=page.getByRole('dialog');
+      await dialog.getByLabel('Izvor podataka').selectOption('locked');
+      await expect(dialog.getByRole('status')).toContainText('Verzije nisu dostupne');
+      await expect(dialog.getByRole('button',{name:'Potvrdi i preuzmi'})).toBeDisabled();
+      await dialog.getByRole('button',{name:'Odustani'}).click();
+      await page.getByRole('button',{name:'Tehnički CSV'}).click();
+      await expect(dialog).toContainText('2032-'+month+'-01');
+      await expect(dialog.getByRole('combobox',{name:'Spremljena verzija',exact:true})).toBeHidden();
+      await dialog.getByLabel('Izvor podataka').selectOption('locked');
+      const versions=dialog.getByRole('combobox',{name:'Spremljena verzija',exact:true});
+      await expect(versions.locator('option')).toHaveCount(3);
+      await expect(versions.locator('option').nth(1)).toContainText('najnovija');
+      await expect(versions.locator('option').nth(2)).toContainText('ranija verzija');
+      const confirm=dialog.getByRole('button',{name:'Potvrdi i preuzmi'});
+      await expect(confirm).toBeDisabled();
+      await versions.selectOption(first);
+      await expect(confirm).toBeEnabled();
+      await dialog.getByLabel('Izvor podataka').selectOption('current');
+      await dialog.getByLabel('Izvor podataka').selectOption('locked');
+      await expect(confirm).toBeDisabled();
+      await versions.selectOption(first);
+      const overflow=await dialog.evaluate(element=>element.scrollWidth-element.clientWidth);
+      expect(overflow).toBeLessThanOrEqual(1);
+      expect((await new AxeBuilder({page}).include('#modal').withTags(['wcag2a','wcag2aa']).analyze()).violations
+        .filter(item=>['serious','critical'].includes(item.impact))).toEqual([]);
+      const exported=page.waitForResponse(response=>new URL(response.url()).pathname==='/api/v1/report-exports'&&response.request().method()==='POST');
+      const download=page.waitForEvent('download');
+      await confirm.click();
+      const response=await exported;
+      expect(response.status()).toBe(202);
+      expect(response.request().postDataJSON().periodVersionId).toBe(first);
+      expect((await response.json()).periodVersionId).toBe(first);
+      expect((await download).suggestedFilename()).toMatch(/\.csv$/);
+      const historyEntry=page.locator('.report-history-item').filter({hasText:first});
+      await expect(historyEntry).toHaveCount(1);
+      await historyEntry.getByRole('button',{name:'Provjeri',exact:true}).click();
+      await expect(page.getByRole('dialog')).toContainText('Izvoz je provjeren');
+      expect(errors).toEqual([expect.stringMatching(new RegExp(`^response: 503 · .*${versionPath}\\?`))]);
+    });
+  });
 });
 
 async function assertTerminalReconciliationDetail(page){

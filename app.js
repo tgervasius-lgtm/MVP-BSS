@@ -1656,7 +1656,7 @@ function reportPreview(data){
 }
 function reportHistoryView(){
   const history=(state.reportHistory||[]).slice(0,5);
-  return `<section class="card report-history"><div class="card-heading"><div><h2>Zadnje aktivnosti</h2></div></div>${history.map(item=>{const authorityAction=typeof globalThis.reportHistoryAuthorityAction==='function'?globalThis.reportHistoryAuthorityAction(item):'';return `<div class="report-history-item"><span class="report-history-icon">${item.format||'↻'}</span><div><b>${escapeHtml(item.action)}${item.format?` ${escapeHtml(item.format)}`:''} · ${escapeHtml(item.type)}</b><small>${escapeHtml(item.period)} · ${escapeHtml(item.scope)} · ${item.rows} redaka</small></div><div class="report-history-tail"><time>${escapeHtml(item.time)}</time>${authorityAction}</div></div>`;}).join('')||'<div class="empty-state compact">Još nema generiranih izvještaja.</div>'}</section>`;
+  return `<section class="card report-history"><div class="card-heading"><div><h2>Zadnje aktivnosti</h2></div></div>${history.map(item=>{const authorityAction=typeof globalThis.reportHistoryAuthorityAction==='function'?globalThis.reportHistoryAuthorityAction(item):'';return `<div class="report-history-item"><span class="report-history-icon">${item.format||'↻'}</span><div><b>${escapeHtml(item.action)}${item.format?` ${escapeHtml(item.format)}`:''} · ${escapeHtml(item.type)}</b><small>${escapeHtml(item.period)} · ${escapeHtml(item.scope)} · ${item.rows} redaka</small>${item.apiId? `<small>${item.periodVersionId?`Spremljena verzija · <span class="mono">${escapeHtml(item.periodVersionId)}</span>`:'Aktualni podaci'}</small>`:''}</div><div class="report-history-tail"><time>${escapeHtml(item.time)}</time>${authorityAction}</div></div>`;}).join('')||'<div class="empty-state compact">Još nema generiranih izvještaja.</div>'}</section>`;
 }
 function viewReports(){
   reportFilters=normalizeReportFilters(reportFilters);
@@ -1665,7 +1665,7 @@ function viewReports(){
     currentRole,reportFilters,scopedWorkers,data,REPORT_TYPE_CONFIG,state,title,escapeHtml,departmentOptions,reportPreview,reportHistoryView,
     authoritativePreviewHtml:typeof globalThis.authoritativeReportPreviewHtml==='function'?globalThis.authoritativeReportPreviewHtml():'',
     authoritativeMetricsHtml:typeof globalThis.authoritativeReportMetricsHtml==='function'?globalThis.authoritativeReportMetricsHtml():'',
-    authoritativeHasRows:typeof globalThis.authoritativeReportHasRows==='function'?globalThis.authoritativeReportHasRows():null
+    authoritativeExport:Boolean(globalThis.BSS_API_ACTIVE)
   });
 }
 function csvContent(data){

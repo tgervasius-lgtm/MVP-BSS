@@ -1448,7 +1448,7 @@ test('izbornik i modal podržavaju Escape, aria stanje i imenovani dijalog',()=>
 });
 
 test('contract gap #232 veže službeni report preview i export verification na postojeći API',()=>{
-  assert.match(reportAuthoritySource,/BSS_API\.post\('\/report-previews',body\)/);
+  assert.match(reportAuthoritySource,/BSS_API\.post\('\/report-previews',\{\.\.\.body,limit:100\}\)/);
   assert.match(reportAuthoritySource,/sameFilters\(result\.filters,body\)/);
   assert.match(reportAuthoritySource,/datasetVersion/);
   assert.match(reportAuthoritySource,/preview\.truncated/);
@@ -1502,6 +1502,71 @@ test('API izvještaj prikazuje hrvatska stanja i zadržava odbijanje neusklađen
   assert.match(authority.previewHtml(),/ne odgovara odabranim kriterijima/);
   assert.equal(authority.hasRows(),false);
   assert.equal(authority.metricsHtml(),'');
+});
+
+test('izvoz spremljenog mjeseca blokira nedostupnu verziju i prosljeđuje samo izričito odabrani ID',async()=>{
+  const {window}=new JSDOM('<div id="modal"></div>',{runScripts:'outside-only'});
+  const modal=window.document.querySelector('#modal');
+  const filters={type:'summary',month:'2026-07',department:'Svi',workerId:'Svi'};
+  const identity={};
+  const downloads=[];
+  let list=async()=>{throw new Error('unavailable');};
+  Object.assign(window,{
+    BSS_API_ACTIVE:true,currentRole:'accountant',
+    normalizeReportFilters:value=>value,
+    monthBounds:()=>({start:'2026-07-01',end:'2026-07-31'}),
+    REPORT_TYPE_CONFIG:{summary:{label:'Mjesečni sažetak'}},
+    reportScopeLabel:()=> 'Cijela tvrtka',
+    escapeHtml:String,$:selector=>window.document.querySelector(selector),
+    showModal:()=>modal.classList.add('open'),closeModal:()=>modal.classList.remove('open'),
+    toast:()=>{}
+  });
+  window.eval(reportAuthoritySource);
+  const authority=window.BSSReportAuthority;
+  authority.configure({
+    getReportFilters:()=>filters,setReportFilters:()=>{},
+    identity:()=>identity,listVersions:path=>list(path),versionDate:String,
+    downloadExport:input=>downloads.push(input)
+  });
+  const change=(id,value)=>{
+    const select=modal.querySelector(id);
+    select.value=value;
+    select.dispatchEvent(new window.Event('change'));
+  };
+  const selectLocked=async()=>{
+    change('#reportExportSource','locked');
+    await new Promise(resolve=>setImmediate(resolve));
+  };
+  const confirm=()=>modal.querySelector('#confirmReportExport');
+  authority.openExport('xlsx');
+  assert.equal(confirm().disabled,true);
+  await selectLocked();
+  assert.match(modal.textContent,/Verzije nisu dostupne/);
+  confirm().click();
+  assert.equal(downloads.length,0);
+
+  list=async path=>{
+    assert.equal(path,'/attendance-periods/2026/7/versions');
+    return {items:[{id:'new',finalizedAt:'2026-08-02',periodRevision:'5'},
+      {id:'old',finalizedAt:'2026-08-01',periodRevision:'2'}]};
+  };
+  authority.openExport('xlsx');
+  await selectLocked();
+  assert.equal(confirm().disabled,true);
+  assert.match(modal.querySelector('#reportExportVersion').options[1].text,/najnovija/);
+  change('#reportExportVersion','old');
+  assert.equal(confirm().disabled,false);
+  change('#reportExportSource','current');
+  await selectLocked();
+  assert.equal(confirm().disabled,true);
+  change('#reportExportVersion','old');
+  confirm().click();
+  assert.equal(downloads.length,1);
+  assert.equal(downloads[0].periodVersionId,'old');
+  assert.equal(downloads[0].periodFrom,'2026-07-01');
+  assert.equal(downloads[0].format,'xlsx');
+  assert.equal(modal.classList.contains('open'),false);
+  window.close();
 });
 
 test('contract gap #227 veže attendance lifecycle i recalculation na postojeći API bez role proširenja',()=>{
@@ -2554,7 +2619,7 @@ test('pregled, reporting profil i implementirani API v1.3 zaključavaju tabličn
   assert.doesNotMatch(apiContractDraft,/payroll-calculation|gps-tracking|door-access-control/i);
 });
 
-test('Frontend Freeze v1.0 ostaje baza, a Backend MVP ugovor je verzioniran na v1.7',()=>{
+test('Frontend Freeze v1.0 ostaje baza, a Backend MVP ugovor je verzioniran na v1.8',()=>{
   const baseline='91323c7cdbbbbf7b965c4926c94a11af6d31bf62';
   for(const document of [frontendRelease,frontendFinalReview,backendHandoff,reportingProfile,designSystemDoc,screenMap,apiContractDraft]){
     assert.match(document,new RegExp(baseline));
@@ -2569,9 +2634,9 @@ test('Frontend Freeze v1.0 ostaje baza, a Backend MVP ugovor je verzioniran na v
     assert.ok(screenMap.includes(`\`${id}\``),`Screen Map ne sadrži ${id}`);
   }
   const pathsSection=apiContractDraft.match(/^paths:\r?\n([\s\S]*?)^components:/m)?.[1]||'';
-  assert.equal((pathsSection.match(/^ {2}\/[^\n]+:/gm)||[]).length,68);
-  assert.equal((apiContractDraft.match(/^ {6}operationId:/gm)||[]).length,81);
-  assert.match(apiContractDraft,/version: 1\.7\.0/);
+  assert.equal((pathsSection.match(/^ {2}\/[^\n]+:/gm)||[]).length,69);
+  assert.equal((apiContractDraft.match(/^ {6}operationId:/gm)||[]).length,82);
+  assert.match(apiContractDraft,/version: 1\.8\.0/);
   assert.match(apiContractDraft,/x-bss-status: MVP_IMPLEMENTED/);
   assert.match(apiContractDraft,/x-bss-frontend-release: frontend-v1\.0\.0/);
   assert.match(frontendReleaseWorkflow,/branches: \[main\]/);

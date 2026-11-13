@@ -33,6 +33,7 @@ import { lockTerminalEventLifecycle } from "./terminal-event-lock.js";
 import type {
   AttendancePageView,
   AttendancePeriodTransitionWrite,
+  AttendancePeriodVersionView,
   AttendancePeriodView,
   AttendanceRecalculationView,
   AttendanceRecalculationWrite,
@@ -267,6 +268,11 @@ export class PgMvpService extends PgPhaseAService implements MvpService {
     this.attendanceCalculations = new PgAttendanceCalculationService(mvpPool, config.deviceCredentialEncryptionKey);
     this.attendancePeriods = new PgAttendancePeriodService(mvpPool);
     this.reports = new PgReportService(mvpPool);
+  }
+
+  listAttendancePeriodVersions(actor: ActorContext, year: number, month: number, cursor: string | undefined,
+    limit: number): Promise<Page<AttendancePeriodVersionView>> {
+    return this.attendancePeriods.listVersions(actor, year, month, cursor, limit);
   }
 
   async getAttendancePeriod(actor: ActorContext, year: number, month: number): Promise<AttendancePeriodView> {
