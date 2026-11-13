@@ -4,7 +4,7 @@ BSS je modularni monolit za evidenciju radnog vremena, RFID terminale, godišnje
 
 ## Tehnologije i granice
 
-- Node.js 22.9+, TypeScript 5, Fastify 5
+- Node.js 22.23.5+ (grana 22), TypeScript 5, Fastify 5
 - PostgreSQL 16, eksplicitni SQL, transakcije i `FORCE ROW LEVEL SECURITY`
 - REST `/api/v1`, OpenAPI 1.2.0 (44 putanje, 55 operacija)
 - browser sesije u `HttpOnly`, `SameSite=Strict`, produkcijski `Secure` kolačićima
@@ -26,7 +26,7 @@ BSS je modularni monolit za evidenciju radnog vremena, RFID terminale, godišnje
 
 ## Lokalno pokretanje
 
-Preduvjeti: Node.js 22.9+, npm 10+ i Docker Compose (ili vlastiti PostgreSQL 16).
+Preduvjeti su Node.js 22.23.5 ili novije izdanje iz grane 22, npm 10+ i Docker Compose (ili vlastiti PostgreSQL 16).
 
 ```bash
 nvm use
