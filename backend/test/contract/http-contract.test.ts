@@ -958,7 +958,7 @@ test("clean-clone developer setup is pinned, secret-safe and reproducible", asyn
   const backendPackage = JSON.parse(backendPackageSource) as PackageManifest;
   const compose = YAML.parse(composeSource) as { services?: Record<string, ComposeService> };
 
-  assert.equal(nodeVersion.trim(), "22");
+  assert.equal(nodeVersion.trim(), "22.23.5");
   assert.equal(rootPackage.engines?.node, ">=22.23.5");
   assert.equal(rootPackage.engines?.npm, ">=10.0.0");
   for (const script of ["dev", "migrate", "migrate:down", "migrate:prod", "bootstrap", "bootstrap:prod", "start"]) {
