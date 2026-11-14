@@ -39,6 +39,41 @@ async function upload(page,name,mimeType,buffer,format='csv'){
   await page.getByRole('button',{name:'Učitaj i provjeri datoteku',exact:true}).click();
   await wait(page,'2. Povežite stupce i vrijednosti');
 }
+async function verifyMappingPosition(page){
+  const viewport=page.viewportSize();
+  await page.setViewportSize({...viewport,height:600});
+  try{
+    const content=page.locator('#content');
+    const scrollToField=async field=>{
+      await field.scrollIntoViewIfNeeded();
+      await field.focus();
+      return content.evaluate(element=>element.scrollTop);
+    };
+    const verifyPosition=async(field,previousScroll)=>{
+      assert.ok(previousScroll>0,'Mapping field is below the initial viewport');
+      assert.equal(await field.evaluate(element=>element===element.ownerDocument.activeElement),true,'Mapping keeps focus on the active field');
+      assert.equal(await content.evaluate(element=>element.scrollTop),previousScroll,'Mapping keeps the current scroll position');
+    };
+
+    const name=page.locator('#import-column-1');
+    const nameScroll=await scrollToField(name);
+    await name.selectOption('name');
+    await verifyPosition(name,nameScroll);
+
+    await page.locator('#import-column-2').selectOption('department');
+    await page.locator('#import-column-3').selectOption('shift');
+    const department=page.locator('#import-department-0');
+    const departmentScroll=await scrollToField(department);
+    await department.selectOption({label:'Department'});
+    await verifyPosition(department,departmentScroll);
+
+    const shift=page.locator('#import-shift-0');
+    const shiftScroll=await scrollToField(shift);
+    await shift.press('ArrowDown');
+    assert.equal(await shift.locator('option:checked').textContent(),'Day');
+    await verifyPosition(shift,shiftScroll);
+  }finally{await page.setViewportSize(viewport);}
+}
 async function map(page,email=false){
   const fields=['code','name','department','shift','annualLeaveAllowance',...(email?['email']:[])];
   for(let i=0;i<fields.length;i++)await page.locator(`#import-column-${i}`).selectOption(fields[i]);
@@ -72,7 +107,9 @@ async function runViewport(browser,viewport){
     await page.evaluate(()=>window.navigate('workers'));
     await page.getByRole('button',{name:'Uvezi radnike',exact:true}).click();await wait(page,'1. Odaberite datoteku');
     await accessible(page);
-    await upload(page,'synthetic.csv','text/csv',Buffer.from(f.csv));await accessible(page);await map(page);
+    await upload(page,'synthetic.csv','text/csv',Buffer.from(f.csv));await accessible(page);
+    await verifyMappingPosition(page);await map(page);
+    assert.equal(await page.locator('#content').evaluate(element=>element.scrollTop),0,'Review opens at the start of the new step');
     await page.getByRole('button',{name:'Nastavi na potvrdu',exact:true}).click();await wait(page,'4. Potvrdite dodavanje radnika');
     assert.equal(await page.getByRole('button',{name:'Dodaj sve radnike',exact:true}).isEnabled(),false);
     await page.locator('#import-approval').focus();await page.keyboard.press('Space');
