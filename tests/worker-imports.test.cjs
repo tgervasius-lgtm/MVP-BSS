@@ -87,19 +87,21 @@ test('H2 UI: duplicate or missing source columns and every unbound reference blo
   f.controller.changeBinding('shift',0,shift);await f.controller.action('map');assert.equal(f.calls.filter(call=>call.method==='PATCH').length,1);
 });
 test('H2 UI: recognized Croatian headers and existing exact names can be filled without sending a request',async()=>{
-  const f=fixture({headers:['Šifra','Ime i prezime','Odjel','Smjena','Godišnji']});
-  f.setReadHook(path=>path==='/departments'?[{id:department,name:'Department',status:'active'}]:undefined);
-  await f.open();
-  assert.match(f.controller.view(),/Predloži povezivanje/);
-  await f.controller.action('suggest');
-  assert.deepEqual(f.controller.snapshot().mapping,{
-    columns:['code','name','department','shift','annualLeaveAllowance'],
-    departments:[{source:'Department',id:department}],shifts:[{source:'Day',id:shift}]
-  });
-  assert.equal(f.calls.some(call=>call.method==='PATCH'||call.method==='POST'),false);
-  await f.controller.action('map');
-  assert.equal(f.controller.snapshot().phase,'review');
-  assert.equal(f.calls.some(call=>call.path.endsWith('/commit')),false);
+  for(const name of ['Ime','Ime i prezime']){
+    const f=fixture({headers:['Šifra',name,'Odjel','Smjena','Godišnji']});
+    f.setReadHook(path=>path==='/departments'?[{id:department,name:'Department',status:'active'}]:undefined);
+    await f.open();
+    assert.match(f.controller.view(),/Predloži povezivanje/);
+    await f.controller.action('suggest');
+    assert.deepEqual(f.controller.snapshot().mapping,{
+      columns:['code','name','department','shift','annualLeaveAllowance'],
+      departments:[{source:'Department',id:department}],shifts:[{source:'Day',id:shift}]
+    });
+    assert.equal(f.calls.some(call=>call.method==='PATCH'||call.method==='POST'),false);
+    await f.controller.action('map');
+    assert.equal(f.controller.snapshot().phase,'review');
+    assert.equal(f.calls.some(call=>call.path.endsWith('/commit')),false);
+  }
 });
 test('H2 UI: suggestions preserve manual selections and leave ambiguous or unknown matches open',async()=>{
   const f=fixture({headers:['Šifra','Ime i prezime','Odjel','Smjena','Shift','Dodatno']});

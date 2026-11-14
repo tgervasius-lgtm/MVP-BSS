@@ -6,7 +6,7 @@
   const referenceKeys={department:'departments',shift:'shifts'};
   const columnAliases=new Map([
     ['sifra','code'],['sifra radnika','code'],['code','code'],
-    ['ime i prezime','name'],['name','name'],
+    ['ime i prezime','name'],['ime','name'],['name','name'],
     ['e-mail','email'],['email','email'],['e-mail (neobavezno)','email'],
     ['odjel','department'],['department','department'],
     ['smjena','shift'],['shift','shift'],
