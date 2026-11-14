@@ -111,6 +111,7 @@ export async function captureAttendancePeriodSnapshot(
      JOIN departments d ON d.id = COALESCE(event_scope.effective_department_id, assignment_scope.department_id, w.department_id)
      WHERE a.work_date BETWEEN $1::date AND $2::date
        AND a.status NOT IN ('active', 'incomplete')
+       AND a.check_in IS NOT NULL AND a.check_out IS NOT NULL
      ORDER BY a.work_date, w.code, a.id`,
     [bounds.from, bounds.to]
   );

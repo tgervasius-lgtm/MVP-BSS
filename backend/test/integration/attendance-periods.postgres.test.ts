@@ -4,8 +4,11 @@ import test from "node:test";
 import ExcelJS from "exceljs";
 import pg from "pg";
 import { migrateUp } from "../../src/db/migrate.js";
+import { withTenant } from "../../src/db/tenant.js";
 import type { ActorContext, Role } from "../../src/domain/types.js";
 import { PgMvpService } from "../../src/services/pg-mvp-service.js";
+import { resolveTerminalConfiguration } from "../../src/services/terminal-event-configuration.js";
+import { applyAttendanceEvent } from "../../src/services/terminal-event-reconciliation.js";
 import { createPostgresFixture } from "../helpers/postgres-fixture.js";
 
 // Keep this #146 fixture on PostgreSQL's calendar-date representation so the
@@ -480,4 +483,100 @@ test("#146 PostgreSQL period lifecycle, RLS and correction/finalization/export c
     { reason: "Close verified September period" }, finalizedV2.revision,
     key("close"), key("request-close"));
   assert.equal(closed.status, "closed");
+
+  await t.test("a stored late arrival without checkout blocks finalization until checkout", async () => {
+    const lateDay = (await owner.query<{ id: string }>(`
+      INSERT INTO attendance_days (
+        organization_id, worker_id, work_date, shift_snapshot, check_in,
+        break_minutes, worked_minutes, planned_minutes, status, calculation_version, configuration_snapshot
+      ) VALUES ($1, $2, '2030-10-10', $3::jsonb, '2030-10-10T06:20:00Z',
+        30, 0, 450, 'late', 'attendance-v1', $4::jsonb) RETURNING id`,
+    [ids.org1, ids.worker2, JSON.stringify({ id: ids.shift1, name: "Day shift", startTime: "08:00", endTime: "16:00", breakMinutes: 30 }),
+      completeConfiguration(ids.worker2)])).rows[0]!;
+
+    const octoberReview = await service.startAttendancePeriodReview(admin, 2030, 10,
+      { reason: "Review October attendance" }, "0", key("oct-review"), key("oct-review-request"));
+    const finalize = () => service.finalizeAttendancePeriod(admin, 2030, 10,
+      { reason: "Finalize October attendance" }, octoberReview.revision, key("oct-finalize"), key("oct-finalize-request"));
+    await assert.rejects(finalize(), hasCode("CONFLICT"));
+    assert.deepEqual(octoberReview.unresolved, {
+      active: 1, incomplete: 0, pendingCorrections: 0, reconciliationRequired: 0, total: 1
+    });
+    assert.equal((await service.getAttendancePeriod(managerA, 2030, 10)).unresolved.total, 0);
+    assert.equal((await service.getAttendancePeriod(managerB, 2030, 10)).unresolved.active, 1);
+    assert.equal((await service.getAttendancePeriod(accountant, 2030, 10)).unresolved.active, 1);
+    assert.equal((await service.getAttendancePeriod(otherTenantAdmin, 2030, 10)).unresolved.total, 0);
+    assert.equal((await owner.query("SELECT id FROM attendance_period_versions WHERE period_id = $1", [octoberReview.id])).rowCount, 0);
+
+    const checkedOutAt = "2030-10-10T14:00:00Z";
+    const checkout = await withTenant(appPool, admin, key("oct-checkout"), async (client) => {
+      const resolved = await resolveTerminalConfiguration(client, ids.worker2, checkedOutAt, checkedOutAt);
+      assert.equal(resolved.outcome, "accepted");
+      return applyAttendanceEvent(client, ids.org1, ids.worker2,
+        { eventType: "check_out", occurredAt: checkedOutAt }, resolved.configuration, resolved.interpretation);
+    });
+    assert.equal(checkout.status, "synced");
+    assert.equal(checkout.attendanceDayId, lateDay.id);
+    assert.equal((await service.getAttendancePeriod(admin, 2030, 10)).unresolved.total, 0);
+    const octoberFinalized = await finalize();
+    const octoberSnapshot = await owner.query<{
+      dataset_snapshot: { attendance: Array<{ status: string; checkOut: string; workedMinutes: number }> };
+    }>("SELECT dataset_snapshot FROM attendance_period_versions WHERE id = $1", [octoberFinalized.datasetVersion]);
+    const [attendance] = octoberSnapshot.rows[0]!.dataset_snapshot.attendance;
+    assert.equal(attendance?.status, "late");
+    assert.equal(attendance?.checkOut, "2030-10-10T14:00:00.000Z");
+    assert.equal(attendance?.workedMinutes, 430);
+
+    const octoberClosed = await service.closeAttendancePeriod(admin, 2030, 10,
+      { reason: "Close completed October attendance" }, octoberFinalized.revision,
+      key("oct-close"), key("oct-close-request"));
+    assert.equal(octoberClosed.status, "closed");
+  });
+
+  await t.test("an existing finalized month with an open day must be reopened before closing", async () => {
+    const novemberReview = await service.startAttendancePeriodReview(admin, 2030, 11,
+      { reason: "Review November attendance" }, "0", key("nov-review"), key("nov-review-request"));
+    const novemberFinalized = await service.finalizeAttendancePeriod(admin, 2030, 11,
+      { reason: "Finalize November attendance" }, novemberReview.revision,
+      key("nov-finalize"), key("nov-finalize-request"));
+
+    // Inject the inconsistent live state left by an earlier backend in this isolated fixture.
+    const openDay = (await owner.query<{ id: string }>(`INSERT INTO attendance_days (
+      organization_id, worker_id, work_date, shift_snapshot, check_in, planned_minutes, status, configuration_snapshot
+    ) VALUES ($1, $2, '2030-11-10', '{}', '2030-11-10T07:20:00Z', 450, 'late', $3::jsonb) RETURNING id`,
+    [ids.org1, ids.worker1, completeConfiguration(ids.worker1)])).rows[0]!;
+
+    await assert.rejects(service.closeAttendancePeriod(admin, 2030, 11,
+      { reason: "Reject closing with missing checkout" }, novemberFinalized.revision,
+      key("nov-close"), key("nov-close-request")), hasCode("CONFLICT"));
+    const blocked = await service.getAttendancePeriod(admin, 2030, 11);
+    assert.equal(blocked.status, "finalized");
+    assert.equal(blocked.revision, novemberFinalized.revision);
+    assert.equal(blocked.datasetVersion, novemberFinalized.datasetVersion);
+    assert.equal(blocked.datasetChecksumSha256, novemberFinalized.datasetChecksumSha256);
+    const novemberReopened = await service.reopenAttendancePeriod(admin, 2030, 11,
+      { reason: "Reopen to resolve missing checkout" }, blocked.revision,
+      key("nov-reopen"), key("nov-reopen-request"));
+    assert.equal(novemberReopened.status, "open");
+    assert.equal(novemberReopened.unresolved.active, 1);
+
+    const correction = await service.createCorrectionRequest(worker, {
+      attendanceDayId: openDay.id, newCheckIn: "2030-11-10T07:20:00Z", newCheckOut: "2030-11-10T15:00:00Z",
+      reason: "Confirm missing checkout in reopened month"
+    }, key("nov-correction"));
+    const decision = await service.approveCorrectionRequest(managerA, correction.id, correction.revision,
+      "Verified checkout", key("nov-correction-approval"));
+    assert.equal(decision.attendanceDay.status, "corrected");
+    const nextReview = await service.startAttendancePeriodReview(admin, 2030, 11,
+      { reason: "Review corrected November attendance" }, novemberReopened.revision,
+      key("nov-review-corrected"), key("nov-review-corrected-request"));
+    assert.equal(nextReview.unresolved.total, 0);
+    const nextFinalized = await service.finalizeAttendancePeriod(admin, 2030, 11,
+      { reason: "Finalize corrected November attendance" }, nextReview.revision,
+      key("nov-finalize-corrected"), key("nov-finalize-corrected-request"));
+    assert.notEqual(nextFinalized.datasetVersion, novemberFinalized.datasetVersion);
+    const oldVersion = await owner.query<{ dataset_checksum_sha256: string }>(
+      "SELECT dataset_checksum_sha256 FROM attendance_period_versions WHERE id = $1", [novemberFinalized.datasetVersion]);
+    assert.equal(oldVersion.rows[0]?.dataset_checksum_sha256, novemberFinalized.datasetChecksumSha256);
+  });
 });
