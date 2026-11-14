@@ -231,7 +231,8 @@ test('pomoć se skriva, pamti, ponovno otvara i vraća uz tipkovnicu',async({pag
   expect(errors).toEqual([]);
 });
 
-test('radnik nakon slanja odmah vidi potvrdu i status zahtjeva za odsutnost',async({page})=>{
+test('radnik nakon slanja odmah vidi potvrdu i status zahtjeva za odsutnost',async({page},testInfo)=>{
+  if(testInfo.project.use.isMobile)await page.setViewportSize({width:454,height:312});
   await loginAs(page,'worker');
   await page.locator('#content [data-bss-action="navigate(\'requests\')"]').click();
   await page.locator('#vacType').selectOption('Slobodan dan');
@@ -240,6 +241,12 @@ test('radnik nakon slanja odmah vidi potvrdu i status zahtjeva za odsutnost',asy
   const confirmation=page.locator('#submittedLeaveRequest');
   await expect(confirmation).toBeFocused();
   await expect(confirmation).toBeInViewport({ratio:1});
+  const confirmationIsUnobstructed=await confirmation.evaluate(element=>{
+    const details=element.querySelector('span');
+    return [...details.getClientRects()].every(({left,top,width,height})=>
+      details.contains(document.elementFromPoint(left+width/2,top+height/2)));
+  });
+  expect(confirmationIsUnobstructed).toBe(true);
   await expect(confirmation).toContainText(/Zahtjev je poslan.*Slobodan dan.*Na čekanju/);
   await expect(page.locator('tr.leave-request-row').filter({hasText:'Ogledni zahtjev'})).toHaveAttribute('data-status','Na čekanju');
 });
