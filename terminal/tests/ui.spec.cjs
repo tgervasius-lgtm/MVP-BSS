@@ -1,0 +1,30 @@
+const {test, expect} = require('@playwright/test');
+const AxeBuilder = require('@axe-core/playwright').default;
+
+test('800x480 terminal, keyboard capture, offline queue and accessibility', async ({page}) => {
+  const errors = [];
+  page.on('pageerror', error => errors.push(error.message));
+  await page.goto('/');
+  await expect(page.getByRole('button', {name:'Prisloni testnu karticu'})).toBeEnabled();
+  await page.getByRole('button', {name:'Isključi sinkronizaciju'}).click();
+  await expect(page.getByRole('button', {name:'Uključi sinkronizaciju'})).toBeVisible();
+  await page.getByRole('checkbox').check();
+  await page.getByRole('button', {name:'Dolazak', exact:true}).focus();
+  await page.keyboard.press('Enter');
+  await page.getByRole('button', {name:'Prisloni testnu karticu'}).click();
+  await expect(page.locator('#feedback')).toContainText('spremljen na uređaju');
+  await expect(page.locator('#queue')).toHaveText('Na čekanju: 1');
+  await page.getByRole('button', {name:'Odlazak', exact:true}).click();
+  await page.getByRole('button', {name:'Prisloni testnu karticu'}).click();
+  await expect(page.locator('#queue')).toHaveText('Na čekanju: 2');
+  await page.reload();
+  await expect(page.locator('#queue')).toHaveText('Na čekanju: 2');
+  const bounds = await page.locator('main').boundingBox();
+  expect(bounds.height).toBeLessThanOrEqual(480);
+  expect((await new AxeBuilder({page}).analyze()).violations).toEqual([]);
+  await page.locator('main').screenshot({path:'test-results/terminal/terminal-800x480.png'});
+  await page.setViewportSize({width:360,height:800});
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(360);
+  expect((await new AxeBuilder({page}).analyze()).violations).toEqual([]);
+  expect(errors).toEqual([]);
+});
