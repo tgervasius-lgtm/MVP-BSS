@@ -1038,6 +1038,7 @@ test('novi godišnji zahtjev provjerava budući datum, preklapanje i raspoloživ
   window.submitVacationRequest();
   assert.equal(state().requests.length,before);
   assert.match(document.querySelector('#toast').textContent,/preklapa/);
+  assert.equal(document.querySelector('#submittedLeaveRequest')?.hidden ?? true,true);
 
   document.querySelector('#vacStart').value='2026-08-10';
   document.querySelector('#vacEnd').value='2026-08-28';
@@ -1053,6 +1054,58 @@ test('novi godišnji zahtjev provjerava budući datum, preklapanje i raspoloživ
   assert.equal(state().requests.length,before+1);
   assert.equal(state().requests[0].status,'Na čekanju');
   assert.equal(window.businessDays(state().requests[0].start,state().requests[0].end),2);
+  const receipt=document.querySelector('#submittedLeaveRequest');
+  assert.ok(receipt && !receipt.hidden);
+  assert.match(receipt.textContent,/Zahtjev je poslan.*Slobodan dan.*05\.\s*08\..*09\.\s*08\..*Na čekanju/);
+  assert.equal(document.activeElement,receipt);
+});
+
+test('API potvrda prikazuje spremljeni zahtjev i uklanja filtre koji bi ga sakrili',async()=>{
+  const app=boot('worker');
+  const workerId='worker-test',requestId='leave-test';
+  const session={user:{id:'worker-user',role:'worker'},organization:{id:'org-test',name:'BSS test',timezone:'Europe/Zagreb'},effectiveScope:{selfWorkerId:workerId}};
+  const apiRequest={id:requestId,workerId,typeCode:'free_day',startDate:'2026-08-05',endDate:'2026-08-06',status:'pending'};
+  let saved=false,posts=0;
+  app.window.fetch=async(url,options={})=>{
+    const path=new URL(url,app.window.location.href).pathname;
+    if(options.method==='GET'){
+      const responses={
+        '/api/v1/me':session,
+        '/api/v1/holidays':[],
+        '/api/v1/departments':[],
+        '/api/v1/shifts':[],
+        '/api/v1/leave-requests':{items:saved?[apiRequest]:[]},
+        [`/api/v1/workers/${workerId}`]:{id:workerId,code:'R001',name:'Ogledni radnik',status:'active',annualLeaveAllowance:20}
+      };
+      return {ok:true,status:200,headers:new Headers(),json:async()=>responses[path]??{items:[]}};
+    }
+    assert.equal(path,'/api/v1/leave-requests');
+    assert.equal(options.method,'POST');
+    posts+=1;
+    if(posts===1)return {ok:false,status:422,json:async()=>({code:'VALIDATION_FAILED',message:'Provjeri datume.'})};
+    saved=true;
+    return {ok:true,status:201,json:async()=>apiRequest};
+  };
+  app.evaluate(fs.readFileSync('src/adapters/api-bindings.js','utf8'));
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(app.window.BSS_API_ACTIVE,true);
+  app.evaluate(`navigate('requests');requestStatusFilter='Odobreno';requestSearch='Stari zahtjev';render()`);
+  const setFields=()=>{
+    app.document.querySelector('#vacType').value='Slobodan dan';
+    app.document.querySelector('#vacStart').value=apiRequest.startDate;
+    app.document.querySelector('#vacEnd').value=apiRequest.endDate;
+  };
+  setFields();await app.window.submitVacationRequest();
+  assert.equal(app.document.querySelector('#submittedLeaveRequest').hidden,true);
+  assert.match(app.document.querySelector('#toast').textContent,/Provjeri datume/);
+  setFields();await app.window.submitVacationRequest();
+  const confirmation=app.document.querySelector('#submittedLeaveRequest');
+  assert.equal(posts,2);
+  assert.equal(confirmation.hidden,false);
+  assert.match(confirmation.textContent,/Slobodan dan.*Na čekanju/);
+  assert.equal(app.document.activeElement,confirmation);
+  assert.equal(app.document.querySelector('#requestSearch').value,'');
+  assert.equal(app.document.querySelector('tr.leave-request-row').dataset.status,'Na čekanju');
 });
 
 test('voditelj je ograničen na dodijeljene odjele',()=>{

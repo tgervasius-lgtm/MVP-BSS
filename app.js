@@ -1181,8 +1181,10 @@ function submitVacationRequest(){
   state.requests.unshift(request);
   const conflicts=teamConflicts(request).length;
   requestStatusFilter='Na čekanju';
+  requestSearch='';
   audit('Radnik',`Poslan zahtjev: ${worker.name} · ${rangeLabel(start,end)} · ${pluralDays(days)}.`,'Zahtjevi');
-  saveAndRender(conflicts?`Zahtjev je poslan. Postoji ${conflicts} preklapanje u odjelu.`:'Zahtjev je poslan voditelju.');
+  saveAndRender(conflicts?`Zahtjev je poslan. Postoji ${conflicts} preklapanje u odjelu.`:undefined);
+  BSS_VIEWS.approvalsOperational.showSubmittedLeaveRequest(request,rangeLabel);
 }
 function openRequestDecision(id){
   if(!['admin','manager'].includes(currentRole))return;

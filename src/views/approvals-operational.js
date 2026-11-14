@@ -11,6 +11,7 @@
     const subtitle=isWorker?'Statusi i povijest mojih zahtjeva.':'Odluke o odsutnosti u dopuštenom opsegu.';
     const queueCopy=isApprover?'<div class="approval-context"><b>Red čekanja za odluku</b><span>Preklapanje je signal za provjeru, ne automatska zabrana.</span></div>':'';
     return `${title(heading,subtitle)}
+      ${isWorker?'<div class="notice info" id="submittedLeaveRequest" tabindex="-1" hidden><strong>Zahtjev je poslan.</strong> <span></span></div>':''}
       ${queueCopy}
       <section class="card request-control-card approval-control">
         ${requestTabs(scoped)}
@@ -19,6 +20,19 @@
       <section class="card table-card approval-table-card"><div class="table-card-heading"><div><h2>Zahtjevi</h2><p>${isApprover?'Najprije riješi stavke na čekanju.':'Povijest zahtjeva i odluka.'}</p></div></div>${requestTable(requests,isApprover)}</section>
       ${isWorker?vacationRequestForm():''}
       <div class="btns approval-links"><button class="btn secondary" data-bss-action="navigate('vacations')">${isWorker?'Moj godišnji':'Godišnji'}</button><button class="btn secondary" data-bss-action="navigate('sharedLeave')">Kalendar</button></div>`;
+  }
+
+  function showSubmittedLeaveRequest({type,start,end,status},rangeLabel){
+    const confirmation=root.document.getElementById('submittedLeaveRequest');
+    if(!confirmation)return;
+    confirmation.querySelector('span').textContent=`${type} · ${rangeLabel(start,end)} · ${status}`;
+    confirmation.hidden=false;
+    const content=confirmation.closest('main');
+    content?.scrollBy?.({
+      top:confirmation.getBoundingClientRect().top-content.getBoundingClientRect().top-16,
+      behavior:'instant'
+    });
+    confirmation.focus({preventScroll:true});
   }
 
   function corrections(context){
@@ -51,7 +65,7 @@
       ${isWorker?correctionForm():''}`;
   }
 
-  const approvalsOperational=Object.freeze({metricStrip,requests,corrections});
+  const approvalsOperational=Object.freeze({metricStrip,requests,showSubmittedLeaveRequest,corrections});
   const views=Object.freeze({...root.BSSCore?.views,approvalsOperational});
   root.BSSCore=Object.freeze({...root.BSSCore,views});
 
