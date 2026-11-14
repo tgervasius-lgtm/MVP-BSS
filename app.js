@@ -1188,8 +1188,8 @@ function submitVacationRequest(){
   requestStatusFilter='Na čekanju';
   requestSearch='';
   audit('Radnik',`Poslan zahtjev: ${worker.name} · ${rangeLabel(start,end)} · ${pluralDays(days)}.`,'Zahtjevi');
-  if(screen!=='requests')navigate('requests');
-  saveAndRender(conflicts?`Zahtjev je poslan. Postoji ${conflicts} preklapanje u odjelu.`:undefined);
+  navigate('requests');
+  if(conflicts)toast(`Zahtjev je poslan. Postoji ${conflicts} preklapanje u odjelu.`);
   BSS_VIEWS.approvalsOperational.showSubmittedLeaveRequest(request,rangeLabel);
 }
 function openRequestDecision(id){
@@ -1663,8 +1663,7 @@ function reportPreview(data){
   return `<div class="card table-card report-preview"><div class="table-card-heading"><div><h2>${escapeHtml(data.title)}</h2></div>${pill(`${data.rows.length} redaka`)}</div><div class="table-wrap"><table class="report-table"><thead><tr>${data.headers.map(header=>`<th>${escapeHtml(header)}</th>`).join('')}</tr></thead><tbody>${data.rows.map(values=>`<tr>${values.map(value=>`<td>${escapeHtml(value)}</td>`).join('')}</tr>`).join('')||`<tr><td colspan="${data.headers.length}"><div class="empty-state">Nema podataka za odabrane kriterije.</div></td></tr>`}</tbody></table></div><div class="table-summary"><span>${escapeHtml(data.period)} · ${escapeHtml(data.scope)}</span><span>XLSX poslovni · CSV tehnički</span></div></div>`;
 }
 function reportHistoryView(){
-  const history=(state.reportHistory||[]).slice(0,5);
-  return `<section class="card report-history" tabindex="-1" aria-labelledby="reportHistoryTitle"><div class="card-heading"><div><h2 id="reportHistoryTitle">Zadnje aktivnosti</h2></div></div>${history.map(item=>{const authorityAction=typeof globalThis.reportHistoryAuthorityAction==='function'?globalThis.reportHistoryAuthorityAction(item):'';return `<div class="report-history-item"><span class="report-history-icon">${item.format||'↻'}</span><div><b>${escapeHtml(item.action)}${item.format?` ${escapeHtml(item.format)}`:''} · ${escapeHtml(item.type)}</b><small>${escapeHtml(item.period)} · ${escapeHtml(item.scope)} · ${item.rows} redaka</small></div><div class="report-history-tail"><time>${escapeHtml(item.time)}</time>${authorityAction}</div></div>`;}).join('')||'<div class="empty-state compact">Još nema generiranih izvještaja.</div>'}</section>`;
+  return BSS_VIEWS.reportsOperational.reportHistory(state.reportHistory||[],escapeHtml,globalThis.reportHistoryAuthorityAction);
 }
 function viewReports(){
   reportFilters=normalizeReportFilters(reportFilters);

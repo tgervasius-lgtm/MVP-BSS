@@ -148,7 +148,8 @@
     let saved,showConfirmation;
     await mutateApi(async()=>{
       saved=await BSS_API.post('/leave-requests',body);
-      if((showConfirmation=sameForm())){
+      showConfirmation=sameForm();
+      if(showConfirmation){
         screen='requests';requestStatusFilter=BSS_CONTRACTS.requestStatus.PENDING;requestSearch='';
       }
     },undefined,message=>sameForm()&&BSS_VIEWS.approvalsOperational.leaveRequestError(message));
