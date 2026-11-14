@@ -231,6 +231,19 @@ test('pomoć se skriva, pamti, ponovno otvara i vraća uz tipkovnicu',async({pag
   expect(errors).toEqual([]);
 });
 
+test('radnik nakon slanja odmah vidi potvrdu i status zahtjeva za odsutnost',async({page})=>{
+  await loginAs(page,'worker');
+  await page.locator('#content [data-bss-action="navigate(\'requests\')"]').click();
+  await page.locator('#vacType').selectOption('Slobodan dan');
+  await page.locator('#vacNote').fill('Ogledni zahtjev');
+  await page.getByRole('button',{name:'Pošalji zahtjev',exact:true}).click();
+  const confirmation=page.locator('#submittedLeaveRequest');
+  await expect(confirmation).toBeFocused();
+  await expect(confirmation).toBeInViewport({ratio:1});
+  await expect(confirmation).toContainText(/Zahtjev je poslan.*Slobodan dan.*Na čekanju/);
+  await expect(page.locator('tr.leave-request-row').filter({hasText:'Ogledni zahtjev'})).toHaveAttribute('data-status','Na čekanju');
+});
+
 test('korekcija traži obrazloženje i prikazuje odgovor radniku',async({page})=>{
   await loginAs(page,'admin');
   // This synthetic fixture belongs to the worker used in the second half.

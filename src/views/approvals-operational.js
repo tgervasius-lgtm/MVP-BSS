@@ -11,6 +11,7 @@
     const subtitle=isWorker?'Statusi i povijest mojih zahtjeva.':'Odluke o odsutnosti u dopuštenom opsegu.';
     const queueCopy=isApprover?'<div class="approval-context"><b>Red čekanja za odluku</b><span>Preklapanje je signal za provjeru, ne automatska zabrana.</span></div>':'';
     return `${title(heading,subtitle)}
+      ${isWorker?'<div class="notice info" id="submittedLeaveRequest" tabindex="-1" hidden><strong>Zahtjev je poslan.</strong> <span></span></div>':''}
       ${queueCopy}
       <section class="card request-control-card approval-control">
         ${requestTabs(scoped)}

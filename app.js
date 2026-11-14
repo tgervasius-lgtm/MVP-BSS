@@ -1158,6 +1158,14 @@ function viewRequests(){
     currentRole,isApprover,isWorker,scoped,requests,requestSearch,title,requestTabs,requestTable,vacationRequestForm,escapeHtml
   });
 }
+function showSubmittedLeaveRequest({type,start,end,status}){
+  const confirmation=$('#submittedLeaveRequest');
+  if(!confirmation)return;
+  confirmation.querySelector('span').textContent=`${type} · ${rangeLabel(start,end)} · ${status}`;
+  confirmation.hidden=false;
+  confirmation.scrollIntoView?.({behavior:'instant',block:'nearest'});
+  confirmation.focus({preventScroll:true});
+}
 function submitVacationRequest(){
   if(currentRole!=='worker')return;
   const worker=currentWorker(),type=$('#vacType').value,start=$('#vacStart').value,end=$('#vacEnd').value,note=$('#vacNote').value.trim();
@@ -1181,8 +1189,10 @@ function submitVacationRequest(){
   state.requests.unshift(request);
   const conflicts=teamConflicts(request).length;
   requestStatusFilter='Na čekanju';
+  requestSearch='';
   audit('Radnik',`Poslan zahtjev: ${worker.name} · ${rangeLabel(start,end)} · ${pluralDays(days)}.`,'Zahtjevi');
-  saveAndRender(conflicts?`Zahtjev je poslan. Postoji ${conflicts} preklapanje u odjelu.`:'Zahtjev je poslan voditelju.');
+  saveAndRender(conflicts?`Zahtjev je poslan. Postoji ${conflicts} preklapanje u odjelu.`:undefined);
+  showSubmittedLeaveRequest(request);
 }
 function openRequestDecision(id){
   if(!['admin','manager'].includes(currentRole))return;

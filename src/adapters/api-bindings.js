@@ -142,8 +142,22 @@
 
   async function apiSubmitVacation(){
     if(currentRole!=='worker')return;
-    const label=$('#vacType')?.value,body={typeCode:typeCode[label]||'annual_leave',startDate:$('#vacStart')?.value,endDate:$('#vacEnd')?.value,note:$('#vacNote')?.value.trim()||undefined};
-    await mutateApi(()=>BSS_API.post('/leave-requests',body),'Zahtjev je poslan voditelju.');
+    const type=$('#vacType')?.value,workerId=currentWorker().apiId;
+    const body={typeCode:typeCode[type]||'annual_leave',startDate:$('#vacStart')?.value,endDate:$('#vacEnd')?.value,note:$('#vacNote')?.value.trim()||undefined};
+    let saved;
+    await mutateApi(async()=>{
+      saved=await BSS_API.post('/leave-requests',body);
+      if(screen==='requests'&&currentWorker().apiId===workerId){
+        requestStatusFilter=BSS_CONTRACTS.requestStatus.PENDING;
+        requestSearch='';
+      }
+    });
+    if(!saved||currentRole!=='worker'||currentWorker().apiId!==workerId||screen!=='requests')return;
+    const request=state.requests.find(item=>item.apiId===saved.id);
+    showSubmittedLeaveRequest(request||{
+      type:BSS_API_STATE.leaveLabels[saved.typeCode]||type,
+      start:saved.startDate,end:saved.endDate,status:BSS_API_STATE.requestLabels[saved.status]
+    });
   }
   async function apiDecideRequest(id,status,noteOverride=''){
     const request=state.requests.find(item=>item.id===Number(id));if(!request||!['admin','manager'].includes(currentRole))return;
