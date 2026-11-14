@@ -1158,18 +1158,6 @@ function viewRequests(){
     currentRole,isApprover,isWorker,scoped,requests,requestSearch,title,requestTabs,requestTable,vacationRequestForm,escapeHtml
   });
 }
-function isWorkerViewingLeaveRequests(workerId){
-  return Boolean(workerId) && logged && screen==='requests'
-    && currentRole==='worker' && currentWorker().apiId===workerId;
-}
-function showSubmittedLeaveRequest({type,start,end,status}){
-  const confirmation=$('#submittedLeaveRequest');
-  if(!confirmation)return;
-  confirmation.querySelector('span').textContent=`${type} · ${rangeLabel(start,end)} · ${status}`;
-  confirmation.hidden=false;
-  confirmation.scrollIntoView?.({behavior:'instant',block:'nearest'});
-  confirmation.focus({preventScroll:true});
-}
 function submitVacationRequest(){
   if(currentRole!=='worker')return;
   const worker=currentWorker(),type=$('#vacType').value,start=$('#vacStart').value,end=$('#vacEnd').value,note=$('#vacNote').value.trim();
@@ -1196,7 +1184,7 @@ function submitVacationRequest(){
   requestSearch='';
   audit('Radnik',`Poslan zahtjev: ${worker.name} · ${rangeLabel(start,end)} · ${pluralDays(days)}.`,'Zahtjevi');
   saveAndRender(conflicts?`Zahtjev je poslan. Postoji ${conflicts} preklapanje u odjelu.`:undefined);
-  showSubmittedLeaveRequest(request);
+  BSS_VIEWS.approvalsOperational.showSubmittedLeaveRequest(request,rangeLabel);
 }
 function openRequestDecision(id){
   if(!['admin','manager'].includes(currentRole))return;

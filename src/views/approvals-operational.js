@@ -22,6 +22,15 @@
       <div class="btns approval-links"><button class="btn secondary" data-bss-action="navigate('vacations')">${isWorker?'Moj godišnji':'Godišnji'}</button><button class="btn secondary" data-bss-action="navigate('sharedLeave')">Kalendar</button></div>`;
   }
 
+  function showSubmittedLeaveRequest({type,start,end,status},rangeLabel){
+    const confirmation=root.document.getElementById('submittedLeaveRequest');
+    if(!confirmation)return;
+    confirmation.querySelector('span').textContent=`${type} · ${rangeLabel(start,end)} · ${status}`;
+    confirmation.hidden=false;
+    confirmation.scrollIntoView?.({behavior:'instant',block:'nearest'});
+    confirmation.focus({preventScroll:true});
+  }
+
   function corrections(context){
     const {currentRole,isWorker,isApprover,corrections,workerById,correctionValues,escapeHtml,isoLabel,pill,correctionForm,title}=context;
     const pending=corrections.filter(item=>item.status==='Na čekanju').length;
@@ -52,7 +61,7 @@
       ${isWorker?correctionForm():''}`;
   }
 
-  const approvalsOperational=Object.freeze({metricStrip,requests,corrections});
+  const approvalsOperational=Object.freeze({metricStrip,requests,showSubmittedLeaveRequest,corrections});
   const views=Object.freeze({...root.BSSCore?.views,approvalsOperational});
   root.BSSCore=Object.freeze({...root.BSSCore,views});
 
