@@ -1158,6 +1158,10 @@ function viewRequests(){
     currentRole,isApprover,isWorker,scoped,requests,requestSearch,title,requestTabs,requestTable,vacationRequestForm,escapeHtml
   });
 }
+function isWorkerViewingLeaveRequests(workerId){
+  return Boolean(workerId) && logged && screen==='requests'
+    && currentRole==='worker' && currentWorker().apiId===workerId;
+}
 function showSubmittedLeaveRequest({type,start,end,status}){
   const confirmation=$('#submittedLeaveRequest');
   if(!confirmation)return;

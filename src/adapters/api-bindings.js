@@ -147,12 +147,12 @@
     let saved;
     await mutateApi(async()=>{
       saved=await BSS_API.post('/leave-requests',body);
-      if(screen==='requests'&&currentWorker().apiId===workerId){
+      if(isWorkerViewingLeaveRequests(workerId)){
         requestStatusFilter=BSS_CONTRACTS.requestStatus.PENDING;
         requestSearch='';
       }
     });
-    if(!saved||currentRole!=='worker'||currentWorker().apiId!==workerId||screen!=='requests')return;
+    if(!saved||!isWorkerViewingLeaveRequests(workerId))return;
     const request=state.requests.find(item=>item.apiId===saved.id);
     showSubmittedLeaveRequest(request||{
       type:BSS_API_STATE.leaveLabels[saved.typeCode]||type,
