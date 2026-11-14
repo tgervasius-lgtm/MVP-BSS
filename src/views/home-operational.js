@@ -104,7 +104,7 @@
     const recorded=todayRecord?formatMinutes(recordMinutes(todayRecord,true)):'—';
     const pending=ownRequests.filter(request=>request.status==='Na čekanju').length;
     const shiftLabel=`${escapeHtml(shift?.name||'Bez smjene')} · ${escapeHtml(shift?.start||'—')} – ${escapeHtml(shift?.end||'—')}`;
-    return `${title(`Pozdrav, ${worker.name.split(' ')[0]}`,`Danas · ${shift?.name||'Bez smjene'}`,pill(worker.status))}
+    return `${title(`Pozdrav, ${worker.name.split(' ')[0]}`,`Danas · ${shift?.name||'Bez smjene'}`,pill(worker.status)+root.BSSCore.views.approvalsOperational.newRequestButton())}
       <div class="worker-home-workspace">
         <section class="card worker-today-card">
           <div class="worker-today-head"><div><span class="worker-kicker">Današnja evidencija</span><h2>${isPresent?'Radni dan je u tijeku':'Nema aktivne prijave'}</h2><p>${shiftLabel}</p></div><span class="worker-presence-dot ${isPresent?'online':''}" aria-hidden="true"></span></div>
@@ -124,8 +124,30 @@
   }
 
   function accountant(context){
-    const {minutes,lastReport,title,pill,formatMinutes,escapeHtml}=context;
-    return `${title('Početna','Pregled za knjigovodstvo.',pill('Samo čitanje'))}<section class="card accountant-home-card accountant-home-operational"><div><h2>Obračunski podaci</h2><button class="meta-line" data-bss-action="navigate('reports')"><span>Završeni sati u mjesecu</span><b>${formatMinutes(minutes)}</b></button><button class="meta-line" data-bss-action="navigate('reports')"><span>Posljednji izvoz</span><b>${escapeHtml(lastReport)}</b></button></div><div class="quick"><button data-bss-action="navigate('reports')"><b>Izvještaji</b><span>XLSX, PDF i tehnički CSV</span></button><button data-bss-action="navigate('sharedLeave')"><b>Kalendar</b><span>Samo odobrena razdoblja</span></button></div></section>`;
+    const {minutes,month,lastReport,title,pill,formatMinutes,escapeHtml}=context;
+    const items=[
+      {
+        key:'hours',label:'Završeni sati u mjesecu',value:minutes===null?month:formatMinutes(minutes),
+        action:'openMonthlyHoursReport()',destination:'Mjesečni izvještaj',hint:'Pregled evidentiranih sati za tekući mjesec.',
+        icon:'<circle cx="12" cy="12" r="8"/><path d="M12 7v5l3 2"/>'
+      },
+      {
+        key:'exports',label:'Posljednji izvoz',value:lastReport?`${lastReport.format} · ${lastReport.time}`:'Još nema izvoza',
+        action:'openReportHistory()',destination:'Povijest izvoza',hint:'Datoteke, razdoblja i statusi zadnjih izvoza.',
+        icon:'<path d="M7 3h7l4 4v14H7zM14 3v4h4M12.5 10v7m-2.5-2.5 2.5 2.5 2.5-2.5"/>'
+      }
+    ];
+    return `${title('Početna','Pregled za knjigovodstvo.',pill('Samo čitanje'))}
+      <section class="card accountant-home-operational"><h2>Obračunski podaci</h2>
+        <div class="accountant-actions">${items.map(({key,label,value,action,destination,hint,icon})=>`
+          <div class="accountant-action">
+            <button type="button" data-bss-action="${action}" aria-describedby="accountant-hint-${key}">
+              <span class="accountant-action-icon" aria-hidden="true"><svg viewBox="0 0 24 24">${icon}</svg></span>
+              <span class="accountant-action-copy"><span>${label}</span><strong>${escapeHtml(value)}</strong><span class="accountant-action-link">${destination} <span aria-hidden="true">→</span></span></span>
+            </button>
+            <span class="accountant-action-hint" id="accountant-hint-${key}">${hint}</span>
+          </div>`).join('')}</div>
+      </section>`;
   }
 
   const homeOperational=Object.freeze({admin,manager,worker,accountant});
