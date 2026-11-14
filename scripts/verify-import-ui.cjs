@@ -88,7 +88,14 @@ async function runViewport(browser,viewport){
     await page.getByRole('button',{name:'Otvori pripremu',exact:true}).click();await wait(page,'Radnici su dodani');
     await page.getByRole('button',{name:'Novi uvoz',exact:true}).click();await wait(page,'1. Odaberite datoteku');
     await upload(page,'synthetic.xlsx','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',Buffer.from(f.xlsx,'base64'),'xlsx');
-    await map(page,true);await accessible(page);await page.getByRole('button',{name:'Otkaži pripremu',exact:true}).click();await wait(page,'Otkazati pripremu?');
+    await page.getByRole('button',{name:'Predloži povezivanje',exact:true}).click();
+    assert.equal(await page.locator('#import-column-1').inputValue(),'name');
+    assert.equal(await page.locator('#import-column-5').inputValue(),'email');
+    assert.equal(await page.locator('#import-department-0 option:checked').textContent(),'Department');
+    assert.equal(await page.locator('#import-shift-0 option:checked').textContent(),'Day');
+    await page.getByRole('button',{name:'Provjeri cijeli popis',exact:true}).click();
+    await wait(page,'3. Pregledajte cijeli popis');
+    await accessible(page);await page.getByRole('button',{name:'Otkaži pripremu',exact:true}).click();await wait(page,'Otkazati pripremu?');
     await page.getByRole('button',{name:'Potvrdi otkazivanje',exact:true}).click();await wait(page,'Otkazano');
     assert.deepEqual(await fetch(`${f.origin}/__test/import-counts`).then(r=>r.json()),{workers:1,staging:0});
     await page.getByRole('button',{name:'Natrag na popis',exact:true}).click();await wait(page,'1. Odaberite datoteku');
