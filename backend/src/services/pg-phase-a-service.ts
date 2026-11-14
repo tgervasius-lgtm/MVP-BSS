@@ -8,6 +8,7 @@ import { createOpaqueToken, hashToken } from "../security/tokens.js";
 import { decodeTimelineCursor, decodeUuidCursor, encodeTimelineCursor, encodeUuidCursor } from "./cursors.js";
 import { normalizeDatabaseError } from "./database-errors.js";
 import { datasetVersion } from "./dataset-version.js";
+import { createLiveReportPreview } from "./report-dataset.js";
 import { terminalSyncHistorySelect, terminalSyncEventView, type TerminalSyncEventRow } from "./terminal-sync-event.js";
 import { lockTerminalEventLifecycle } from "./terminal-event-lock.js";
 import { requireBoundedDateRange, requireValidShiftWindow } from "./validation.js";
@@ -1096,6 +1097,9 @@ export class PgPhaseAService implements PhaseAService {
   async createReportPreview(actor: ActorContext, input: ReportPreviewWrite): Promise<ReportPreviewView> {
     requireRole(actor, ["admin", "manager", "accountant"]);
     requireBoundedDateRange(input.periodFrom, input.periodTo);
+    if (input.reportType === "correction_log") {
+      return withTenant(this.pool, actor, "report-preview", (client) => createLiveReportPreview(client, actor, input));
+    }
     return withTenant(this.pool, actor, "report-preview", async (client) => {
       const limit = input.limit ?? 100;
       const parameters = [
@@ -1179,7 +1183,7 @@ export class PgPhaseAService implements PhaseAService {
           { key: "plannedMinutes", label: "Planirano", dataType: "minutes" },
           { key: "balanceMinutes", label: "Saldo", dataType: "minutes" }
         ];
-      } else if (input.reportType === "approved_absences") {
+      } else {
         result = await client.query<PreviewRow>(
           `WITH rows AS (
              SELECT w.code AS "workerCode", w.name AS "workerName", l.leave_type AS "typeCode",
@@ -1204,32 +1208,6 @@ export class PgPhaseAService implements PhaseAService {
           { key: "endDate", label: "Do", dataType: "date" },
           { key: "workingDays", label: "Radnih dana", dataType: "integer" },
           { key: "status", label: "Status", dataType: "status" }
-        ];
-      } else {
-        result = await client.query<PreviewRow>(
-          `WITH rows AS (
-             SELECT w.code AS "workerCode", w.name AS "workerName", a.work_date AS "workDate",
-               c.status, c.created_at AS "requestedAt", c.reason, c.revision
-             FROM correction_requests c
-             JOIN attendance_days a ON a.id = c.attendance_day_id
-             JOIN workers w ON w.id = a.worker_id
-             WHERE c.created_at >= $1::date AND c.created_at < ($2::date + interval '1 day')
-               AND ($3::text <> 'manager' OR w.department_id = ANY($4::uuid[]))
-               AND ($5::uuid IS NULL OR w.department_id = $5)
-               AND ($6::uuid IS NULL OR w.id = $6)
-           )
-           SELECT rows.*, COUNT(*) OVER() AS __row_count, 0 AS __worked_minutes,
-             0 AS __planned_minutes, 0 AS __balance_minutes, COALESCE(MAX(revision) OVER(), 0) AS __revision
-           FROM rows ORDER BY "requestedAt", "workerCode" LIMIT $8`,
-          parameters
-        );
-        columns = [
-          { key: "workerCode", label: "Šifra", dataType: "text" },
-          { key: "workerName", label: "Radnik", dataType: "text" },
-          { key: "workDate", label: "Datum", dataType: "date" },
-          { key: "status", label: "Status", dataType: "status" },
-          { key: "requestedAt", label: "Zatraženo", dataType: "datetime" },
-          { key: "reason", label: "Razlog korekcije", dataType: "text" }
         ];
       }
 

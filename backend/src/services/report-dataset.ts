@@ -6,6 +6,17 @@ import type { AttendancePeriodSnapshot } from "./attendance-period-snapshot.js";
 import type { ReportPreviewView, ReportPreviewWrite } from "./contracts.js";
 
 type ReportRow = Record<string, string | number | Date | null>;
+const correctionColumns: ReportPreviewView["columns"] = [
+  { key: "workerCode", label: "Šifra", dataType: "text" }, { key: "workerName", label: "Radnik", dataType: "text" },
+  { key: "workDate", label: "Datum", dataType: "date" }, { key: "status", label: "Status", dataType: "status" },
+  { key: "requestedAt", label: "Zatraženo", dataType: "datetime" }
+];
+const reasonColumn = { key: "reason", label: "Razlog korekcije", dataType: "text" } as const;
+
+export function reportPrivacyProfile(reportType: ReportPreviewWrite["reportType"], actor: ActorContext) {
+  return reportType === "correction_log" && actor.role === "accountant" ? "accounting_minimized" : "full";
+}
+
 type PreviewRow = ReportRow & {
   __row_count: string | number;
   __worked_minutes: string | number;
@@ -164,10 +175,11 @@ export async function createLiveReportPreview(
       { key: "status", label: "Status", dataType: "status" }
     ];
   } else {
+    const detailed = reportPrivacyProfile(input.reportType, actor) === "full";
     rows = (await client.query<PreviewRow>(
       `WITH rows AS (
          SELECT w.code AS "workerCode", w.name AS "workerName", a.work_date AS "workDate", c.status,
-           c.created_at AS "requestedAt", c.reason, c.revision
+           c.created_at AS "requestedAt", ${detailed ? "c.reason, " : ""}c.revision
          FROM correction_requests c JOIN attendance_days a ON a.id = c.attendance_day_id
          JOIN workers w ON w.id = a.worker_id ${attendanceScopeJoins}
          WHERE a.work_date BETWEEN $1::date AND $2::date
@@ -176,12 +188,8 @@ export async function createLiveReportPreview(
            AND ($6::uuid IS NULL OR w.id = $6)
        ) SELECT rows.*, COUNT(*) OVER() AS __row_count, 0 AS __worked_minutes,
          0 AS __planned_minutes, 0 AS __balance_minutes, COALESCE(MAX(revision) OVER(), 0) AS __revision
-       FROM rows ORDER BY "requestedAt", "workerCode" LIMIT $8`, parameters)).rows;
-    columns = [
-      { key: "workerCode", label: "Šifra", dataType: "text" }, { key: "workerName", label: "Radnik", dataType: "text" },
-      { key: "workDate", label: "Datum", dataType: "date" }, { key: "status", label: "Status", dataType: "status" },
-      { key: "requestedAt", label: "Zatraženo", dataType: "datetime" }, { key: "reason", label: "Razlog korekcije", dataType: "text" }
-    ];
+       FROM rows ORDER BY "requestedAt", "workerCode" LIMIT $7`, [...parameters.slice(0, 6), limit + 1])).rows;
+    columns = detailed ? [...correctionColumns, reasonColumn] : correctionColumns;
   }
   return databasePreview(input, columns, rows, limit);
 }
@@ -250,12 +258,9 @@ export function createLockedReportPreview(
       { key: "status", label: "Status", dataType: "status" }
     ], rows, limit, periodVersionId);
   }
+  const detailed = reportPrivacyProfile(input.reportType, actor) === "full";
   const rows = scoped(snapshot.corrections, actor, input).map((row) => ({ workerCode: row.workerCode,
     workerName: row.workerName, workDate: row.workDate, status: row.status,
-    requestedAt: row.requestedAt, reason: row.reason }));
-  return finish(input, [
-    { key: "workerCode", label: "Šifra", dataType: "text" }, { key: "workerName", label: "Radnik", dataType: "text" },
-    { key: "workDate", label: "Datum", dataType: "date" }, { key: "status", label: "Status", dataType: "status" },
-    { key: "requestedAt", label: "Zatraženo", dataType: "datetime" }, { key: "reason", label: "Razlog korekcije", dataType: "text" }
-  ], rows, limit, periodVersionId);
+    requestedAt: row.requestedAt, ...(detailed ? { reason: row.reason } : {}) }));
+  return finish(input, detailed ? [...correctionColumns, reasonColumn] : correctionColumns, rows, limit, periodVersionId);
 }
