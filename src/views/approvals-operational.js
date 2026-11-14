@@ -27,7 +27,11 @@
     if(!confirmation)return;
     confirmation.querySelector('span').textContent=`${type} · ${rangeLabel(start,end)} · ${status}`;
     confirmation.hidden=false;
-    confirmation.scrollIntoView?.({behavior:'instant',block:'nearest'});
+    const content=confirmation.closest('main');
+    content?.scrollBy?.({
+      top:confirmation.getBoundingClientRect().top-content.getBoundingClientRect().top-16,
+      behavior:'instant'
+    });
     confirmation.focus({preventScroll:true});
   }
 
