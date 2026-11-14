@@ -794,6 +794,23 @@ test('Radnici operational lista skriva RFID iz glavne tablice ali ga zadržava u
   assert.match(document.querySelector('#content').textContent,/RFID UID/);
 });
 
+test('Popis radnika prikazuje izvornu šifru i razlikuje API zapis bez šifre od demo identifikatora',()=>{
+  const {table}=require('../src/views/workers-operational.js');
+  const worker={id:42,name:'Ogledni radnik',email:'',dept:'Odjel',shiftId:1,active:true,status:'Odsutan'};
+  const escapeHtml=value=>String(value).replaceAll('<','&lt;').replaceAll('>','&gt;');
+  const result=new JSDOM(table([
+    {...worker,apiId:'worker-with-code',code:'00<A>'},
+    {...worker,apiId:'worker-without-code',code:''},
+    {...worker,jobTitle:'Operater'}
+  ],{shiftById:()=>null,escapeHtml,pill:()=>''})).window.document;
+  const [imported,unresolved,demo]=result.querySelectorAll('tbody tr');
+  assert.equal(imported.cells[0].textContent,'00<A>');
+  assert.equal(imported.cells[3].textContent,'—');
+  assert.equal(unresolved.cells[0].textContent,'—');
+  assert.equal(demo.cells[0].textContent,'R-042');
+  assert.equal(demo.cells[3].textContent,'Operater');
+});
+
 test('navigacija je grupirana i prikazuje brojače otvorenih stavki',()=>{
   const {document} = boot('admin');
   const groups=new Set([...document.querySelectorAll('#drawer .nav-group-label')].map(item=>item.textContent));
