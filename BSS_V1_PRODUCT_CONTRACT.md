@@ -4,6 +4,7 @@
 | --- | --- |
 | Verzija ugovora | `1.0` |
 | Status | **ACCEPTED / FROZEN** |
+| Dopuna 1.1 | §7.1 · owner decision accepted 14.11.2026. · repository review and implementation pending |
 | Datum zamrzavanja | 01.09.2026. |
 | Vlasnik odluke | Tomislav Bognar / BSS |
 | Owner approval | **EXPLICIT — `ODOBRAVAM FREEZE BSS v1 PRODUCT CONTRACT`** |
@@ -196,6 +197,20 @@ Period lifecycle is `OPEN -> REVIEW -> FINALIZED -> CLOSED`. Only Admin transiti
 9. A retroactive request may follow the authorized workflow only while its affected attendance period is `OPEN`. If the affected period is `FINALIZED` or `CLOSED`, Admin must first complete the governed reopen path before approval, recalculation or refinalization may affect that period. Prior finalized datasets and issued artifacts remain immutable.
 10. Knjigovodstvo sees approved requests for reporting with notes minimized, not pending/rejected/cancelled private workflow detail.
 11. The shared calendar exposes only employee name plus approved `annual_leave` dates within the configured visibility; it never exposes illness, reasons, notes, balances or other private absence data.
+
+### 7.1 Amendment 1.1 — annual leave with insufficient allowance
+
+**Owner decision accepted on 14.11.2026. Repository review and implementation pending.** This amendment supersedes the rejection on submission for this case and qualifies the reservation and decision rules in §7.5 and §7.7. The merged HTTP contract describes the running behavior until the implementation is reviewed and delivered. [BSS OS decision, v69](https://chatgpt.com/library?file_id=libfile_d4e54ebc983c8191bd461208981f4a8c&account_id=personal).
+
+1. Radnik may submit an otherwise valid own annual-leave request when the explicit annual allowance covers fewer days than requested. Show the shortfall before submission and while the request is pending. Seven requested and five available displays “Nedostaju 2 dana”. Calculate and reserve the covered working days separately for each affected calendar year.
+2. Covered days are reserved atomically while the request is pending. Recheck the allowance, existing reservations and request revision during submission and decision. Cancellation or rejection releases the reservation. Parallel requests must not reserve the same availability twice. The annual balance cannot become negative.
+3. A scoped Voditelj confirms timing and reviews department overlaps. Only an Admin authorized for exceptions may document the basis, dates and reason for the uncovered days. Ordinary approval authority alone cannot resolve the shortfall. The final decision must respect the existing tenant and attendance-period boundaries.
+4. Uncovered days may be charged to annual leave only after the corresponding additional entitlement is formally entered. If company policy provides another basis, use the applicable supported absence type on the specified dates. Require the employee to confirm a change in terms. An unresolved request cannot be approved in full. The employee can instead choose the five covered days, subject to normal validation. Never apply an automatic negative balance or consume overtime automatically.
+5. When approval becomes possible, convert the active reservation to the approved annual-leave charge exactly once and record each date under the resolved type. Persist the decision and applicable employee confirmation in the restricted audit trail. Approved leave maintains the existing disclosure rules for payroll/reporting and the shared calendar.
+
+**Acceptance evidence.** Exercise the 7/5 case under parallel submission and retry, cancellation/rejection and balance release, competing decision revisions, a cross-year request, a closed period, out-of-scope actors, both documented exception paths and the covered-only path. Verify committed allowance and dates against PostgreSQL, audit and the approved-absence report. Confirm the worker sees the shortfall and the approved dates/types.
+
+**Implementation and recovery boundary.** This amendment affects worker and approver UX, reservations and decision persistence, authorization/audit, OpenAPI and absence reporting. It does not change the terminal contract. Preserve existing requests and approvals during migration. After the new workflow starts writing requests, recovery must preserve and reconcile live reservations and decisions before older application code can process them.
 
 ## 8. Correction workflow contract
 
