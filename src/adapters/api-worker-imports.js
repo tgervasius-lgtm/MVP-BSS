@@ -4,6 +4,16 @@
   const templates=typeof module==='object'&&module.exports?module.require('../views/worker-imports.js'):root.BSSCore.views.workerImports;
   const {fields,stamp,renderView}=templates;
   const referenceKeys={department:'departments',shift:'shifts'};
+  const columnAliases=new Map([
+    ['sifra','code'],['sifra radnika','code'],['code','code'],
+    ['ime i prezime','name'],['ime','name'],['name','name'],
+    ['e-mail','email'],['email','email'],['e-mail (neobavezno)','email'],
+    ['odjel','department'],['department','department'],
+    ['smjena','shift'],['shift','shift'],
+    ['godisnji','annualLeaveAllowance'],['dani godisnjeg odmora','annualLeaveAllowance'],['days','annualLeaveAllowance']
+  ]);
+  const headerKey=value=>value.trim().normalize('NFD').replace(/\p{M}/gu,'').toLowerCase().replace(/\s+/g,' ');
+  const referenceName=value=>value.trim().normalize('NFC');
   const terminal=new Set(['COMMITTED','CANCELLED','EXPIRED','FAILED']);
   const uuid=/^[a-f0-9]{8}-[a-f0-9]{4}-[1-5][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i;
   const checksum=/^[a-f0-9]{64}$/;
@@ -156,6 +166,26 @@
       if(Object.keys(fields).filter(field=>field!=='email').some(field=>!columns.includes(field)))return false;
       return ['department','shift'].every(referenceComplete);
     }
+    function suggestMapping(){
+      if(model.phase!=='mapping'||!model.complete||model.intent)return;
+      const {columns}=model.mapping;
+      const candidates=model.headers.map(header=>columnAliases.get(headerKey(header)));
+      model.mapping.columns=columns.map((selected,index)=>{
+        const field=candidates[index];
+        const unique=candidates.indexOf(field)===candidates.lastIndexOf(field);
+        return selected||(field&&unique&&!columns.includes(field)?field:'');
+      });
+      for(const [field,key] of Object.entries(referenceKeys)){
+        const bindings=model.mapping[key],bound=new Set(bindings.map(binding=>binding.source));
+        for(const source of values(field)){
+          if(bound.has(source))continue;
+          const matches=model[key].filter(item=>referenceName(item.name)===referenceName(source));
+          if(matches.length===1)bindings.push({source,id:matches[0].id});
+        }
+      }
+      model.approval=null;
+      notify();
+    }
     function changeColumn(index,value){
       if(model.busy||model.phase!=='mapping'||!Number.isInteger(index)||index<0||index>=model.headers.length||!Object.hasOwn(fields,value)&&value!=='')return;
       const previous=model.mapping.columns[index];model.mapping.columns[index]=value;model.approval=null;
@@ -280,7 +310,7 @@
     function newUpload(){if(model.busy||model.intent)return;
         clearRows();model.session=null;model.result=null;model.phase='list';model.file=null;model.notice='';void load();}
     function action(name,value){
-      const commands={load,more,reload,recover,retryCommit,upload,map,commit,cancel,new:newUpload,list:inspectList,
+      const commands={load,more,reload,recover,retryCommit,upload,map,commit,cancel,suggest:suggestMapping,new:newUpload,list:inspectList,
         resume:()=>resume(String(value)),approve:chooseApproval,
         mapping:()=>{if(!model.busy&&!model.intent){model.approval=null;model.phase='mapping';notify();}},
         review:()=>{model.approval=null;model.phase='review';notify();},

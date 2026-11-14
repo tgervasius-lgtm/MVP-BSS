@@ -69,8 +69,9 @@
   function mappingView(model,helpers){
     const columns=model.headers.map((header,index)=>mappingColumn(model,header,index)).join('');
     const references=['department','shift'].map(field=>bindingGroup(model,helpers,field)).join('');
+    const suggest=button('suggest','Predloži povezivanje',{secondary:true,disabled:model.busy||!model.complete||Boolean(model.intent)});
     const actions=button('map','Provjeri cijeli popis',{disabled:model.busy||!helpers.mappingComplete})+button('cancelAsk','Otkaži pripremu',{secondary:true,disabled:model.busy});
-    return `<section class="card"><h2>2. Povežite stupce i vrijednosti</h2><p>Svaki izvorni stupac povežite točno jednom. Odjele i smjene povežite s postojećim vrijednostima tvrtke, bez automatskih zamjena.</p><div class="form form-grid">${columns}</div><div class="form import-bindings">${references}</div>${actions}</section>`;
+    return `<section class="card"><h2>2. Povežite stupce i vrijednosti</h2><p>Predloženo povezivanje popunjava prepoznate stupce te odjele i smjene s istim nazivom u tvrtki. Provjerite prijedloge i popunite preostala polja.</p>${suggest}<div class="form form-grid">${columns}</div><div class="form import-bindings">${references}</div>${actions}</section>`;
   }
   const issueMessages={TEXT_REQUIRED:'Unesite tekstualnu vrijednost.',EXPLICIT_ALLOWANCE_REQUIRED:'Unesite cijeli broj od 0 do 366.',REFERENCE_MAPPING_REQUIRED:'Povežite vrijednost s postojećim aktivnim odjelom ili smjenom.',INVALID_WORKER_FIELDS:'Provjerite oblik i duljinu podataka radnika.',REFERENCE_INACTIVE:'Odabrani odjel ili smjena više nije aktivna.',REFERENCE_MISSING:'Odabrani odjel ili smjena više ne postoji.',DUPLICATE_IN_FILE:'Vrijednost se ponavlja u datoteci. Unesite jedinstvenu vrijednost.',DUPLICATE_IN_TENANT:'Vrijednost već postoji u tvrtki. Uvoz ne mijenja postojeće radnike.'};
   function previewValue(model,raw,field,index){
