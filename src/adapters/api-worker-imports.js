@@ -336,6 +336,8 @@
   root.document?.addEventListener('change',event=>{
     const input=event.target;if(!input?.closest?.('.worker-import')||!input.dataset.importInput)return;
     const focusId=input.id,kind=input.dataset.importInput;
+    const content=input.closest('#content');
+    const scrollTop=content?.scrollTop??0;
     if(kind==='file')instance.chooseFile(input.files?.[0]||null);
     else if(kind==='format')instance.selectFormat(input.value);
     else if(kind==='delimiter')instance.selectDelimiter(input.value);
@@ -343,7 +345,12 @@
     else if(kind==='binding')instance.changeBinding(input.dataset.field,Number(input.dataset.index),input.value);
     else if(kind==='approval')instance.approve(input.checked);
     else if(kind==='errors')instance.filterErrors(input.checked);
-    if(focusId)root.document.getElementById(focusId)?.focus();
+    const updatedContent=root.document.getElementById('content');
+    if(content&&updatedContent&&content!==updatedContent){
+      updatedContent.querySelector('.screen')?.classList.add('screen-without-transition');
+      updatedContent.scrollTo({top:scrollTop,behavior:'instant'});
+    }
+    if(focusId)root.document.getElementById(focusId)?.focus({preventScroll:true});
   });
   if(typeof module==='object'&&module.exports)module.exports={createController,renderView};
 })(typeof globalThis==='object'?globalThis:window);
