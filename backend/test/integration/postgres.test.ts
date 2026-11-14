@@ -416,6 +416,23 @@ test("PostgreSQL migrations, RLS isolation, auth and manager scope", { skip: !da
   assert.equal(report.totals.workedMinutes, 450);
   assert.equal(report.rows[0]?.workerCode, "A-1");
 
+  await t.test("approved absence preview and export use the same filtered dataset", async () => {
+    const filters = {
+      reportType: "approved_absences",
+      periodFrom: "2026-01-01",
+      periodTo: "2026-12-31",
+      workerId: ids.worker1
+    } as const;
+    const preview = await service.createReportPreview(admin.actor, { ...filters, limit: 1 });
+    assert.equal(preview.totals.rowCount, 1);
+    assert.equal(preview.rows[0]?.workingDays, 2);
+
+    const exported = await service.createReportExport(admin.actor, { ...filters, format: "csv" }, "approved-absences-csv");
+    assert.equal(exported.rowCount, preview.totals.rowCount);
+    const artifact = await service.downloadReportExport(admin.actor, exported.id);
+    assert.match(artifact.content.toString("utf8"), /^A-1;/m);
+  });
+
   const dashboard = await service.getDashboardSummary(admin.actor, "2026-07-13");
   assert.ok(dashboard.kpis.length <= 4);
   assert.equal(dashboard.kpis.find((item) => item.id === "present")?.value, 1);

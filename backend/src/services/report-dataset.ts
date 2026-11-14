@@ -156,7 +156,7 @@ export async function createLiveReportPreview(
            AND ($5::uuid IS NULL OR w.department_id = $5) AND ($6::uuid IS NULL OR w.id = $6)
        ) SELECT rows.*, COUNT(*) OVER() AS __row_count, 0 AS __worked_minutes,
          0 AS __planned_minutes, 0 AS __balance_minutes, COALESCE(MAX(revision) OVER(), 0) AS __revision
-       FROM rows ORDER BY "startDate", "workerCode" LIMIT $8`, parameters)).rows;
+       FROM rows ORDER BY "startDate", "workerCode" LIMIT $7`, [...parameters.slice(0, 6), limit + 1])).rows;
     columns = [
       { key: "workerCode", label: "Šifra", dataType: "text" }, { key: "workerName", label: "Radnik", dataType: "text" },
       { key: "typeCode", label: "Vrsta", dataType: "text" }, { key: "startDate", label: "Od", dataType: "date" },
