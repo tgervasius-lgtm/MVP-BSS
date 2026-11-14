@@ -108,10 +108,13 @@ test('H2 UI: revision-bound approval is unchecked after remapping and double sub
 });
 test('H2 UI: uncertain commit reads back durable result without new POST or duplicate identity',async()=>{
   const f=fixture();await f.open();await f.map();await f.approve();
+  let refreshes=0;
+  f.setRefreshHook(()=>{refreshes+=1;});
   f.setCommitHook(()=>{f.setSession({state:'COMMITTED'});f.setResult({createdCount:201});throw problem(0);});
   await f.controller.action('commit');assert.equal(f.controller.snapshot().phase,'uncertain');assert.equal(f.controller.snapshot().sourceRows.length,0);
   const metadata=[...f.saved.values()].join('');assert.doesNotMatch(metadata,/Synthetic Person|Department|IM-0|rows|name/);
   await f.controller.action('recover');assert.equal(f.controller.snapshot().phase,'result');assert.equal(f.controller.snapshot().result.createdCount,201);
+  assert.equal(refreshes,1);
   assert.equal(f.calls.filter(call=>call.path.endsWith('/commit')).length,1);assert.equal(f.saved.size,0);
 });
 test('H2 UI: explicit retry after fresh read-back uses the identical key/revision/checksum',async()=>{
