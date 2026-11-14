@@ -20,6 +20,12 @@ export async function createPostgresFixture(databaseUrl: string, label: string, 
   const admin = new Client({ connectionString: databaseUrl, connectionTimeoutMillis: 5_000, statement_timeout: 30_000 });
   const owner = new Client({ connectionString: ownerUrl.toString(), connectionTimeoutMillis: 5_000, statement_timeout: 30_000 });
   const appPool = new Pool({ connectionString: appUrl.toString(), max: poolMax, connectionTimeoutMillis: 5_000, statement_timeout: 30_000 });
+  const clientDisconnects = new Set<Promise<void>>();
+  appPool.on("connect", (client) => {
+    const disconnected = new Promise<void>((resolve) => { client.once("end", resolve); });
+    clientDisconnects.add(disconnected);
+    void disconnected.then(() => clientDisconnects.delete(disconnected));
+  });
   let databaseCreated = false;
   let roleCreated = false;
   let disposal: Promise<void> | undefined;
@@ -28,7 +34,11 @@ export async function createPostgresFixture(databaseUrl: string, label: string, 
     disposal ??= (async () => {
       const errors: unknown[] = [];
       const steps = [
-        () => appPool.end(),
+        async () => {
+          await appPool.end();
+          // Pool bookkeeping can finish before idle clients close their sockets.
+          await Promise.all(clientDisconnects);
+        },
         () => owner.end(),
         async () => {
           if (databaseCreated) await admin.query(`DROP DATABASE IF EXISTS ${databaseName} WITH (FORCE)`);
