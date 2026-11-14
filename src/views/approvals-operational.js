@@ -6,11 +6,11 @@
   }
 
   function requests(context){
-    const {currentRole,isApprover,isWorker,scoped,requests,requestSearch,title,requestTabs,requestTable,vacationRequestForm,escapeHtml}=context;
+    const {currentRole,isApprover,isWorker,scoped,requests,requestSearch,title,requestTabs,requestTable,escapeHtml}=context;
     const heading=isWorker?'Moji zahtjevi':currentRole==='manager'?'Zahtjevi mojeg tima':'Zahtjevi za odsutnost';
     const subtitle=isWorker?'Statusi i povijest mojih zahtjeva.':'Odluke o odsutnosti u dopuštenom opsegu.';
     const queueCopy=isApprover?'<div class="approval-context"><b>Red čekanja za odluku</b><span>Preklapanje je signal za provjeru, ne automatska zabrana.</span></div>':'';
-    return `${title(heading,subtitle)}
+    return `${title(heading,subtitle,isWorker?newRequestButton():'')}
       ${isWorker?'<div class="notice info" id="submittedLeaveRequest" tabindex="-1" hidden><strong>Zahtjev je poslan.</strong> <span></span></div>':''}
       ${queueCopy}
       <section class="card request-control-card approval-control">
@@ -18,8 +18,35 @@
         <div class="request-search"><input id="requestSearch" aria-label="Traži zahtjeve" placeholder="Ime, odjel, vrsta ili napomena" value="${escapeHtml(requestSearch)}"><button class="btn" data-bss-action="applyRequestSearch()">Traži</button><button class="btn secondary" data-bss-action="clearRequestFilters()">Očisti</button></div>
       </section>
       <section class="card table-card approval-table-card"><div class="table-card-heading"><div><h2>Zahtjevi</h2><p>${isApprover?'Najprije riješi stavke na čekanju.':'Povijest zahtjeva i odluka.'}</p></div></div>${requestTable(requests,isApprover)}</section>
-      ${isWorker?vacationRequestForm():''}
       <div class="btns approval-links"><button class="btn secondary" data-bss-action="navigate('vacations')">${isWorker?'Moj godišnji':'Godišnji'}</button><button class="btn secondary" data-bss-action="navigate('sharedLeave')">Kalendar</button></div>`;
+  }
+
+  function newRequestButton(){
+    return '<button class="btn" type="button" aria-haspopup="dialog" data-bss-action="openVacationRequest()">Novi zahtjev</button>';
+  }
+
+  function leaveRequestDialog({from,to,max,available,preview}){
+    return `<div class="modal-card leave-form-card">
+      <div class="modal-head"><div><h2>Novi zahtjev</h2><p class="small-muted">Raspoloživi godišnji odmor: ${available} dana.</p></div><button class="close-btn" type="button" aria-label="Zatvori novi zahtjev" data-bss-action="closeModal()">×</button></div>
+      <div class="form form-grid">
+        <label>Vrsta<select id="vacType" data-bss-change="updateVacationRequestPreview()"><option>Godišnji odmor</option><option>Slobodan dan</option></select></label>
+        <label>Od<input id="vacStart" type="date" min="${from}" max="${max}" value="${from}" data-bss-change="updateVacationRequestPreview()"></label>
+        <label>Do<input id="vacEnd" type="date" min="${from}" max="${max}" value="${to}" data-bss-change="updateVacationRequestPreview()"></label>
+        <label class="leave-form-note">Napomena za organizaciju rada<textarea id="vacNote" rows="3" placeholder="Bez privatnih ili zdravstvenih podataka"></textarea></label>
+      </div>
+      <div id="vacRequestPreview" class="leave-request-preview" aria-live="polite">${preview}</div>
+      <p id="vacRequestError" class="notice danger" role="alert" hidden></p>
+      <div class="btns"><button class="btn" type="button" data-bss-action="submitVacationRequest()">Pošalji zahtjev</button><button class="btn secondary" type="button" data-bss-action="closeModal()">Odustani</button></div>
+    </div>`;
+  }
+
+  function leaveRequestError(message){
+    const error=root.document.querySelector('#modal.open #vacRequestError');
+    if(!error)return false;
+    error.hidden=false;
+    error.textContent=message;
+    error.scrollIntoView?.({block:'nearest'});
+    return true;
   }
 
   function showSubmittedLeaveRequest({type,start,end,status},rangeLabel){
@@ -65,7 +92,7 @@
       ${isWorker?correctionForm():''}`;
   }
 
-  const approvalsOperational=Object.freeze({metricStrip,requests,showSubmittedLeaveRequest,corrections});
+  const approvalsOperational=Object.freeze({metricStrip,requests,newRequestButton,leaveRequestDialog,leaveRequestError,showSubmittedLeaveRequest,corrections});
   const views=Object.freeze({...root.BSSCore?.views,approvalsOperational});
   root.BSSCore=Object.freeze({...root.BSSCore,views});
 

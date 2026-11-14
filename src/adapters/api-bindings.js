@@ -47,7 +47,7 @@
       render();toast(apiError);return false;
     }
   }
-  async function mutateApi(action,message){
+  async function mutateApi(action,message,onError){
     if(apiLoading)return false;
     apiLoading=true;apiError='';
     try{
@@ -56,7 +56,7 @@
     }catch(error){
       apiError=apiMessage(error);
       if(error?.status===401){logged=false;state=createApiState();screen='home';}
-      render();toast(apiError);return false;
+      if(error?.status===401||!onError?.(apiError)){render();toast(apiError);}return false;
     }finally{apiLoading=false;}
   }
 
@@ -141,19 +141,19 @@
   }
 
   async function apiSubmitVacation(){
-    if(currentRole!=='worker')return;
-    const type=$('#vacType')?.value,workerId=currentWorker().apiId;
-    const onWorkerRequests=()=>workerId&&currentWorker().apiId===workerId&&$('#submittedLeaveRequest');
+    const form=$('#modal.open .leave-form-card'),workerId=currentWorker().apiId;
+    if(currentRole!=='worker'||!form||!workerId)return;
+    const type=$('#vacType').value,sameForm=()=>form===$('#modal.open .leave-form-card')&&currentWorker().apiId===workerId;
     const body={typeCode:typeCode[type]||'annual_leave',startDate:$('#vacStart')?.value,endDate:$('#vacEnd')?.value,note:$('#vacNote')?.value.trim()||undefined};
-    let saved;
+    let saved,showConfirmation;
     await mutateApi(async()=>{
       saved=await BSS_API.post('/leave-requests',body);
-      if(onWorkerRequests()){
-        requestStatusFilter=BSS_CONTRACTS.requestStatus.PENDING;
-        requestSearch='';
+      showConfirmation=sameForm();
+      if(showConfirmation){
+        screen='requests';requestStatusFilter=BSS_CONTRACTS.requestStatus.PENDING;requestSearch='';
       }
-    });
-    if(!saved||!onWorkerRequests())return;
+    },undefined,message=>sameForm()&&BSS_VIEWS.approvalsOperational.leaveRequestError(message));
+    if(!saved||!showConfirmation||!$('#submittedLeaveRequest')||currentWorker().apiId!==workerId)return;
     const request=state.requests.find(item=>item.apiId===saved.id)||{type,start:saved.startDate,end:saved.endDate,status:BSS_API_STATE.requestLabels[saved.status]};
     BSS_VIEWS.approvalsOperational.showSubmittedLeaveRequest(request,rangeLabel);
   }

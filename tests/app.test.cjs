@@ -1007,7 +1007,7 @@ test('radnik vidi vlastiti fond i poništavanjem vraća rezervirane dane',()=>{
   window.navigate('requests');
   assert.equal(document.querySelectorAll('.requests-table .leave-request-row').length,4);
   assert.equal(document.querySelector('.request-summary-card'),null);
-  assert.equal(document.querySelector('.leave-form-card input[disabled]'),null);
+  assert.equal(document.querySelector('.leave-form-card'),null);
   assert.equal(document.querySelector('.personal-requests-table thead').textContent.includes('Radnik'),false);
   assert.doesNotMatch(document.querySelector('#content').textContent,/Marko Marić|Marija Radić|Petra Novak/);
   let balance=window.vacationBalanceSummary(1);
@@ -1016,7 +1016,9 @@ test('radnik vidi vlastiti fond i poništavanjem vraća rezervirane dane',()=>{
   assert.equal(balance.reserved,3);
   assert.equal(balance.remaining,14);
   assert.equal(balance.available,11);
+  document.querySelector('.section-actions [data-bss-action="openVacationRequest()"]').click();
   assert.match(document.querySelector('#vacRequestPreview').textContent,/3 radnih dana.*nakon slanja 8/);
+  window.closeModal();
 
   window.openCancelRequest(6);
   assert.ok(document.querySelector('#modal').classList.contains('open'));
@@ -1031,20 +1033,21 @@ test('radnik vidi vlastiti fond i poništavanjem vraća rezervirane dane',()=>{
 test('novi godišnji zahtjev provjerava budući datum, preklapanje i raspoloživi fond',()=>{
   const {window,document,state}=boot('worker');
   window.navigate('requests');
+  window.openVacationRequest();
   const before=state().requests.length;
 
   document.querySelector('#vacStart').value='2026-09-30';
   document.querySelector('#vacEnd').value='2026-10-01';
   window.submitVacationRequest();
   assert.equal(state().requests.length,before);
-  assert.match(document.querySelector('#toast').textContent,/preklapa/);
+  assert.match(document.querySelector('#vacRequestError').textContent,/preklapa/);
   assert.equal(document.querySelector('#submittedLeaveRequest')?.hidden ?? true,true);
 
   document.querySelector('#vacStart').value='2026-08-10';
   document.querySelector('#vacEnd').value='2026-08-28';
   window.submitVacationRequest();
   assert.equal(state().requests.length,before);
-  assert.match(document.querySelector('#toast').textContent,/Nema dovoljno/);
+  assert.match(document.querySelector('#vacRequestError').textContent,/Nema dovoljno/);
 
   document.querySelector('#vacType').value='Slobodan dan';
   document.querySelector('#vacStart').value='2026-08-05';
@@ -1055,6 +1058,7 @@ test('novi godišnji zahtjev provjerava budući datum, preklapanje i raspoloživ
   assert.equal(state().requests[0].status,'Na čekanju');
   assert.equal(window.businessDays(state().requests[0].start,state().requests[0].end),2);
   const receipt=document.querySelector('#submittedLeaveRequest');
+  assert.equal(document.querySelector('#modal.open'),null);
   assert.ok(receipt && !receipt.hidden);
   assert.match(receipt.textContent,/Zahtjev je poslan.*Slobodan dan.*05\.\s*08\..*09\.\s*08\..*Na čekanju/);
   assert.equal(document.activeElement,receipt);
@@ -1095,13 +1099,17 @@ test('API potvrda prikazuje spremljeni zahtjev i uklanja filtre koji bi ga sakri
     app.document.querySelector('#vacStart').value=apiRequest.startDate;
     app.document.querySelector('#vacEnd').value=apiRequest.endDate;
   };
+  app.window.openVacationRequest();
   setFields();await app.window.submitVacationRequest();
   assert.equal(app.document.querySelector('#submittedLeaveRequest').hidden,true);
-  assert.match(app.document.querySelector('#toast').textContent,/Provjeri datume/);
-  setFields();await app.window.submitVacationRequest();
+  assert.match(app.document.querySelector('#modal.open #vacRequestError').textContent,/Provjeri datume/);
+  assert.equal(app.document.querySelector('#vacStart').value,apiRequest.startDate);
+  assert.equal(app.document.querySelector('#vacType').value,'Slobodan dan');
+  await app.window.submitVacationRequest();
   const confirmation=app.document.querySelector('#submittedLeaveRequest');
   assert.equal(posts,2);
   assert.equal(confirmation.hidden,false);
+  assert.equal(app.document.querySelector('#modal.open'),null);
   assert.match(confirmation.textContent,/Slobodan dan.*Na čekanju/);
   assert.equal(app.document.activeElement,confirmation);
   assert.equal(app.document.querySelector('#requestSearch').value,'');
@@ -3082,7 +3090,7 @@ test('worker correction and leave dates use Croatian controls and refresh existi
   const month=app.document.querySelector('[aria-label="Datum — mjesec"]');assert.ok(month);
   const value=app.document.querySelector('#corrDate'),day=app.document.querySelector('[aria-label="Datum — dan"]');
   day.value='01';day.dispatchEvent(new app.window.Event('change',{bubbles:true}));assert.match(value.value,/-01$/);
-  app.window.navigate('requests');assert.equal(app.document.querySelectorAll('.date-picker').length,2);
+  app.window.navigate('requests');app.window.openVacationRequest();assert.equal(app.document.querySelectorAll('.date-picker').length,2);
   assert.equal(app.document.querySelector('[aria-label="Od — mjesec"]').options[7].textContent,'srpanj');
 });
 

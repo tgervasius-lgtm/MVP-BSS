@@ -6,6 +6,15 @@
     return `<section class="report-metrics" aria-label="Sažetak izvještaja">${mapped.map(([label,value])=>`<div><span>${label}</span><b>${value}</b></div>`).join('')}</section>`;
   }
 
+  function reportHistory(history,escapeHtml,authorityAction){
+    const entries=history.slice(0,5).map(item=>{
+      const action=[item.action,item.format].filter(Boolean).join(' ');
+      const verification=authorityAction?.(item)||'';
+      return `<div class="report-history-item"><span class="report-history-icon">${escapeHtml(item.format||'↻')}</span><div><b>${escapeHtml(action)} · ${escapeHtml(item.type)}</b><small>${escapeHtml(item.period)} · ${escapeHtml(item.scope)} · ${item.rows} redaka</small></div><div class="report-history-tail"><time>${escapeHtml(item.time)}</time>${verification}</div></div>`;
+    }).join('');
+    return `<section class="card report-history" tabindex="-1" aria-labelledby="reportHistoryTitle"><div class="card-heading"><div><h2 id="reportHistoryTitle">Zadnje aktivnosti</h2></div></div>${entries||'<div class="empty-state compact">Još nema generiranih izvještaja.</div>'}</section>`;
+  }
+
   function render(context){
     const {currentRole,reportFilters,scopedWorkers,data,REPORT_TYPE_CONFIG,state,title,escapeHtml,departmentOptions,reportPreview,reportHistoryView,authoritativePreviewHtml='',authoritativeMetricsHtml='',authoritativeHasRows=null}=context;
     const roleText=currentRole==='manager'?'Dodijeljeni odjeli':currentRole==='accountant'?'Pregled i izvoz':'Cijela tvrtka ili uži opseg';
@@ -27,7 +36,7 @@
       ${reportHistoryView()}`;
   }
 
-  const reportsOperational=Object.freeze({metrics,render});
+  const reportsOperational=Object.freeze({metrics,reportHistory,render});
   const views=Object.freeze({...root.BSSCore?.views,reportsOperational});
   root.BSSCore=Object.freeze({...root.BSSCore,views});
 

@@ -234,10 +234,20 @@ test('pomoć se skriva, pamti, ponovno otvara i vraća uz tipkovnicu',async({pag
 test('radnik nakon slanja odmah vidi potvrdu i status zahtjeva za odsutnost',async({page},testInfo)=>{
   if(testInfo.project.use.isMobile)await page.setViewportSize({width:454,height:312});
   await loginAs(page,'worker');
-  await page.locator('#content [data-bss-action="navigate(\'requests\')"]').click();
+  const open=page.getByRole('button',{name:'Novi zahtjev',exact:true});
+  await expect(open).toBeInViewport();
+  await open.click();
+  const dialog=page.getByRole('dialog',{name:'Novi zahtjev',exact:true});
+  await expect(dialog).toBeVisible();
+  await expect(dialog.locator('#vacType')).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(dialog).toBeHidden();
+  await expect(open).toBeFocused();
+  await open.click();
   await page.locator('#vacType').selectOption('Slobodan dan');
   await page.locator('#vacNote').fill('Ogledni zahtjev');
   await page.getByRole('button',{name:'Pošalji zahtjev',exact:true}).click();
+  await expect(dialog).toBeHidden();
   const confirmation=page.locator('#submittedLeaveRequest');
   await expect(confirmation).toBeFocused();
   await expect(confirmation).toBeInViewport({ratio:1});
@@ -249,6 +259,25 @@ test('radnik nakon slanja odmah vidi potvrdu i status zahtjeva za odsutnost',asy
   expect(confirmationIsUnobstructed).toBe(true);
   await expect(confirmation).toContainText(/Zahtjev je poslan.*Slobodan dan.*Na čekanju/);
   await expect(page.locator('tr.leave-request-row').filter({hasText:'Ogledni zahtjev'})).toHaveAttribute('data-status','Na čekanju');
+});
+
+test('knjigovođa vidi kamo vode sati i zadnji izvoz',async({page},testInfo)=>{
+  await loginAs(page,'accountant');
+  const hours=page.getByRole('button',{name:/Završeni sati u mjesecu/});
+  await expect(hours).toContainText(/\d+:\d\d h/);
+  await expect(hours).toContainText('Mjesečni izvještaj');
+  if(!testInfo.project.use.isMobile){
+    await hours.hover();
+    await expect(page.locator('#accountant-hint-hours')).toBeVisible();
+  }
+  await hours.focus();
+  await expect(page.locator('#accountant-hint-hours')).toBeVisible();
+  await hours.press('Enter');
+  await expect(page.locator('.section-title h1')).toHaveText('Izvještaji');
+  await expect(page.locator('#reportMonth')).toHaveValue('2026-07');
+  await page.evaluate(()=>window.navigate('home'));
+  await page.getByRole('button',{name:/Posljednji izvoz/}).click();
+  await expect(page.locator('.report-history')).toBeFocused();
 });
 
 test('korekcija traži obrazloženje i prikazuje odgovor radniku',async({page})=>{
@@ -385,6 +414,7 @@ test('hrvatski birači datuma čuvaju ISO i mobilnu čitljivost',async({page},te
   await expect(page.locator('.date-field')).toBeInViewport();
   expect(await seriousAxeViolations(page)).toEqual([]);
   await page.evaluate(()=>window.navigate('requests'));
+  await page.getByRole('button',{name:'Novi zahtjev',exact:true}).click();
   await expect(page.locator('.date-picker')).toHaveCount(2);
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   expect(await seriousAxeViolations(page)).toEqual([]);
