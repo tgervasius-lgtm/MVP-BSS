@@ -646,8 +646,8 @@ function login(){
 }
 function logout(){ logged = false; BSS_RUNTIME.storage.remove(LOGIN_KEY); screen = 'home'; render(); }
 let layerReturnFocus=null;
-function focusFirst(layer){
-  const first=layer?.querySelector('button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[href],[tabindex]:not([tabindex="-1"])');
+function focusFirst(layer,initial){
+  const first=initial||layer?.querySelector('button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[href],[tabindex]:not([tabindex="-1"])');
   window.setTimeout(()=>first?.focus(),0);
 }
 function openDrawer(){
@@ -659,14 +659,14 @@ function closeDrawer(restoreFocus=false){
   drawer.classList.remove('open');drawer.setAttribute('aria-hidden','true');document.querySelectorAll('[aria-controls="drawer"]').forEach(button=>button.setAttribute('aria-expanded','false'));
   if(restoreFocus)layerReturnFocus?.focus?.();
 }
-function showModal(modal){
+function showModal(modal,initial){
   globalThis.BSSTerminalCredential?.clear();
   if(!modal)return;
   BSS_VIEWS.monthPicker.enhance(modal,DEMO_TODAY);
   BSS_VIEWS.datePicker.enhance(modal);
   BSS_VIEWS.timePicker.enhance(modal);
   const heading=modal.querySelector('h2');if(heading){heading.id='activeModalTitle';modal.setAttribute('aria-labelledby',heading.id);}
-  layerReturnFocus=document.activeElement;modal.classList.add('open');modal.setAttribute('aria-hidden','false');focusFirst(modal);
+  layerReturnFocus=document.activeElement;modal.classList.add('open');modal.setAttribute('aria-hidden','false');focusFirst(modal,initial);
 }
 function closeModal(){
   globalThis.BSSDocuments?.clearSensitive();
@@ -780,9 +780,12 @@ function viewManagerHome(){
   });
 }
 function viewAccountantHome(){
-  const minutes=Number(state.dashboard?.kpis?.find(item=>item.id==='worked_minutes')?.value||0);
-  return BSS_VIEWS.homeOperational.accountant({minutes,lastReport:state.lastReport,title,pill,formatMinutes,escapeHtml});
+  const minutes=state.demoMode?attendanceSummary(state.records.filter(record=>record.date.startsWith(CURRENT_MONTH))).workedMinutes:null;
+  const lastReport=state.reportHistory.find(item=>item.format&&(item.status==='ready'||item.action==='Preuzet'));
+  return BSS_VIEWS.homeOperational.accountant({minutes,month:reportMonthLabel(CURRENT_MONTH),lastReport,title,pill,formatMinutes,escapeHtml});
 }
+function openMonthlyHoursReport(){reportFilters={month:CURRENT_MONTH,department:'Svi',workerId:'Svi',type:'summary'};navigate('reports');if(window.BSS_API_ACTIVE)window.BSSReportAuthority?.loadPreview();}
+function openReportHistory(){navigate('reports');const history=$('#content .report-history');history?.focus({preventScroll:true});history?.scrollIntoView?.({block:'start'});}
 function statusOptions(selected){
   return ['Svi','Uredno','Aktivno','Kašnjenje','Nepotpun zapis','Ispravljeno'].map(value=>`<option ${selected===value?'selected':''}>${escapeHtml(value)}</option>`).join('');
 }
@@ -1134,12 +1137,14 @@ function requestTabs(requests){
   const counts=requestStatusCounts(requests);
   return `<div class="request-tabs" role="group" aria-label="Status zahtjeva">${['Na čekanju','Odobreno','Odbijeno','Poništeno','Svi'].map(status=>`<button class="${requestStatusFilter===status?'active':''}" data-bss-action="setRequestStatusFilter('${status}')">${status}<span>${counts[status]}</span></button>`).join('')}</div>`;
 }
-function vacationRequestForm(){
+function openVacationRequest(){
+  if(currentRole!=='worker')return;
   const balance=vacationBalanceSummary(currentWorker().id);
   const tomorrow=isoToDate(DEMO_TODAY);tomorrow.setDate(tomorrow.getDate()+1);
   const from=tomorrow.toISOString().slice(0,10),toDate=new Date(tomorrow);toDate.setDate(toDate.getDate()+4);const to=toDate.toISOString().slice(0,10);
-  const max=`${from.slice(0,4)}-12-31`;
-  return `<section class="card leave-form-card"><div class="card-heading"><div><h2>Novi zahtjev</h2><p>Bez vikenda i evidentiranih neradnih dana.</p></div>${pill(`${balance.available} dostupno`)}</div><div class="form form-grid"><label>Vrsta<select id="vacType" data-bss-change="updateVacationRequestPreview()"><option>Godišnji odmor</option><option>Slobodan dan</option></select></label><label>Od<input id="vacStart" type="date" min="${from}" max="${max}" value="${from}" data-bss-change="updateVacationRequestPreview()"></label><label>Do<input id="vacEnd" type="date" min="${from}" max="${max}" value="${to}" data-bss-change="updateVacationRequestPreview()"></label><label style="grid-column:1/-1">Napomena za organizaciju rada<textarea id="vacNote" rows="3" placeholder="Bez privatnih ili zdravstvenih podataka"></textarea></label></div><div id="vacRequestPreview" class="leave-request-preview">${vacationRequestPreviewText('Godišnji odmor',from,to,currentWorker().id)}</div><div class="btns"><button class="btn" data-bss-action="submitVacationRequest()">Pošalji zahtjev</button></div></section>`;
+  const max=`${from.slice(0,4)}-12-31`,modal=$('#modal'),preview=vacationRequestPreviewText('Godišnji odmor',from,to,currentWorker().id);
+  modal.innerHTML=BSS_VIEWS.approvalsOperational.leaveRequestDialog({from,to,max,available:balance.available,preview});
+  showModal(modal,$('#vacType'));
 }
 function vacationRequestPreviewText(type,start,end,workerId){
   if(!start||!end||end<start)return 'Odaberi valjano razdoblje.';
@@ -1155,11 +1160,11 @@ function updateVacationRequestPreview(){
 function viewRequests(){
   const isApprover=['admin','manager'].includes(currentRole),isWorker=currentRole==='worker',scoped=scopedLeaveRequests(),requests=filteredLeaveRequests();
   return BSS_VIEWS.approvalsOperational.requests({
-    currentRole,isApprover,isWorker,scoped,requests,requestSearch,title,requestTabs,requestTable,vacationRequestForm,escapeHtml
+    currentRole,isApprover,isWorker,scoped,requests,requestSearch,title,requestTabs,requestTable,escapeHtml
   });
 }
 function submitVacationRequest(){
-  if(currentRole!=='worker')return;
+  if(currentRole!=='worker'||!$('#modal.open #vacType'))return;
   const worker=currentWorker(),type=$('#vacType').value,start=$('#vacStart').value,end=$('#vacEnd').value,note=$('#vacNote').value.trim();
   const validation=BSS_USE_CASES.leave.validateSubmission({
     workerId:worker.id,type,start,end,today:DEMO_TODAY,year:DEMO_TODAY.slice(0,4),requests:state.requests,
@@ -1173,7 +1178,7 @@ function submitVacationRequest(){
       NO_WORKING_DAYS:'Odabrano razdoblje nema radnih dana.',
       INSUFFICIENT_BALANCE:`Nema dovoljno raspoloživih dana. Dostupno: ${validation.available}.`
     };
-    toast(validation.code==='OVERLAP'?`Zahtjev se preklapa s razdobljem ${rangeLabel(validation.overlap.start,validation.overlap.end)}.`:messages[validation.code]);
+    BSS_VIEWS.approvalsOperational.leaveRequestError(validation.code==='OVERLAP'?`Zahtjev se preklapa s razdobljem ${rangeLabel(validation.overlap.start,validation.overlap.end)}.`:messages[validation.code]);
     return;
   }
   const days=validation.days;
@@ -1183,6 +1188,7 @@ function submitVacationRequest(){
   requestStatusFilter='Na čekanju';
   requestSearch='';
   audit('Radnik',`Poslan zahtjev: ${worker.name} · ${rangeLabel(start,end)} · ${pluralDays(days)}.`,'Zahtjevi');
+  if(screen!=='requests')navigate('requests');
   saveAndRender(conflicts?`Zahtjev je poslan. Postoji ${conflicts} preklapanje u odjelu.`:undefined);
   BSS_VIEWS.approvalsOperational.showSubmittedLeaveRequest(request,rangeLabel);
 }
@@ -1658,7 +1664,7 @@ function reportPreview(data){
 }
 function reportHistoryView(){
   const history=(state.reportHistory||[]).slice(0,5);
-  return `<section class="card report-history"><div class="card-heading"><div><h2>Zadnje aktivnosti</h2></div></div>${history.map(item=>{const authorityAction=typeof globalThis.reportHistoryAuthorityAction==='function'?globalThis.reportHistoryAuthorityAction(item):'';return `<div class="report-history-item"><span class="report-history-icon">${item.format||'↻'}</span><div><b>${escapeHtml(item.action)}${item.format?` ${escapeHtml(item.format)}`:''} · ${escapeHtml(item.type)}</b><small>${escapeHtml(item.period)} · ${escapeHtml(item.scope)} · ${item.rows} redaka</small></div><div class="report-history-tail"><time>${escapeHtml(item.time)}</time>${authorityAction}</div></div>`;}).join('')||'<div class="empty-state compact">Još nema generiranih izvještaja.</div>'}</section>`;
+  return `<section class="card report-history" tabindex="-1" aria-labelledby="reportHistoryTitle"><div class="card-heading"><div><h2 id="reportHistoryTitle">Zadnje aktivnosti</h2></div></div>${history.map(item=>{const authorityAction=typeof globalThis.reportHistoryAuthorityAction==='function'?globalThis.reportHistoryAuthorityAction(item):'';return `<div class="report-history-item"><span class="report-history-icon">${item.format||'↻'}</span><div><b>${escapeHtml(item.action)}${item.format?` ${escapeHtml(item.format)}`:''} · ${escapeHtml(item.type)}</b><small>${escapeHtml(item.period)} · ${escapeHtml(item.scope)} · ${item.rows} redaka</small></div><div class="report-history-tail"><time>${escapeHtml(item.time)}</time>${authorityAction}</div></div>`;}).join('')||'<div class="empty-state compact">Još nema generiranih izvještaja.</div>'}</section>`;
 }
 function viewReports(){
   reportFilters=normalizeReportFilters(reportFilters);
