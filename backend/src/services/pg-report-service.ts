@@ -20,10 +20,11 @@ import type {
   ReportPreviewWrite
 } from "./contracts.js";
 import { decodeTimelineCursor, encodeTimelineCursor } from "./cursors.js";
-import { createLiveReportPreview, createLockedReportPreview } from "./report-dataset.js";
+import { createLiveReportPreview, createLockedReportPreview, reportPrivacyProfile } from "./report-dataset.js";
 import { requireBoundedDateRange } from "./validation.js";
 
 const MAX_EXPORT_ROWS = 10_000;
+const ACCOUNTING_REPORT_TEMPLATE_VERSION = "bss-report-acct-v1";
 
 type ReportExportRow = {
   id: string;
@@ -40,6 +41,7 @@ type ReportExportRow = {
   period_version_id: string | null;
   calculation_versions: string[] | string;
   scope_department_ids: string[];
+  privacy_profile: ReturnType<typeof reportPrivacyProfile>;
   template_version: string;
   created_at: string | Date;
   completed_at: string | Date | null;
@@ -62,7 +64,19 @@ const reportSelect = `SELECT id, created_by, report_type, format,
     THEN 'expired' ELSE status END AS status,
   filters, row_count, total_minutes, checksum_sha256, dataset_version,
   dataset_checksum_sha256, period_version_id, calculation_versions, scope_department_ids,
-  template_version, created_at, completed_at, expires_at`;
+  template_version, privacy_profile, created_at, completed_at, expires_at`;
+
+const exportReadScope = `($1::text <> 'manager' OR
+  (created_by = $2::uuid AND cardinality(scope_department_ids) > 0 AND scope_department_ids <@ $3::uuid[]))
+  AND ($1::text <> 'accountant' OR report_type <> 'correction_log' OR privacy_profile = 'accounting_minimized')`;
+
+function exportReadParams(actor: ActorContext) {
+  return [actor.role, actor.userId, actor.departmentIds] as const;
+}
+
+function reportTemplateVersion(base: string, profile: ReportExportRow["privacy_profile"]): string {
+  return profile === "accounting_minimized" ? ACCOUNTING_REPORT_TEMPLATE_VERSION : base;
+}
 
 function iso(value: string | Date): string {
   return value instanceof Date ? value.toISOString() : new Date(value).toISOString();
@@ -114,11 +128,6 @@ function requireScope(actor: ActorContext, departmentId?: string | null): void {
   }
 }
 
-function canRead(row: ReportExportRow, actor: ActorContext): boolean {
-  if (actor.role !== "manager") return true;
-  return row.created_by === actor.userId && row.scope_department_ids.every((id) => actor.departmentIds.includes(id));
-}
-
 async function insertAudit(
   client: TenantTransaction,
   actor: ActorContext,
@@ -155,15 +164,14 @@ export class PgReportService {
       const after = decodeTimelineCursor(cursor);
       const result = await client.query<ReportExportRow>(
         `${reportSelect} FROM report_exports
-         WHERE ($1::text <> 'manager' OR (created_by = $2 AND scope_department_ids <@ $3::uuid[]))
+         WHERE ${exportReadScope}
            AND ($4::timestamptz IS NULL OR (created_at, id) < ($4::timestamptz, $5::uuid))
          ORDER BY created_at DESC, id DESC LIMIT $6`,
-        [actor.role, actor.userId, actor.departmentIds, after?.at ?? null, after?.id ?? null, limit + 1]
+        [...exportReadParams(actor), after?.at ?? null, after?.id ?? null, limit + 1]
       );
       const count = await client.query<{ count: string }>(
-        `SELECT COUNT(*)::text AS count FROM report_exports
-         WHERE ($1::text <> 'manager' OR (created_by = $2 AND scope_department_ids <@ $3::uuid[]))`,
-        [actor.role, actor.userId, actor.departmentIds]
+        `SELECT COUNT(*)::text AS count FROM report_exports WHERE ${exportReadScope}`,
+        [...exportReadParams(actor)]
       );
       const hasMore = result.rows.length > limit;
       const rows = result.rows.slice(0, limit);
@@ -178,6 +186,9 @@ export class PgReportService {
     requireRole(actor, ["admin", "manager", "accountant"]);
     requireBoundedDateRange(input.periodFrom, input.periodTo);
     requireScope(actor, input.departmentId);
+    if (actor.role === "manager" && actor.departmentIds.length === 0) {
+      throw new AppError("FORBIDDEN", "Voditelj nema dodijeljen odjel za izvoz.");
+    }
     return withTenant(this.pool, actor, requestId, async (client) => {
       let preview: ReportPreviewView;
       let datasetChecksumSha256: string | null = null;
@@ -204,6 +215,8 @@ export class PgReportService {
       if (preview.truncated) {
         throw new AppError("VALIDATION_FAILED", `Izvještaj prelazi sigurnosni limit od ${MAX_EXPORT_ROWS} redaka. Suzite razdoblje ili filtre.`);
       }
+      const privacyProfile = reportPrivacyProfile(input.reportType, actor);
+      templateVersion = reportTemplateVersion(templateVersion, privacyProfile);
       const artifact = await generateReportArtifact(preview, input, {
         datasetChecksumSha256,
         calculationVersions,
@@ -215,18 +228,19 @@ export class PgReportService {
            organization_id, created_by, report_type, filters, format, status, dataset_version,
            dataset_checksum_sha256, period_version_id, calculation_versions, scope_department_ids,
            template_version, row_count, total_minutes, storage_key, checksum_sha256, expires_at,
-           completed_at, content, mime_type, file_name
+           completed_at, content, mime_type, file_name, privacy_profile
          ) VALUES ($1, $2, $3, $4::jsonb, $5, 'ready', $6, $7, $8, $9::jsonb, $10::uuid[],
            $11, $12, $13, 'postgres:report_exports', $14,
            CASE WHEN $8::uuid IS NULL THEN clock_timestamp() + interval '24 hours' ELSE NULL END,
-           clock_timestamp(), $15, $16, $17)
+           clock_timestamp(), $15, $16, $17, $18)
          RETURNING id, created_by, report_type, format, status, filters, row_count, total_minutes,
            checksum_sha256, dataset_version, dataset_checksum_sha256, period_version_id,
-           calculation_versions, scope_department_ids, template_version, created_at, completed_at, expires_at`,
+           calculation_versions, scope_department_ids, template_version, privacy_profile, created_at, completed_at, expires_at`,
         [actor.organizationId, actor.userId, input.reportType, JSON.stringify(input), input.format,
           preview.datasetVersion, datasetChecksumSha256, periodVersionId, JSON.stringify(calculationVersions),
           actor.role === "manager" ? actor.departmentIds : [], templateVersion, artifact.rowCount,
-          artifact.officialMinutes, artifact.checksumSha256, artifact.content, artifact.mimeType, artifact.fileName]
+          artifact.officialMinutes, artifact.checksumSha256, artifact.content, artifact.mimeType, artifact.fileName,
+          privacyProfile]
       )).rows[0]!;
       await insertAudit(client, actor, requestId, row);
       return reportExportView(row);
@@ -266,7 +280,7 @@ export class PgReportService {
         return snapshotChecksum(snapshot) === version.dataset_checksum_sha256
           && version.dataset_checksum_sha256 === row.dataset_checksum_sha256
           && version.id === row.dataset_version
-          && version.template_version === row.template_version
+          && reportTemplateVersion(version.template_version, row.privacy_profile) === row.template_version
           && JSON.stringify(jsonObject<string[]>(version.calculation_versions))
             === JSON.stringify(jsonObject<string[]>(row.calculation_versions));
       });
@@ -283,11 +297,10 @@ export class PgReportService {
     return withTenant(this.pool, actor, "get-report-export", async (client) => {
       const result = await client.query<ReportExportRow>(
         `${reportSelect}${includeContent ? ", content, mime_type, file_name" : ""}
-         FROM report_exports WHERE id = $1`, [exportId]
+         FROM report_exports WHERE ${exportReadScope} AND id = $4`, [...exportReadParams(actor), exportId]
       );
       const row = result.rows[0];
       if (!row) throw new AppError("NOT_FOUND", "Izvještaj nije pronađen.");
-      if (!canRead(row, actor)) throw new AppError("NOT_FOUND", "Izvještaj nije pronađen.");
       return row;
     });
   }

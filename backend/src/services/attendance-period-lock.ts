@@ -1,4 +1,5 @@
 import type { TenantTransaction } from "../db/tenant.js";
+import { AppError } from "../domain/errors.js";
 
 export type AttendancePeriodState = "open" | "review" | "finalized" | "closed";
 
@@ -30,4 +31,26 @@ export async function attendancePeriodState(
 
 export function isAttendancePeriodLocked(status: AttendancePeriodState): boolean {
   return status === "finalized" || status === "closed";
+}
+
+export async function requireLeaveApprovalPeriods(
+  client: TenantTransaction,
+  organizationId: string,
+  startDate: string,
+  endDate: string
+): Promise<void> {
+  const start = attendancePeriodParts(startDate);
+  const end = attendancePeriodParts(endDate);
+  const monthIndex = (year: number, month: number) => year * 12 + month - 1;
+  const last = monthIndex(end.year, end.month);
+  // Finalization uses the same transaction lock before reading approved leave.
+  for (let index = monthIndex(start.year, start.month); index <= last; index += 1) {
+    const year = Math.floor(index / 12);
+    const month = index % 12 + 1;
+    await lockAttendancePeriod(client, organizationId, year, month);
+    if (isAttendancePeriodLocked(await attendancePeriodState(client, year, month))) {
+      const period = `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}`;
+      throw new AppError("CONFLICT", `Razdoblje ${period} je zaključano. Administrator ga mora ponovno otvoriti prije odobrenja odsutnosti.`);
+    }
+  }
 }

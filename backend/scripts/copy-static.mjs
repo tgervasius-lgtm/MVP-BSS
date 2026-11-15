@@ -9,6 +9,7 @@ const destination = join(backendRoot, "dist", "migrations");
 await rm(destination, { recursive: true, force: true });
 await mkdir(dirname(destination), { recursive: true });
 await cp(source, destination, { recursive: true });
+await cp(join(backendRoot, "assets", "report-fonts"), join(backendRoot, "dist", "assets", "report-fonts"), { recursive: true });
 
 // Native parser source must travel with the compiled adapter. It remains an
 // inactive internal module until admission, cleanup and HTTP gates are proved.

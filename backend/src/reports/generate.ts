@@ -1,6 +1,5 @@
 import { readFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
-import { createRequire } from "node:module";
 import ExcelJS from "exceljs";
 import PDFDocument from "pdfkit";
 import type { ReportArtifact, ReportExportWrite, ReportPreviewView } from "../services/contracts.js";
@@ -21,13 +20,12 @@ const reportLabels: Record<ReportPreviewView["reportType"], string> = {
   correction_log: "Korekcije evidencije"
 };
 
-const require = createRequire(import.meta.url);
-let pdfFonts: Promise<readonly [Buffer, Buffer]> | undefined;
+let pdfFonts: Promise<[Buffer, Buffer]> | undefined;
 
 function loadPdfFonts(): Promise<readonly [Buffer, Buffer]> {
   pdfFonts ??= Promise.all([
-    readFile(require.resolve("@fontsource/noto-sans/files/noto-sans-latin-ext-400-normal.woff")),
-    readFile(require.resolve("@fontsource/noto-sans/files/noto-sans-latin-ext-600-normal.woff"))
+    readFile(new URL("../../assets/report-fonts/NotoSans-Regular.ttf", import.meta.url)),
+    readFile(new URL("../../assets/report-fonts/NotoSans-Bold.ttf", import.meta.url))
   ]);
   return pdfFonts;
 }
@@ -233,7 +231,8 @@ async function pdfArtifact(preview: ReportPreviewView, input: ReportExportWrite,
   document.font("BSS Semibold").fontSize(8).fillColor("#0f3d36")
     .text(`Ukupno redaka: ${preview.totals.rowCount} · Odrađeno: ${(preview.totals.workedMinutes / 60).toFixed(2)} h · Saldo: ${(preview.totals.balanceMinutes / 60).toFixed(2)} h`, document.page.margins.left, y + 10);
   document.font("BSS Regular").fontSize(7).fillColor("#52605d")
-    .text("Bognar Smart Systems · Povjerljivi poslovni izvještaj", document.page.margins.left, document.page.height - 22, { align: "center", width: pageWidth });
+    .text("Bognar Smart Systems · Povjerljivi poslovni izvještaj", document.page.margins.left,
+      document.page.height - document.page.margins.bottom - 10, { align: "center", width: pageWidth, lineBreak: false });
   document.end();
   const content = await finished;
   return {
