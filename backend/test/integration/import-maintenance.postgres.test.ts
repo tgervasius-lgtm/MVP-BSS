@@ -4,6 +4,7 @@ import test from "node:test";
 import pg from "pg";
 import { importFixture } from "../helpers/import-fixture.js";
 import { importRuntimeFixture } from "../helpers/import-runtime-fixture.js";
+import { rewindMigrationsTo } from "../helpers/postgres-fixture.js";
 import { migrateUp, migrateDown } from "../../src/db/migrate.js";
 import { PgImportRuntime } from "../../src/imports/runtime.js";
 const url=process.env.BSS_TEST_DATABASE_URL;
@@ -23,12 +24,12 @@ test("security-definer maintenance works with non-superuser owner, no PUBLIC exe
   // migration 016 and its definer functions are exercised under NOSUPER/NOBYPASS.
   const previousDown=process.env.BSS_ALLOW_DOWN_MIGRATIONS;
   process.env.BSS_ALLOW_DOWN_MIGRATIONS="true";
-  try{for(let i=0;i<4;i++)await migrateDown(f.owner);}finally{if(previousDown===undefined)delete process.env.BSS_ALLOW_DOWN_MIGRATIONS;else process.env.BSS_ALLOW_DOWN_MIGRATIONS=previousDown;}
+  try{await rewindMigrationsTo(f.owner,"015");}finally{if(previousDown===undefined)delete process.env.BSS_ALLOW_DOWN_MIGRATIONS;else process.env.BSS_ALLOW_DOWN_MIGRATIONS=previousDown;}
   const due=await f.prepare([f.worker("non-super")]);await f.age(due.id,"25 hours");
   await f.owner.query(`GRANT CREATE,USAGE ON SCHEMA public TO ${ddl}`);
   await f.owner.query(`GRANT REFERENCES ON organizations, users TO ${ddl}`);
   await f.owner.query(`GRANT SELECT,INSERT,DELETE ON bss_schema_migrations TO ${ddl}`);
-  for(const table of ["worker_import_sessions","worker_import_staging","audit_events","report_exports"])
+  for(const table of ["worker_import_sessions","worker_import_staging","audit_events","report_exports","leave_requests"])
     await f.owner.query(`ALTER TABLE ${table} OWNER TO ${ddl}`);
   await f.owner.query(`SET ROLE ${ddl}`);
   await migrateUp(f.owner);
@@ -53,7 +54,7 @@ test("security-definer maintenance works with non-superuser owner, no PUBLIC exe
   await f.owner.query(`SET ROLE ${ddl}`);
   const before=process.env.BSS_ALLOW_DOWN_MIGRATIONS;process.env.BSS_ALLOW_DOWN_MIGRATIONS="true";
   try{
-    for(let i=0;i<4;i++)await migrateDown(f.owner);
+    await rewindMigrationsTo(f.owner,"015");
     assert.equal((await f.owner.query("SELECT to_regclass('worker_import_runtime') AS relation")).rows[0].relation,null);
     await migrateUp(f.owner);
     assert.equal((await f.owner.query("SELECT count(*) FROM worker_import_runtime")).rows[0].count,"1");
@@ -100,9 +101,7 @@ test("016 rollback refuses live leases and nonterminal source imports",options,a
   assert.ok(url);const f=await importRuntimeFixture(url);t.after(()=>f.dispose());
   const before=process.env.BSS_ALLOW_DOWN_MIGRATIONS;process.env.BSS_ALLOW_DOWN_MIGRATIONS="true";
   try{
-    // Step past the later migrations before the original 017/016 guards.
-    await migrateDown(f.owner);
-    await migrateDown(f.owner);
+    await rewindMigrationsTo(f.owner,"017");
     const token=await f.runtime.admit(f.first.actor,"create","guard");
     await assert.rejects(migrateDown(f.owner),/Stop imports and purge/);
     await f.runtime.release(f.first.actor,token,"release");

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import test from "node:test";
 import { importRuntimeFixture } from "../helpers/import-runtime-fixture.js";
+import { rewindMigrationsTo } from "../helpers/postgres-fixture.js";
 import { PgImportRuntime } from "../../src/imports/runtime.js";
 import { WorkerImportApi } from "../../src/imports/api-service.js";
 import { PgImportSourceStore } from "../../src/imports/pg-import-source-store.js";
@@ -101,9 +102,7 @@ test("017 rollback refuses a still-running parser even after admission expires",
   const { migrateDown, migrateUp } = await import("../../src/db/migrate.js");
   const before = process.env.BSS_ALLOW_DOWN_MIGRATIONS; process.env.BSS_ALLOW_DOWN_MIGRATIONS = "true";
   try {
-    // Later migrations are empty here; then exercise the held-parser 017 guard.
-    await migrateDown(f.owner);
-    await migrateDown(f.owner);
+    await rewindMigrationsTo(f.owner,"017");
     await assert.rejects(migrateDown(f.owner), /Stop imports and purge/);
     close.resolve(); assert.equal(await pending, "IMPORT_UNAVAILABLE");
     await migrateDown(f.owner);
