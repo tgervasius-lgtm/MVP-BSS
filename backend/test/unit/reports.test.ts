@@ -63,6 +63,7 @@ test("PDF report embeds Croatian-capable fonts and returns a checksum-protected 
   assert.equal(artifact.content.subarray(0, 4).toString("ascii"), "%PDF");
   assert.equal(artifact.mimeType, "application/pdf");
   assert.ok(artifact.content.length > 2_000);
+  assert.equal((artifact.content.toString("latin1").match(/\/Type \/Page\b/g) ?? []).length, 1);
   assert.equal(createHash("sha256").update(artifact.content).digest("hex"), artifact.checksumSha256);
 });
 

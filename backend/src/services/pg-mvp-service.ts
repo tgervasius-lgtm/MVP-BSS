@@ -27,7 +27,8 @@ import {
   attendancePeriodParts,
   attendancePeriodState,
   isAttendancePeriodLocked,
-  lockAttendancePeriod
+  lockAttendancePeriod,
+  requireLeaveApprovalPeriods
 } from "./attendance-period-lock.js";
 import { lockTerminalEventLifecycle } from "./terminal-event-lock.js";
 import type {
@@ -123,7 +124,7 @@ type TerminalRow = {
   revision: string | number;
 };
 
-const leaveSelect = `SELECT l.id, l.worker_id, w.department_id, l.leave_type, l.start_date, l.end_date,
+const leaveSelect = `SELECT l.id, l.worker_id, w.department_id, l.leave_type, l.start_date::text, l.end_date::text,
   l.working_days, l.note, l.status, l.created_at, l.decided_at, l.decided_by, l.decision_note, l.revision`;
 const correctionSelect = `SELECT c.id, c.attendance_day_id, a.worker_id, w.department_id,
   c.before_values, c.requested_values, c.reason, c.status, c.created_at, c.decided_at,
@@ -1039,13 +1040,17 @@ export class PgMvpService extends PgPhaseAService implements MvpService {
   ): Promise<LeaveRequestView> {
     return withTenant(this.mvpPool, actor, requestId, async (client) => {
       const before = await client.query<LeaveRow>(
-        `${leaveSelect} FROM leave_requests l JOIN workers w ON w.id = l.worker_id WHERE l.id = $1 FOR UPDATE OF l`,
+        `${leaveSelect}
+         FROM leave_requests l JOIN workers w ON w.id = l.worker_id WHERE l.id = $1 FOR UPDATE OF l`,
         [requestIdValue]
       );
       const row = before.rows[0];
       if (!row) throw new AppError("NOT_FOUND", "Zahtjev nije pronađen.");
       requireWorkerScope(actor, row.worker_id, row.department_id);
       if (String(row.revision) !== revision || row.status !== "pending") throw new AppError("STALE_REVISION", "Zahtjev više nije na čekanju.");
+      if (status === "approved") {
+        await requireLeaveApprovalPeriods(client, actor.organizationId, dateOnly(row.start_date), dateOnly(row.end_date));
+      }
       const result = await client.query<LeaveRow>(
         `UPDATE leave_requests SET status = $2, decided_by = $3, decided_at = clock_timestamp(),
            decision_note = $4, revision = revision + 1 WHERE id = $1
