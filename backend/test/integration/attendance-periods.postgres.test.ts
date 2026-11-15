@@ -227,6 +227,24 @@ test("#146 PostgreSQL period lifecycle, RLS and correction/finalization/export c
     VALUES ($1, $2, $3, '{}', '{}', $4, 'rejected', $5, $6, clock_timestamp())`,
   [ids.org1, completeDay.id, ids.worker_user1, privateReason, ids.admin1, privateNote]);
 
+  await t.test("live reports preserve work dates with a local-midnight DATE parser", async (scope) => {
+    const fixtureDateParser = pg.types.getTypeParser(1082, "text");
+    scope.after(() => pg.types.setTypeParser(1082, "text", fixtureDateParser));
+    pg.types.setTypeParser(1082, "text", (value: string) => new Date(value + "T00:00:00+02:00"));
+
+    const reportTypes = [
+      ["attendance_journal", 2],
+      ["exceptions", 1],
+      ["correction_log", 1]
+    ] as const;
+    for (const [reportType, rowCount] of reportTypes) {
+      const preview = await service.createReportPreview(admin, {
+        reportType, periodFrom: "2030-09-01", periodTo: "2030-09-30"
+      });
+      assert.deepEqual(preview.rows.map((row) => row.workDate), Array(rowCount).fill("2030-09-10"), reportType);
+    }
+  });
+
   const open = await service.getAttendancePeriod(admin, 2030, 9);
   assert.equal(open.status, "open");
   assert.equal(open.revision, "0");
