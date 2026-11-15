@@ -119,7 +119,12 @@ async function runViewport(browser,viewport){
     },{times:1});
     await page.getByRole('button',{name:'Dodaj sve radnike',exact:true}).click();
     await page.getByText('Rezultat još nije potvrđen',{exact:true}).waitFor();
-    await page.getByRole('button',{name:'Provjeri postojeći rezultat',exact:true}).click();await wait(page,'Radnici su dodani');
+    const workersRefreshed=page.waitForResponse(response=>response.request().method()==='GET'&&
+      new URL(response.url()).pathname==='/api/v1/workers'&&response.ok(),{timeout:10000});
+    await Promise.all([workersRefreshed,page.getByRole('button',{name:'Provjeri postojeći rezultat',exact:true}).click()]);
+    await wait(page,'Radnici su dodani');
+    await page.getByRole('button',{name:'Otvori radnike',exact:true}).click();
+    await page.getByText('Synthetic CSV',{exact:true}).waitFor();
     assert.equal(commitPosts,1);assert.equal(expectedAborts,0);assert.deepEqual(await fetch(`${f.origin}/__test/import-counts`).then(r=>r.json()),{workers:1,staging:0});
     await page.reload();await page.locator('#content .screen').waitFor();await page.evaluate(()=>window.navigate('workerImports'));
     await page.getByRole('button',{name:'Otvori pripremu',exact:true}).click();await wait(page,'Radnici su dodani');

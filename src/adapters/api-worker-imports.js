@@ -215,13 +215,19 @@
     });}
     function approve(checked){if(model.phase!=='approval'||model.busy)return;
       model.approval=checked&&ready()?stamp(model.session):null;notify(false);}
+    async function refreshWorkerList(current){
+      const refreshed=await Promise.resolve().then(()=>config.refresh()).catch(()=>false);
+      if(current()&&refreshed===false){
+        model.notice='Uvoz je potvrđen. Popis radnika osvježite pri povratku na radnike.';
+      }
+    }
     async function sendCommit(intent,current){
       try{
         const result=await api.post(`/worker-imports/${intent.id}/commit`,{approved:true,previewChecksum:intent.checksum},
           {'If-Match':`"${intent.revision}"`,'Idempotency-Key':intent.key});
         if(!current())return;
         removeIntent();clearRows();model.file=null;model.result=result;model.session={...model.session,state:'COMMITTED'};model.phase='result';
-        try{await config.refresh();}catch{model.notice='Uvoz je potvrđen. Popis radnika osvježite pri povratku na radnike.';}
+        await refreshWorkerList(current);
       }catch(error){
         if(!current())return;
         if(!error.status||error.status>=500){clearRows();model.phase='uncertain';model.retry=false;}
@@ -241,7 +247,11 @@
         return;
       }
       await readSession(intent.id,current);if(!current())return;
-      if(terminal.has(model.session.state)){removeIntent();return;}
+      if(terminal.has(model.session.state)){
+        removeIntent();
+        if(model.session.state==='COMMITTED'&&model.result)await refreshWorkerList(current);
+        return;
+      }
       model.phase='uncertain';model.retry=model.session.state==='READY'&&model.session.revision===intent.revision&&model.session.previewChecksum===intent.checksum&&ready();
       if(!model.retry&&model.session.state!=='PARSING'){removeIntent();model.phase='review';model.notice='Prethodna potvrda više ne vrijedi. Pregledajte aktualne podatke i potvrdite ih ponovno.';}
     }
