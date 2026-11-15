@@ -9,7 +9,7 @@ const {createController}=require('../src/adapters/api-worker-imports.js');
 const id='10000000-0000-4000-8000-000000000001',department='20000000-0000-4000-8000-000000000001',shift='30000000-0000-4000-8000-000000000001';
 const copy=value=>structuredClone(value);
 const problem=status=>Object.assign(new Error('Synthetic refusal'),{status});
-function fixture({count=201,enabled=true,role='admin',invalid=false}={}){
+function fixture({count=201,enabled=true,role='admin',invalid=false,headers=['Code','Name','Department','Shift','Days']}={}){
   const rows=Array.from({length:count},(_,i)=>[`IM-${i}`,'Synthetic Person','Department','Day','0']);
   let session={id,state:'NEEDS_MAPPING',revision:'1',createdAt:new Date().toISOString(),expiresAt:new Date(Date.now()+3600000).toISOString(),
     fileChecksum:'a'.repeat(64),previewChecksum:null,mappingChecksum:null,counts:{total:count,valid:0,blocked:count}};
@@ -27,7 +27,7 @@ function fixture({count=201,enabled=true,role='admin',invalid=false}={}){
       if(path===`/worker-imports/${id}`)return{...copy(session),...(result?{result:copy(result)}:{})};
       if(path.endsWith('/rows')){
         const offset=params.cursor?Number(params.cursor):0,last=Math.min(offset+params.limit,count);
-        return{session:copy(session),offset,headers:['Code','Name','Department','Shift','Days'],mapping:copy(mapping),
+        return{session:copy(session),offset,headers,mapping:copy(mapping),
           sourceRows:copy(rows.slice(offset,last)),canonicalRows:mapping&&!invalid?rows.slice(offset,last).map(row=>({code:row[0],name:row[1],email:null,departmentId:department,shiftId:shift,annualLeaveAllowance:0})):null,
           counts:copy(session.counts),issues:invalid&&last===count?[{rowNumber:count+1,field:'code',code:'DUPLICATE_IN_FILE'}]:[],requiresRefresh:false,nextCursor:last<count?String(last):null};
       }
@@ -85,6 +85,44 @@ test('H2 UI: duplicate or missing source columns and every unbound reference blo
   f.controller.changeColumn(4,'annualLeaveAllowance');await f.controller.action('map');assert.equal(f.calls.some(call=>call.method==='PATCH'),false);
   f.controller.changeBinding('department',0,department);await f.controller.action('map');assert.equal(f.calls.some(call=>call.method==='PATCH'),false);
   f.controller.changeBinding('shift',0,shift);await f.controller.action('map');assert.equal(f.calls.filter(call=>call.method==='PATCH').length,1);
+});
+test('H2 UI: recognized Croatian headers and existing exact names can be filled without sending a request',async()=>{
+  for(const name of ['Ime','Ime i prezime']){
+    const f=fixture({headers:['Šifra',name,'Odjel','Smjena','Godišnji']});
+    f.setReadHook(path=>path==='/departments'?[{id:department,name:'Department',status:'active'}]:undefined);
+    await f.open();
+    assert.match(f.controller.view(),/Predloži povezivanje/);
+    await f.controller.action('suggest');
+    assert.deepEqual(f.controller.snapshot().mapping,{
+      columns:['code','name','department','shift','annualLeaveAllowance'],
+      departments:[{source:'Department',id:department}],shifts:[{source:'Day',id:shift}]
+    });
+    assert.equal(f.calls.some(call=>call.method==='PATCH'||call.method==='POST'),false);
+    await f.controller.action('map');
+    assert.equal(f.controller.snapshot().phase,'review');
+    assert.equal(f.calls.some(call=>call.path.endsWith('/commit')),false);
+  }
+});
+test('H2 UI: suggestions preserve manual selections and leave ambiguous or unknown matches open',async()=>{
+  const f=fixture({headers:['Šifra','Ime i prezime','Odjel','Smjena','Shift','Dodatno']});
+  f.setReadHook(path=>path==='/departments'?[{id:department,name:'Department',status:'inactive'}]:undefined);
+  await f.open();
+  f.controller.changeColumn(1,'email');
+  await f.controller.action('suggest');
+  assert.deepEqual(f.controller.snapshot().mapping,{
+    columns:['code','email','department','','',''],departments:[],shifts:[]
+  });
+  await f.controller.action('map');
+  assert.equal(f.calls.some(call=>call.method==='PATCH'),false);
+
+  const duplicate=fixture();
+  duplicate.setReadHook(path=>path==='/shifts'?[{id:shift,name:'Day'},{id:department,name:'Day'}]:undefined);
+  await duplicate.open();
+  await duplicate.controller.action('suggest');
+  assert.deepEqual(duplicate.controller.snapshot().mapping.shifts,[]);
+  duplicate.controller.changeBinding('shift',0,department);
+  await duplicate.controller.action('suggest');
+  assert.deepEqual(duplicate.controller.snapshot().mapping.shifts,[{source:'Day',id:department}]);
 });
 test('H2 UI: invalid final-page row is visible in filtered preview and cannot be approved',async()=>{
   const f=fixture({count:1000,invalid:true});await f.open();await f.map();f.controller.filterErrors(true);

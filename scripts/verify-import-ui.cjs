@@ -39,6 +39,41 @@ async function upload(page,name,mimeType,buffer,format='csv'){
   await page.getByRole('button',{name:'Učitaj i provjeri datoteku',exact:true}).click();
   await wait(page,'2. Povežite stupce i vrijednosti');
 }
+async function verifyMappingPosition(page){
+  const viewport=page.viewportSize();
+  await page.setViewportSize({...viewport,height:600});
+  try{
+    const content=page.locator('#content');
+    const scrollToField=async field=>{
+      await field.scrollIntoViewIfNeeded();
+      await field.focus();
+      return content.evaluate(element=>element.scrollTop);
+    };
+    const verifyPosition=async(field,previousScroll)=>{
+      assert.ok(previousScroll>0,'Mapping field is below the initial viewport');
+      assert.equal(await field.evaluate(element=>element===element.ownerDocument.activeElement),true,'Mapping keeps focus on the active field');
+      assert.equal(await content.evaluate(element=>element.scrollTop),previousScroll,'Mapping keeps the current scroll position');
+    };
+
+    const name=page.locator('#import-column-1');
+    const nameScroll=await scrollToField(name);
+    await name.selectOption('name');
+    await verifyPosition(name,nameScroll);
+
+    await page.locator('#import-column-2').selectOption('department');
+    await page.locator('#import-column-3').selectOption('shift');
+    const department=page.locator('#import-department-0');
+    const departmentScroll=await scrollToField(department);
+    await department.selectOption({label:'Department'});
+    await verifyPosition(department,departmentScroll);
+
+    const shift=page.locator('#import-shift-0');
+    const shiftScroll=await scrollToField(shift);
+    await shift.press('ArrowDown');
+    assert.equal(await shift.locator('option:checked').textContent(),'Day');
+    await verifyPosition(shift,shiftScroll);
+  }finally{await page.setViewportSize(viewport);}
+}
 async function map(page,email=false){
   const fields=['code','name','department','shift','annualLeaveAllowance',...(email?['email']:[])];
   for(let i=0;i<fields.length;i++)await page.locator(`#import-column-${i}`).selectOption(fields[i]);
@@ -72,7 +107,9 @@ async function runViewport(browser,viewport){
     await page.evaluate(()=>window.navigate('workers'));
     await page.getByRole('button',{name:'Uvezi radnike',exact:true}).click();await wait(page,'1. Odaberite datoteku');
     await accessible(page);
-    await upload(page,'synthetic.csv','text/csv',Buffer.from(f.csv));await accessible(page);await map(page);
+    await upload(page,'synthetic.csv','text/csv',Buffer.from(f.csv));await accessible(page);
+    await verifyMappingPosition(page);await map(page);
+    assert.equal(await page.locator('#content').evaluate(element=>element.scrollTop),0,'Review opens at the start of the new step');
     await page.getByRole('button',{name:'Nastavi na potvrdu',exact:true}).click();await wait(page,'4. Potvrdite dodavanje radnika');
     assert.equal(await page.getByRole('button',{name:'Dodaj sve radnike',exact:true}).isEnabled(),false);
     await page.locator('#import-approval').focus();await page.keyboard.press('Space');
@@ -82,13 +119,25 @@ async function runViewport(browser,viewport){
     },{times:1});
     await page.getByRole('button',{name:'Dodaj sve radnike',exact:true}).click();
     await page.getByText('Rezultat još nije potvrđen',{exact:true}).waitFor();
-    await page.getByRole('button',{name:'Provjeri postojeći rezultat',exact:true}).click();await wait(page,'Radnici su dodani');
+    const workersRefreshed=page.waitForResponse(response=>response.request().method()==='GET'&&
+      new URL(response.url()).pathname==='/api/v1/workers'&&response.ok(),{timeout:10000});
+    await Promise.all([workersRefreshed,page.getByRole('button',{name:'Provjeri postojeći rezultat',exact:true}).click()]);
+    await wait(page,'Radnici su dodani');
+    await page.getByRole('button',{name:'Otvori radnike',exact:true}).click();
+    await page.getByText('Synthetic CSV',{exact:true}).waitFor();
     assert.equal(commitPosts,1);assert.equal(expectedAborts,0);assert.deepEqual(await fetch(`${f.origin}/__test/import-counts`).then(r=>r.json()),{workers:1,staging:0});
     await page.reload();await page.locator('#content .screen').waitFor();await page.evaluate(()=>window.navigate('workerImports'));
     await page.getByRole('button',{name:'Otvori pripremu',exact:true}).click();await wait(page,'Radnici su dodani');
     await page.getByRole('button',{name:'Novi uvoz',exact:true}).click();await wait(page,'1. Odaberite datoteku');
     await upload(page,'synthetic.xlsx','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',Buffer.from(f.xlsx,'base64'),'xlsx');
-    await map(page,true);await accessible(page);await page.getByRole('button',{name:'Otkaži pripremu',exact:true}).click();await wait(page,'Otkazati pripremu?');
+    await page.getByRole('button',{name:'Predloži povezivanje',exact:true}).click();
+    assert.equal(await page.locator('#import-column-1').inputValue(),'name');
+    assert.equal(await page.locator('#import-column-5').inputValue(),'email');
+    assert.equal(await page.locator('#import-department-0 option:checked').textContent(),'Department');
+    assert.equal(await page.locator('#import-shift-0 option:checked').textContent(),'Day');
+    await page.getByRole('button',{name:'Provjeri cijeli popis',exact:true}).click();
+    await wait(page,'3. Pregledajte cijeli popis');
+    await accessible(page);await page.getByRole('button',{name:'Otkaži pripremu',exact:true}).click();await wait(page,'Otkazati pripremu?');
     await page.getByRole('button',{name:'Potvrdi otkazivanje',exact:true}).click();await wait(page,'Otkazano');
     assert.deepEqual(await fetch(`${f.origin}/__test/import-counts`).then(r=>r.json()),{workers:1,staging:0});
     await page.getByRole('button',{name:'Natrag na popis',exact:true}).click();await wait(page,'1. Odaberite datoteku');

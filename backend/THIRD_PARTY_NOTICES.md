@@ -1,19 +1,13 @@
 # Backend third-party license decisions
 
-## Noto Sans 5.2.10
+## Noto Sans 2.004 desktop builds
 
-The backend embeds the unmodified `noto-sans-latin-ext-400-normal.woff` and
-`noto-sans-latin-ext-600-normal.woff` files from `@fontsource/noto-sans` in
-generated PDF reports. The font is not sold by itself.
-
-Copyright 2022 The Noto Project Authors
-(https://github.com/notofonts/latin-greek-cyrillic).
-
-The package and font files are distributed under the SIL Open Font License
-1.1. The installed package preserves the complete copyright and license text
-in `node_modules/@fontsource/noto-sans/LICENSE`; npm distribution retains that
-file. This use is therefore narrowly approved for
-`@fontsource/noto-sans@5.2.10`.
+New PDF reports embed the unmodified Noto Sans Regular and Bold TTF files in
+`assets/report-fonts`. These builds include basic and extended Latin letters
+in a single font. The source is the Noto Sans 2.004 distribution packaged in
+Debian fonts-noto-core. Copyright 2015 Google LLC. The full SIL Open Font
+License 1.1 is included in `assets/report-fonts/OFL.txt` and travels with the fonts
+in the backend build.
 
 ## big-integer 1.6.52
 
