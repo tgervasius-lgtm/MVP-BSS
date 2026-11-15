@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import pg from "pg";
+import { migrateDown } from "../../src/db/migrate.js";
 
 const { Client, Pool } = pg;
 
@@ -76,4 +77,14 @@ export async function createPostgresFixture(databaseUrl: string, label: string, 
     }
     throw error;
   }
+}
+
+// A later migration should not change which down guard a fixture exercises.
+export async function rewindMigrationsTo(client: pg.Client, prefix: string): Promise<void> {
+  const { rows } = await client.query<{ version: string }>(
+    "SELECT version FROM bss_schema_migrations ORDER BY version DESC"
+  );
+  const later = rows.findIndex(row => row.version.startsWith(prefix + "_"));
+  assert.ok(later >= 0, `Migration ${prefix} must already be applied`);
+  for (let i = 0; i < later; i++) await migrateDown(client);
 }
