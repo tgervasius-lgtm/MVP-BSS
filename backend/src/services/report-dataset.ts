@@ -160,7 +160,8 @@ export async function createLiveReportPreview(
     rows = (await client.query<PreviewRow>(
       `WITH rows AS (
          SELECT w.code AS "workerCode", w.name AS "workerName", l.leave_type AS "typeCode",
-           l.start_date AS "startDate", l.end_date AS "endDate", l.working_days AS "workingDays", l.status, l.revision
+           to_char(l.start_date, 'YYYY-MM-DD') AS "startDate", to_char(l.end_date, 'YYYY-MM-DD') AS "endDate",
+           l.working_days AS "workingDays", l.status, l.revision
          FROM leave_requests l JOIN workers w ON w.id = l.worker_id
          WHERE l.status = 'approved' AND l.end_date >= $1::date AND l.start_date <= $2::date
            AND ($3::text <> 'manager' OR w.department_id = ANY($4::uuid[]))

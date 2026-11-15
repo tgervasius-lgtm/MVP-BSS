@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { createHash, randomUUID } from "node:crypto";
 import test from "node:test";
 import ExcelJS from "exceljs";
+import PDFDocument from "pdfkit";
 import pg from "pg";
 import { loadConfig } from "../../src/config.js";
 import { bootstrapOrganization } from "../../src/db/bootstrap.js";
@@ -431,6 +432,58 @@ test("PostgreSQL migrations, RLS isolation, auth and manager scope", { skip: !da
     assert.equal(exported.rowCount, preview.totals.rowCount);
     const artifact = await service.downloadReportExport(admin.actor, exported.id);
     assert.match(artifact.content.toString("utf8"), /^A-1;/m);
+  });
+
+  await t.test("approved absence reports preserve both calendar dates across months", async (scope) => {
+    const dateParser = pg.types.getTypeParser(1082, "text");
+    scope.after(() => pg.types.setTypeParser(1082, "text", dateParser));
+    pg.types.setTypeParser(1082, "text", (value: string) => new Date(value + "T00:00:00+01:00"));
+    const { rows: absences } = await owner.query<{ id: string }>(
+      "INSERT INTO leave_requests (organization_id, worker_id, leave_type, start_date, end_date, working_days, status) " +
+      "VALUES ($1, $2, 'annual_leave', '2026-11-10', '2026-11-12', 3, 'approved'), " +
+      "($1, $2, 'annual_leave', '2026-11-30', '2026-12-02', 3, 'approved') RETURNING id",
+      [ids.org1, ids.worker1]
+    );
+    scope.after(async () => {
+      await owner.query("DELETE FROM leave_requests WHERE id = ANY($1::uuid[])", [absences.map((absence) => absence.id)]);
+    });
+
+    const november = [["2026-11-10", "2026-11-12"], ["2026-11-30", "2026-12-02"]];
+    const cases = [
+      ["november", "2026-11-01", "2026-11-30", november],
+      ["december", "2026-12-01", "2026-12-31", november.slice(1)]
+    ] as const;
+    const renderedText: string[] = [];
+    const drawText = PDFDocument.prototype.text;
+    scope.mock.method(PDFDocument.prototype, "text", function (this: PDFKit.PDFDocument, text: string, ...options: unknown[]) {
+      renderedText.push(text);
+      return Reflect.apply(drawText, this, [text, ...options]);
+    });
+
+    for (const [month, periodFrom, periodTo, expected] of cases) {
+      const filters = { reportType: "approved_absences", periodFrom, periodTo, workerId: ids.worker1 } as const;
+      const preview = await service.createReportPreview(admin.actor, filters);
+      assert.equal(preview.totals.rowCount, expected.length);
+      assert.deepEqual(preview.rows.map((row) => [row.startDate, row.endDate]), expected);
+      for (const format of ["csv", "xlsx", "pdf"] as const) {
+        renderedText.length = 0;
+        const exported = await service.createReportExport(admin.actor, { ...filters, format }, "absence-" + month + "-" + format);
+        assert.equal(exported.rowCount, expected.length);
+        const artifact = await service.downloadReportExport(admin.actor, exported.id);
+        if (format === "csv") {
+          const rows = artifact.content.toString("utf8").split(/\r?\n/).filter((row) => row.startsWith("A-1;"));
+          assert.deepEqual(rows.map((row) => row.split(";").slice(3, 5)), expected);
+        } else if (format === "xlsx") {
+          const workbook = new ExcelJS.Workbook();
+          await workbook.xlsx.load(artifact.content as never);
+          const sheet = workbook.worksheets[0]!;
+          assert.deepEqual(expected.map((_, index) => [sheet.getCell(index + 5, 4).value, sheet.getCell(index + 5, 5).value]), expected);
+        } else {
+          assert.equal(artifact.content.subarray(0, 4).toString("ascii"), "%PDF");
+          assert.deepEqual(renderedText.filter((value) => /^\d{4}-\d{2}-\d{2}$/.test(value)), expected.flat());
+        }
+      }
+    }
   });
 
   const dashboard = await service.getDashboardSummary(admin.actor, "2026-07-13");
