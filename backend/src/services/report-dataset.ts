@@ -139,7 +139,7 @@ export async function createLiveReportPreview(
     const exceptionClause = input.reportType === "exceptions" ? "AND a.status IN ('late', 'incomplete', 'corrected')" : "";
     rows = (await client.query<PreviewRow>(
       `WITH rows AS (
-         SELECT w.code AS "workerCode", w.name AS "workerName", a.work_date AS "workDate", a.status,
+         SELECT w.code AS "workerCode", w.name AS "workerName", to_char(a.work_date, 'YYYY-MM-DD') AS "workDate", a.status,
            a.worked_minutes AS "workedMinutes", a.planned_minutes AS "plannedMinutes",
            a.worked_minutes - a.planned_minutes AS "balanceMinutes", a.revision
          FROM attendance_days a JOIN workers w ON w.id = a.worker_id ${attendanceScopeJoins}
@@ -178,7 +178,7 @@ export async function createLiveReportPreview(
     const detailed = reportPrivacyProfile(input.reportType, actor) === "full";
     rows = (await client.query<PreviewRow>(
       `WITH rows AS (
-         SELECT w.code AS "workerCode", w.name AS "workerName", a.work_date AS "workDate", c.status,
+         SELECT w.code AS "workerCode", w.name AS "workerName", to_char(a.work_date, 'YYYY-MM-DD') AS "workDate", c.status,
            c.created_at AS "requestedAt", ${detailed ? "c.reason, " : ""}c.revision
          FROM correction_requests c JOIN attendance_days a ON a.id = c.attendance_day_id
          JOIN workers w ON w.id = a.worker_id ${attendanceScopeJoins}
