@@ -5,8 +5,9 @@
     const {shiftById,escapeHtml,pill}=context;
     const body=workers.map(worker=>{
       const shift=shiftById(worker.shiftId);
+      const code=worker.code||(worker.apiId?'—':'R-'+String(worker.id).padStart(3,'0'));
       return `<tr data-worker-id="${worker.id}">
-        <td class="worker-code">R-${String(worker.id).padStart(3,'0')}</td>
+        <td class="worker-code">${escapeHtml(code)}</td>
         <td><button class="worker-name-link" data-bss-action="openWorker(${worker.id})"><b>${escapeHtml(worker.name)}</b><small>${escapeHtml(worker.email)}</small></button></td>
         <td>${escapeHtml(worker.dept)}</td>
         <td>${escapeHtml(worker.jobTitle||'—')}</td>
@@ -29,7 +30,7 @@
     }
     return `${title(isAdmin?'Radnici':'Moj tim',isAdmin?'Zaposlenici i operativni status.':'Radnici u dodijeljenim odjelima.',actions)}
       <section class="card workers-control-card">
-        <div class="workers-toolbar"><input id="workerSearch" aria-label="Traži radnike" placeholder="Traži po imenu, odjelu ili radnom mjestu" value="${escapeHtml(workerSearch)}"><button class="btn" data-bss-action="applyWorkerSearch()">Traži</button></div>
+        <div class="workers-toolbar"><input id="workerSearch" aria-label="Traži radnike" placeholder="Traži po imenu, šifri, odjelu ili radnom mjestu" value="${escapeHtml(workerSearch)}"><button class="btn" data-bss-action="applyWorkerSearch()">Traži</button></div>
         <div class="tabs workers-tabs">${tabs.map(tab=>`<button class="tab ${workerListTab===tab?'active':''}" data-bss-action="setWorkerTab('${tab}')">${tab}</button>`).join('')}</div>
         ${shiftLabel?`<button class="active-filter" data-bss-action="openWorkerStatus('Svi')">Smjena: ${escapeHtml(shiftLabel)} · ukloni filtar ×</button>`:''}
       </section>
