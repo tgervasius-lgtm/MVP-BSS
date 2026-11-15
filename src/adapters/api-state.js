@@ -116,7 +116,7 @@
     const workerSource=data.workers?.items||(data.selfWorker?[data.selfWorker]:[]);
     const workers=workerSource.map(item=>({
       id:id(item.id),apiId:item.id,code:item.code,name:item.name,email:item.email||'',dept:departmentNames.get(item.departmentId)||'—',apiDepartmentId:item.departmentId,
-      jobTitle:item.code,shiftId:shiftIds.get(item.shiftId)||0,apiShiftId:item.shiftId,status:'Odsutna',card:'',cardApiId:null,cardStatus:'Nije dodijeljena',todayStart:'',
+      jobTitle:'',shiftId:shiftIds.get(item.shiftId)||0,apiShiftId:item.shiftId,status:'Odsutna',card:'',cardApiId:null,cardStatus:'Nije dodijeljena',todayStart:'',
       active:item.status==='active',vacationAllowance:item.annualLeaveAllowance,revision:item.revision
     }));
     const workerByApi=new Map(workers.map(item=>[item.apiId,item]));
@@ -124,7 +124,7 @@
       if(!apiId)return null;
       if(workerByApi.has(apiId))return workerByApi.get(apiId);
       const user=(data.users?.items||[]).find(item=>item.workerId===apiId);
-      const worker={id:id(apiId),apiId,code:String(apiId).slice(0,8),name:user?.email||`Radnik ${String(apiId).slice(0,8)}`,email:user?.email||'',dept:'—',apiDepartmentId:null,jobTitle:'',shiftId:0,apiShiftId:null,status:'Odsutna',card:'',cardApiId:null,cardStatus:'Nije dodijeljena',todayStart:'',active:true,vacationAllowance:0,revision:'0'};
+      const worker={id:id(apiId),apiId,code:'',name:user?.email||`Radnik ${String(apiId).slice(0,8)}`,email:user?.email||'',dept:'—',apiDepartmentId:null,jobTitle:'',shiftId:0,apiShiftId:null,status:'Odsutna',card:'',cardApiId:null,cardStatus:'Nije dodijeljena',todayStart:'',active:true,vacationAllowance:0,revision:'0'};
       workers.push(worker);workerByApi.set(apiId,worker);return worker;
     };
     ensureWorker(session.effectiveScope.selfWorkerId);
