@@ -2102,6 +2102,7 @@ paths:
       tags: [Reports]
       operationId: listReportExports
       summary: List Report Exports
+      description: Managers see their own exports with a nonempty department scope within their current assignments. Accountants see correction exports only when generated with minimized content.
       x-bss-roles: [admin, manager, accountant]
       parameters:
         - $ref: '#/components/parameters/Cursor'
@@ -2123,6 +2124,7 @@ paths:
       tags: [Reports]
       operationId: createReportExport
       summary: Create Report Export
+      description: Correction exports generated for accountants omit free-text reasons, decision notes and other workflow details. A manager must have an assigned department to create an export.
       x-bss-roles: [admin, manager, accountant]
       requestBody:
         required: true
@@ -2154,6 +2156,7 @@ paths:
       tags: [Reports]
       operationId: createReportPreview
       summary: Create Report Preview
+      description: Correction previews for accountants omit free-text reasons, decision notes and other workflow details.
       x-bss-roles: [admin, manager, accountant]
       requestBody:
         required: true
@@ -2181,6 +2184,7 @@ paths:
       tags: [Reports]
       operationId: getReportExport
       summary: Get Report Export
+      description: Applies the current role and department scope and the stored privacy profile used for export history. Out-of-scope exports return 404.
       x-bss-roles: [admin, manager, accountant]
       parameters:
         - $ref: '#/components/parameters/ExportId'
@@ -2204,6 +2208,7 @@ paths:
       tags: [Reports]
       operationId: downloadReportExport
       summary: Download Report Export
+      description: Applies the current role and department scope and the stored privacy profile used for export history. Out-of-scope exports return 404.
       x-bss-roles: [admin, manager, accountant]
       parameters:
         - $ref: '#/components/parameters/ExportId'
@@ -2244,7 +2249,7 @@ paths:
       tags: [Reports]
       operationId: verifyReportExport
       summary: Verify Stored Report Export Provenance
-      description: Verifies the stored artifact checksum and, for a locked export, its immutable dataset, calculation and template provenance under the caller's current role/data scope.
+      description: Verifies the stored artifact checksum and, for a locked export, its immutable dataset, calculation and template provenance. Applies the current role and department scope and the stored privacy profile used for export history. Out-of-scope exports return 404.
       x-bss-roles: [admin, manager, accountant]
       parameters:
         - $ref: '#/components/parameters/ExportId'

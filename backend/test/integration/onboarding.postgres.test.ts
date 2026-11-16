@@ -9,7 +9,7 @@ import { loadConfig } from "../../src/config.js";
 import { buildApp } from "../../src/http/app.js";
 import { FakeAuthService,FakePhaseAService } from "../helpers/fakes.js";
 import { onboardingFixture } from "../helpers/onboarding-fixture.js";
-import { createPostgresFixture } from "../helpers/postgres-fixture.js";
+import { createPostgresFixture, rewindMigrationsTo } from "../helpers/postgres-fixture.js";
 const url=process.env.BSS_TEST_DATABASE_URL;
 const options={skip:!url&&process.env.BSS_REQUIRE_POSTGRES_TESTS!=="true"};
 
@@ -114,11 +114,13 @@ test("018 clean upgrade/down/up is reversible only before durable onboarding exi
   await migrateUp(f.owner);
   const before=process.env.BSS_ALLOW_DOWN_MIGRATIONS;process.env.BSS_ALLOW_DOWN_MIGRATIONS="true";
   try{
+    await rewindMigrationsTo(f.owner,"018");
     await migrateDown(f.owner);assert.equal((await f.owner.query("SELECT to_regclass('onboarding_sessions') AS value")).rows[0].value,null);
     await migrateUp(f.owner);
     const org=(await f.owner.query("INSERT INTO organizations(name) VALUES('Synthetic down fixture') RETURNING id")).rows[0].id;
     await f.owner.query(`INSERT INTO onboarding_sessions(organization_id,profile,contract_version,provisioning_reference)
       VALUES($1,'INTERNAL','BSS-v1.0','SYNTHETIC')`,[org]);
+    await rewindMigrationsTo(f.owner,"018");
     await assert.rejects(migrateDown(f.owner),/Preserve onboarding evidence/);
     assert.equal((await f.owner.query("SELECT count(*) FROM onboarding_sessions")).rows[0].count,"1");
   }finally{if(before===undefined)delete process.env.BSS_ALLOW_DOWN_MIGRATIONS;else process.env.BSS_ALLOW_DOWN_MIGRATIONS=before;}
@@ -158,12 +160,14 @@ test("018 non-bypass migration owner sees retained rows and cannot down-migrate 
   await migrateUp(f.owner);
   const before=process.env.BSS_ALLOW_DOWN_MIGRATIONS;process.env.BSS_ALLOW_DOWN_MIGRATIONS="true";
   try{
-    await migrateDown(f.owner);
+    await rewindMigrationsTo(f.owner,"017");
     await f.owner.query(`CREATE ROLE ${ddl} NOLOGIN NOSUPERUSER NOBYPASSRLS`);created=true;
     await f.owner.query(`GRANT CREATE,USAGE ON SCHEMA public TO ${ddl}`);
     await f.owner.query(`GRANT REFERENCES ON organizations,users TO ${ddl}`);
     await f.owner.query(`GRANT SELECT,INSERT,DELETE ON bss_schema_migrations TO ${ddl}`);
+    for(const table of ["report_exports","leave_requests"]) await f.owner.query(`ALTER TABLE ${table} OWNER TO ${ddl}`);
     await f.owner.query(`SET ROLE ${ddl}`);await migrateUp(f.owner);
+    await rewindMigrationsTo(f.owner,"018");
     const flags=(await f.owner.query("SELECT rolsuper,rolbypassrls FROM pg_roles WHERE rolname=current_user")).rows[0];
     assert.equal(flags.rolsuper,false);assert.equal(flags.rolbypassrls,false);
     await f.owner.query("RESET ROLE");

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { setTimeout as delay } from "node:timers/promises";
 import test from "node:test";
 import pg from "pg";
 import { createPostgresFixture } from "../helpers/postgres-fixture.js";
@@ -70,4 +71,25 @@ test("fixture disposal works after a failing grant and is idempotent", options, 
   const first = fixture.dispose();
   assert.equal(fixture.dispose(), first);
   await first;
+});
+
+test("fixture waits for idle pool clients to disconnect before dropping the database", options, async (t) => {
+  assert.ok(databaseUrl, "BSS_TEST_DATABASE_URL is required");
+  const fixture = await createPostgresFixture(databaseUrl, "slow_disconnect");
+  t.after(fixture.dispose);
+  const errors: string[] = [];
+  fixture.appPool.on("error", (error) => { errors.push(error.message); });
+
+  const client = await fixture.appPool.connect() as pg.PoolClient & pg.Client;
+  const closed = new Promise<void>((resolve) => { client.once("end", resolve); });
+  const end = client.end.bind(client);
+  // Hold the protocol close long enough to expose a premature database drop.
+  client.end = ((callback: Parameters<typeof client.end>[0]) => {
+    void delay(250).then(() => end(callback));
+  }) as typeof client.end;
+  client.release();
+
+  await fixture.dispose();
+  await closed;
+  assert.deepEqual(errors, []);
 });

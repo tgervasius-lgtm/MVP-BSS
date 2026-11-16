@@ -3,9 +3,13 @@ import { createHash, randomUUID } from "node:crypto";
 import test from "node:test";
 import ExcelJS from "exceljs";
 import pg from "pg";
+import PDFDocument from "pdfkit";
 import { migrateUp } from "../../src/db/migrate.js";
+import { withTenant } from "../../src/db/tenant.js";
 import type { ActorContext, Role } from "../../src/domain/types.js";
 import { PgMvpService } from "../../src/services/pg-mvp-service.js";
+import { resolveTerminalConfiguration } from "../../src/services/terminal-event-configuration.js";
+import { applyAttendanceEvent } from "../../src/services/terminal-event-reconciliation.js";
 import { createPostgresFixture } from "../helpers/postgres-fixture.js";
 
 // Keep this #146 fixture on PostgreSQL's calendar-date representation so the
@@ -32,7 +36,7 @@ test("#146 PostgreSQL period lifecycle, RLS and correction/finalization/export c
   await owner.query(`GRANT INSERT ON attendance_days, correction_requests, report_exports, audit_events,
     attendance_calculations, attendance_month_locks, attendance_period_versions,
     attendance_period_transitions TO ${role}`);
-  await owner.query(`GRANT UPDATE ON attendance_days, correction_requests, attendance_month_locks TO ${role}`);
+  await owner.query(`GRANT UPDATE ON attendance_days, correction_requests, attendance_month_locks, leave_requests TO ${role}`);
   await owner.query(`REVOKE ALL PRIVILEGES ON bss_schema_migrations FROM ${role}`);
 
   const seeded = await owner.query<{
@@ -215,6 +219,32 @@ test("#146 PostgreSQL period lifecycle, RLS and correction/finalization/export c
   const worker = actor(ids.org1, ids.worker_user1, "worker", [], ids.worker1);
   const otherTenantAdmin = actor(ids.org2, ids.admin2, "admin", []);
 
+  const privateReason = "SYNTHETIC-PRIVATE-CORRECTION-REASON";
+  const privateNote = "SYNTHETIC-PRIVATE-DECISION-NOTE";
+  await owner.query(`INSERT INTO correction_requests
+    (organization_id, attendance_day_id, requested_by, before_values, requested_values,
+     reason, status, decided_by, decision_note, decided_at)
+    VALUES ($1, $2, $3, '{}', '{}', $4, 'rejected', $5, $6, clock_timestamp())`,
+  [ids.org1, completeDay.id, ids.worker_user1, privateReason, ids.admin1, privateNote]);
+
+  await t.test("live reports preserve work dates with a local-midnight DATE parser", async (scope) => {
+    const fixtureDateParser = pg.types.getTypeParser(1082, "text");
+    scope.after(() => pg.types.setTypeParser(1082, "text", fixtureDateParser));
+    pg.types.setTypeParser(1082, "text", (value: string) => new Date(value + "T00:00:00+02:00"));
+
+    const reportTypes = [
+      ["attendance_journal", 2],
+      ["exceptions", 1],
+      ["correction_log", 1]
+    ] as const;
+    for (const [reportType, rowCount] of reportTypes) {
+      const preview = await service.createReportPreview(admin, {
+        reportType, periodFrom: "2030-09-01", periodTo: "2030-09-30"
+      });
+      assert.deepEqual(preview.rows.map((row) => row.workDate), Array(rowCount).fill("2030-09-10"), reportType);
+    }
+  });
+
   const open = await service.getAttendancePeriod(admin, 2030, 9);
   assert.equal(open.status, "open");
   assert.deepEqual((await service.listAttendancePeriodVersions(admin, 2030, 9, undefined, 50)).items, []);
@@ -302,6 +332,99 @@ test("#146 PostgreSQL period lifecycle, RLS and correction/finalization/export c
     reportType: "monthly_summary", format: "csv", periodFrom: "2030-09-01", periodTo: "2030-09-30",
     periodVersionId: finalizedV1.datasetVersion
   }, key("cross-tenant-export")), hasCode("NOT_FOUND"));
+
+  await t.test("correction reports minimize accountant files and enforce current export scope", async (scope) => {
+    const filters = { reportType: "correction_log", periodFrom: "2030-09-01", periodTo: "2030-09-30" } as const;
+    const periods = [undefined, finalizedV1.datasetVersion] as const;
+    for (const [viewer, expected] of [[admin, 1], [managerA, 1], [managerB, 0], [accountant, 1]] as const) {
+      const preview = await service.createReportPreview(viewer, filters);
+      assert.equal(preview.totals.rowCount, expected);
+      assert.equal(preview.columns.some((column) => column.key === "reason"), viewer.role !== "accountant");
+      if (expected) assert.equal(preview.rows[0]?.reason, viewer.role === "accountant" ? undefined : privateReason);
+      assert.doesNotMatch(JSON.stringify(preview), new RegExp(privateNote));
+    }
+    const adminExportIds = [];
+    const accountantExportIds = [];
+    const renderedPdfText: string[] = [];
+    const drawText = PDFDocument.prototype.text;
+    const rendered = scope.mock.method(PDFDocument.prototype, "text", function (this: PDFKit.PDFDocument, text: string, ...options: unknown[]) {
+      renderedPdfText.push(text);
+      return Reflect.apply(drawText, this, [text, ...options]);
+    });
+    for (const periodVersionId of periods) {
+      for (const format of ["csv", "xlsx", "pdf"] as const) {
+        const input = { ...filters, format, ...(periodVersionId ? { periodVersionId } : {}) };
+        renderedPdfText.length = 0;
+        const full = await service.createReportExport(admin, input, key("privacy-full"));
+        if (format === "pdf") assert.ok(renderedPdfText.includes(privateReason));
+        renderedPdfText.length = 0;
+        const minimized = await service.createReportExport(accountant, input, key("privacy-minimized"));
+        assert.equal(full.rowCount, 1);
+        assert.equal(minimized.rowCount, full.rowCount);
+        assert.notEqual(minimized.templateVersion, full.templateVersion);
+        adminExportIds.push(full.id);
+        accountantExportIds.push(minimized.id);
+        await assert.rejects(service.getReportExport(accountant, full.id), hasCode("NOT_FOUND"));
+        await assert.rejects(service.downloadReportExport(accountant, full.id), hasCode("NOT_FOUND"));
+        await assert.rejects(service.verifyReportExport(accountant, full.id), hasCode("NOT_FOUND"));
+        const fullFile = await service.downloadReportExport(admin, full.id);
+        const minimizedFile = await service.downloadReportExport(accountant, minimized.id);
+        assert.notEqual(fullFile.checksumSha256, minimizedFile.checksumSha256);
+        assert.equal((await service.verifyReportExport(accountant, minimized.id)).artifactChecksumMatches, true);
+        assert.equal((await service.verifyReportExport(accountant, minimized.id)).verified, Boolean(periodVersionId));
+        if (format === "csv") {
+          assert.match(fullFile.content.toString(), new RegExp(privateReason));
+          assert.doesNotMatch(minimizedFile.content.toString(), /Razlog korekcije|SYNTHETIC-PRIVATE/);
+        } else if (format === "xlsx") {
+          const workbook = new ExcelJS.Workbook();
+          await workbook.xlsx.load(minimizedFile.content as never);
+          const sheet = workbook.getWorksheet("Izvještaj");
+          assert.equal(sheet?.getRow(4).cellCount, 5);
+          assert.doesNotMatch(JSON.stringify(sheet?.getSheetValues()), /Razlog korekcije|SYNTHETIC-PRIVATE/);
+        } else {
+          assert.equal(minimizedFile.content.subarray(0, 4).toString("ascii"), "%PDF");
+          assert.ok(renderedPdfText.includes("Period Worker One"));
+          assert.doesNotMatch(renderedPdfText.join("\n"), /Razlog korekcije|SYNTHETIC-PRIVATE/);
+        }
+      }
+    }
+    rendered.mock.restore();
+    // Omit the profile as an older writer would. Existing rows also receive this conservative default.
+    const legacy = (await owner.query<{ id: string }>(`
+      INSERT INTO report_exports (organization_id, created_by, report_type, filters, format, status,
+        dataset_version, template_version, row_count, total_minutes, checksum_sha256,
+        content, mime_type, file_name, period_version_id, dataset_checksum_sha256, calculation_versions)
+      SELECT organization_id, created_by, report_type, filters, format, status,
+        dataset_version, template_version, row_count, total_minutes, checksum_sha256,
+        content, mime_type, file_name, period_version_id, dataset_checksum_sha256, calculation_versions
+      FROM report_exports WHERE id = $1 RETURNING id`, [adminExportIds[3]])).rows[0]!;
+    await assert.rejects(service.downloadReportExport(accountant, legacy.id), hasCode("NOT_FOUND"));
+    const legacyFile = await service.downloadReportExport(admin, legacy.id);
+    const original = await service.downloadReportExport(admin, adminExportIds[3]!);
+    assert.deepEqual(legacyFile.content, original.content);
+    assert.equal((await service.verifyReportExport(admin, legacy.id)).verified, true);
+    await assert.rejects(owner.query("UPDATE report_exports SET privacy_profile = 'accounting_minimized' WHERE id = $1", [legacy.id]), /immutable/i);
+
+    const accountantHistory = await service.listReportExports(accountant, undefined, 100);
+    assert.equal(accountantHistory.page.total, accountantHistory.items.length);
+    assert.deepEqual(new Set(accountantHistory.items.filter((item) => item.reportType === "correction_log").map((item) => item.id)),
+      new Set(accountantExportIds));
+    const demotedAdmin = actor(ids.org1, ids.admin1, "manager", [ids.dep2]);
+    assert.equal((await service.listReportExports(demotedAdmin, undefined, 100)).page.total, 0);
+    for (const view of [demotedAdmin, actor(ids.org1, ids.admin1, "accountant", []), otherTenantAdmin]) {
+      await assert.rejects(service.getReportExport(view, legacy.id), hasCode("NOT_FOUND"));
+      await assert.rejects(service.downloadReportExport(view, legacy.id), hasCode("NOT_FOUND"));
+      await assert.rejects(service.verifyReportExport(view, legacy.id), hasCode("NOT_FOUND"));
+    }
+    const manager = await service.createReportExport(managerA, {
+      ...filters, format: "csv", periodVersionId: finalizedV1.datasetVersion
+    }, key("privacy-manager"));
+    assert.match((await service.downloadReportExport(managerA, manager.id)).content.toString(), new RegExp(privateReason));
+    await assert.rejects(service.downloadReportExport(actor(ids.org1, ids.manager1, "manager", [ids.dep2]), manager.id), hasCode("NOT_FOUND"));
+    await assert.rejects(service.createReportExport(actor(ids.org1, ids.manager1, "manager", []), {
+      ...filters, format: "csv"
+    }, key("privacy-manager-no-scope")), hasCode("FORBIDDEN"));
+  });
 
   const rls = await appPool.connect();
   try {
@@ -502,4 +625,150 @@ test("#146 PostgreSQL period lifecycle, RLS and correction/finalization/export c
     { reason: "Close verified September period" }, finalizedV2.revision,
     key("close"), key("request-close"));
   assert.equal(closed.status, "closed");
+
+  await t.test("leave approval serializes with finalization and rejects any locked month in its range", async () => {
+    const pending = async (startDate: string, endDate: string) => (await owner.query<{ id: string }>(
+      `INSERT INTO leave_requests (organization_id, worker_id, leave_type, start_date, end_date, working_days)
+       VALUES ($1, $2, 'annual_leave', $3, $4, 1) RETURNING id`, [ids.org1, ids.worker1, startDate, endDate]
+    )).rows[0]!;
+    const approval = (id: string, approver = managerA) =>
+      service.approveLeaveRequest(approver, id, "1", undefined, key(`leave-approve-${id}`));
+    const crossMonth = await pending("2030-09-30", "2030-10-01");
+    await assert.rejects(approval(crossMonth.id), hasCode("CONFLICT"));
+    await assert.rejects(approval(crossMonth.id, managerB), hasCode("FORBIDDEN"));
+    const rejected = await service.rejectLeaveRequest(managerA, crossMonth.id, "1", "Synthetic declined request", key("leave-reject"));
+    assert.equal(rejected.status, "rejected");
+
+    for (const [month, day] of [[1, "2031-01-07"], [2, "2031-02-04"]] as const) {
+      const request = await pending(day, day);
+      const inReview = await service.startAttendancePeriodReview(admin, 2031, month,
+        { reason: "Synthetic leave review" }, "0", key(`leave-review-${month}`), key(`leave-review-request-${month}`));
+      const finalize = (revision: string, suffix: string) => service.finalizeAttendancePeriod(admin, 2031, month,
+        { reason: "Synthetic leave finalization" }, revision, key(`leave-final-${month}-${suffix}`), key(`leave-final-request-${month}-${suffix}`));
+      const outcomes = await Promise.allSettled(month === 1 ?
+        [finalize(inReview.revision, "race"), approval(request.id)] :
+        [approval(request.id), finalize(inReview.revision, "race")]);
+      const finalized = outcomes[month === 1 ? 0 : 1];
+      const approved = outcomes[month === 1 ? 1 : 0];
+      assert.ok(finalized?.status === "fulfilled" && "datasetVersion" in finalized.value);
+      const period = finalized.value;
+      const snapshot = (await owner.query<{ dataset_snapshot: { approvedAbsences: Array<{ id: string }> }; dataset_checksum_sha256: string }>(
+        "SELECT dataset_snapshot, dataset_checksum_sha256 FROM attendance_period_versions WHERE id = $1", [period.datasetVersion]
+      )).rows[0]!;
+      assert.equal(snapshot.dataset_snapshot.approvedAbsences.some((item) => item.id === request.id), approved?.status === "fulfilled");
+
+      if (approved?.status === "rejected") {
+        assert.ok(hasCode("CONFLICT")(approved.reason));
+        assert.equal((await owner.query("SELECT status FROM leave_requests WHERE id = $1", [request.id])).rows[0].status, "pending");
+        await assert.rejects(approval(request.id), hasCode("CONFLICT"));
+        const reopenedLeave = await service.reopenAttendancePeriod(admin, 2031, month, { reason: "Review late synthetic leave" },
+          period.revision, key(`leave-reopen-${month}`), key(`leave-reopen-request-${month}`));
+        assert.equal((await approval(request.id)).status, "approved");
+        const nextReview = await service.startAttendancePeriodReview(admin, 2031, month, { reason: "Recheck approved leave" },
+          reopenedLeave.revision, key(`leave-review-next-${month}`), key(`leave-review-request-next-${month}`));
+        const newPeriod = await finalize(nextReview.revision, "after-reopen");
+        assert.notEqual(newPeriod.datasetVersion, period.datasetVersion);
+        const saved = await owner.query("SELECT dataset_checksum_sha256 FROM attendance_period_versions WHERE id = $1", [period.datasetVersion]);
+        assert.equal(saved.rows[0].dataset_checksum_sha256, snapshot.dataset_checksum_sha256);
+        const fresh = await owner.query("SELECT dataset_snapshot FROM attendance_period_versions WHERE id = $1", [newPeriod.datasetVersion]);
+        assert.ok(fresh.rows[0].dataset_snapshot.approvedAbsences.some((item: { id: string }) => item.id === request.id));
+      }
+    }
+  });
+
+  await t.test("a stored late arrival without checkout blocks finalization until checkout", async () => {
+    const lateDay = (await owner.query<{ id: string }>(`
+      INSERT INTO attendance_days (
+        organization_id, worker_id, work_date, shift_snapshot, check_in,
+        break_minutes, worked_minutes, planned_minutes, status, calculation_version, configuration_snapshot
+      ) VALUES ($1, $2, '2030-10-10', $3::jsonb, '2030-10-10T06:20:00Z',
+        30, 0, 450, 'late', 'attendance-v1', $4::jsonb) RETURNING id`,
+    [ids.org1, ids.worker2, JSON.stringify({ id: ids.shift1, name: "Day shift", startTime: "08:00", endTime: "16:00", breakMinutes: 30 }),
+      completeConfiguration(ids.worker2)])).rows[0]!;
+
+    const octoberReview = await service.startAttendancePeriodReview(admin, 2030, 10,
+      { reason: "Review October attendance" }, "0", key("oct-review"), key("oct-review-request"));
+    const finalize = () => service.finalizeAttendancePeriod(admin, 2030, 10,
+      { reason: "Finalize October attendance" }, octoberReview.revision, key("oct-finalize"), key("oct-finalize-request"));
+    await assert.rejects(finalize(), hasCode("CONFLICT"));
+    assert.deepEqual(octoberReview.unresolved, {
+      active: 1, incomplete: 0, pendingCorrections: 0, reconciliationRequired: 0, total: 1
+    });
+    assert.equal((await service.getAttendancePeriod(managerA, 2030, 10)).unresolved.total, 0);
+    assert.equal((await service.getAttendancePeriod(managerB, 2030, 10)).unresolved.active, 1);
+    assert.equal((await service.getAttendancePeriod(accountant, 2030, 10)).unresolved.active, 1);
+    assert.equal((await service.getAttendancePeriod(otherTenantAdmin, 2030, 10)).unresolved.total, 0);
+    assert.equal((await owner.query("SELECT id FROM attendance_period_versions WHERE period_id = $1", [octoberReview.id])).rowCount, 0);
+
+    const checkedOutAt = "2030-10-10T14:00:00Z";
+    const checkout = await withTenant(appPool, admin, key("oct-checkout"), async (client) => {
+      const resolved = await resolveTerminalConfiguration(client, ids.worker2, checkedOutAt, checkedOutAt);
+      assert.equal(resolved.outcome, "accepted");
+      return applyAttendanceEvent(client, ids.org1, ids.worker2,
+        { eventType: "check_out", occurredAt: checkedOutAt }, resolved.configuration, resolved.interpretation);
+    });
+    assert.equal(checkout.status, "synced");
+    assert.equal(checkout.attendanceDayId, lateDay.id);
+    assert.equal((await service.getAttendancePeriod(admin, 2030, 10)).unresolved.total, 0);
+    const octoberFinalized = await finalize();
+    const octoberSnapshot = await owner.query<{
+      dataset_snapshot: { attendance: Array<{ status: string; checkOut: string; workedMinutes: number }> };
+    }>("SELECT dataset_snapshot FROM attendance_period_versions WHERE id = $1", [octoberFinalized.datasetVersion]);
+    const [attendance] = octoberSnapshot.rows[0]!.dataset_snapshot.attendance;
+    assert.equal(attendance?.status, "late");
+    assert.equal(attendance?.checkOut, "2030-10-10T14:00:00.000Z");
+    assert.equal(attendance?.workedMinutes, 430);
+
+    const octoberClosed = await service.closeAttendancePeriod(admin, 2030, 10,
+      { reason: "Close completed October attendance" }, octoberFinalized.revision,
+      key("oct-close"), key("oct-close-request"));
+    assert.equal(octoberClosed.status, "closed");
+  });
+
+  await t.test("an existing finalized month with an open day must be reopened before closing", async () => {
+    const novemberReview = await service.startAttendancePeriodReview(admin, 2030, 11,
+      { reason: "Review November attendance" }, "0", key("nov-review"), key("nov-review-request"));
+    const novemberFinalized = await service.finalizeAttendancePeriod(admin, 2030, 11,
+      { reason: "Finalize November attendance" }, novemberReview.revision,
+      key("nov-finalize"), key("nov-finalize-request"));
+
+    // Inject the inconsistent live state left by an earlier backend in this isolated fixture.
+    const openDay = (await owner.query<{ id: string }>(`INSERT INTO attendance_days (
+      organization_id, worker_id, work_date, shift_snapshot, check_in, planned_minutes, status, configuration_snapshot
+    ) VALUES ($1, $2, '2030-11-10', '{}', '2030-11-10T07:20:00Z', 450, 'late', $3::jsonb) RETURNING id`,
+    [ids.org1, ids.worker1, completeConfiguration(ids.worker1)])).rows[0]!;
+
+    await assert.rejects(service.closeAttendancePeriod(admin, 2030, 11,
+      { reason: "Reject closing with missing checkout" }, novemberFinalized.revision,
+      key("nov-close"), key("nov-close-request")), hasCode("CONFLICT"));
+    const blocked = await service.getAttendancePeriod(admin, 2030, 11);
+    assert.equal(blocked.status, "finalized");
+    assert.equal(blocked.revision, novemberFinalized.revision);
+    assert.equal(blocked.datasetVersion, novemberFinalized.datasetVersion);
+    assert.equal(blocked.datasetChecksumSha256, novemberFinalized.datasetChecksumSha256);
+    const novemberReopened = await service.reopenAttendancePeriod(admin, 2030, 11,
+      { reason: "Reopen to resolve missing checkout" }, blocked.revision,
+      key("nov-reopen"), key("nov-reopen-request"));
+    assert.equal(novemberReopened.status, "open");
+    assert.equal(novemberReopened.unresolved.active, 1);
+
+    const correction = await service.createCorrectionRequest(worker, {
+      attendanceDayId: openDay.id, newCheckIn: "2030-11-10T07:20:00Z", newCheckOut: "2030-11-10T15:00:00Z",
+      reason: "Confirm missing checkout in reopened month"
+    }, key("nov-correction"));
+    const decision = await service.approveCorrectionRequest(managerA, correction.id, correction.revision,
+      "Verified checkout", key("nov-correction-approval"));
+    assert.equal(decision.attendanceDay.status, "corrected");
+    const nextReview = await service.startAttendancePeriodReview(admin, 2030, 11,
+      { reason: "Review corrected November attendance" }, novemberReopened.revision,
+      key("nov-review-corrected"), key("nov-review-corrected-request"));
+    assert.equal(nextReview.unresolved.total, 0);
+    const nextFinalized = await service.finalizeAttendancePeriod(admin, 2030, 11,
+      { reason: "Finalize corrected November attendance" }, nextReview.revision,
+      key("nov-finalize-corrected"), key("nov-finalize-corrected-request"));
+    assert.notEqual(nextFinalized.datasetVersion, novemberFinalized.datasetVersion);
+    const oldVersion = await owner.query<{ dataset_checksum_sha256: string }>(
+      "SELECT dataset_checksum_sha256 FROM attendance_period_versions WHERE id = $1", [novemberFinalized.datasetVersion]);
+    assert.equal(oldVersion.rows[0]?.dataset_checksum_sha256, novemberFinalized.datasetChecksumSha256);
+  });
 });

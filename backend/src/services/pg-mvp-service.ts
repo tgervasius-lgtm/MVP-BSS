@@ -12,6 +12,8 @@ import { createOpaqueToken, hashToken } from "../security/tokens.js";
 import { decodeTimelineCursor, encodeTimelineCursor } from "./cursors.js";
 import { normalizeDatabaseError } from "./database-errors.js";
 import { datasetVersion } from "./dataset-version.js";
+import { insertAudit } from "./mvp-audit.js";
+import { lockActiveLeaveWorker, requireNonOverlappingLeave, workingDays } from "./leave-calendar-days.js";
 import { requireBoundedDateRange } from "./validation.js";
 import {
   attendanceSelect,
@@ -27,7 +29,8 @@ import {
   attendancePeriodParts,
   attendancePeriodState,
   isAttendancePeriodLocked,
-  lockAttendancePeriod
+  lockAttendancePeriod,
+  requireLeaveApprovalPeriods
 } from "./attendance-period-lock.js";
 import { lockTerminalEventLifecycle } from "./terminal-event-lock.js";
 import type {
@@ -70,6 +73,7 @@ type LeaveRow = {
   id: string;
   worker_id: string;
   department_id?: string;
+  reservation_submission_key?: string | null;
   leave_type: LeaveRequestView["typeCode"];
   start_date: string | Date;
   end_date: string | Date;
@@ -124,7 +128,7 @@ type TerminalRow = {
   revision: string | number;
 };
 
-const leaveSelect = `SELECT l.id, l.worker_id, w.department_id, l.leave_type, l.start_date, l.end_date,
+const leaveSelect = `SELECT l.id, l.worker_id, w.department_id, l.leave_type, l.start_date::text, l.end_date::text,
   l.working_days, l.note, l.status, l.created_at, l.decided_at, l.decided_by, l.decision_note, l.revision`;
 const correctionSelect = `SELECT c.id, c.attendance_day_id, a.worker_id, w.department_id,
   c.before_values, c.requested_values, c.reason, c.status, c.created_at, c.decided_at,
@@ -198,51 +202,6 @@ function terminalView(row: TerminalRow): TerminalView {
     clockOffsetSeconds: row.clock_offset_seconds,
     revision: String(row.revision)
   };
-}
-
-async function insertAudit(
-  client: TenantTransaction,
-  actor: Pick<ActorContext, "organizationId" | "userId" | "role">,
-  requestId: string,
-  action: string,
-  entityType: string,
-  entityId: string,
-  before: unknown,
-  after: unknown,
-  module: string
-): Promise<string> {
-  const result = await client.query<{ id: string }>(
-    `INSERT INTO audit_events (
-       organization_id, actor_type, actor_id, actor_role, action, entity_type, entity_id,
-       before_json, after_json, request_id, metadata
-     ) VALUES ($1, 'user', $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb)
-     RETURNING id`,
-    [
-      actor.organizationId,
-      actor.userId,
-      actor.role,
-      action,
-      entityType,
-      entityId,
-      before === null || before === undefined ? null : JSON.stringify(before),
-      after === null || after === undefined ? null : JSON.stringify(after),
-      requestId,
-      JSON.stringify({ module })
-    ]
-  );
-  return result.rows[0]!.id;
-}
-
-async function workingDays(client: TenantTransaction, startDate: string, endDate: string): Promise<number> {
-  if (startDate > endDate) throw new AppError("VALIDATION_FAILED", "Početni datum mora biti prije završnog datuma.");
-  const result = await client.query<{ days: number }>(
-    `SELECT COUNT(*)::integer AS days
-     FROM generate_series($1::date, $2::date, interval '1 day') day(value)
-     WHERE EXTRACT(ISODOW FROM day.value) < 6
-       AND NOT EXISTS (SELECT 1 FROM holidays h WHERE h.holiday_date = day.value::date)`,
-    [startDate, endDate]
-  );
-  return result.rows[0]?.days ?? 0;
 }
 
 function correctionTimes(checkInValue: string, checkOutValue: string): { checkIn: Date; checkOut: Date } {
@@ -424,23 +383,15 @@ export class PgMvpService extends PgPhaseAService implements MvpService {
 
   async createLeaveRequest(actor: ActorContext, input: LeaveRequestWrite, requestId: string): Promise<LeaveRequestView> {
     requireRole(actor, ["worker"]);
-    if (!actor.selfWorkerId) throw new AppError("FORBIDDEN", "Korisnik nije povezan s radnikom.");
+    const workerId = actor.selfWorkerId;
+    if (!workerId) throw new AppError("FORBIDDEN", "Korisnik nije povezan s radnikom.");
     requireBoundedDateRange(input.startDate, input.endDate);
     try {
       return await withTenant(this.mvpPool, actor, requestId, async (client) => {
         const days = await workingDays(client, input.startDate, input.endDate);
         if (days <= 0) throw new AppError("VALIDATION_FAILED", "Odabrano razdoblje nema radnih dana.");
-        const worker = await client.query<{ annual_leave_allowance: number }>(
-          "SELECT annual_leave_allowance FROM workers WHERE id = $1 AND status = 'active' FOR UPDATE",
-          [actor.selfWorkerId]
-        );
-        if (!worker.rows[0]) throw new AppError("NOT_FOUND", "Radnik nije pronađen.");
-        const overlap = await client.query(
-          `SELECT 1 FROM leave_requests WHERE worker_id = $1 AND status IN ('pending', 'approved')
-           AND end_date >= $2::date AND start_date <= $3::date LIMIT 1`,
-          [actor.selfWorkerId, input.startDate, input.endDate]
-        );
-        if (overlap.rows[0]) throw new AppError("CONFLICT", "Za odabrano razdoblje već postoji aktivan zahtjev.");
+        const worker = await lockActiveLeaveWorker(client, workerId);
+        await requireNonOverlappingLeave(client, workerId, input.startDate, input.endDate);
         if (input.typeCode === "annual_leave") {
           const firstYear = Number(input.startDate.slice(0, 4));
           const lastYear = Number(input.endDate.slice(0, 4));
@@ -465,9 +416,9 @@ export class PgMvpService extends PgPhaseAService implements MvpService {
                  AND l.end_date >= $2::date AND l.start_date <= $3::date
                  AND EXTRACT(ISODOW FROM day.value) < 6
                  AND NOT EXISTS (SELECT 1 FROM holidays h WHERE h.holiday_date = day.value::date)`,
-              [actor.selfWorkerId, yearStart, yearEnd]
+              [workerId, yearStart, yearEnd]
             );
-            if ((used.rows[0]?.days ?? 0) + requestedDays > worker.rows[0].annual_leave_allowance) {
+            if ((used.rows[0]?.days ?? 0) + requestedDays > worker.annual_leave_allowance) {
               throw new AppError("VALIDATION_FAILED", `Zahtjev prelazi raspoloživi fond godišnjeg odmora za ${year}. godinu.`);
             }
           }
@@ -478,7 +429,7 @@ export class PgMvpService extends PgPhaseAService implements MvpService {
            ) VALUES ($1, $2, $3, $4, $5, $6, $7)
            RETURNING id, worker_id, leave_type, start_date, end_date, working_days, note, status,
              created_at, decided_at, decided_by, decision_note, revision`,
-          [actor.organizationId, actor.selfWorkerId, input.typeCode, input.startDate, input.endDate, days, input.note ?? null]
+          [actor.organizationId, workerId, input.typeCode, input.startDate, input.endDate, days, input.note ?? null]
         );
         const row = result.rows[0]!;
         await insertAudit(client, actor, requestId, "leave_request.create", "leave_request", row.id, null, row, "leave");
@@ -1045,13 +996,20 @@ export class PgMvpService extends PgPhaseAService implements MvpService {
   ): Promise<LeaveRequestView> {
     return withTenant(this.mvpPool, actor, requestId, async (client) => {
       const before = await client.query<LeaveRow>(
-        `${leaveSelect} FROM leave_requests l JOIN workers w ON w.id = l.worker_id WHERE l.id = $1 FOR UPDATE OF l`,
+        `${leaveSelect}, l.reservation_submission_key
+         FROM leave_requests l JOIN workers w ON w.id = l.worker_id WHERE l.id = $1 FOR UPDATE OF l`,
         [requestIdValue]
       );
       const row = before.rows[0];
       if (!row) throw new AppError("NOT_FOUND", "Zahtjev nije pronađen.");
       requireWorkerScope(actor, row.worker_id, row.department_id);
       if (String(row.revision) !== revision || row.status !== "pending") throw new AppError("STALE_REVISION", "Zahtjev više nije na čekanju.");
+      if (status === "approved") {
+        if (row.reservation_submission_key != null) {
+          throw new AppError("CONFLICT", "Zahtjev s rezervacijom zahtijeva postupak odobravanja rezervacije.");
+        }
+        await requireLeaveApprovalPeriods(client, actor.organizationId, dateOnly(row.start_date), dateOnly(row.end_date));
+      }
       const result = await client.query<LeaveRow>(
         `UPDATE leave_requests SET status = $2, decided_by = $3, decided_at = clock_timestamp(),
            decision_note = $4, revision = revision + 1 WHERE id = $1
@@ -1060,7 +1018,8 @@ export class PgMvpService extends PgPhaseAService implements MvpService {
         [requestIdValue, status, actor.userId, note]
       );
       const updated = result.rows[0]!;
-      await insertAudit(client, actor, requestId, `leave_request.${status}`, "leave_request", updated.id, row, updated, "leave");
+      const { reservation_submission_key: _submissionKey, ...beforeAudit } = row;
+      await insertAudit(client, actor, requestId, `leave_request.${status}`, "leave_request", updated.id, beforeAudit, updated, "leave");
       return leaveView(updated);
     });
   }

@@ -73,6 +73,10 @@
     return results;
   }
 
+  function mapReportHistory(items,timeZone,id=value=>value){
+    return items.map(item=>({id:id(item.id),apiId:item.id,action:item.status==='ready'?'Generiran':'Status',format:item.format.toLocaleUpperCase('hr'),type:item.reportType,period:`${item.filters.periodFrom} – ${item.filters.periodTo}`,scope:'Poslužiteljski opseg',rows:item.rowCount||0,time:localDateTime(item.createdAt,timeZone),status:item.status,downloadUrl:item.downloadUrl,checksumSha256:item.checksumSha256||null,datasetVersion:item.datasetVersion||'',datasetChecksumSha256:item.datasetChecksumSha256||null,periodVersionId:item.periodVersionId||null,calculationVersions:item.calculationVersions||[],templateVersion:item.templateVersion||'',createdAt:item.createdAt,readyAt:item.readyAt||null,downloadExpiresAt:item.downloadExpiresAt||null}));
+  }
+
   async function hydrate(api,session,today){
     const role=session.user.role,year=today.slice(0,4),range=dateRange(year),timeZone=session.organization.timezone;
     const clientIds=new Map();let sequence=0;
@@ -116,7 +120,7 @@
     const workerSource=data.workers?.items||(data.selfWorker?[data.selfWorker]:[]);
     const workers=workerSource.map(item=>({
       id:id(item.id),apiId:item.id,code:item.code,name:item.name,email:item.email||'',dept:departmentNames.get(item.departmentId)||'—',apiDepartmentId:item.departmentId,
-      jobTitle:item.code,shiftId:shiftIds.get(item.shiftId)||0,apiShiftId:item.shiftId,status:'Odsutna',card:'',cardApiId:null,cardStatus:'Nije dodijeljena',todayStart:'',
+      jobTitle:'',shiftId:shiftIds.get(item.shiftId)||0,apiShiftId:item.shiftId,status:'Odsutna',card:'',cardApiId:null,cardStatus:'Nije dodijeljena',todayStart:'',
       active:item.status==='active',vacationAllowance:item.annualLeaveAllowance,revision:item.revision
     }));
     const workerByApi=new Map(workers.map(item=>[item.apiId,item]));
@@ -124,7 +128,7 @@
       if(!apiId)return null;
       if(workerByApi.has(apiId))return workerByApi.get(apiId);
       const user=(data.users?.items||[]).find(item=>item.workerId===apiId);
-      const worker={id:id(apiId),apiId,code:String(apiId).slice(0,8),name:user?.email||`Radnik ${String(apiId).slice(0,8)}`,email:user?.email||'',dept:'—',apiDepartmentId:null,jobTitle:'',shiftId:0,apiShiftId:null,status:'Odsutna',card:'',cardApiId:null,cardStatus:'Nije dodijeljena',todayStart:'',active:true,vacationAllowance:0,revision:'0'};
+      const worker={id:id(apiId),apiId,code:'',name:user?.email||`Radnik ${String(apiId).slice(0,8)}`,email:user?.email||'',dept:'—',apiDepartmentId:null,jobTitle:'',shiftId:0,apiShiftId:null,status:'Odsutna',card:'',cardApiId:null,cardStatus:'Nije dodijeljena',todayStart:'',active:true,vacationAllowance:0,revision:'0'};
       workers.push(worker);workerByApi.set(apiId,worker);return worker;
     };
     ensureWorker(session.effectiveScope.selfWorkerId);
@@ -161,7 +165,7 @@
 
     const users=(data.users?.items||[]).map(item=>({id:id(item.id),apiId:item.id,workerId:ensureWorker(item.workerId)?.id||null,email:item.email,role:roleLabels[item.role]||item.role,roleCode:item.role,departments:(item.departmentIds||[]).map(departmentId=>departmentNames.get(departmentId)||departmentId),apiDepartmentIds:item.departmentIds||[],status:item.status==='active'?'Aktivan':'Blokiran',lastLogin:'',revision:item.revision}));
     const audit=(data.audit?.items||[]).map(item=>({id:id(item.id),apiId:item.id,time:localDateTime(item.createdAt,timeZone),user:item.actorType==='terminal'?'Terminal':users.find(user=>user.apiId===item.actorId)?.email||item.actorType, module:item.module,action:item.action,entityType:item.entityType,entityId:item.entityId,requestId:item.requestId}));
-    const reportHistory=(data.reports?.items||[]).map(item=>({id:id(item.id),apiId:item.id,action:item.status==='ready'?'Generiran':'Status',format:item.format.toLocaleUpperCase('hr'),type:item.reportType,period:`${item.filters.periodFrom} – ${item.filters.periodTo}`,scope:'Poslužiteljski opseg',rows:item.rowCount||0,time:localDateTime(item.createdAt,timeZone),status:item.status,downloadUrl:item.downloadUrl,checksumSha256:item.checksumSha256||null,datasetVersion:item.datasetVersion||'',datasetChecksumSha256:item.datasetChecksumSha256||null,periodVersionId:item.periodVersionId||null,calculationVersions:item.calculationVersions||[],templateVersion:item.templateVersion||'',createdAt:item.createdAt,readyAt:item.readyAt||null,downloadExpiresAt:item.downloadExpiresAt||null}));
+    const reportHistory=mapReportHistory(data.reports?.items||[],timeZone,id);
     const terminalItem=(data.terminals||[])[0]||null;
     const syncEvents=terminalItem?(await getAllPages(api,`/terminals/${terminalItem.id}/sync-events`,range)).items:[];
     const terminal=terminalItem?{
@@ -177,7 +181,7 @@
     return {state,role,session,dashboard:data.dashboard,selfWorkerId:id(session.effectiveScope.selfWorkerId)};
   }
 
-  const apiState=Object.freeze({hydrate,getAllPages,mapWithConcurrency,localDate,localTime,localDateTime,zonedDateTimeToIso,attendanceTimeZone,contractualAttendanceTime,roleLabels,requestLabels,leaveLabels,attendanceLabels});
+  const apiState=Object.freeze({hydrate,getAllPages,mapReportHistory,mapWithConcurrency,localDate,localTime,localDateTime,zonedDateTimeToIso,attendanceTimeZone,contractualAttendanceTime,roleLabels,requestLabels,leaveLabels,attendanceLabels});
   root.BSSCore=Object.freeze({...root.BSSCore,apiState});
   if(typeof module==='object'&&module.exports)module.exports=apiState;
 })(typeof globalThis==='object'?globalThis:window);

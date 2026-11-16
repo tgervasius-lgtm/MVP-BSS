@@ -7,7 +7,7 @@
     'clearRequestFilters','closeDrawer','closeModal','decideRequest','demoOfflineScan','demoScan','demoUnknownCard',
     'downloadReport','focusSection','login','acceptInvitation','logout','navigate','openAccessModal','openAttendanceRecord','openAttendanceReview',
     'openAttendanceStatus','openCancelRequest','openCorrectionDecision','openCorrectionsFromRecord','openDepartmentModal','openDrawer',
-    'openHolidayModal','openInviteModal','openJobPositionModal','openPendingRequests','openRequestDecision','openResetDemoDialog',
+    'openHolidayModal','openInviteModal','openJobPositionModal','openMonthlyHoursReport','openPendingRequests','openReportHistory','openRequestDecision','openResetDemoDialog','openVacationRequest',
     'openShiftModal','openShiftWorkers','openVacationRequestStatus','openWorker','openWorkerModal','openWorkerStatus','pairTerminal','refreshWorkerJobOptions','resendInvitation','revokeTerminal',
     'resetDemo','restoreTerminal','saveAccessUser','saveDepartment','saveHoliday','saveJobPosition','saveSettings',
     'saveShift','saveWorker','sendInvitation','sendPasswordReset','setAccessStatusFilter','setAttendanceDailyFilter','setAttendanceView',

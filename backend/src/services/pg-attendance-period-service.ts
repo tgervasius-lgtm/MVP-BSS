@@ -75,7 +75,11 @@ async function unresolvedCounts(
     active: string; incomplete: string; pending_corrections: string; reconciliation_required: string;
   }>(
     `WITH scoped_days AS (
-       SELECT a.id, a.status,
+       SELECT a.id,
+         CASE
+           WHEN a.status = 'incomplete' OR a.check_in IS NULL THEN 'incomplete'
+           WHEN a.status = 'active' OR a.check_out IS NULL THEN 'active'
+         END AS unresolved_status,
          COALESCE(event_scope.effective_department_id, assignment_scope.department_id) AS scope_department_id
        FROM attendance_days a
        LEFT JOIN LATERAL (
@@ -111,9 +115,9 @@ async function unresolvedCounts(
      )
      SELECT
        (SELECT COUNT(*)::text FROM scoped_days
-        WHERE status = 'active' AND ($3::text <> 'manager' OR scope_department_id = ANY($4::uuid[]))) AS active,
+        WHERE unresolved_status = 'active' AND ($3::text <> 'manager' OR scope_department_id = ANY($4::uuid[]))) AS active,
        (SELECT COUNT(*)::text FROM scoped_days
-        WHERE status = 'incomplete' AND ($3::text <> 'manager' OR scope_department_id = ANY($4::uuid[]))) AS incomplete,
+        WHERE unresolved_status = 'incomplete' AND ($3::text <> 'manager' OR scope_department_id = ANY($4::uuid[]))) AS incomplete,
        (SELECT COUNT(*)::text FROM correction_requests c JOIN scoped_days a ON a.id = c.attendance_day_id
         WHERE c.status = 'pending' AND ($3::text <> 'manager' OR a.scope_department_id = ANY($4::uuid[]))) AS pending_corrections,
        (SELECT COUNT(*)::text FROM attendance_events e CROSS JOIN organizations o
@@ -396,7 +400,7 @@ export class PgAttendancePeriodService {
       if (target === "closed") {
         const unresolved = await unresolvedCounts(client, actor, year, month);
         if (unresolved.total > 0) {
-          throw new AppError("CONFLICT", `Razdoblje ima ${unresolved.total} novih neriješenih evidencijskih stavki i ne može biti zatvoreno.`);
+          throw new AppError("CONFLICT", `Razdoblje ima ${unresolved.total} neriješenih evidencijskih stavki i ne može biti zatvoreno.`);
         }
       }
       const timestampColumns = target === "closed"

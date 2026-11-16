@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import pg from "pg";
+import { migrateDown } from "../../src/db/migrate.js";
 
 const { Client, Pool } = pg;
 
@@ -20,6 +21,12 @@ export async function createPostgresFixture(databaseUrl: string, label: string, 
   const admin = new Client({ connectionString: databaseUrl, connectionTimeoutMillis: 5_000, statement_timeout: 30_000 });
   const owner = new Client({ connectionString: ownerUrl.toString(), connectionTimeoutMillis: 5_000, statement_timeout: 30_000 });
   const appPool = new Pool({ connectionString: appUrl.toString(), max: poolMax, connectionTimeoutMillis: 5_000, statement_timeout: 30_000 });
+  const clientDisconnects = new Set<Promise<void>>();
+  appPool.on("connect", (client) => {
+    const disconnected = new Promise<void>((resolve) => { client.once("end", resolve); });
+    clientDisconnects.add(disconnected);
+    void disconnected.then(() => clientDisconnects.delete(disconnected));
+  });
   let databaseCreated = false;
   let roleCreated = false;
   let disposal: Promise<void> | undefined;
@@ -28,7 +35,11 @@ export async function createPostgresFixture(databaseUrl: string, label: string, 
     disposal ??= (async () => {
       const errors: unknown[] = [];
       const steps = [
-        () => appPool.end(),
+        async () => {
+          await appPool.end();
+          // Pool bookkeeping can finish before idle clients close their sockets.
+          await Promise.all(clientDisconnects);
+        },
         () => owner.end(),
         async () => {
           if (databaseCreated) await admin.query(`DROP DATABASE IF EXISTS ${databaseName} WITH (FORCE)`);
@@ -66,4 +77,14 @@ export async function createPostgresFixture(databaseUrl: string, label: string, 
     }
     throw error;
   }
+}
+
+// A later migration should not change which down guard a fixture exercises.
+export async function rewindMigrationsTo(client: pg.Client, prefix: string): Promise<void> {
+  const { rows } = await client.query<{ version: string }>(
+    "SELECT version FROM bss_schema_migrations ORDER BY version DESC"
+  );
+  const later = rows.findIndex(row => row.version.startsWith(prefix + "_"));
+  assert.ok(later >= 0, `Migration ${prefix} must already be applied`);
+  for (let i = 0; i < later; i++) await migrateDown(client);
 }

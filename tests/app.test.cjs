@@ -794,6 +794,23 @@ test('Radnici operational lista skriva RFID iz glavne tablice ali ga zadržava u
   assert.match(document.querySelector('#content').textContent,/RFID UID/);
 });
 
+test('Popis radnika prikazuje izvornu šifru i razlikuje API zapis bez šifre od demo identifikatora',()=>{
+  const {table}=require('../src/views/workers-operational.js');
+  const worker={id:42,name:'Ogledni radnik',email:'',dept:'Odjel',shiftId:1,active:true,status:'Odsutan'};
+  const escapeHtml=value=>String(value).replaceAll('<','&lt;').replaceAll('>','&gt;');
+  const result=new JSDOM(table([
+    {...worker,apiId:'worker-with-code',code:'00<A>'},
+    {...worker,apiId:'worker-without-code',code:''},
+    {...worker,jobTitle:'Operater'}
+  ],{shiftById:()=>null,escapeHtml,pill:()=>''})).window.document;
+  const [imported,unresolved,demo]=result.querySelectorAll('tbody tr');
+  assert.equal(imported.cells[0].textContent,'00<A>');
+  assert.equal(imported.cells[3].textContent,'—');
+  assert.equal(unresolved.cells[0].textContent,'—');
+  assert.equal(demo.cells[0].textContent,'R-042');
+  assert.equal(demo.cells[3].textContent,'Operater');
+});
+
 test('navigacija je grupirana i prikazuje brojače otvorenih stavki',()=>{
   const {document} = boot('admin');
   const groups=new Set([...document.querySelectorAll('#drawer .nav-group-label')].map(item=>item.textContent));
@@ -1007,7 +1024,7 @@ test('radnik vidi vlastiti fond i poništavanjem vraća rezervirane dane',()=>{
   window.navigate('requests');
   assert.equal(document.querySelectorAll('.requests-table .leave-request-row').length,4);
   assert.equal(document.querySelector('.request-summary-card'),null);
-  assert.equal(document.querySelector('.leave-form-card input[disabled]'),null);
+  assert.equal(document.querySelector('.leave-form-card'),null);
   assert.equal(document.querySelector('.personal-requests-table thead').textContent.includes('Radnik'),false);
   assert.doesNotMatch(document.querySelector('#content').textContent,/Marko Marić|Marija Radić|Petra Novak/);
   let balance=window.vacationBalanceSummary(1);
@@ -1016,7 +1033,9 @@ test('radnik vidi vlastiti fond i poništavanjem vraća rezervirane dane',()=>{
   assert.equal(balance.reserved,3);
   assert.equal(balance.remaining,14);
   assert.equal(balance.available,11);
+  document.querySelector('.section-actions [data-bss-action="openVacationRequest()"]').click();
   assert.match(document.querySelector('#vacRequestPreview').textContent,/3 radnih dana.*nakon slanja 8/);
+  window.closeModal();
 
   window.openCancelRequest(6);
   assert.ok(document.querySelector('#modal').classList.contains('open'));
@@ -1031,19 +1050,21 @@ test('radnik vidi vlastiti fond i poništavanjem vraća rezervirane dane',()=>{
 test('novi godišnji zahtjev provjerava budući datum, preklapanje i raspoloživi fond',()=>{
   const {window,document,state}=boot('worker');
   window.navigate('requests');
+  window.openVacationRequest();
   const before=state().requests.length;
 
   document.querySelector('#vacStart').value='2026-09-30';
   document.querySelector('#vacEnd').value='2026-10-01';
   window.submitVacationRequest();
   assert.equal(state().requests.length,before);
-  assert.match(document.querySelector('#toast').textContent,/preklapa/);
+  assert.match(document.querySelector('#vacRequestError').textContent,/preklapa/);
+  assert.equal(document.querySelector('#submittedLeaveRequest')?.hidden ?? true,true);
 
   document.querySelector('#vacStart').value='2026-08-10';
   document.querySelector('#vacEnd').value='2026-08-28';
   window.submitVacationRequest();
   assert.equal(state().requests.length,before);
-  assert.match(document.querySelector('#toast').textContent,/Nema dovoljno/);
+  assert.match(document.querySelector('#vacRequestError').textContent,/Nema dovoljno/);
 
   document.querySelector('#vacType').value='Slobodan dan';
   document.querySelector('#vacStart').value='2026-08-05';
@@ -1053,6 +1074,63 @@ test('novi godišnji zahtjev provjerava budući datum, preklapanje i raspoloživ
   assert.equal(state().requests.length,before+1);
   assert.equal(state().requests[0].status,'Na čekanju');
   assert.equal(window.businessDays(state().requests[0].start,state().requests[0].end),2);
+  const receipt=document.querySelector('#submittedLeaveRequest');
+  assert.equal(document.querySelector('#modal.open'),null);
+  assert.ok(receipt && !receipt.hidden);
+  assert.match(receipt.textContent,/Zahtjev je poslan.*Slobodan dan.*05\.\s*08\..*09\.\s*08\..*Na čekanju/);
+  assert.equal(document.activeElement,receipt);
+});
+
+test('API potvrda prikazuje spremljeni zahtjev i uklanja filtre koji bi ga sakrili',async()=>{
+  const app=boot('worker');
+  const workerId='worker-test',requestId='leave-test';
+  const session={user:{id:'worker-user',role:'worker'},organization:{id:'org-test',name:'BSS test',timezone:'Europe/Zagreb'},effectiveScope:{selfWorkerId:workerId}};
+  const apiRequest={id:requestId,workerId,typeCode:'free_day',startDate:'2026-08-05',endDate:'2026-08-06',status:'pending'};
+  let saved=false,posts=0;
+  app.window.fetch=async(url,options={})=>{
+    const path=new URL(url,app.window.location.href).pathname;
+    if(options.method==='GET'){
+      const responses={
+        '/api/v1/me':session,
+        '/api/v1/holidays':[],
+        '/api/v1/departments':[],
+        '/api/v1/shifts':[],
+        '/api/v1/leave-requests':{items:saved?[apiRequest]:[]},
+        [`/api/v1/workers/${workerId}`]:{id:workerId,code:'R001',name:'Ogledni radnik',status:'active',annualLeaveAllowance:20}
+      };
+      return {ok:true,status:200,headers:new Headers(),json:async()=>responses[path]??{items:[]}};
+    }
+    assert.equal(path,'/api/v1/leave-requests');
+    assert.equal(options.method,'POST');
+    posts+=1;
+    if(posts===1)return {ok:false,status:422,json:async()=>({code:'VALIDATION_FAILED',message:'Provjeri datume.'})};
+    saved=true;
+    return {ok:true,status:201,json:async()=>apiRequest};
+  };
+  app.evaluate(fs.readFileSync('src/adapters/api-bindings.js','utf8'));
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(app.window.BSS_API_ACTIVE,true);
+  app.evaluate(`navigate('requests');requestStatusFilter='Odobreno';requestSearch='Stari zahtjev';render()`);
+  const setFields=()=>{
+    app.document.querySelector('#vacType').value='Slobodan dan';
+    app.document.querySelector('#vacStart').value=apiRequest.startDate;
+    app.document.querySelector('#vacEnd').value=apiRequest.endDate;
+  };
+  app.window.openVacationRequest();
+  setFields();await app.window.submitVacationRequest();
+  assert.equal(app.document.querySelector('#submittedLeaveRequest').hidden,true);
+  assert.match(app.document.querySelector('#modal.open #vacRequestError').textContent,/Provjeri datume/);
+  assert.equal(app.document.querySelector('#vacStart').value,apiRequest.startDate);
+  assert.equal(app.document.querySelector('#vacType').value,'Slobodan dan');
+  await app.window.submitVacationRequest();
+  const confirmation=app.document.querySelector('#submittedLeaveRequest');
+  assert.equal(posts,2);
+  assert.equal(confirmation.hidden,false);
+  assert.equal(app.document.querySelector('#modal.open'),null);
+  assert.match(confirmation.textContent,/Slobodan dan.*Na čekanju/);
+  assert.equal(app.document.activeElement,confirmation);
+  assert.equal(app.document.querySelector('#requestSearch').value,'');
+  assert.equal(app.document.querySelector('tr.leave-request-row').dataset.status,'Na čekanju');
 });
 
 test('voditelj je ograničen na dodijeljene odjele',()=>{
@@ -1508,11 +1586,18 @@ test('izvoz spremljenog mjeseca blokira nedostupnu verziju i prosljeđuje samo i
   const {window}=new JSDOM('<div id="modal"></div>',{runScripts:'outside-only'});
   const modal=window.document.querySelector('#modal');
   const filters={type:'summary',month:'2026-07',department:'Svi',workerId:'Svi'};
-  const identity={};
+  const context={organization:{id:'org',timezone:'UTC'},user:{id:'user',role:'accountant'},
+    effectiveScope:{role:'accountant',departmentIds:[],selfWorkerId:null}};
   const downloads=[];
   let list=async()=>{throw new Error('unavailable');};
   Object.assign(window,{
-    BSS_API_ACTIVE:true,currentRole:'accountant',
+    BSS_API_ACTIVE:true,currentRole:'accountant',apiLoading:false,state:{},
+    BSS_API:{
+      post:async(_path,input)=>{downloads.push(input);return {id:'export',status:'ready',periodVersionId:input.periodVersionId};},
+      get:async path=>path==='/me'?structuredClone(context):{items:[]},
+      download:async()=>({blob:{},fileName:'report.xlsx'})
+    },
+    BSS_API_STATE:{mapReportHistory:()=>[]},downloadBlob:()=>{},
     normalizeReportFilters:value=>value,
     monthBounds:()=>({start:'2026-07-01',end:'2026-07-31'}),
     REPORT_TYPE_CONFIG:{summary:{label:'Mjesečni sažetak'}},
@@ -1525,8 +1610,8 @@ test('izvoz spremljenog mjeseca blokira nedostupnu verziju i prosljeđuje samo i
   const authority=window.BSSReportAuthority;
   authority.configure({
     getReportFilters:()=>filters,setReportFilters:()=>{},
-    identity:()=>identity,listVersions:path=>list(path),versionDate:String,
-    downloadExport:input=>downloads.push(input)
+    session:()=>({context,epoch:1}),listVersions:path=>list(path),versionDate:String,
+    setLoading:value=>{window.apiLoading=value;}
   });
   const change=(id,value)=>{
     const select=modal.querySelector(id);
@@ -1561,6 +1646,7 @@ test('izvoz spremljenog mjeseca blokira nedostupnu verziju i prosljeđuje samo i
   assert.equal(confirm().disabled,true);
   change('#reportExportVersion','old');
   confirm().click();
+  await new Promise(resolve=>setImmediate(resolve));
   assert.equal(downloads.length,1);
   assert.equal(downloads[0].periodVersionId,'old');
   assert.equal(downloads[0].periodFrom,'2026-07-01');
@@ -2802,7 +2888,7 @@ test('render, modal replacement, closing and API logout clear terminal credentia
   app.window.render();app.window.showModal(app.document.querySelector('#modal'));app.window.closeModal();app.window.navigate('terminal');
   assert.equal(cleared,4);
   const bindings=fs.readFileSync('src/adapters/api-bindings.js','utf8');
-  assert.match(bindings,/async function apiLogout\(\)\{\s*root\.BSSTerminalCredential\?\.clear\(\);\s*try\{await BSS_API\.post/);
+  assert.match(bindings,/async function apiLogout\(\)\{\s*authenticationEpoch\+=1;\s*root\.BSSTerminalCredential\?\.clear\(\);\s*try\{await BSS_API\.post/);
 });
 
 test('failed session refresh consumes its response body and never replays the protected request',async()=>{
@@ -3094,7 +3180,7 @@ test('worker correction and leave dates use Croatian controls and refresh existi
   const month=app.document.querySelector('[aria-label="Datum — mjesec"]');assert.ok(month);
   const value=app.document.querySelector('#corrDate'),day=app.document.querySelector('[aria-label="Datum — dan"]');
   day.value='01';day.dispatchEvent(new app.window.Event('change',{bubbles:true}));assert.match(value.value,/-01$/);
-  app.window.navigate('requests');assert.equal(app.document.querySelectorAll('.date-picker').length,2);
+  app.window.navigate('requests');app.window.openVacationRequest();assert.equal(app.document.querySelectorAll('.date-picker').length,2);
   assert.equal(app.document.querySelector('[aria-label="Od — mjesec"]').options[7].textContent,'srpanj');
 });
 

@@ -76,7 +76,7 @@
     const {escapeHtml,formatMinutes,formatSignedMinutes,pill,isoLabel,today}=context;
     const filtered=filterRows(rows,filter);
     const body=filtered.map(({worker,record,shift,worked,balance,status,anomaly})=>`<tr class="${anomaly!=='—'?'attendance-op-review':''}">
-      <td class="attendance-code">R-${String(worker.id).padStart(3,'0')}</td>
+      <td class="attendance-code">${escapeHtml(worker.code||(worker.apiId?'—':'R-'+String(worker.id).padStart(3,'0')))}</td>
       <td><button class="attendance-person-link" data-bss-action="openWorker(${worker.id})"><b>${escapeHtml(worker.name)}</b><small>${escapeHtml(worker.jobTitle||'—')}</small></button></td>
       <td>${escapeHtml(worker.dept||'—')}</td>
       <td><b>${escapeHtml(shift?`${shift.start} – ${shift.end}`:'Bez plana')}</b><small>${escapeHtml(shift?.name||'')}</small></td>

@@ -106,11 +106,13 @@ jobs:
           BSS_E2E_FULLSTACK: "false"
 
       - name: Full-stack browser E2E and axe
-        # Each viewport owns a backend lifecycle so shared loopback requests do not exhaust
-        # the other project's production-equivalent authentication and report limits.
+        # Keep the report race tests in a separate backend lifecycle per viewport.
+        # The rest of the suite also uses the shared loopback per-IP preview budget.
         run: |
-          npm run test:e2e -- --reporter=line --project=desktop-chromium
-          npm run test:e2e -- --reporter=line --project=mobile-chromium
+          for project in desktop-chromium mobile-chromium; do
+            npm run test:e2e -- --reporter=line --project="$project" --grep-invert 'uzastopni izvoz'
+            npm run test:e2e -- --reporter=line --project="$project" --grep 'uzastopni izvoz'
+          done
         env:
           BSS_E2E_FULLSTACK: "true"
           BSS_E2E_BASE_URL: http://127.0.0.1:4173

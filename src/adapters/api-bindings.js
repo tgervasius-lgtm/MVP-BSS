@@ -3,6 +3,7 @@
 
   const apiRole={Administrator:'admin',Voditelj:'manager',Radnik:'worker',Knjigovođa:'accountant'};
   const typeCode={'Godišnji odmor':'annual_leave','Slobodan dan':'free_day'};
+  let authenticationEpoch=0;
   const visibilityLabel={team:'Tim',department:'Odjel',organization:'Cijela organizacija'};
 
   function revisionHeaders(value){return{'If-Match':`"${String(value||'0')}"`};}
@@ -33,9 +34,9 @@
     logged=true;apiError='';
     return hydrated;
   }
-  async function refreshApi(message=''){
+  async function refreshApi(message='',context=null){
     try{
-      await hydrateApi();
+      await hydrateApi(context);
       if(!allowedScreens().includes(screen))screen='home';
       render();
       if(message)toast(message);
@@ -46,7 +47,7 @@
       render();toast(apiError);return false;
     }
   }
-  async function mutateApi(action,message){
+  async function mutateApi(action,message,onError){
     if(apiLoading)return false;
     apiLoading=true;apiError='';
     try{
@@ -55,14 +56,14 @@
     }catch(error){
       apiError=apiMessage(error);
       if(error?.status===401){logged=false;state=createApiState();screen='home';}
-      render();toast(apiError);return false;
+      if(error?.status===401||!onError?.(apiError)){render();toast(apiError);}return false;
     }finally{apiLoading=false;}
   }
 
   async function apiLogin(){
     const email=$('#loginEmail')?.value.trim().toLowerCase(),password=$('#loginPassword')?.value||'';
     if(!email||password.length<12){apiError='Unesi email i lozinku od najmanje 12 znakova.';render();return;}
-    apiLoading=true;apiError='';render();
+    authenticationEpoch+=1;apiLoading=true;apiError='';render();
     try{
       const context=await BSS_API.post('/auth/login',{email,password});
       await hydrateApi(context);resetApiFilters();screen='home';render();toast(`Dobro došli. Aktivni prikaz: ${role().label}.`);
@@ -72,7 +73,7 @@
   async function apiAcceptInvitation(){
     const password=$('#loginPassword')?.value||'';
     if(!INVITATION_TOKEN||password.length<12){apiError='Lozinka mora imati najmanje 12 znakova.';render();return;}
-    apiLoading=true;apiError='';render();
+    authenticationEpoch+=1;apiLoading=true;apiError='';render();
     try{
       const context=await BSS_API.post('/auth/invitations/accept',{token:INVITATION_TOKEN,password});
       root.history?.replaceState?.(null,'',`${root.location.pathname}${root.location.search}`);
@@ -81,6 +82,7 @@
     finally{apiLoading=false;}
   }
   async function apiLogout(){
+    authenticationEpoch+=1;
     root.BSSTerminalCredential?.clear();
     try{await BSS_API.post('/auth/logout');}catch{/* Lokalni prikaz se zatvara i ako je sesija već istekla. */}
     logged=false;sessionContext=null;dashboardSummary=null;state=createApiState();screen='home';apiError='';render();
@@ -140,9 +142,21 @@
   }
 
   async function apiSubmitVacation(){
-    if(currentRole!=='worker')return;
-    const label=$('#vacType')?.value,body={typeCode:typeCode[label]||'annual_leave',startDate:$('#vacStart')?.value,endDate:$('#vacEnd')?.value,note:$('#vacNote')?.value.trim()||undefined};
-    await mutateApi(()=>BSS_API.post('/leave-requests',body),'Zahtjev je poslan voditelju.');
+    const form=$('#modal.open .leave-form-card'),workerId=currentWorker().apiId;
+    if(currentRole!=='worker'||!form||!workerId)return;
+    const type=$('#vacType').value,sameForm=()=>form===$('#modal.open .leave-form-card')&&currentWorker().apiId===workerId;
+    const body={typeCode:typeCode[type]||'annual_leave',startDate:$('#vacStart')?.value,endDate:$('#vacEnd')?.value,note:$('#vacNote')?.value.trim()||undefined};
+    let saved,showConfirmation;
+    await mutateApi(async()=>{
+      saved=await BSS_API.post('/leave-requests',body);
+      showConfirmation=sameForm();
+      if(showConfirmation){
+        screen='requests';requestStatusFilter=BSS_CONTRACTS.requestStatus.PENDING;requestSearch='';
+      }
+    },undefined,message=>sameForm()&&BSS_VIEWS.approvalsOperational.leaveRequestError(message));
+    if(!saved||!showConfirmation||!$('#submittedLeaveRequest')||currentWorker().apiId!==workerId)return;
+    const request=state.requests.find(item=>item.apiId===saved.id)||{type,start:saved.startDate,end:saved.endDate,status:BSS_API_STATE.requestLabels[saved.status]};
+    BSS_VIEWS.approvalsOperational.showSubmittedLeaveRequest(request,rangeLabel);
   }
   async function apiDecideRequest(id,status,noteOverride=''){
     const request=state.requests.find(item=>item.id===Number(id));if(!request||!['admin','manager'].includes(currentRole))return;
@@ -174,22 +188,6 @@
   async function apiCancelCorrection(id){
     const correction=state.corrections.find(item=>item.id===Number(id));if(!correction||currentRole!=='worker')return;
     await mutateApi(()=>BSS_API.post(`/correction-requests/${correction.apiId}/cancel`,undefined,revisionHeaders(correction.revision)),'Korekcija je poništena.');
-  }
-
-  async function apiDownloadReport(input){
-    if(apiLoading||!logged||!['admin','manager','accountant'].includes(currentRole))return;
-    const {format,periodVersionId=null}=input;
-    apiLoading=true;
-    try{
-      let created=await BSS_API.post('/report-exports',input);
-      const exportPath=`/report-exports/${encodeURIComponent(created.id)}`;
-      for(let attempt=0;created.status!=='ready'&&attempt<10;attempt+=1){await new Promise(resolve=>setTimeout(resolve,250));created=await BSS_API.get(exportPath);}
-      if(created.status!=='ready')throw new Error('Izvještaj još nije spreman za preuzimanje.');
-      if(created.periodVersionId!==periodVersionId)throw new Error('Izvezeni podaci ne odgovaraju odabranoj verziji.');
-      const file=await BSS_API.download(`${exportPath}/download`);downloadBlob(file.blob,file.fileName);
-      await hydrateApi();render();toast(`${format.toUpperCase()} izvještaj je preuzet.`);
-    }catch(error){apiError=apiMessage(error);render();toast(apiError);}
-    finally{apiLoading=false;}
   }
 
   async function apiSaveAccess(id){
@@ -326,8 +324,8 @@
     apiMessage,getReportFilters:()=>reportFilters,setReportFilters:value=>{reportFilters=value;},
     listVersions:path=>BSS_API_STATE.getAllPages(BSS_API,path),
     versionDate:value=>BSS_API_STATE.localDateTime(value,sessionContext?.organization?.timezone),
-    identity:()=>sessionContext,
-    downloadExport:apiDownloadReport
+    session:()=>logged&&sessionContext?{context:sessionContext,epoch:authenticationEpoch}:null,
+    refreshSession:context=>refreshApi('',context),setLoading:value=>{apiLoading=value;}
   });
 
   root.BSSTerminalReconciliation?.configure({refresh:refreshApi});
