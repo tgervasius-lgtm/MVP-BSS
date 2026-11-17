@@ -10,13 +10,17 @@
     const entries=history.slice(0,5).map(item=>{
       const action=[item.action,item.format].filter(Boolean).join(' ');
       const verification=authorityAction?.(item)||'';
-      return `<div class="report-history-item"><span class="report-history-icon">${escapeHtml(item.format||'↻')}</span><div><b>${escapeHtml(action)} · ${escapeHtml(item.type)}</b><small>${escapeHtml(item.period)} · ${escapeHtml(item.scope)} · ${item.rows} redaka</small></div><div class="report-history-tail"><time>${escapeHtml(item.time)}</time>${verification}</div></div>`;
+      const source=item.apiId
+        ?`<small>${item.periodVersionId?`Spremljena verzija · <span class="mono">${escapeHtml(item.periodVersionId)}</span>`:'Aktualni podaci'}</small>`
+        :'';
+      const exportId=item.apiId?` data-report-export-id="${escapeHtml(item.apiId)}"`:'';
+      return `<div class="report-history-item"${exportId}><span class="report-history-icon">${escapeHtml(item.format||'↻')}</span><div><b>${escapeHtml(action)} · ${escapeHtml(item.type)}</b><small>${escapeHtml(item.period)} · ${escapeHtml(item.scope)} · ${item.rows} redaka</small>${source}</div><div class="report-history-tail"><time>${escapeHtml(item.time)}</time>${verification}</div></div>`;
     }).join('');
     return `<section class="card report-history" tabindex="-1" aria-labelledby="reportHistoryTitle"><div class="card-heading"><div><h2 id="reportHistoryTitle">Zadnje aktivnosti</h2></div></div>${entries||'<div class="empty-state compact">Još nema generiranih izvještaja.</div>'}</section>`;
   }
 
   function render(context){
-    const {currentRole,reportFilters,scopedWorkers,data,REPORT_TYPE_CONFIG,state,title,escapeHtml,departmentOptions,reportPreview,reportHistoryView,authoritativePreviewHtml='',authoritativeMetricsHtml='',authoritativeHasRows=null}=context;
+    const {currentRole,reportFilters,scopedWorkers,data,REPORT_TYPE_CONFIG,state,title,escapeHtml,departmentOptions,reportPreview,reportHistoryView,authoritativePreviewHtml='',authoritativeMetricsHtml='',authoritativeExport=false}=context;
     const roleText=currentRole==='manager'?'Dodijeljeni odjeli':currentRole==='accountant'?'Pregled i izvoz':'Cijela tvrtka ili uži opseg';
     return `${title('Izvještaji','Pregled, provjera i izvoz evidencijskih podataka.',currentRole==='accountant'?'<span class="pill gray">Samo čitanje</span>':'')}
       <section class="card report-workspace-head">
@@ -30,7 +34,7 @@
       ${authoritativeMetricsHtml||metrics(data)}
       ${authoritativePreviewHtml||reportPreview(data)}
       <div class="report-secondary-grid">
-        <section class="card report-export"><div class="card-heading"><div><h2>Izvoz</h2><p>Preuzmite podatke za odabrano razdoblje i filtre.</p></div></div><div class="export-file primary-export"><span>XLSX · Excel</span><b>${escapeHtml(data.filenameBase)}.xlsx</b></div><div class="export-file"><span>PDF · službeni pregled</span><b>${escapeHtml(data.filenameBase)}.pdf</b></div><div class="export-file"><span>CSV · UTF-8</span><b>${escapeHtml(data.filenameBase)}.csv</b></div><div class="btns"><button class="btn" data-bss-action="downloadReport('xlsx')" ${(authoritativeHasRows===null?data.rows.length:authoritativeHasRows)?'':'disabled'}>Preuzmi XLSX</button><button class="btn secondary" data-bss-action="downloadReport('pdf')" ${(authoritativeHasRows===null?data.rows.length:authoritativeHasRows)?'':'disabled'}>Preuzmi PDF</button><button class="btn secondary" data-bss-action="downloadReport('csv')" ${(authoritativeHasRows===null?data.rows.length:authoritativeHasRows)?'':'disabled'}>Tehnički CSV</button></div><div class="last-report"><span>Posljednja radnja</span><b>${escapeHtml(state.lastReport)}</b></div></section>
+        <section class="card report-export"><div class="card-heading"><div><h2>Izvoz</h2><p>Preuzmite podatke za odabrano razdoblje i filtre.</p></div></div><div class="export-file primary-export"><span>XLSX · Excel</span><b>${escapeHtml(data.filenameBase)}.xlsx</b></div><div class="export-file"><span>PDF · službeni pregled</span><b>${escapeHtml(data.filenameBase)}.pdf</b></div><div class="export-file"><span>CSV · UTF-8</span><b>${escapeHtml(data.filenameBase)}.csv</b></div><div class="btns"><button class="btn" data-bss-action="downloadReport('xlsx')" ${(authoritativeExport||data.rows.length)?'':'disabled'}>Preuzmi XLSX</button><button class="btn secondary" data-bss-action="downloadReport('pdf')" ${(authoritativeExport||data.rows.length)?'':'disabled'}>Preuzmi PDF</button><button class="btn secondary" data-bss-action="downloadReport('csv')" ${(authoritativeExport||data.rows.length)?'':'disabled'}>Tehnički CSV</button></div><div class="last-report"><span>Posljednja radnja</span><b>${escapeHtml(state.lastReport)}</b></div></section>
         <section class="card report-quality"><div class="card-heading"><div><h2>Kontrola podataka</h2><p>Provjere prije predaje ili izvoza.</p></div></div>${data.quality.map((item,index)=>`<div class="quality-item"><i>${index+1}</i><span>${escapeHtml(item)}</span></div>`).join('')}</section>
       </div>
       ${reportHistoryView()}`;

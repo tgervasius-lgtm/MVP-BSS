@@ -106,7 +106,13 @@ jobs:
           BSS_E2E_FULLSTACK: "false"
 
       - name: Full-stack browser E2E and axe
-        run: npm run test:e2e -- --reporter=line
+        # Keep the report race tests in a separate backend lifecycle per viewport.
+        # The rest of the suite also uses the shared loopback per-IP preview budget.
+        run: |
+          for project in desktop-chromium mobile-chromium; do
+            npm run test:e2e -- --reporter=line --project="$project" --grep-invert 'uzastopni izvoz'
+            npm run test:e2e -- --reporter=line --project="$project" --grep 'uzastopni izvoz'
+          done
         env:
           BSS_E2E_FULLSTACK: "true"
           BSS_E2E_BASE_URL: http://127.0.0.1:4173
