@@ -242,7 +242,7 @@ async function insertTransition(
 }
 
 export class PgAttendancePeriodService {
-  constructor(private readonly pool: pg.Pool) {}
+  constructor(private readonly pool: pg.Pool, private readonly coveredDateReads = false) {}
 
   async get(actor: ActorContext, year: number, month: number): Promise<AttendancePeriodView> {
     requireRole(actor, ["admin", "manager", "accountant"]);
@@ -339,7 +339,7 @@ export class PgAttendancePeriodService {
       if (unresolved.total > 0) {
         throw new AppError("CONFLICT", `Razdoblje ima ${unresolved.total} neriješenih evidencijskih stavki i ne može biti finalizirano.`);
       }
-      const captured = await captureAttendancePeriodSnapshot(client, actor.organizationId, year, month);
+      const captured = await captureAttendancePeriodSnapshot(client, actor.organizationId, year, month, this.coveredDateReads);
       const nextRevision = (BigInt(String(current.revision)) + 1n).toString();
       const versionId = randomUUID();
       await client.query(

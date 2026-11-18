@@ -8,6 +8,7 @@ import { createOpaqueToken, hashToken } from "../security/tokens.js";
 import { decodeTimelineCursor, decodeUuidCursor, encodeTimelineCursor, encodeUuidCursor } from "./cursors.js";
 import { normalizeDatabaseError } from "./database-errors.js";
 import { datasetVersion } from "./dataset-version.js";
+import { leaveBalanceWorkingDaysSql } from "./covered-leave-read-sql.js";
 import { createLiveReportPreview } from "./report-dataset.js";
 import { terminalSyncHistorySelect, terminalSyncEventView, type TerminalSyncEventRow } from "./terminal-sync-event.js";
 import { lockTerminalEventLifecycle } from "./terminal-event-lock.js";
@@ -270,7 +271,8 @@ export class PgPhaseAService implements PhaseAService {
   constructor(
     private readonly pool: pg.Pool,
     private readonly rfidUidPepper: string,
-    private readonly invitationPublicOrigin = "http://127.0.0.1:3000"
+    private readonly invitationPublicOrigin = "http://127.0.0.1:3000",
+    protected readonly coveredDateReads = false
   ) {}
 
   async getDashboardSummary(actor: ActorContext, date: string): Promise<DashboardSummaryView> {
@@ -1038,16 +1040,7 @@ export class PgPhaseAService implements PhaseAService {
            AND l.end_date >= make_date($1, 1, 1)
            AND l.start_date <= make_date($1, 12, 31)
            AND l.status IN ('approved', 'pending')
-         LEFT JOIN LATERAL (
-           SELECT COUNT(*)::integer AS working_days
-           FROM generate_series(
-             GREATEST(l.start_date, make_date($1, 1, 1))::timestamp,
-             LEAST(l.end_date, make_date($1, 12, 31))::timestamp,
-             interval '1 day'
-           ) AS day(value)
-           WHERE EXTRACT(ISODOW FROM day.value) < 6
-             AND NOT EXISTS (SELECT 1 FROM holidays h WHERE h.holiday_date = day.value::date)
-         ) days ON l.id IS NOT NULL
+         LEFT JOIN LATERAL (${leaveBalanceWorkingDaysSql(this.coveredDateReads)}) days ON l.id IS NOT NULL
          WHERE w.status = 'active'
            AND ($2::text <> 'manager' OR w.department_id = ANY($3::uuid[]))
            AND ($2::text <> 'worker' OR w.id = $4::uuid)
@@ -1098,7 +1091,7 @@ export class PgPhaseAService implements PhaseAService {
     requireRole(actor, ["admin", "manager", "accountant"]);
     requireBoundedDateRange(input.periodFrom, input.periodTo);
     if (input.reportType === "correction_log") {
-      return withTenant(this.pool, actor, "report-preview", (client) => createLiveReportPreview(client, actor, input));
+      return withTenant(this.pool, actor, "report-preview", (client) => createLiveReportPreview(client, actor, input, this.coveredDateReads));
     }
     return withTenant(this.pool, actor, "report-preview", async (client) => {
       const limit = input.limit ?? 100;

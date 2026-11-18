@@ -37,7 +37,8 @@ export async function requireLeaveApprovalPeriods(
   client: TenantTransaction,
   organizationId: string,
   startDate: string,
-  endDate: string
+  endDate: string,
+  organizationToday?: string
 ): Promise<void> {
   const start = attendancePeriodParts(startDate);
   const end = attendancePeriodParts(endDate);
@@ -48,9 +49,14 @@ export async function requireLeaveApprovalPeriods(
     const year = Math.floor(index / 12);
     const month = index % 12 + 1;
     await lockAttendancePeriod(client, organizationId, year, month);
-    if (isAttendancePeriodLocked(await attendancePeriodState(client, year, month))) {
-      const period = `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}`;
+    const state = await attendancePeriodState(client, year, month);
+    const period = `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}`;
+    if (isAttendancePeriodLocked(state)) {
       throw new AppError("CONFLICT", `Razdoblje ${period} je zaključano. Administrator ga mora ponovno otvoriti prije odobrenja odsutnosti.`);
+    }
+    const firstAffectedDate = index === monthIndex(start.year, start.month) ? startDate : `${period}-01`;
+    if (state !== "open" && organizationToday && firstAffectedDate < organizationToday) {
+      throw new AppError("CONFLICT", `Razdoblje ${period} mora biti otvoreno za retroaktivno odobrenje odsutnosti.`);
     }
   }
 }

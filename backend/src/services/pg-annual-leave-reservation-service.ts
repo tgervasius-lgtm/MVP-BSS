@@ -5,11 +5,13 @@ import { AppError } from "../domain/errors.js";
 import type { ActorContext } from "../domain/types.js";
 import { requireRole, requireWorkerScope } from "../security/rbac.js";
 import type { LeaveRequestWrite, RequestStatus } from "./contracts.js";
+import { requireLeaveApprovalPeriods } from "./attendance-period-lock.js";
 import { lockActiveLeaveWorker, requireNonOverlappingLeave } from "./leave-calendar-days.js";
 import { insertAudit } from "./mvp-audit.js";
 import { requireBoundedDateRange } from "./validation.js";
 
 type ReservationYear = { year: number; requestedDays: number; reservedDays: number };
+type CoveredDate = { date: string; type: "annual_leave" };
 type ReservationRequestRow = {
   id: string;
   worker_id: string;
@@ -17,6 +19,7 @@ type ReservationRequestRow = {
   status: RequestStatus;
   reservation_submission_hash: string;
 };
+type PendingReservationRow = ReservationRequestRow & { start_date: string; end_date: string };
 const requestColumns = "id, worker_id, revision::text, status, reservation_submission_hash";
 
 async function requestedYears(
@@ -61,7 +64,7 @@ async function allocate(
        CROSS JOIN LATERAL generate_series(GREATEST(l.start_date, y.start_date)::timestamp,
                     LEAST(l.end_date, y.end_date)::timestamp, interval '1 day') day(value)
        WHERE l.worker_id = $1 AND l.leave_type = 'annual_leave'
-         AND ((l.status = 'pending' AND l.reservation_submission_key IS NULL) OR l.status = 'approved')
+         AND l.reservation_submission_key IS NULL AND l.status IN ('pending', 'approved')
          AND EXTRACT(ISODOW FROM day.value) < 6
          AND NOT EXISTS (SELECT 1 FROM holidays h WHERE h.holiday_date = day.value::date)
        GROUP BY y.year
@@ -72,9 +75,17 @@ async function allocate(
        WHERE l.worker_id = $1 AND l.status = 'pending' AND l.reservation_submission_key IS NOT NULL
          AND r.calendar_year = ANY($2::integer[]) AND r.request_id IS DISTINCT FROM $3::uuid
        GROUP BY r.calendar_year
+     ), approved AS (
+       SELECT y.year, COUNT(*)::integer AS used
+       FROM years y
+       JOIN annual_leave_decision_dates d ON d.absence_date BETWEEN y.start_date AND y.end_date
+       JOIN leave_requests l ON l.organization_id = d.organization_id AND l.id = d.request_id
+       WHERE l.worker_id = $1 AND l.status = 'approved' AND d.approved_revision IS NOT NULL AND d.absence_type = 'annual_leave'
+       GROUP BY y.year
      )
-     SELECT y.year, COALESCE(l.used, 0) + COALESCE(r.used, 0) AS used
-     FROM years y LEFT JOIN legacy_days l USING (year) LEFT JOIN reserved r USING (year)`,
+     SELECT y.year, COALESCE(l.used, 0) + COALESCE(r.used, 0) + COALESCE(a.used, 0) AS used
+     FROM years y LEFT JOIN legacy_days l USING (year) LEFT JOIN reserved r USING (year)
+     LEFT JOIN approved a USING (year)`,
     [workerId, years.map(year => year.year), excludedRequestId]
   );
   const availableByYear = new Map(result.rows.map(row => [row.year, Math.max(0, allowance - row.used)]));
@@ -94,6 +105,49 @@ function reservationView(row: ReservationRequestRow, years: ReservationYear[]) {
     status: row.status,
     years: years.map(year => ({ ...year, reservedDays: row.status === "pending" ? year.reservedDays : 0 }))
   };
+}
+
+async function lockPendingReservation(
+  client: TenantTransaction, actor: ActorContext, requestIdValue: string, revision: string
+) {
+  const found = (await client.query<{ worker_id: string; department_id: string }>(
+    `SELECT l.worker_id, w.department_id FROM leave_requests l JOIN workers w ON w.id = l.worker_id
+     WHERE l.id = $1 AND l.reservation_submission_key IS NOT NULL`, [requestIdValue]
+  )).rows[0];
+  if (!found) throw new AppError("NOT_FOUND", "Zahtjev s rezervacijom nije pronađen.");
+  requireWorkerScope(actor, found.worker_id, found.department_id);
+  const worker = await lockActiveLeaveWorker(client, found.worker_id);
+  requireWorkerScope(actor, found.worker_id, worker.department_id);
+  const { rows: [row] } = await client.query<PendingReservationRow>(
+    `SELECT ${requestColumns}, start_date::text, end_date::text FROM leave_requests
+     WHERE id = $1 AND worker_id = $2 AND reservation_submission_key IS NOT NULL FOR UPDATE`,
+    [requestIdValue, found.worker_id]
+  );
+  if (!row || row.status !== "pending" || row.revision !== revision) {
+    throw new AppError("STALE_REVISION", "Revizija zahtjeva više nije aktualna.");
+  }
+  return { row, worker };
+}
+
+async function requireCoveredDates(
+  client: TenantTransaction, row: PendingReservationRow, dates: CoveredDate[], years: ReservationYear[]
+): Promise<void> {
+  const covered = new Map(years.map(y => [y.year, y.reservedDays]));
+  for (const item of dates) {
+    if (item.date < row.start_date || item.date > row.end_date || item.type !== "annual_leave") {
+      throw new AppError("VALIDATION_FAILED", "Datum ili vrsta odstupaju od pokrivenog zahtjeva.");
+    }
+    const year = Number(item.date.slice(0, 4));
+    const left = covered.get(year) ?? 0;
+    if (left <= 0) throw new AppError("CONFLICT", "Odabrani dani prelaze rezervaciju za godinu.");
+    covered.set(year, left - 1);
+  }
+  const { rows: [invalid] } = await client.query<{ invalid: boolean }>(
+    `SELECT EXISTS (SELECT 1 FROM unnest($1::date[]) AS dates(day)
+       WHERE EXTRACT(ISODOW FROM day) > 5 OR EXISTS (SELECT 1 FROM holidays h WHERE h.holiday_date = day)) AS invalid`,
+    [dates.map(day => day.date)]
+  );
+  if (invalid!.invalid) throw new AppError("VALIDATION_FAILED", "Odabrani dan mora biti radni dan.");
 }
 
 // Internal entry point for the later coordinated HTTP, balance and reporting change.
@@ -127,7 +181,7 @@ export class PgAnnualLeaveReservationService {
         }
         return reservationView(prior, await recordedYears(client, prior.id));
       }
-      await requireNonOverlappingLeave(client, workerId, input.startDate, input.endDate);
+      await requireNonOverlappingLeave(client, workerId, input.startDate, input.endDate, true);
       const requested = await requestedYears(client, input.startDate, input.endDate);
       const years = await allocate(client, workerId, worker.annual_leave_allowance, requested, null);
       const days = years.reduce((sum, year) => sum + year.requestedDays, 0);
@@ -155,23 +209,7 @@ export class PgAnnualLeaveReservationService {
   async reprocess(actor: ActorContext, requestIdValue: string, revision: string, requestId: string) {
     requireRole(actor, ["worker", "manager", "admin"]);
     return withTenant(this.pool, actor, requestId, async client => {
-      const found = (await client.query<{ worker_id: string; department_id: string }>(
-        `SELECT l.worker_id, w.department_id FROM leave_requests l JOIN workers w ON w.id = l.worker_id
-         WHERE l.id = $1 AND l.reservation_submission_key IS NOT NULL`,
-        [requestIdValue]
-      )).rows[0];
-      if (!found) throw new AppError("NOT_FOUND", "Zahtjev s rezervacijom nije pronađen.");
-      requireWorkerScope(actor, found.worker_id, found.department_id);
-      const worker = await lockActiveLeaveWorker(client, found.worker_id);
-      requireWorkerScope(actor, found.worker_id, worker.department_id);
-      const { rows: [row] } = await client.query<ReservationRequestRow>(
-        `SELECT ${requestColumns} FROM leave_requests
-         WHERE id = $1 AND worker_id = $2 AND reservation_submission_key IS NOT NULL FOR UPDATE`,
-        [requestIdValue, found.worker_id]
-      );
-      if (!row || row.status !== "pending" || row.revision !== revision) {
-        throw new AppError("STALE_REVISION", "Revizija zahtjeva više nije aktualna.");
-      }
+      const { row, worker } = await lockPendingReservation(client, actor, requestIdValue, revision);
       const prior = await recordedYears(client, row.id);
       const next = await allocate(client, row.worker_id, worker.annual_leave_allowance, prior, row.id);
       if (next.every((year, index) => year.reservedDays === prior[index]!.reservedDays)) {
@@ -193,4 +231,64 @@ export class PgAnnualLeaveReservationService {
       return result;
     });
   }
+  async confirmCoveredDates(
+    actor: ActorContext, requestIdValue: string, revision: string, dates: CoveredDate[], requestId: string
+  ) {
+    requireRole(actor, ["worker"]);
+    if (!dates.length || dates.length > 366 || new Set(dates.map(item => item.date)).size !== dates.length) {
+      throw new AppError("VALIDATION_FAILED", "Odaberite jedinstvene datume godišnjeg odmora.");
+    }
+    const sorted = [...dates].sort((a, b) => a.date.localeCompare(b.date));
+    for (const item of sorted) requireBoundedDateRange(item.date, item.date, 1);
+    return withTenant(this.pool, actor, requestId, async client => {
+      const { row } = await lockPendingReservation(client, actor, requestIdValue, revision);
+      await requireCoveredDates(client, row, sorted, await recordedYears(client, row.id));
+      const { rows: [next] } = await client.query<{ revision: string }>(
+        "UPDATE leave_requests SET revision = revision + 1 WHERE id = $1 RETURNING revision::text", [row.id]
+      );
+      await client.query(
+        `INSERT INTO annual_leave_decision_dates (organization_id, request_id, confirmed_revision, absence_date, absence_type, confirmed_by)
+         SELECT $1, $2, $3, day, 'annual_leave', $4 FROM unnest($5::date[]) AS dates(day)`,
+        [actor.organizationId, row.id, next!.revision, actor.userId, sorted.map(day => day.date)]
+      );
+      const confirmation = { requestId: row.id, revision: next!.revision, dates: sorted };
+      await insertAudit(client, actor, requestId, "leave_request.confirm_covered_dates", "leave_request", row.id, null, confirmation, "leave");
+      return confirmation;
+    });
+  }
+
+  async approveConfirmedCoveredDates(actor: ActorContext, requestIdValue: string, revision: string, requestId: string) {
+    requireRole(actor, ["admin", "manager"]);
+    return withTenant(this.pool, actor, requestId, async client => {
+      const { row, worker } = await lockPendingReservation(client, actor, requestIdValue, revision);
+      const { rows: dates } = await client.query<CoveredDate>(
+        `SELECT absence_date::text AS date, absence_type AS type FROM annual_leave_decision_dates
+         WHERE request_id = $1 AND confirmed_revision = $2 AND approved_revision IS NULL ORDER BY absence_date`,
+        [row.id, revision]
+      );
+      if (!dates.length) throw new AppError("CONFLICT", "Radnik mora potvrditi datume za aktualnu reviziju.");
+      const { rows: [org] } = await client.query<{ today: string }>(
+        "SELECT (transaction_timestamp() AT TIME ZONE timezone)::date::text AS today FROM organizations WHERE id = $1",
+        [actor.organizationId]
+      );
+      if (!org) throw new AppError("NOT_FOUND", "Organizacija nije pronađena.");
+      await requireLeaveApprovalPeriods(client, actor.organizationId, row.start_date, row.end_date, org.today);
+      const years = await recordedYears(client, row.id);
+      await allocate(client, row.worker_id, worker.annual_leave_allowance, years, row.id);
+      await requireCoveredDates(client, row, dates, years);
+      const { rows: [updated] } = await client.query<{ revision: string }>(
+        `UPDATE leave_requests SET status = 'approved', decided_by = $2, decided_at = clock_timestamp(),
+           revision = revision + 1 WHERE id = $1 RETURNING revision::text`, [row.id, actor.userId]
+      );
+      await client.query(
+        `UPDATE annual_leave_decision_dates SET approved_revision = $3
+         WHERE request_id = $1 AND confirmed_revision = $2`, [row.id, revision, updated!.revision]
+      );
+      const decision = { requestId: row.id, revision: updated!.revision, status: "approved" as const, dates };
+      await insertAudit(client, actor, requestId, "leave_request.approve_covered_dates", "leave_request", row.id,
+        { revision, status: "pending" }, decision, "leave");
+      return decision;
+    });
+  }
+
 }

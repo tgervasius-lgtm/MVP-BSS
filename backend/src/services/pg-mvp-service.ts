@@ -24,6 +24,7 @@ import {
 import { PgAttendanceCalculationService } from "./pg-attendance-calculation-service.js";
 import { PgAttendancePeriodService } from "./pg-attendance-period-service.js";
 import { PgPhaseAService } from "./pg-phase-a-service.js";
+import { approvedLeaveRangesSql, leaveBalanceWorkingDaysSql } from "./covered-leave-read-sql.js";
 import { PgReportService } from "./pg-report-service.js";
 import {
   attendancePeriodParts,
@@ -221,12 +222,12 @@ export class PgMvpService extends PgPhaseAService implements MvpService {
 
   constructor(
     private readonly mvpPool: pg.Pool,
-    private readonly config: Pick<AppConfig, "rfidUidPepper" | "deviceCredentialEncryptionKey" | "terminalActivationCode" | "publicOrigin">
+    private readonly config: Pick<AppConfig, "rfidUidPepper" | "deviceCredentialEncryptionKey" | "terminalActivationCode" | "publicOrigin">, coveredDateReads = false
   ) {
-    super(mvpPool, config.rfidUidPepper, config.publicOrigin);
+    super(mvpPool, config.rfidUidPepper, config.publicOrigin, coveredDateReads);
     this.attendanceCalculations = new PgAttendanceCalculationService(mvpPool, config.deviceCredentialEncryptionKey);
-    this.attendancePeriods = new PgAttendancePeriodService(mvpPool);
-    this.reports = new PgReportService(mvpPool);
+    this.attendancePeriods = new PgAttendancePeriodService(mvpPool, coveredDateReads);
+    this.reports = new PgReportService(mvpPool, coveredDateReads);
   }
 
   listAttendancePeriodVersions(actor: ActorContext, year: number, month: number, cursor: string | undefined,
@@ -292,21 +293,25 @@ export class PgMvpService extends PgPhaseAService implements MvpService {
           departmentIds = [worker.rows[0].department_id];
         }
       }
-      const result = await client.query<{ id: string; employee_name: string; start_date: string | Date; end_date: string | Date; revision: string }>(
-        `SELECT l.id, w.name AS employee_name, l.start_date, l.end_date, l.revision::text
-         FROM leave_requests l
+      const result = await client.query<{ id: string; employee_name: string; start_date: string; end_date: string }>(
+        `SELECT absence.id, w.name AS employee_name,
+           to_char(absence.start_date, 'YYYY-MM-DD') AS start_date,
+           to_char(absence.end_date, 'YYYY-MM-DD') AS end_date
+         FROM leave_requests l JOIN LATERAL (${approvedLeaveRangesSql(this.coveredDateReads)}) absence ON true
          JOIN workers w ON w.id = l.worker_id
          WHERE l.status = 'approved' AND l.leave_type = 'annual_leave'
            AND l.end_date >= $1::date AND l.start_date <= $2::date
            AND ($3::boolean OR w.department_id = ANY($4::uuid[]))
-         ORDER BY l.start_date, w.name, l.id`,
-        [filters.from, filters.to, ["admin", "accountant"].includes(actor.role) || visibility === "organization", departmentIds]
+         ORDER BY absence.start_date, w.name, absence.id`,
+        // Shared-calendar visibility never widens a manager's assigned departments.
+        [filters.from, filters.to, ["admin", "accountant"].includes(actor.role)
+          || (actor.role === "worker" && visibility === "organization"), departmentIds]
       );
       const items = result.rows.map((row) => ({
         id: row.id,
         employeeName: row.employee_name,
-        startDate: dateOnly(row.start_date),
-        endDate: dateOnly(row.end_date)
+        startDate: row.start_date,
+        endDate: row.end_date
       }));
       return {
         visibility,
@@ -391,7 +396,7 @@ export class PgMvpService extends PgPhaseAService implements MvpService {
         const days = await workingDays(client, input.startDate, input.endDate);
         if (days <= 0) throw new AppError("VALIDATION_FAILED", "Odabrano razdoblje nema radnih dana.");
         const worker = await lockActiveLeaveWorker(client, workerId);
-        await requireNonOverlappingLeave(client, workerId, input.startDate, input.endDate);
+        await requireNonOverlappingLeave(client, workerId, input.startDate, input.endDate, this.coveredDateReads);
         if (input.typeCode === "annual_leave") {
           const firstYear = Number(input.startDate.slice(0, 4));
           const lastYear = Number(input.endDate.slice(0, 4));
@@ -404,19 +409,13 @@ export class PgMvpService extends PgPhaseAService implements MvpService {
               input.endDate < yearEnd ? input.endDate : yearEnd
             );
             const used = await client.query<{ days: number }>(
-              `SELECT COUNT(*)::integer AS days
+              `SELECT COALESCE(SUM(days.working_days), 0)::integer AS days
                FROM leave_requests l
-               CROSS JOIN LATERAL generate_series(
-                 GREATEST(l.start_date, $2::date)::timestamp,
-                 LEAST(l.end_date, $3::date)::timestamp,
-                 interval '1 day'
-               ) AS day(value)
-               WHERE l.worker_id = $1 AND l.leave_type = 'annual_leave'
+               CROSS JOIN LATERAL (${leaveBalanceWorkingDaysSql(this.coveredDateReads)}) days
+               WHERE l.worker_id = $2 AND l.leave_type = 'annual_leave'
                  AND l.status IN ('pending', 'approved')
-                 AND l.end_date >= $2::date AND l.start_date <= $3::date
-                 AND EXTRACT(ISODOW FROM day.value) < 6
-                 AND NOT EXISTS (SELECT 1 FROM holidays h WHERE h.holiday_date = day.value::date)`,
-              [workerId, yearStart, yearEnd]
+                 AND l.end_date >= make_date($1, 1, 1) AND l.start_date <= make_date($1, 12, 31)`,
+              [year, workerId]
             );
             if ((used.rows[0]?.days ?? 0) + requestedDays > worker.annual_leave_allowance) {
               throw new AppError("VALIDATION_FAILED", `Zahtjev prelazi raspoloživi fond godišnjeg odmora za ${year}. godinu.`);

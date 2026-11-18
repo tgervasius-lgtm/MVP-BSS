@@ -149,13 +149,13 @@ async function insertAudit(
 }
 
 export class PgReportService {
-  constructor(private readonly pool: pg.Pool) {}
+  constructor(private readonly pool: pg.Pool, private readonly coveredDateReads = false) {}
 
   async createPreview(actor: ActorContext, input: ReportPreviewWrite): Promise<ReportPreviewView> {
     requireRole(actor, ["admin", "manager", "accountant"]);
     requireBoundedDateRange(input.periodFrom, input.periodTo);
     requireScope(actor, input.departmentId);
-    return withTenant(this.pool, actor, "report-preview", (client) => createLiveReportPreview(client, actor, input));
+    return withTenant(this.pool, actor, "report-preview", (client) => createLiveReportPreview(client, actor, input, this.coveredDateReads));
   }
 
   async listExports(actor: ActorContext, cursor: string | undefined, limit: number): Promise<Page<ReportExportView>> {
@@ -210,7 +210,7 @@ export class PgReportService {
         calculationVersions = jsonObject<string[]>(version.calculation_versions);
         templateVersion = version.template_version;
       } else {
-        preview = await createLiveReportPreview(client, actor, previewInput(input, MAX_EXPORT_ROWS));
+        preview = await createLiveReportPreview(client, actor, previewInput(input, MAX_EXPORT_ROWS), this.coveredDateReads);
       }
       if (preview.truncated) {
         throw new AppError("VALIDATION_FAILED", `Izvještaj prelazi sigurnosni limit od ${MAX_EXPORT_ROWS} redaka. Suzite razdoblje ili filtre.`);

@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { approvedLeaveRangesSql } from "./covered-leave-read-sql.js";
 import type { TenantTransaction } from "../db/tenant.js";
 import { AppError } from "../domain/errors.js";
 import type { ActorContext } from "../domain/types.js";
@@ -81,7 +82,8 @@ function databasePreview(
 export async function createLiveReportPreview(
   client: TenantTransaction,
   actor: ActorContext,
-  input: ReportPreviewWrite
+  input: ReportPreviewWrite,
+  coveredDateReads = false
 ): Promise<ReportPreviewView> {
   const limit = input.limit ?? 100;
   const parameters = [input.periodFrom, input.periodTo, actor.role, actor.departmentIds,
@@ -160,9 +162,10 @@ export async function createLiveReportPreview(
     rows = (await client.query<PreviewRow>(
       `WITH rows AS (
          SELECT w.code AS "workerCode", w.name AS "workerName", l.leave_type AS "typeCode",
-           to_char(l.start_date, 'YYYY-MM-DD') AS "startDate", to_char(l.end_date, 'YYYY-MM-DD') AS "endDate",
-           l.working_days AS "workingDays", l.status, l.revision
+           to_char(absence.start_date, 'YYYY-MM-DD') AS "startDate", to_char(absence.end_date, 'YYYY-MM-DD') AS "endDate",
+           absence.working_days AS "workingDays", l.status, l.revision
          FROM leave_requests l JOIN workers w ON w.id = l.worker_id
+         JOIN LATERAL (${approvedLeaveRangesSql(coveredDateReads)}) absence ON true
          WHERE l.status = 'approved' AND l.end_date >= $1::date AND l.start_date <= $2::date
            AND ($3::text <> 'manager' OR w.department_id = ANY($4::uuid[]))
            AND ($5::uuid IS NULL OR w.department_id = $5) AND ($6::uuid IS NULL OR w.id = $6)

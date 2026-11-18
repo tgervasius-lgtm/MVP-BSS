@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { approvedLeaveRangesSql } from "./covered-leave-read-sql.js";
 import type { TenantTransaction } from "../db/tenant.js";
 
 export const REPORT_TEMPLATE_VERSION = "bss-report-v1.2";
@@ -64,7 +65,8 @@ export async function captureAttendancePeriodSnapshot(
   client: TenantTransaction,
   organizationId: string,
   year: number,
-  month: number
+  month: number,
+  coveredDateReads = false
 ): Promise<{ snapshot: AttendancePeriodSnapshot; checksumSha256: string; calculationVersions: string[] }> {
   const bounds = attendancePeriodBounds(year, month);
   const organization = await client.query<{ id: string; name: string; timezone: string }>(
@@ -116,15 +118,16 @@ export async function captureAttendancePeriodSnapshot(
     [bounds.from, bounds.to]
   );
   const approvedAbsences = await client.query<AttendancePeriodSnapshot["approvedAbsences"][number]>(
-    `SELECT l.id, l.worker_id AS "workerId", w.code AS "workerCode", w.name AS "workerName",
+    `SELECT absence.id, l.worker_id AS "workerId", w.code AS "workerCode", w.name AS "workerName",
        d.id AS "departmentId", d.name AS "departmentName", l.leave_type AS "typeCode",
-       l.start_date::text AS "startDate", l.end_date::text AS "endDate",
-       l.working_days AS "workingDays", l.status, l.decided_by AS "decidedBy",
+       absence.start_date::text AS "startDate", absence.end_date::text AS "endDate",
+       absence.working_days AS "workingDays", l.status, l.decided_by AS "decidedBy",
        CASE WHEN l.decided_at IS NULL THEN NULL ELSE to_char(l.decided_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') END AS "decidedAt",
        l.revision::text AS revision
      FROM leave_requests l JOIN workers w ON w.id = l.worker_id JOIN departments d ON d.id = w.department_id
+     JOIN LATERAL (${approvedLeaveRangesSql(coveredDateReads)}) absence ON true
      WHERE l.status = 'approved' AND l.end_date >= $1::date AND l.start_date <= $2::date
-     ORDER BY l.start_date, w.code, l.id`,
+     ORDER BY absence.start_date, w.code, absence.id`,
     [bounds.from, bounds.to]
   );
   const corrections = await client.query<AttendancePeriodSnapshot["corrections"][number]>(

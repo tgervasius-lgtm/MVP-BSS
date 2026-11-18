@@ -36,7 +36,7 @@ REVOKE ALL PRIVILEGES ON TABLE worker_import_sessions, worker_import_staging,
 REVOKE ALL PRIVILEGES ON TABLE onboarding_sessions, onboarding_evidence,
   onboarding_evaluations FROM :"runtime_role";
 -- The annual leave reservation workflow is internal until its HTTP and read side are ready.
-REVOKE ALL PRIVILEGES ON TABLE annual_leave_reservations FROM :"runtime_role";
+REVOKE ALL PRIVILEGES ON TABLE annual_leave_reservations, annual_leave_decision_dates FROM :"runtime_role";
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO :"runtime_role";
 GRANT EXECUTE ON FUNCTION bss_auth_lookup(text) TO :"runtime_role";
 GRANT EXECUTE ON FUNCTION bss_session_lookup(bytea) TO :"runtime_role";
