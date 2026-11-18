@@ -100,9 +100,7 @@ DO $$ DECLARE relation text; BEGIN
   FOREACH relation IN ARRAY ARRAY['people','identities','grants'] LOOP
     EXECUTE format('ALTER TABLE bss_internal.%I ENABLE ROW LEVEL SECURITY', relation);
     EXECUTE format('ALTER TABLE bss_internal.%I FORCE ROW LEVEL SECURITY', relation);
-    EXECUTE format('CREATE POLICY internal_only ON bss_internal.%I
-      USING (current_setting(''bss.internal_runtime'',true)=''on'')
-      WITH CHECK (current_setting(''bss.internal_runtime'',true)=''on'')', relation);
+    EXECUTE format('CREATE POLICY internal_only ON bss_internal.%I USING (current_setting(''bss.internal_runtime'',true)=''on'') WITH CHECK (current_setting(''bss.internal_runtime'',true)=''on'')', relation);
   END LOOP;
 END $$;
 ALTER TABLE bss_internal.sessions ENABLE ROW LEVEL SECURITY;
@@ -133,9 +131,7 @@ DO $$ DECLARE relation text; BEGIN
   FOREACH relation IN ARRAY ARRAY['receipts','audit'] LOOP
     EXECUTE format('ALTER TABLE bss_internal.%I ENABLE ROW LEVEL SECURITY', relation);
     EXECUTE format('ALTER TABLE bss_internal.%I FORCE ROW LEVEL SECURITY', relation);
-    EXECUTE format('CREATE POLICY operation_binding ON bss_internal.%I
-      USING (EXISTS (SELECT 1 FROM bss_internal.operations o WHERE o.id=operation_id))
-      WITH CHECK (EXISTS (SELECT 1 FROM bss_internal.operations o WHERE o.id=operation_id))', relation);
+    EXECUTE format('CREATE POLICY operation_binding ON bss_internal.%I USING (EXISTS (SELECT 1 FROM bss_internal.operations o WHERE o.id=operation_id)) WITH CHECK (EXISTS (SELECT 1 FROM bss_internal.operations o WHERE o.id=operation_id))', relation);
   END LOOP;
 END $$;
 REVOKE ALL ON ALL TABLES IN SCHEMA bss_internal FROM PUBLIC;
@@ -144,8 +140,7 @@ REVOKE ALL ON ALL TABLES IN SCHEMA bss_internal FROM PUBLIC;
 -- Down guards must see all rows even when the migrator owns FORCE RLS tables.
 DO $$ DECLARE relation text; BEGIN
   FOREACH relation IN ARRAY ARRAY['people','identities','sessions','targets','grants','operations','flows','receipts','audit'] LOOP
-    EXECUTE format('CREATE POLICY migration_owner_read ON bss_internal.%I FOR SELECT
-      USING (current_user=pg_get_userbyid((SELECT relowner FROM pg_class WHERE oid=%L::regclass)))',
+    EXECUTE format('CREATE POLICY migration_owner_read ON bss_internal.%I FOR SELECT USING (current_user=pg_get_userbyid((SELECT relowner FROM pg_class WHERE oid=%L::regclass)))',
       relation,'bss_internal.'||relation);
   END LOOP;
 END $$;

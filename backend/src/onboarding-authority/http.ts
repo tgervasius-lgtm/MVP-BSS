@@ -32,12 +32,23 @@ export async function buildInternalAuthorityApp(
   const app = Fastify({ logger: false, bodyLimit: 16_384, exposeHeadRoutes: false });
   await app.register(cookie);
   await app.register(rateLimit, { max: 20, timeWindow: "1 minute" });
-  app.addHook("onRequest", async (_request, reply) => {
+  app.addHook("onRequest", (_request, reply, done) => {
     reply.header("cache-control", "no-store").header("referrer-policy", "no-referrer");
+    done();
   });
   app.setErrorHandler<FastifyError>((error, _request, reply) => {
-    const status = error instanceof AppError ? error.statusCode : error.validation ? 422 : error.statusCode === 429 ? 429 : 503;
-    const code = error instanceof AppError ? error.code : status === 422 ? "VALIDATION_FAILED" : status === 429 ? "RATE_LIMITED" : "ONBOARDING_UNAVAILABLE";
+    let status = 503;
+    let code = "ONBOARDING_UNAVAILABLE";
+    if (error instanceof AppError) {
+      status = error.statusCode;
+      code = error.code;
+    } else if (error.validation) {
+      status = 422;
+      code = "VALIDATION_FAILED";
+    } else if (error.statusCode === 429) {
+      status = 429;
+      code = "RATE_LIMITED";
+    }
     return reply.code(status).send({ code, message: "Interni zahtjev nije dovršen." });
   });
   const session = (cookies: Record<string, string | undefined>) => cookies[sessionCookie] ?? "";

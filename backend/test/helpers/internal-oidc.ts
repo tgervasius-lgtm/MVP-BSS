@@ -31,12 +31,15 @@ export function internalOidcFixture() {
     return code;
   };
   const request: typeof fetch = async (input, init) => {
-    const url = String(input);
+    const url = input instanceof Request ? input.url : input.toString();
     if (url === config.jwksEndpoint) {
       return Response.json({ keys: [{ ...key.publicKey.export({ format: "jwk" }), use: "sig", alg: "RS256", kid }] });
     }
     if (url !== config.tokenEndpoint) throw new Error("Unexpected fixture endpoint");
-    const params = new URLSearchParams(String(init?.body));
+    let encoded = "";
+    if (init?.body instanceof URLSearchParams) encoded = init.body.toString();
+    else if (typeof init?.body === "string") encoded = init.body;
+    const params = new URLSearchParams(encoded);
     const entry = pending.get(params.get("code") ?? "");
     if (!entry || entry.challenge !== createHash("sha256").update(params.get("code_verifier") ?? "").digest("base64url") ||
         params.get("redirect_uri") !== config.redirectUri || params.get("client_id") !== config.clientId) {

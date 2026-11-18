@@ -42,7 +42,10 @@ export function internalScopeKey(scope: ResolvedAuthorityIntent["scope"]): strin
 function stable(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(stable);
   if (value && typeof value === "object") {
-    return Object.fromEntries(Object.keys(value).sort().map(key => [key, stable((value as Record<string, unknown>)[key])]));
+    return Object.fromEntries(Object.keys(value).sort((left, right) => {
+      if (left < right) return -1;
+      return left > right ? 1 : 0;
+    }).map(key => [key, stable((value as Record<string, unknown>)[key])]));
   }
   return value;
 }
@@ -98,7 +101,7 @@ export class PgInternalAuthority {
     const key = internalScopeKey(intent.scope);
     await db.query("SELECT set_config('bss.internal_scope',$1,true)", [key]);
     const target = (await db.query<Target>("SELECT *,revision::text FROM bss_internal.targets WHERE scope_key=$1 FOR UPDATE", [key])).rows[0];
-    if (!target || fingerprint(target.scope) !== fingerprint(intent.scope)) deny("FORBIDDEN");
+    if (!target?.scope || fingerprint(target.scope) !== fingerprint(intent.scope)) deny("FORBIDDEN");
     const grant = (await db.query<Grant>(
       `SELECT id,revision::text,valid_from::text,expires_at::text,revoked FROM bss_internal.grants
        WHERE person_id=$1 AND action=$2 AND scope_key=$3 FOR SHARE`, [session.person_id, intent.action, key]

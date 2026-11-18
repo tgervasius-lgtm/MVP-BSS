@@ -10,7 +10,7 @@
     "build": "tsc -p tsconfig.json && node scripts/copy-static.mjs",
     "dev": "node --env-file-if-exists=.env --import tsx --watch src/server.ts",
     "lint": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json",
-    "lint:openapi": "redocly lint ../openapi/bss-mvp-api-v1.yaml ../openapi/bss-internal-authority-draft.yaml",
+    "lint:openapi": "redocly lint ../openapi/bss-mvp-api-v1.yaml",
     "migrate": "node --env-file-if-exists=.env --import tsx src/db/migrate.ts up",
     "migrate:down": "node --env-file-if-exists=.env --import tsx src/db/migrate.ts down",
     "migrate:prod": "node --env-file-if-exists=.env dist/src/db/migrate.js up",

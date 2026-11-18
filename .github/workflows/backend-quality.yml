@@ -261,8 +261,10 @@ jobs:
       - name: Typecheck
         run: npm run lint
 
-      - name: OpenAPI v1 validation
-        run: npm run lint:openapi
+      - name: OpenAPI public and inactive internal draft validation
+        run: |
+          npm run lint:openapi
+          ./node_modules/.bin/redocly lint ../openapi/bss-internal-authority-draft.yaml
 
       - name: Unit and contract tests
         run: npm run test:unit
