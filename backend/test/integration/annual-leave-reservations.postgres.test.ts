@@ -464,3 +464,113 @@ test("covered reads let the existing HTTP route request only unapproved dates wi
   const original = await f.owner.query("SELECT status FROM leave_requests WHERE id = $1", [request.requestId]);
   assert.equal(original.rows[0].status, "approved");
 });
+
+test("approved leave calendars preserve manager department scope under both visibility settings", options, async t => {
+  for (const coveredDateReads of [false, true]) {
+    await t.test(coveredDateReads ? "covered dates" : "legacy dates", async scope => {
+      const f = await fixture(scope, coveredDateReads);
+      const { rows: [outside] } = await f.owner.query<{ worker: string; user: string }>(`WITH
+        d AS (INSERT INTO departments(organization_id, name) VALUES ($1, 'Outside') RETURNING id),
+        w AS (INSERT INTO workers(organization_id, code, name, department_id, shift_id, annual_leave_allowance)
+          SELECT $1, '6', 'Outside Worker', d.id, own.shift_id, 5 FROM d, workers own WHERE own.id = $2 RETURNING id),
+        u AS (INSERT INTO users(organization_id, email, role, worker_id)
+          SELECT $1, 'outside@example.test', 'worker', id FROM w RETURNING id)
+        SELECT w.id AS worker, u.id AS user FROM w,u`, [f.worker.organizationId, f.worker.selfWorkerId]);
+      assert.ok(outside);
+      const outsideWorker: ActorContext = { ...f.worker, userId: outside.user, selfWorkerId: outside.worker };
+      const day = { startDate: "2030-01-07", endDate: "2030-01-07" };
+      for (const [index, worker] of [f.worker, outsideWorker].entries()) {
+        if (coveredDateReads) {
+          const request = await f.reserve.submit(worker, day, `calendar-scope-${index}`, "submit");
+          const confirmation = await f.reserve.confirmCoveredDates(worker, request.requestId, request.revision, covered(day.startDate), "confirm");
+          await f.reserve.approveConfirmedCoveredDates(f.admin, request.requestId, confirmation.revision, "approve");
+        } else {
+          const request = await f.legacy.createLeaveRequest(worker, { typeCode: "annual_leave", ...day }, "submit");
+          await f.legacy.approveLeaveRequest(f.admin, request.id, request.revision, undefined, "approve");
+        }
+      }
+      const filters = { from: day.startDate, to: day.endDate };
+      const names = async (actor: ActorContext) => (await f.legacy.listApprovedLeaveCalendar(actor, filters)).items
+        .map(item => item.employeeName).sort();
+      for (const visibility of ["department", "organization"]) {
+        await f.owner.query("UPDATE organizations SET approved_leave_visibility = $1 WHERE id = $2", [visibility, f.worker.organizationId]);
+        assert.deepEqual(await names(f.manager), ["Synthetic Worker"], `${visibility}: assigned manager`);
+        assert.deepEqual(await names({ ...f.manager, departmentIds: [] }), [], `${visibility}: unassigned manager`);
+        for (const role of ["admin", "accountant"] as const) {
+          assert.deepEqual(await names({ ...f.admin, role }), ["Outside Worker", "Synthetic Worker"], `${visibility}: ${role}`);
+        }
+        assert.deepEqual(await names(f.worker), visibility === "organization"
+          ? ["Outside Worker", "Synthetic Worker"] : ["Synthetic Worker"], `${visibility}: configured worker view`);
+      }
+    });
+  }
+});
+
+test("decision rollback requires the exact non-superuser owner and preserves hidden confirmed history", options, async t => {
+  for (const populated of [false, true]) {
+    await t.test(populated ? "confirmed history" : "empty table", async scope => {
+      const f = await fixture(scope);
+      if (populated) {
+        const request = await f.reserve.submit(f.worker, firstRange, "migration-history", "submit");
+        await f.reserve.confirmCoveredDates(f.worker, request.requestId, request.revision, covered("2030-01-07"), "confirm");
+      }
+      const tableOwner = `bss_dates_owner_${f.suffix}`;
+      const inheritor = `bss_dates_migrator_${f.suffix}`;
+      const password = `synthetic-${f.suffix}`;
+      const clients: pg.Client[] = [];
+      const createdRoles: string[] = [];
+      try {
+        for (const role of [tableOwner, inheritor]) {
+          await f.owner.query(`CREATE ROLE ${role} LOGIN PASSWORD '${password}' NOSUPERUSER NOBYPASSRLS NOCREATEROLE NOCREATEDB`);
+          createdRoles.push(role);
+        }
+        await f.owner.query(`GRANT USAGE, CREATE ON SCHEMA public TO ${tableOwner};
+          ALTER TABLE annual_leave_decision_dates OWNER TO ${tableOwner};
+          REVOKE CREATE ON SCHEMA public FROM ${tableOwner};
+          GRANT ${tableOwner} TO ${inheritor} WITH INHERIT TRUE, SET TRUE`);
+        async function connect(role: string) {
+          const connection = new URL(f.appUrl);
+          connection.username = role;
+          connection.password = password;
+          const client = new pg.Client({ connectionString: connection.toString(), statement_timeout: 10_000 });
+          clients.push(client);
+          await client.connect();
+          const identity = (await client.query("SELECT current_user AS name, rolsuper, rolbypassrls FROM pg_roles WHERE rolname = current_user")).rows[0];
+          assert.deepEqual(identity, { name: role, rolsuper: false, rolbypassrls: false });
+          assert.equal((await client.query("SELECT bss_current_organization_id() AS tenant")).rows[0].tenant, null);
+          return client;
+        }
+        const migration = await connect(inheritor);
+        assert.equal((await migration.query("SELECT count(*) FROM annual_leave_decision_dates")).rows[0].count, "0");
+        const sql = await readFile(decisionDown, "utf8");
+        await migration.query("BEGIN");
+        try {
+          await assert.rejects(migration.query(sql), { code: "42501" });
+        } finally {
+          await migration.query("ROLLBACK");
+        }
+        const history = async () => (await f.owner.query("SELECT count(*) FROM annual_leave_decision_dates")).rows[0].count;
+        assert.equal(await history(), populated ? "1" : "0", "rejected identity must preserve the table and all rows");
+        const directOwner = await connect(tableOwner);
+        assert.equal((await directOwner.query("SELECT count(*) FROM annual_leave_decision_dates")).rows[0].count, populated ? "1" : "0");
+        await directOwner.query("BEGIN");
+        try {
+          if (populated) {
+            await assert.rejects(directOwner.query(sql), /Preserve confirmed annual leave dates/);
+          } else {
+            await directOwner.query(sql);
+            assert.equal((await directOwner.query("SELECT to_regclass('public.annual_leave_decision_dates') AS relation")).rows[0].relation, null);
+          }
+        } finally {
+          await directOwner.query("ROLLBACK");
+        }
+        assert.equal(await history(), populated ? "1" : "0");
+      } finally {
+        for (const client of clients) await client.end();
+        for (const role of createdRoles.toReversed()) {
+          await f.owner.query(`REASSIGN OWNED BY ${role} TO CURRENT_USER; DROP OWNED BY ${role}; DROP ROLE ${role}`);
+        }
+      }
+    });
+  }
+});

@@ -303,7 +303,9 @@ export class PgMvpService extends PgPhaseAService implements MvpService {
            AND l.end_date >= $1::date AND l.start_date <= $2::date
            AND ($3::boolean OR w.department_id = ANY($4::uuid[]))
          ORDER BY absence.start_date, w.name, absence.id`,
-        [filters.from, filters.to, ["admin", "accountant"].includes(actor.role) || visibility === "organization", departmentIds]
+        // Shared-calendar visibility never widens a manager's assigned departments.
+        [filters.from, filters.to, ["admin", "accountant"].includes(actor.role)
+          || (actor.role === "worker" && visibility === "organization"), departmentIds]
       );
       const items = result.rows.map((row) => ({
         id: row.id,
