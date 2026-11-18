@@ -5,6 +5,7 @@ on:
     paths:
       - "backend/**"
       - "openapi/bss-mvp-api-v1.yaml"
+      - "openapi/bss-internal-authority-draft.yaml"
       - "BACKEND_READINESS_REPORT.md"
       - "BACKEND_ARCHITECTURE.md"
       - "BSS_BACKEND_HANDOFF_V1.md"
@@ -17,6 +18,7 @@ on:
     paths:
       - "backend/**"
       - "openapi/bss-mvp-api-v1.yaml"
+      - "openapi/bss-internal-authority-draft.yaml"
       - "BACKEND_READINESS_REPORT.md"
       - "BACKEND_ARCHITECTURE.md"
       - "BSS_BACKEND_HANDOFF_V1.md"
@@ -261,8 +263,10 @@ jobs:
       - name: Typecheck
         run: npm run lint
 
-      - name: OpenAPI v1 validation
-        run: npm run lint:openapi
+      - name: OpenAPI public and inactive internal draft validation
+        run: |
+          npm run lint:openapi
+          ./node_modules/.bin/redocly lint ../openapi/bss-internal-authority-draft.yaml
 
       - name: Unit and contract tests
         run: npm run test:unit
@@ -280,6 +284,12 @@ jobs:
 
       - name: Install pinned structural PDF inspector
         run: bash scripts/install-qpdf-ci.sh
+
+      - name: Install PostgreSQL client for complete psql entrypoint tests
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y postgresql-client-16
+          psql --version
 
       - name: PostgreSQL migration and isolation tests
         run: npm run test:integration
