@@ -8,6 +8,7 @@ import { InternalOidc } from "../../src/onboarding-authority/oidc.js";
 import { PgInternalAuthority, internalScopeKey, type InternalEffect } from "../../src/onboarding-authority/registry.js";
 import { buildInternalAuthorityApp } from "../../src/onboarding-authority/http.js";
 import type { ResolvedAuthorityIntent } from "../../src/onboarding-authority/policy.js";
+import { applyInternalDraftGrants } from "../helpers/internal-grants.js";
 import { internalOidcFixture } from "../helpers/internal-oidc.js";
 import { createPostgresFixture } from "../helpers/postgres-fixture.js";
 
@@ -23,9 +24,9 @@ async function fixture(t: test.TestContext, customize?: (effect: InternalEffect)
   const privateSchema = await readFile(new URL("../../internal-authority-migrations/022_internal_authority_draft.up.sql", import.meta.url), "utf8");
   await f.owner.query("BEGIN;"+privateSchema+"COMMIT;");
   assert.equal((await f.owner.query("SELECT has_schema_privilege($1,'bss_internal','USAGE') AS allowed", [f.role])).rows[0].allowed, false);
-  const grants = await readFile(new URL("../../deploy/internal-authority-draft-grants.sql", import.meta.url), "utf8");
-  const grantSql = grants.slice(grants.indexOf('ALTER ROLE')).replaceAll(':"internal_role"', f.role);
-  await f.owner.query(grantSql);
+  const ownerUrl = new URL(url); ownerUrl.pathname = "/"+f.databaseName;
+  const applied = await applyInternalDraftGrants(ownerUrl.toString(), f.role);
+  assert.equal(applied.code, 0, applied.stderr);
   await f.owner.query("CREATE TABLE synthetic_effects(id uuid PRIMARY KEY)");
   await f.owner.query(`GRANT INSERT ON synthetic_effects TO ${f.role}; GRANT USAGE ON SCHEMA public TO ${f.role}`);
   const person = randomUUID(), preparer = randomUUID(), grant = randomUUID();
