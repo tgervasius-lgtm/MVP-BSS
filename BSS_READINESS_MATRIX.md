@@ -1,5 +1,9 @@
 # BSS Readiness Matrix
 
+## D3 internal authority candidate — 18 November 2026
+
+**ACCEPTED FOR INACTIVE DRAFT / IMPLEMENTED FOR REVIEW.** The [D3 adapter and private registry](docs/bss-os/D3_INTERNAL_AUTHORITY_DRAFT_2026-11-18.md) implements separate HTTP/OIDC/PG composition, exact-scope authority, fresh session-bound confirmation, atomic audit and reauthorized recovery. Standard runtime has no registered routes or private-registry privileges. Synthetic effect and signed-provider-fixture evidence is reported on the exact candidate PR. Actual-provider integration on this composition, physical key, actual domain provisioning, real identities/rights, retention/revocation operations, staging/privacy/restore and independent/customer acceptance remain open. No merge, deployment, activation or readiness promotion is authorized.
+
 ## REPORT-007 candidate — 2026-11-14
 
 **IMPLEMENTED FOR REVIEW.** In API mode, authorized report users can explicitly select an immutable month version for export. The dialog states whether the file uses current data or the selected saved version, and the export history identifies the source. The read-only version list returns metadata under the existing report permissions and tenant scope. The existing export endpoint continues to enforce worker and department visibility.

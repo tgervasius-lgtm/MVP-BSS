@@ -73,7 +73,7 @@ function preparerIdentities(value: unknown): value is readonly string[] {
   }
   return true;
 }
-function intent(value: unknown): value is ResolvedAuthorityIntent {
+export function isInternalAuthorityIntent(value: unknown): value is ResolvedAuthorityIntent {
   if (!record(value) || !action(value.action) || !scope(value.scope)) return false;
   if (value.action === "VERIFY_ONBOARDING") {
     return exact(value, ["action", "scope", "preparerPersonIds"]) && value.scope.kind === "TENANT"
@@ -125,7 +125,7 @@ export function assessInternalAuthority(
   if (!authority(resolved)) return deny("INVALID_AUTHORITY_CONTEXT");
   if (serverTime < resolved.authenticatedAt || serverTime >= resolved.expiresAt)
     return deny("AUTHENTICATION_INACTIVE");
-  if (!intent(requested)) return deny("INVALID_AUTHORITY_INTENT");
+  if (!isInternalAuthorityIntent(requested)) return deny("INVALID_AUTHORITY_INTENT");
   const assigned = resolved.grant;
   if (assigned === null) return deny("GRANT_UNAVAILABLE");
   const reason = grantDenial(assigned, resolved.principal, requested, serverTime) ?? intentDenial(resolved.principal, requested);

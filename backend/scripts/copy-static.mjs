@@ -16,3 +16,6 @@ await cp(join(backendRoot, "assets", "report-fonts"), join(backendRoot, "dist", 
 await cp(join(backendRoot, "import-parser"), join(backendRoot, "dist", "import-parser"), {
   recursive: true, filter: path => !path.includes("__pycache__") && !path.endsWith(".pyc")
 });
+
+// Explicit internal draft migrations are shipped separately and never auto-applied.
+await cp(join(backendRoot, "internal-authority-migrations"), join(backendRoot, "dist", "internal-authority-migrations"), { recursive: true });

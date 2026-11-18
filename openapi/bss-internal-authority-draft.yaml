@@ -1,0 +1,399 @@
+openapi: 3.1.0
+info:
+  title: BSS internal authority — inactive draft
+  version: 0.3.0
+  description: Separate composition only. No deployed listener, registered real identities or domain effect is provided
+    by this contract. Synthetic effects prove atomicity and recovery only.
+  license:
+    name: Proprietary
+    identifier: LicenseRef-Proprietary
+servers:
+- url: https://internal.example.invalid
+  description: Placeholder; activation destination requires review
+components:
+  securitySchemes:
+    internalSession:
+      type: apiKey
+      in: cookie
+      name: __Host-bss_internal_session
+      description: Opaque server session, Secure, HttpOnly, SameSite Strict. Tenant sessions do not grant internal
+        authority.
+paths:
+  /internal/v1/login:
+    get:
+      summary: Start fresh passkey login
+      operationId: beginInternalLogin
+      security: []
+      responses:
+        '302':
+          description: Pinned OIDC authorization redirect; HttpOnly Secure SameSite Lax flow cookie
+        '429':
+          description: Rate limit exceeded
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '503':
+          description: Transaction or registry unavailable; no partial success
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+  /internal/v1/callback:
+    get:
+      summary: Exchange an OIDC code for a session or operation confirmation
+      operationId: completeInternalLogin
+      security: []
+      parameters:
+      - name: state
+        in: query
+        required: true
+        schema:
+          type: string
+          minLength: 40
+          maxLength: 128
+      - name: code
+        in: query
+        required: true
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 4096
+      description: Requires the matching HttpOnly flow cookie. One-use state, nonce, encrypted PKCE verifier and
+        exact session/operation binding. Password-only or pre-flow authentication is denied. Returns authenticated+csrfToken
+        with an opaque session cookie for login, or operationId for confirmation. No bearer token is returned. HEAD
+        is not registered.
+      responses:
+        '200':
+          description: Login or confirmation completed; no-store
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '401':
+          description: Missing, inactive or invalid session / confirmation
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '403':
+          description: Current authority, independent person or CSRF denied
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '404':
+          description: Operation or completed receipt unavailable
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '409':
+          description: Changed request, target, grant or used operation
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '422':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '429':
+          description: Rate limit exceeded
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '503':
+          description: Transaction or registry unavailable; no partial success
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+  /internal/v1/operations:
+    post:
+      summary: prepareInternalOperation
+      operationId: prepareInternalOperation
+      security:
+      - internalSession: []
+      parameters:
+      - name: x-csrf-token
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+        description: Server-issued CSRF token. The exact configured Origin header is also required.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - action
+              - scope
+              - payload
+              additionalProperties: false
+              properties:
+                action:
+                  type: string
+                  enum:
+                  - PROVISION_TENANT
+                  - VERIFY_ONBOARDING
+                  - APPROVE_GO_LIVE
+                scope:
+                  type: object
+                  required:
+                  - environmentId
+                  - profile
+                  - kind
+                  - targetId
+                  additionalProperties: false
+                  properties:
+                    environmentId:
+                      type: string
+                      minLength: 1
+                      maxLength: 200
+                    profile:
+                      type: string
+                      enum:
+                      - DEMO
+                      - INTERNAL
+                      - PILOT
+                      - PRODUCTION
+                    kind:
+                      type: string
+                      enum:
+                      - PROVISIONING_REQUEST
+                      - TENANT
+                    targetId:
+                      type: string
+                      minLength: 1
+                      maxLength: 200
+                payload:
+                  type: object
+                  maxProperties: 100
+      responses:
+        '201':
+          description: Server-generated operationId and authorizationUrl; sets operation flow cookie. The fresh
+            confirmation must complete before the first effect.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '401':
+          description: Missing, inactive or invalid session / confirmation
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '403':
+          description: Current authority, independent person or CSRF denied
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '404':
+          description: Operation or completed receipt unavailable
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '409':
+          description: Changed request, target, grant or used operation
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '422':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '429':
+          description: Rate limit exceeded
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '503':
+          description: Transaction or registry unavailable; no partial success
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+  /internal/v1/operations/{id}:
+    parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    get:
+      summary: Recover a completed result under current authority
+      operationId: readInternalOperation
+      security:
+      - internalSession: []
+      responses:
+        '200':
+          description: Original completed result; no-store
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '401':
+          description: Missing, inactive or invalid session / confirmation
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '403':
+          description: Current authority, independent person or CSRF denied
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '404':
+          description: Operation or completed receipt unavailable
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '409':
+          description: Changed request, target, grant or used operation
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '422':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '429':
+          description: Rate limit exceeded
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '503':
+          description: Transaction or registry unavailable; no partial success
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+    post:
+      summary: performInternalOperation
+      operationId: performInternalOperation
+      security:
+      - internalSession: []
+      parameters:
+      - name: x-csrf-token
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+        description: Server-issued CSRF token. The exact configured Origin header is also required.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - payload
+              additionalProperties: false
+              properties:
+                payload:
+                  type: object
+                  maxProperties: 100
+      responses:
+        '200':
+          description: Completed response, Cache-Control no-store
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '401':
+          description: Missing, inactive or invalid session / confirmation
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '403':
+          description: Current authority, independent person or CSRF denied
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '404':
+          description: Operation or completed receipt unavailable
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '409':
+          description: Changed request, target, grant or used operation
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '422':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '429':
+          description: Rate limit exceeded
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '503':
+          description: Transaction or registry unavailable; no partial success
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
