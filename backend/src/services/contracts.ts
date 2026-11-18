@@ -135,6 +135,7 @@ export type AttendancePeriodView = {
   reopenedAt: string | null;
   lastReason: string | null;
 };
+export type AttendancePeriodVersionView = { id: string; finalizedAt: string; periodRevision: string };
 export type AttendancePeriodTransitionWrite = { reason: string };
 export type TerminalSyncEventView = {
   id: string;
@@ -450,6 +451,7 @@ export interface PhaseAService {
 }
 
 export interface MvpService extends PhaseAService {
+  listAttendancePeriodVersions(actor: ActorContext, year: number, month: number, cursor: string | undefined, limit: number): Promise<Page<AttendancePeriodVersionView>>;
   getAttendancePeriod(actor: ActorContext, year: number, month: number): Promise<AttendancePeriodView>;
   startAttendancePeriodReview(actor: ActorContext, year: number, month: number, input: AttendancePeriodTransitionWrite, revision: string, idempotencyKey: string, requestId: string): Promise<AttendancePeriodView>;
   finalizeAttendancePeriod(actor: ActorContext, year: number, month: number, input: AttendancePeriodTransitionWrite, revision: string, idempotencyKey: string, requestId: string): Promise<AttendancePeriodView>;

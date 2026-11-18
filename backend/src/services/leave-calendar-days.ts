@@ -24,11 +24,19 @@ export async function lockActiveLeaveWorker(client: TenantTransaction, workerId:
 }
 
 export async function requireNonOverlappingLeave(
-  client: TenantTransaction, workerId: string, startDate: string, endDate: string
+  client: TenantTransaction, workerId: string, startDate: string, endDate: string, coveredDates = false
 ): Promise<void> {
+  const approvedOverlap = coveredDates
+    ? `l.reservation_submission_key IS NULL OR EXISTS (
+        SELECT 1 FROM annual_leave_decision_dates d
+        WHERE d.organization_id = l.organization_id AND d.request_id = l.id
+          AND d.approved_revision IS NOT NULL AND d.absence_date BETWEEN $2::date AND $3::date
+      )`
+    : "true";
   const overlap = await client.query(
-    `SELECT 1 FROM leave_requests WHERE worker_id = $1 AND status IN ('pending', 'approved')
-     AND end_date >= $2::date AND start_date <= $3::date LIMIT 1`,
+    `SELECT 1 FROM leave_requests l WHERE l.worker_id = $1
+     AND l.end_date >= $2::date AND l.start_date <= $3::date
+     AND (l.status = 'pending' OR (l.status = 'approved' AND (${approvedOverlap}))) LIMIT 1`,
     [workerId, startDate, endDate]
   );
   if (overlap.rows[0]) throw new AppError("CONFLICT", "Za odabrano razdoblje već postoji aktivan zahtjev.");

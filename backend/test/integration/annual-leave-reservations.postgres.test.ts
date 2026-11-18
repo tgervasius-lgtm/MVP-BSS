@@ -2,12 +2,18 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
+import pg from "pg";
 import { migrateUp } from "../../src/db/migrate.js";
 import { withTenant } from "../../src/db/tenant.js";
 import type { ActorContext } from "../../src/domain/types.js";
 import { PgAnnualLeaveReservationService } from "../../src/services/pg-annual-leave-reservation-service.js";
 import { PgMvpService } from "../../src/services/pg-mvp-service.js";
 import { createPostgresFixture } from "../helpers/postgres-fixture.js";
+import { createHash } from "node:crypto";
+import { loadConfig } from "../../src/config.js";
+import { buildApp } from "../../src/http/app.js";
+import { FakeAuthService } from "../helpers/fakes.js";
+import { AppError } from "../../src/domain/errors.js";
 
 const url = process.env.BSS_TEST_DATABASE_URL;
 const options = { skip: !url && process.env.BSS_REQUIRE_POSTGRES_TESTS !== "true" };
@@ -16,7 +22,7 @@ const secondRange = { startDate: "2030-01-21", endDate: "2030-01-29" };
 const down = new URL("../../migrations/020_annual_leave_reservations.down.sql", import.meta.url);
 const decisionDown = new URL("../../migrations/021_annual_leave_decision_dates.down.sql", import.meta.url);
 
-async function fixture(t: test.TestContext) {
+async function fixture(t: test.TestContext, coveredDateReads = false) {
   assert.ok(url, "BSS_TEST_DATABASE_URL is required");
   const f = await createPostgresFixture(url, "leave_fund");
   t.after(f.dispose);
@@ -62,7 +68,7 @@ async function fixture(t: test.TestContext) {
     deviceCredentialEncryptionKey: "leave-reservation-fixture-device-key",
     terminalActivationCode: "synthetic-activation-code",
     publicOrigin: "https://bss.test"
-  });
+  }, coveredDateReads);
   return { ...f, reserve, legacy, ...primary, other };
 }
 
@@ -222,7 +228,7 @@ test("only fresh worker-confirmed dates can be approved, with exact day charges 
 });
 
 test("a finalized month blocks a whole cross-year decision without modifying its snapshot", options, async t => {
-  const f = await fixture(t);
+  const f = await fixture(t, true);
   const oldDecember = await f.legacy.createLeaveRequest(f.worker,
     { typeCode:"annual_leave", startDate:"2030-12-23", endDate:"2030-12-25" }, "old-december");
   await f.legacy.approveLeaveRequest(f.admin, oldDecember.id, oldDecember.revision, undefined, "old-approved");
@@ -244,6 +250,12 @@ test("a finalized month blocks a whole cross-year decision without modifying its
   const approved = await f.reserve.approveConfirmedCoveredDates(f.manager, request.requestId, confirmed.revision, "approve");
   assert.deepEqual(approved.dates, selected);
   assert.deepEqual(await snapshot(), before);
+  const dec = (await f.legacy.listLeaveBalances(f.worker, { year:2030, limit:10 })).items[0]!;
+  const jan = (await f.legacy.listLeaveBalances(f.worker, { year:2031, limit:10 })).items[0]!;
+  assert.deepEqual([dec.approvedDays,dec.plannedDays,dec.availableDays],[5,0,0]);
+  assert.deepEqual([jan.approvedDays,jan.plannedDays,jan.availableDays],[3,2,0]);
+  const january = await f.legacy.listApprovedLeaveCalendar(f.manager, {from:"2031-01-01",to:"2031-01-31"});
+  assert.deepEqual(january.items.map(({startDate,endDate})=>[startDate,endDate]),[["2031-01-01","2031-01-03"]]);
 });
 
 test("a competing cancellation leaves either an approval with its dates or a cancellation with no charge", options, async t => {
@@ -299,4 +311,156 @@ test("an audit failure rolls back approval and its exact date charges", options,
     [request.requestId]
   )).rows[0];
   assert.deepEqual(persisted,{status:"pending",revision:confirm.revision,approved_revision:null});
+});
+
+test("BSS OS #308 five approved dates across the balance, calendar, reports, snapshots and exports", options, async t => {
+  const f = await fixture(t, true);
+  await f.owner.query(`GRANT INSERT ON report_exports TO ${f.role}`);
+  const seats = new Map([
+    ["admin", f.admin], ["manager", f.manager], ["other", f.other.admin],
+    ["outside", { ...f.manager, departmentIds: [] }], ["worker", f.worker]
+  ]);
+  class FixtureAuth extends FakeAuthService {
+    override async resolveAccessToken(token: string) {
+      const actor = seats.get(token);
+      if (!actor) throw new AppError("UNAUTHENTICATED", "synthetic session required");
+      const { context } = await super.resolveAccessToken(actor.role);
+      return { actor, context };
+    }
+  }
+  const app = await buildApp({
+    config: loadConfig({ NODE_ENV:"test", PUBLIC_ORIGIN:"https://bss.test", DATABASE_URL:url, LOG_LEVEL:"silent" }),
+    authService: new FixtureAuth(), phaseAService: f.legacy, logger:false
+  });
+  t.after(() => app.close());
+  async function read(path:string, actor="admin") {
+    const res = await app.inject({method:"GET",url:path,cookies:{bss_session:actor}});
+    assert.equal(res.statusCode,200,res.body);
+    return res;
+  }
+  async function post(path:string, body:object, status:number, rev?:string) {
+    const res = await app.inject({method:"POST",url:path,cookies:{bss_session:"admin"},payload:body,
+      headers:{origin:"https://bss.test", ...(rev === undefined ? {} : {"if-match":rev,"idempotency-key":randomUUID()})}});
+    assert.equal(res.statusCode,status,res.body);
+    return res.json();
+  }
+  const month="/api/v1/attendance-periods/2030/1";
+  async function finalize() {
+    const open=(await read(month)).json();
+    const review=await post(month+"/review",{reason:"Ogledna provjera godišnjeg odmora"},200,open.revision);
+    return post(month+"/finalize",{reason:"Ogledno zaključavanje godišnjeg odmora"},200,review.revision);
+  }
+  const filter={reportType:"approved_absences",periodFrom:"2030-01-01",periodTo:"2030-01-31"};
+  const exportsPath="/api/v1/report-exports";
+  const calendarPath="/api/v1/approved-leave-calendar?from=2030-01-01&to=2030-01-31";
+  const balancePath="/api/v1/leave-balances?year=2030";
+  const oldLegacy=await f.legacy.createLeaveRequest(f.worker,
+    { typeCode:"annual_leave",startDate:"2029-12-17",endDate:"2029-12-18" },"legacy-december");
+  await f.legacy.approveLeaveRequest(f.manager,oldLegacy.id,oldLegacy.revision,undefined,"legacy-approve");
+  const oldView=(await read("/api/v1/approved-leave-calendar?from=2029-12-01&to=2029-12-31","manager")).json();
+  assert.deepEqual(oldView.items.map((i:any)=>[i.startDate,i.endDate]),[["2029-12-17","2029-12-18"]]);
+  const v1=await finalize();
+  const earlier=await post(exportsPath,{...filter,format:"csv",periodVersionId:v1.datasetVersion},202);
+  const old=(await read(exportsPath+"/"+earlier.id+"/download")).rawPayload;
+  const changed=await post(month+"/reopen",{reason:"Ogledno ponovno otvaranje"},200,v1.revision);
+  assert.ok(changed.revision);
+  const request=await f.reserve.submit(f.worker,firstRange,"proof-five-dates","proof-submit");
+  const pending=(await read(balancePath,"worker")).json().items[0];
+  assert.deepEqual(request.years,[{year:2030,requestedDays:7,reservedDays:5}]);
+  assert.equal(pending.plannedDays,5);
+  const selected=covered("2030-01-07","2030-01-08","2030-01-10","2030-01-11","2030-01-15");
+  const confirmed=await f.reserve.confirmCoveredDates(f.worker,request.requestId,request.revision,selected,"proof-confirm");
+  const approval=await f.reserve.approveConfirmedCoveredDates(f.manager,request.requestId,confirmed.revision,"proof-approve");
+  assert.deepEqual(approval.dates,selected);
+  const stored=(await f.owner.query("SELECT absence_date::text AS day FROM annual_leave_decision_dates WHERE request_id=$1 AND approved_revision IS NOT NULL ORDER BY absence_date",[request.requestId])).rows;
+  assert.deepEqual(stored.map(i=>i.day),selected.map(i=>i.date));
+  const balance=(await read(balancePath,"worker")).json().items[0];
+  const expectedSaldo={approved:5,planned:0,remaining:0,available:0};
+  const actualSaldo={approved:balance.approvedDays,planned:balance.plannedDays,remaining:balance.remainingDays,available:balance.availableDays};
+  assert.deepEqual(actualSaldo,expectedSaldo);
+  const expectedRanges = [
+    ["2030-01-07","2030-01-08",2], ["2030-01-10","2030-01-11",2], ["2030-01-15","2030-01-15",1]
+  ];
+  const rows=(await read(calendarPath,"manager")).json().items;
+  assert.deepEqual(rows.map((i:any)=>[i.startDate,i.endDate]),expectedRanges.map(row=>row.slice(0,2)));
+  const clipped=(await read("/api/v1/approved-leave-calendar?from=2030-01-08&to=2030-01-08","manager")).json().items;
+  assert.deepEqual(clipped.map((i:any)=>[i.id,i.startDate,i.endDate]),[[rows[0].id,"2030-01-08","2030-01-08"]]);
+  const gap=(await read("/api/v1/approved-leave-calendar?from=2030-01-09&to=2030-01-09","manager")).json().items;
+  assert.deepEqual(gap,[]);
+  await t.test("approved leave calendar preserves dates with a local-midnight DATE parser", async scope => {
+    const originalDateParser = pg.types.getTypeParser(1082, "text");
+    scope.after(() => pg.types.setTypeParser(1082, "text", originalDateParser));
+    pg.types.setTypeParser(1082, "text", value => new Date(value + "T00:00:00+02:00"));
+
+    const legacy = (await read("/api/v1/approved-leave-calendar?from=2029-12-01&to=2029-12-31", "manager")).json().items;
+    assert.deepEqual(legacy, oldView.items);
+    const covered = (await read(calendarPath, "manager")).json().items;
+    assert.deepEqual(covered, rows);
+  });
+  for(const who of ["outside","other"])assert.deepEqual((await read(calendarPath,who)).json().items,[]);
+  const live=await post("/api/v1/report-previews",{...filter,limit:10},200);
+  assert.deepEqual(live.rows.map((i:any)=>[i.startDate,i.endDate,i.workingDays]),expectedRanges);
+  const clippedLive=await post("/api/v1/report-previews",{...filter,periodFrom:"2030-01-08",periodTo:"2030-01-08",limit:10},200);
+  assert.deepEqual(clippedLive.rows.map((i:any)=>[i.startDate,i.endDate,i.workingDays]),[["2030-01-08","2030-01-08",1]]);
+  const v2=await finalize();
+  assert.notEqual(v2.datasetVersion,v1.datasetVersion);
+  const snapshot=(await f.owner.query("SELECT dataset_snapshot FROM attendance_period_versions WHERE id=$1",[v2.datasetVersion])).rows[0].dataset_snapshot;
+  assert.deepEqual(snapshot.approvedAbsences.map((i:any)=>[i.startDate,i.endDate,i.workingDays]),expectedRanges);
+  const later=await post(exportsPath,{...filter,format:"csv",periodVersionId:v2.datasetVersion},202);
+  const latest=(await read(exportsPath+"/"+later.id+"/download")).rawPayload.toString("utf8");
+  const csvRows=latest.split(String.fromCharCode(10)).filter(line=>line.includes("Synthetic Worker"));
+  assert.equal(csvRows.length,expectedRanges.length);
+  for (const [index,[from,to,days]] of expectedRanges.entries()) {
+    const normalized=csvRows[index]!.replaceAll('"',"").split(";");
+    assert.ok(normalized.includes(String(from)) && normalized.includes(String(to))
+      && normalized[normalized.indexOf(String(to),normalized.indexOf(String(from))+1)+1]===String(days),csvRows[index]);
+  }
+  const oldAgain=(await read(exportsPath+"/"+earlier.id+"/download")).rawPayload;
+  const sha=(bytes:Buffer)=>createHash("sha256").update(bytes).digest("hex");
+  assert.deepEqual(oldAgain,old);
+  assert.equal(sha(oldAgain),earlier.checksumSha256);
+  assert.equal((await read(exportsPath+"/"+earlier.id+"/verification")).json().verified,true);
+  console.log("BSS308_CANDIDATE_PASS "+JSON.stringify({actualSaldo,expectedSaldo,pendingPlanned:pending.plannedDays,
+    stored:stored.map(i=>i.day),calendar:rows.map((i:any)=>[i.startDate,i.endDate]),snapshotRows:snapshot.approvedAbsences.length,
+    V2WorkingDays:snapshot.approvedAbsences.map((i:any)=>i.workingDays),oldExportSha256:sha(oldAgain)}));
+});
+
+test("covered reads let the existing HTTP route request only unapproved dates within allowance", options, async t => {
+  const f = await fixture(t, true);
+  const request = await f.reserve.submit(f.worker, firstRange, "free-dates-request", "submit");
+  const dates = covered("2030-01-07", "2030-01-08", "2030-01-10", "2030-01-11", "2030-01-15");
+  const confirmation = await f.reserve.confirmCoveredDates(f.worker, request.requestId, request.revision, dates, "confirm");
+  await f.reserve.approveConfirmedCoveredDates(f.manager, request.requestId, confirmation.revision, "approve");
+  class WorkerAuth extends FakeAuthService {
+    override async resolveAccessToken(token: string) {
+      const actor = token === "manager" ? f.manager : f.worker;
+      const { context } = await super.resolveAccessToken(actor.role);
+      return { actor, context };
+    }
+  }
+  const app = await buildApp({
+    config: loadConfig({ NODE_ENV: "test", PUBLIC_ORIGIN: "https://bss.test", DATABASE_URL: url, LOG_LEVEL: "silent" }),
+    authService: new WorkerAuth(), phaseAService: f.legacy, logger: false
+  });
+  t.after(() => app.close());
+  const submit = (day: string, actor = "worker") => app.inject({
+    method: "POST", url: "/api/v1/leave-requests", cookies: { bss_session: actor },
+    headers: { origin: "https://bss.test" }, payload: { typeCode: "annual_leave", startDate: day, endDate: day }
+  });
+  assert.equal((await submit("2030-01-09")).statusCode, 422);
+  await f.owner.query("UPDATE workers SET annual_leave_allowance = 6 WHERE id = $1", [f.worker.selfWorkerId]);
+  const racing = await Promise.all([submit("2030-01-09"), submit("2030-01-14")]);
+  assert.deepEqual(racing.map(response => response.statusCode).sort(), [201, 422]);
+  await f.owner.query("UPDATE workers SET annual_leave_allowance = 7 WHERE id = $1", [f.worker.selfWorkerId]);
+  const remaining = racing[0]!.statusCode === 422 ? "2030-01-09" : "2030-01-14";
+  const second = await submit(remaining);
+  assert.equal(second.statusCode, 201, second.body);
+  assert.equal((await submit("2030-01-09")).statusCode, 409);
+  assert.equal((await submit("2030-01-10")).statusCode, 409);
+  assert.equal((await submit("2030-01-21")).statusCode, 422);
+  assert.equal((await submit("2030-01-22", "manager")).statusCode, 403);
+  const balance = await f.legacy.listLeaveBalances(f.worker, { year: 2030, limit: 20 });
+  assert.deepEqual(balance.items.map(item => [item.approvedDays, item.plannedDays, item.availableDays]), [[5, 2, 0]]);
+  const original = await f.owner.query("SELECT status FROM leave_requests WHERE id = $1", [request.requestId]);
+  assert.equal(original.rows[0].status, "approved");
 });

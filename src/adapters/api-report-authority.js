@@ -1,4 +1,4 @@
-/* global BSS_API, normalizeReportFilters, monthBounds, departmentByName, workerById, REPORT_TYPE_CONFIG, currentRole, render, toast, escapeHtml, formatMinutes, formatSignedMinutes, $, showModal */
+/* global BSS_API, BSS_API_STATE, apiLoading, state, reportHistoryView, downloadBlob, normalizeReportFilters, monthBounds, departmentByName, workerById, REPORT_TYPE_CONFIG, currentRole, render, toast, escapeHtml, reportScopeLabel, formatMinutes, formatSignedMinutes, $, showModal, closeModal */
 (function registerReportAuthority(root){
   'use strict';
 
@@ -7,6 +7,8 @@
   let preview=null;
   let previewError='';
   let previewLoading=false;
+  let exporting=false;
+  let queuedExport=null;
   const verifications=new Map();
 
   function configure(value){callbacks=value;}
@@ -29,8 +31,7 @@
       periodTo:bounds.end,
       departmentId:department?.apiId||null,
       workerId:worker?.apiId||null,
-      attendanceStatus:null,
-      limit:100
+      attendanceStatus:null
     };
   }
 
@@ -50,7 +51,7 @@
     previewLoading=true;previewError='';
     if(renderLoading)render();
     try{
-      const result=await BSS_API.post('/report-previews',body);
+      const result=await BSS_API.post('/report-previews',{...body,limit:100});
       if(!sameFilters(result.filters,body))throw new Error('Zaprimljeni pregled ne odgovara odabranim kriterijima. Pokušajte ponovno.');
       preview=result;
       return true;
@@ -84,7 +85,7 @@
     const body=rows.map(row=>`<tr>${columns.map(column=>`<td>${cell(row?.[column.key])}</td>`).join('')}</tr>`).join('');
     const dataset=preview.datasetVersion||'—';
     return `<div class="card table-card report-preview report-authoritative-preview" data-authoritative-preview="true">
-      <div class="table-card-heading"><div><h2>${escapeHtml(config.label||'Službeni pregled')}</h2><p>Službeni pregled · verzija podataka <span class="mono">${escapeHtml(dataset)}</span></p></div><span class="pill gray">${Number(preview.totals?.rowCount??rows.length)} redaka</span></div>
+      <div class="table-card-heading"><div><h2>${escapeHtml(config.label||'Službeni pregled')}</h2><p>Službeni pregled · aktualni podaci · <span class="mono">${escapeHtml(dataset)}</span></p></div><span class="pill gray">${Number(preview.totals?.rowCount??rows.length)} redaka</span></div>
       ${preview.truncated?'<div class="notice warning report-preview-truncated">Prikaz je ograničen. Izvoz može sadržavati više redaka od ovog pregleda.</div>':''}
       <div class="table-wrap"><table class="report-table"><thead><tr>${columns.map(column=>`<th>${escapeHtml(column.label)}</th>`).join('')}</tr></thead><tbody>${body||`<tr><td colspan="${Math.max(columns.length,1)}"><div class="empty-state">Nema podataka za odabrane kriterije.</div></td></tr>`}</tbody></table></div>
       <div class="table-summary"><span>${escapeHtml(preview.filters?.periodFrom||'')} – ${escapeHtml(preview.filters?.periodTo||'')}</span><span>Verzija podataka: <span class="mono">${escapeHtml(dataset)}</span></span></div>
@@ -138,15 +139,167 @@
 
   function hasRows(){return Boolean(preview&&!previewLoading&&!previewError&&Number(preview.totals?.rowCount||0)>0);}
 
+  function reportIdentity(context=callbacks.session()?.context){
+    const session=callbacks.session();
+    if(!session||!context)return null;
+    const scope=context.effectiveScope;
+    return JSON.stringify([session.epoch,context.organization.id,context.user.id,context.user.role,
+      scope.role,scope.selfWorkerId,[...scope.departmentIds].sort()]);
+  }
+
+  function requireSameSession(identity,context){
+    if(!identity||reportIdentity(context)!==identity)throw new Error('Prijava ili opseg izvještaja se promijenio. Ponovno otvorite izvoz.');
+  }
+
+  async function refreshExportHistory(identity){
+    const context=await BSS_API.get('/me');
+    requireSameSession(identity);
+    if(reportIdentity(context)!==identity){
+      await callbacks.refreshSession(context);
+      requireSameSession(identity);
+    }
+    const history=await BSS_API.get('/report-exports',{limit:5});
+    requireSameSession(identity);
+    state.reportHistory=BSS_API_STATE.mapReportHistory(history.items,context.organization.timezone);
+    const latest=state.reportHistory[0];
+    state.lastReport=latest?`${latest.format} · ${latest.time}`:'Nije još generiran';
+    const historyView=$('#content .report-history');
+    if(historyView)historyView.outerHTML=reportHistoryView();
+    const lastReport=$('#content .last-report b');
+    if(lastReport)lastReport.textContent=state.lastReport;
+  }
+
+  async function runExports(next){
+    exporting=true;callbacks.setLoading(true);
+    try{
+      while(next){
+        const {input,identity}=next;
+        const {format,periodVersionId=null}=input;
+        requireSameSession(identity);
+        let created=await BSS_API.post('/report-exports',input);
+        const exportPath=`/report-exports/${encodeURIComponent(created.id)}`;
+        for(let attempt=0;created.status!=='ready'&&attempt<10;attempt+=1){
+          await new Promise(resolve=>setTimeout(resolve,250));
+          requireSameSession(identity);
+          created=await BSS_API.get(exportPath);
+        }
+        if(created.status!=='ready')throw new Error('Izvještaj još nije spreman za preuzimanje.');
+        if(created.periodVersionId!==periodVersionId)throw new Error('Izvezeni podaci ne odgovaraju odabranoj verziji.');
+        requireSameSession(identity);
+        const file=await BSS_API.download(`${exportPath}/download`);
+        requireSameSession(identity);
+        downloadBlob(file.blob,file.fileName);
+        toast(`${format.toUpperCase()} izvještaj je preuzet.`);
+        await refreshExportHistory(identity);
+        next=queuedExport;queuedExport=null;
+      }
+    }catch(error){
+      if(error?.status===401)await callbacks.refreshSession();
+      const message=callbacks.apiMessage(error);
+      toast(queuedExport?`${message} Izvoz na čekanju nije pokrenut.`:message);
+    }finally{queuedExport=null;exporting=false;callbacks.setLoading(false);}
+  }
+
+  function openExport(format){
+    if(!root.BSS_API_ACTIVE||!allowed()||!['csv','xlsx','pdf'].includes(format))return;
+    const body=requestBody(),filters=callbacks.getReportFilters(),modal=$('#modal');
+    const versionPath=`/attendance-periods/${body.periodFrom.slice(0,4)}/${Number(body.periodFrom.slice(5,7))}/versions`;
+    const currentReady=()=>hasRows()&&sameFilters(preview.filters,body);
+    const identity=reportIdentity();
+    if(!identity)return;
+    modal.innerHTML=`<div class="modal-card">
+      <div class="modal-head"><h2>Potvrdi izvoz izvještaja</h2><button class="close-btn" aria-label="Zatvori" data-bss-action="closeModal()">×</button></div>
+      <p><b>${escapeHtml(REPORT_TYPE_CONFIG[filters.type].label)}</b> · ${escapeHtml(body.periodFrom)} – ${escapeHtml(body.periodTo)} · ${escapeHtml(reportScopeLabel(filters))} · ${format.toUpperCase()}</p>
+      <div class="form">
+        <label>Izvor podataka<select id="reportExportSource">
+          <option value="current">Aktualni podaci</option><option value="locked">Spremljena verzija mjeseca</option>
+        </select></label>
+        <div id="reportExportVersionField" hidden><div class="form"><label for="reportExportVersion">Spremljena verzija</label><select id="reportExportVersion"></select></div></div>
+        <p id="reportExportStatus" role="status"></p>
+      </div>
+      <div class="btns"><button id="confirmReportExport" class="btn">Potvrdi i preuzmi</button><button class="btn secondary" data-bss-action="closeModal()">Odustani</button></div>
+    </div>`;
+    const source=modal.querySelector('#reportExportSource');
+    const versionField=modal.querySelector('#reportExportVersionField');
+    const selector=modal.querySelector('#reportExportVersion');
+    const status=modal.querySelector('#reportExportStatus');
+    const confirm=modal.querySelector('#confirmReportExport');
+    let versions=null,loading=false,error=false;
+
+    function update(){
+      const locked=source.value==='locked';
+      const selected=versions?.find(item=>item.id===selector.value);
+      versionField.hidden=!locked;
+      selector.disabled=!locked||!versions?.length;
+      confirm.disabled=locked?!selected:!currentReady();
+      status.textContent=locked
+        ? loading?'Učitavam spremljene verzije…'
+          : error?'Verzije nisu dostupne. Za ponovni pokušaj zatvorite i otvorite izvoz.'
+            : !versions?.length?'Za ovaj mjesec nema spremljenih verzija.'
+              : selected?'Izvoz koristi odabranu verziju. Pregled na stranici prikazuje aktualne podatke.':'Odaberite verziju za izvoz.'
+        : currentReady()?'Izvoz koristi aktualne podatke, bez zaključane verzije.':'Za odabrane filtre nema učitanih aktualnih podataka.';
+    }
+
+    source.addEventListener('change',async()=>{
+      selector.value='';
+      if(source.value!=='locked'||versions||loading){update();return;}
+      loading=true;error=false;update();
+      try{
+        const result=await callbacks.listVersions(versionPath);
+        const options=result.items.map((item,index)=>new Option(
+          `${callbacks.versionDate(item.finalizedAt)} · revizija ${item.periodRevision} · ${index===0?'najnovija':'ranija verzija'}`,item.id));
+        selector.replaceChildren(new Option('Odaberite verziju…',''),...options);
+        versions=result.items;
+      }catch{error=true;}
+      finally{loading=false;update();}
+    });
+    selector.addEventListener('change',update);
+    confirm.addEventListener('click',()=>{
+      if(confirm.disabled||!modal.isConnected||!modal.contains(confirm)||!modal.classList.contains('open'))return;
+      if(!allowed()||reportIdentity()!==identity){
+        closeModal();
+        toast('Prijava ili opseg izvještaja se promijenio. Ponovno otvorite izvoz.');
+        return;
+      }
+      if(!sameFilters(requestBody(),body)){
+        closeModal();
+        toast('Filtri su se promijenili. Ponovno otvorite izvoz.');
+        return;
+      }
+      const locked=source.value==='locked';
+      const selected=versions?.find(item=>item.id===selector.value);
+      if(locked?!selected:!currentReady())return;
+      if(queuedExport||apiLoading&&!exporting){
+        status.textContent=queuedExport?'Jedan izvoz već čeka. Potvrdite ponovno kad završi.':'Pričekajte završetak obrade pa potvrdite izvoz.';
+        return;
+      }
+      const next={input:{...body,format,...(locked?{periodVersionId:selected.id}:{})},identity};
+      closeModal();
+      if(exporting){
+        queuedExport=next;
+        toast('Izvoz će se pokrenuti nakon prethodnog izvještaja.');
+      }else{
+        void runExports(next);
+      }
+    });
+    update();showModal(modal);
+  }
+
   function verificationState(exportId){return verifications.get(String(exportId))||null;}
+
+  function verificationOutcome(data){
+    if(data.periodVersionId===null)return data.artifactChecksumMatches===true?'artifact':'failed';
+    return data.verified===true&&data.artifactChecksumMatches===true&&data.datasetChecksumMatches===true?'full':'failed';
+  }
 
   function historyAction(item){
     if(!root.BSS_API_ACTIVE||!allowed()||!item?.apiId)return'';
     const id=String(item.apiId),status=verificationState(id);
     if(status?.loading)return '<span class="small-muted">Provjera…</span>';
     if(status?.data){
-      const ok=status.data.verified===true&&status.data.artifactChecksumMatches===true&&status.data.datasetChecksumMatches===true;
-      return `<button class="report-verification-result ${ok?'verified':'failed'}" data-bss-action="openReportVerification('${escapeHtml(id)}')">${ok?'Provjereno':'Nije potvrđeno'}</button>`;
+      const outcome=verificationOutcome(status.data);
+      const label=outcome==='full'?'Provjereno':outcome==='artifact'?'Datoteka provjerena':'Nije potvrđeno';
+      return `<button class="report-verification-result ${outcome==='failed'?'failed':'verified'}" data-bss-action="openReportVerification('${escapeHtml(id)}')">${label}</button>`;
     }
     if(status?.error)return `<button class="report-verification-result failed" data-bss-action="verifyReportExport('${escapeHtml(id)}')">Ponovi provjeru</button>`;
     if(item.status!=='ready')return `<span class="small-muted">${escapeHtml(item.status||'nije spremno')}</span>`;
@@ -171,15 +324,19 @@
 
   function openVerification(exportId){
     const current=verificationState(exportId),data=current?.data;if(!data)return;
-    const verified=data.verified===true&&data.artifactChecksumMatches===true&&data.datasetChecksumMatches===true;
+    const outcome=verificationOutcome(data);
+    const title=outcome==='full'?'Izvoz je provjeren':outcome==='artifact'?'Datoteka je provjerena':'Izvoz nije potvrđen';
+    const message=outcome==='full'?'Kontrolni zbrojevi datoteke i podataka odgovaraju spremljenoj evidenciji izvoza.'
+      :outcome==='artifact'?'Kontrolni zbroj datoteke odgovara evidenciji izvoza. Za aktualne podatke nema spremljene verzije za provjeru izvora.'
+        :'Jedna ili više provjera nisu potvrdile datoteku ili podatke. Ovaj izvoz nemoj tretirati kao provjeren.';
     const modal=$('#modal');
-    modal.innerHTML=`<div class="modal-card report-verification-modal"><div class="modal-head"><div><div class="eyebrow">Provjera izvornosti izvoza</div><h2>${verified?'Izvoz je provjeren':'Izvoz nije potvrđen'}</h2><div class="small-muted">Neovisna provjera spremljene datoteke i podataka izvještaja.</div></div><button class="close-btn" data-bss-action="closeModal()">×</button></div>
-      <div class="notice ${verified?'info':'danger'}">${verified?'Kontrolni zbrojevi datoteke i podataka odgovaraju spremljenoj evidenciji izvoza.':'Jedna ili više provjera nisu potvrdile datoteku ili podatke. Ovaj izvoz nemoj tretirati kao provjeren.'}</div>
+    modal.innerHTML=`<div class="modal-card report-verification-modal"><div class="modal-head"><div><div class="eyebrow">Provjera izvornosti izvoza</div><h2>${title}</h2><div class="small-muted">Neovisna provjera spremljene datoteke i podataka izvještaja.</div></div><button class="close-btn" data-bss-action="closeModal()">×</button></div>
+      <div class="notice ${outcome==='failed'?'danger':'info'}">${message}</div>
       <div class="report-verification-grid">
         <div><span>Kontrolni zbroj datoteke</span><b>${data.artifactChecksumMatches?'Podudara se':'NE PODUDARA SE'}</b></div>
-        <div><span>Kontrolni zbroj podataka</span><b>${data.datasetChecksumMatches?'Podudara se':'NE PODUDARA SE'}</b></div>
+        <div><span>Kontrolni zbroj podataka</span><b>${data.periodVersionId===null?'Nije primjenjivo':data.datasetChecksumMatches?'Podudara se':'NE PODUDARA SE'}</b></div>
         <div><span>Verzija podataka</span><b class="mono">${escapeHtml(data.datasetVersion||'—')}</b></div>
-        <div><span>Verzija razdoblja</span><b class="mono">${escapeHtml(data.periodVersionId||'Nije zaključan')}</b></div>
+        <div><span>Verzija razdoblja</span><b class="mono">${escapeHtml(data.periodVersionId||'Aktualni podaci')}</b></div>
         <div><span>Verzije obračuna sati</span><b>${escapeHtml((data.calculationVersions||[]).join(', ')||'—')}</b></div>
         <div><span>Verzija predloška</span><b>${escapeHtml(data.templateVersion||'—')}</b></div>
       </div>
@@ -189,6 +346,6 @@
   }
 
   root.BSSReportAuthority=Object.freeze({
-    configure,hydrate,loadPreview,previewHtml,metricsHtml,hasRows,historyAction,applyFilters,updateDepartment,setType,reload,verifyExport,openVerification
+    configure,hydrate,openExport,loadPreview,previewHtml,metricsHtml,hasRows,historyAction,applyFilters,updateDepartment,setType,reload,verifyExport,openVerification
   });
 })(typeof globalThis==='object'?globalThis:window);

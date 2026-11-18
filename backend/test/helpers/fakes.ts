@@ -6,6 +6,7 @@ import type {
   AuthTokens,
   AttendancePageView,
   AttendancePeriodTransitionWrite,
+  AttendancePeriodVersionView,
   AttendancePeriodView,
   AttendanceRecalculationView,
   AttendanceRecalculationWrite,
@@ -169,6 +170,10 @@ export class FakePhaseAService implements MvpService {
     };
   }
   async getOrganization(_actor: ActorContext): Promise<OrganizationView> { return organization; }
+  async listAttendancePeriodVersions(_actor: ActorContext, _year: number, _month: number,
+    _cursor: string | undefined, _limit: number): Promise<Page<AttendancePeriodVersionView>> {
+    return { items: [], page: { nextCursor: null, total: null } };
+  }
   getAttendancePeriod(_actor: ActorContext, year: number, month: number): Promise<AttendancePeriodView> { return fixtureResult(() => (this.attendancePeriod(year, month))); }
   startAttendancePeriodReview(_actor: ActorContext, year: number, month: number, input: AttendancePeriodTransitionWrite, _revision: string, _idempotencyKey: string, _requestId: string): Promise<AttendancePeriodView> { return fixtureResult(() => ({ ...this.attendancePeriod(year, month), id: IDS.calculation, status: "review", revision: "1", reviewStartedAt: new Date(0).toISOString(), lastReason: input.reason })); }
   finalizeAttendancePeriod(_actor: ActorContext, year: number, month: number, input: AttendancePeriodTransitionWrite, _revision: string, _idempotencyKey: string, _requestId: string): Promise<AttendancePeriodView> { return fixtureResult(() => ({ ...this.attendancePeriod(year, month), id: IDS.calculation, status: "finalized", revision: "2", datasetVersion: IDS.request, datasetChecksumSha256: "b".repeat(64), calculationVersions: ["attendance-v1"], templateVersion: "bss-report-v1.2", provenanceStatus: "complete", finalizedAt: new Date(0).toISOString(), lastReason: input.reason })); }

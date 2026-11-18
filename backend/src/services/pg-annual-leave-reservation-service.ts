@@ -6,7 +6,7 @@ import type { ActorContext } from "../domain/types.js";
 import { requireRole, requireWorkerScope } from "../security/rbac.js";
 import type { LeaveRequestWrite, RequestStatus } from "./contracts.js";
 import { requireLeaveApprovalPeriods } from "./attendance-period-lock.js";
-import { lockActiveLeaveWorker } from "./leave-calendar-days.js";
+import { lockActiveLeaveWorker, requireNonOverlappingLeave } from "./leave-calendar-days.js";
 import { insertAudit } from "./mvp-audit.js";
 import { requireBoundedDateRange } from "./validation.js";
 
@@ -181,19 +181,7 @@ export class PgAnnualLeaveReservationService {
         }
         return reservationView(prior, await recordedYears(client, prior.id));
       }
-      const overlaps = await client.query(
-        `SELECT 1 FROM leave_requests l
-         WHERE l.worker_id = $1 AND l.end_date >= $2::date AND l.start_date <= $3::date
-           AND (l.status = 'pending' OR (l.status = 'approved' AND (
-             l.reservation_submission_key IS NULL OR EXISTS (
-               SELECT 1 FROM annual_leave_decision_dates d
-               WHERE d.organization_id = l.organization_id AND d.request_id = l.id
-                 AND d.approved_revision IS NOT NULL AND d.absence_date BETWEEN $2::date AND $3::date
-             )
-           ))) LIMIT 1`,
-        [workerId, input.startDate, input.endDate]
-      );
-      if (overlaps.rows[0]) throw new AppError("CONFLICT", "Za odabrano razdoblje već postoji aktivan zahtjev.");
+      await requireNonOverlappingLeave(client, workerId, input.startDate, input.endDate, true);
       const requested = await requestedYears(client, input.startDate, input.endDate);
       const years = await allocate(client, workerId, worker.annual_leave_allowance, requested, null);
       const days = years.reduce((sum, year) => sum + year.requestedDays, 0);
