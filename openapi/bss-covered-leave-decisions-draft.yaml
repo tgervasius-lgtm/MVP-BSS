@@ -1,0 +1,166 @@
+openapi: 3.1.0
+info:
+  title: BSS covered annual leave decisions
+  version: 0.1.0
+  x-bss-status: INACTIVE_DRAFT
+  description: >
+    Candidate HTTP contract for decisions on an existing annual leave reservation.
+    The standard server does not register these routes. Submission, additional entitlement
+    and exception authority are outside this contract.
+  license:
+    name: Proprietary
+    identifier: LicenseRef-Proprietary
+servers:
+  - url: https://covered-leave.example.invalid/api/v1
+    description: Placeholder for the inactive candidate
+security:
+  - sessionCookie: []
+paths:
+  /leave-requests/{requestId}/covered-dates:
+    parameters:
+      - $ref: '#/components/parameters/RequestId'
+    get:
+      summary: Read the current covered leave decision
+      operationId: getCoveredLeaveDecision
+      x-bss-roles: [worker, manager, admin]
+      description: >
+        Returns the dates on the current revision for the worker who owns the request,
+        a manager assigned to the department, or an administrator in the same organization.
+        Dates are empty when the current revision has no confirmation or approval.
+      responses:
+        '200':
+          $ref: '#/components/responses/CoveredDecision'
+        '401':
+          $ref: './bss-mvp-api-v1.yaml#/components/responses/Unauthenticated'
+        '403':
+          $ref: './bss-mvp-api-v1.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: './bss-mvp-api-v1.yaml#/components/responses/NotFound'
+        '429':
+          $ref: './bss-mvp-api-v1.yaml#/components/responses/RateLimited'
+  /leave-requests/{requestId}/covered-dates/confirm:
+    parameters:
+      - $ref: '#/components/parameters/RequestId'
+      - $ref: './bss-mvp-api-v1.yaml#/components/parameters/IfMatch'
+    post:
+      summary: Confirm covered dates as the requesting worker
+      operationId: confirmCoveredLeaveDates
+      x-bss-roles: [worker]
+      description: >
+        Requires the application origin. Submit only workdays within the request and its
+        reservation for each calendar year. Saves the selected dates under a new revision
+        and leaves the request pending.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [dates]
+              properties:
+                dates:
+                  type: array
+                  minItems: 1
+                  maxItems: 366
+                  uniqueItems: true
+                  items:
+                    $ref: '#/components/schemas/CoveredDate'
+      responses:
+        '200':
+          $ref: '#/components/responses/CoveredDecision'
+        '401':
+          $ref: './bss-mvp-api-v1.yaml#/components/responses/Unauthenticated'
+        '403':
+          $ref: './bss-mvp-api-v1.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: './bss-mvp-api-v1.yaml#/components/responses/NotFound'
+        '409':
+          $ref: './bss-mvp-api-v1.yaml#/components/responses/Conflict'
+        '422':
+          $ref: './bss-mvp-api-v1.yaml#/components/responses/ValidationFailed'
+        '429':
+          $ref: './bss-mvp-api-v1.yaml#/components/responses/RateLimited'
+  /leave-requests/{requestId}/covered-dates/approve:
+    parameters:
+      - $ref: '#/components/parameters/RequestId'
+      - $ref: './bss-mvp-api-v1.yaml#/components/parameters/IfMatch'
+    post:
+      summary: Approve the confirmed covered dates
+      operationId: approveCoveredLeaveDates
+      x-bss-roles: [manager, admin]
+      description: >
+        Requires the application origin and no body. The server uses the dates confirmed
+        on the revision named by If-Match. Stale selections, insufficient reservations
+        and blocked attendance periods cannot be approved.
+      responses:
+        '200':
+          $ref: '#/components/responses/CoveredDecision'
+        '401':
+          $ref: './bss-mvp-api-v1.yaml#/components/responses/Unauthenticated'
+        '403':
+          $ref: './bss-mvp-api-v1.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: './bss-mvp-api-v1.yaml#/components/responses/NotFound'
+        '409':
+          $ref: './bss-mvp-api-v1.yaml#/components/responses/Conflict'
+        '422':
+          $ref: './bss-mvp-api-v1.yaml#/components/responses/ValidationFailed'
+        '429':
+          $ref: './bss-mvp-api-v1.yaml#/components/responses/RateLimited'
+components:
+  securitySchemes:
+    sessionCookie:
+      $ref: './bss-mvp-api-v1.yaml#/components/securitySchemes/sessionCookie'
+  parameters:
+    RequestId:
+      name: requestId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  responses:
+    CoveredDecision:
+      description: Current covered decision for the authorized request.
+      headers:
+        ETag:
+          description: Quoted request revision for the next If-Match header.
+          schema:
+            type: string
+        Cache-Control:
+          schema:
+            type: string
+            const: no-store, private
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            required: [requestId, revision, status, dates]
+            properties:
+              requestId:
+                type: string
+                format: uuid
+              revision:
+                $ref: './bss-mvp-api-v1.yaml#/components/schemas/Revision'
+              status:
+                $ref: './bss-mvp-api-v1.yaml#/components/schemas/RequestStatus'
+              dates:
+                type: array
+                uniqueItems: true
+                maxItems: 366
+                items:
+                  $ref: '#/components/schemas/CoveredDate'
+  schemas:
+    CoveredDate:
+      type: object
+      additionalProperties: false
+      required: [date, type]
+      properties:
+        date:
+          type: string
+          format: date
+        type:
+          type: string
+          const: annual_leave

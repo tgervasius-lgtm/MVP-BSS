@@ -315,6 +315,80 @@ test("an audit failure rolls back approval and its exact date charges", options,
   assert.deepEqual(persisted,{status:"pending",revision:confirm.revision,approved_revision:null});
 });
 
+test("inactive covered-leave API binds the worker confirmation to the authorized approval", options, async t => {
+  const f = await fixture(t, true);
+  const seats = new Map([
+    ["worker", f.worker], ["manager", f.manager], ["admin", f.admin],
+    ["outside", { ...f.manager, departmentIds: [] }],
+    ["other", f.other.worker], ["accountant", { ...f.admin, role: "accountant" as const }]
+  ]);
+  class CoveredLeaveAuth extends FakeAuthService {
+    override async resolveAccessToken(token: string) {
+      const actor = seats.get(token);
+      if (!actor) throw new AppError("UNAUTHENTICATED", "Synthetic session required.");
+      const { context } = await super.resolveAccessToken(actor.role);
+      return { actor, context };
+    }
+  }
+  const deps = {
+    config: loadConfig({ NODE_ENV: "test", PUBLIC_ORIGIN: "https://bss.test", DATABASE_URL: url, LOG_LEVEL: "silent" }),
+    authService: new CoveredLeaveAuth(), phaseAService: f.legacy, logger: false
+  };
+  const inactive = await buildApp(deps);
+  t.after(() => inactive.close());
+  const req = await f.reserve.submit(f.worker, firstRange, "covered-http-test", "seed-cover-http");
+  const path = `/api/v1/leave-requests/${req.requestId}/covered-dates`;
+  for (const [method, suffix] of [["GET", ""], ["POST", "/confirm"], ["POST", "/approve"]] as const) {
+    assert.equal((await inactive.inject({ method, url: path + suffix, headers: { origin: "https://bss.test" } })).statusCode, 404);
+  }
+
+  const app = await buildApp({ ...deps, coveredLeaveDecisions: f.reserve });
+  t.after(() => app.close());
+  const read = (actor: string) => app.inject({ method: "GET", url: path, cookies: { bss_session: actor } });
+  const post = (action: "confirm" | "approve", actor: string, revision?: string, payload?: object, origin = "https://bss.test") =>
+    app.inject({ method: "POST", url: path + "/" + action, cookies: { bss_session: actor },
+      headers: { origin, ...(revision ? { "if-match": revision } : {}) }, ...(payload ? { payload } : {}) });
+  const initial = await read("worker");
+  assert.equal(initial.statusCode, 200, initial.body);
+  assert.equal(initial.headers.etag, '"1"');
+  assert.equal(initial.headers["cache-control"], "no-store, private");
+  assert.deepEqual(initial.json(), { requestId: req.requestId, revision: "1", status: "pending", dates: [] });
+  assert.equal((await app.inject({ method: "GET", url: path })).statusCode, 401);
+  assert.equal((await read("other")).statusCode, 404);
+  assert.equal((await read("outside")).statusCode, 403);
+  assert.equal((await read("accountant")).statusCode, 403);
+  assert.equal((await post("approve", "manager", '"1"')).json().code, "CONFLICT");
+  assert.equal((await post("confirm", "manager", '"1"', { dates: covered("2030-01-07") })).statusCode, 403);
+  assert.equal((await post("confirm", "worker", undefined, { dates: covered("2030-01-07") })).statusCode, 422);
+  assert.equal((await post("confirm", "worker", '"1"', { dates: covered("2030-01-07") }, "https://other.example")).statusCode, 403);
+  assert.equal((await post("confirm", "worker", '"1"', { dates: [{ date: "2030-01-07", type: "unpaid_leave" }] })).statusCode, 422);
+
+  const first = await post("confirm", "worker", '"1"', { dates: covered("2030-01-07") });
+  assert.equal(first.statusCode, 200, first.body);
+  const selected = covered("2030-01-07", "2030-01-08", "2030-01-10", "2030-01-11", "2030-01-15");
+  const confirmation = await post("confirm", "worker", first.headers.etag as string, { dates: [...selected].reverse() });
+  assert.equal(confirmation.statusCode, 200, confirmation.body);
+  assert.deepEqual(confirmation.json(), { requestId: req.requestId, revision: "3", status: "pending", dates: selected });
+  assert.deepEqual((await read("manager")).json(), confirmation.json());
+  assert.equal((await post("approve", "manager", first.headers.etag as string)).json().code, "STALE_REVISION");
+  assert.equal((await post("approve", "outside", '"3"')).statusCode, 403);
+  assert.equal((await post("approve", "worker", '"3"')).statusCode, 403);
+  assert.equal((await post("approve", "manager", '"3"', { dates: covered("2030-01-09") })).statusCode, 422);
+  const final = await post("approve", "manager", '"3"');
+  assert.equal(final.statusCode, 200, final.body);
+  assert.equal(final.headers.etag, '"4"');
+  assert.deepEqual(final.json(), { requestId: req.requestId, revision: "4", status: "approved", dates: selected });
+  assert.deepEqual((await read("worker")).json(), final.json());
+  assert.equal((await post("approve", "manager", '"3"')).json().code, "STALE_REVISION");
+
+  const balance = await app.inject({ method: "GET", url: "/api/v1/leave-balances?year=2030", cookies: { bss_session: "worker" } });
+  assert.equal(balance.statusCode, 200, balance.body);
+  assert.deepEqual(balance.json().items.map((row: { approvedDays: number; plannedDays: number; availableDays: number }) =>
+    [row.approvedDays, row.plannedDays, row.availableDays]), [[5, 0, 0]]);
+  const audit = await f.owner.query("SELECT action FROM audit_events WHERE entity_id = $1 AND action = 'leave_request.approve_covered_dates'", [req.requestId]);
+  assert.equal(audit.rowCount, 1);
+});
+
 test("BSS OS #308 five approved dates across the balance, calendar, reports, snapshots and exports", options, async t => {
   const f = await fixture(t, true);
   await f.owner.query(`GRANT INSERT ON report_exports TO ${f.role}`);
