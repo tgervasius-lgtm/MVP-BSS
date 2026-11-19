@@ -127,6 +127,12 @@ paths:
     post:
       summary: prepareInternalOperation
       operationId: prepareInternalOperation
+      description: >-
+        Preparing MANAGE_ANNUAL_LEAVE_EXCEPTION_GRANT requires the exact TENANT scope whose targetId
+        is the organization UUID. The payload has exactly administratorId (UUID), decision (grant
+        or revoke), reason (nonblank, at most 500 characters, no control characters) and
+        expectedRevision (decimal string, initially "0"). A separate fresh confirmation is required.
+        The effect records only the named permission. The reason remains in the private audited operation.
       security:
       - internalSession: []
       parameters:
@@ -155,6 +161,7 @@ paths:
                   - PROVISION_TENANT
                   - VERIFY_ONBOARDING
                   - APPROVE_GO_LIVE
+                  - MANAGE_ANNUAL_LEAVE_EXCEPTION_GRANT
                 scope:
                   type: object
                   required:

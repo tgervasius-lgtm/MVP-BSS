@@ -32,6 +32,14 @@ The backend workflow includes the internal contract in both PR and push path fil
 
 Global private identity/grant lookup is protected by schema privileges and the dedicated service boundary. Per-session, flow, target and operation RLS provides additional context isolation. Internal database credentials remain trusted service credentials, never customer credentials. No secret or identity registry content belongs in public evidence.
 
+## Named annual leave exception permission
+
+Draft migration 023 extends the private action registry with `MANAGE_ANNUAL_LEAVE_EXCEPTION_GRANT`. The exact tenant target is the organization UUID. A scoped, freshly confirmed operator can assign or revoke the permission for one administrator. The operation requires the previous permission revision and a reason. Its private payload, receipt and audit entry commit with the change, preserving the operator, organization, administrator, reason and time.
+
+The permission initially denies access. It binds to the current active administrator's account revision. The future exception writer must call the permission check in the same tenant transaction as the exception write. The transaction lock serializes that check with revocation. For the synthetic exercise, distinct operator and tenant database roles have explicit ACLs. Real ACL installation and identity mapping require the separately approved inactive composition.
+
+Migration 023 stays in the explicit draft directory. The migration refuses down after a named permission has been recorded. Preserve the permission history and internal operation receipts for reviewed forward recovery. Recording the two uncovered dates and the applicable absence basis is the next domain integration.
+
 ## Authentication and freshness
 
 Configure a pinned issuer/client, authorization/token/JWKS endpoints and exact callback. HTTPS is required except explicitly isolated loopback. The public PKCE client matches the prior isolated provider proof; confidential-client configuration is not supplied here. Every exchange checks RS256 signature, a unique matching RSA signing key of at least 2048 bits, issuer, audience, authorized party when present, nonce and time claims. JWKS is read on each exchange, so a valid key rotation needs no process restart. Redirect following is disabled; provider responses and requests are bounded and timed out.

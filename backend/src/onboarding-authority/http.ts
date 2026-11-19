@@ -3,7 +3,7 @@ import cookie from "@fastify/cookie";
 import rateLimit from "@fastify/rate-limit";
 import { AppError } from "../domain/errors.js";
 import { PROFILES } from "../onboarding/model.js";
-import type { ResolvedAuthorityIntent } from "./policy.js";
+import { INTERNAL_ACTIONS, type ResolvedAuthorityIntent } from "./policy.js";
 import { PgInternalAuthority, type InternalEffect } from "./registry.js";
 
 const sessionCookie = "__Host-bss_internal_session";
@@ -84,7 +84,7 @@ export async function buildInternalAuthorityApp(
       schema: { body: {
         type: "object", required: ["action", "scope", "payload"], additionalProperties: false,
         properties: {
-          action: { type: "string", enum: ["PROVISION_TENANT", "VERIFY_ONBOARDING", "APPROVE_GO_LIVE"] },
+          action: { type: "string", enum: INTERNAL_ACTIONS },
           scope: { type: "object", required: ["environmentId", "profile", "kind", "targetId"], additionalProperties: false,
             properties: { environmentId: { type: "string", minLength: 1, maxLength: 200 }, profile: { type: "string", enum: PROFILES },
               kind: { type: "string", enum: ["PROVISIONING_REQUEST", "TENANT"] },
