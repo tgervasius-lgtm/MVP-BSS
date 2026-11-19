@@ -15,6 +15,7 @@ import { loadConfig } from "../../src/config.js";
 import { buildApp } from "../../src/http/app.js";
 import { FakeAuthService } from "../helpers/fakes.js";
 import { AppError } from "../../src/domain/errors.js";
+import type { LeaveRequestView } from "../../src/services/contracts.js";
 
 const url = process.env.BSS_TEST_DATABASE_URL;
 const options = { skip: !url && process.env.BSS_REQUIRE_POSTGRES_TESTS !== "true" };
@@ -355,6 +356,9 @@ test("BSS OS #308 five approved dates across the balance, calendar, reports, sna
   const exportsPath="/api/v1/report-exports";
   const calendarPath="/api/v1/approved-leave-calendar?from=2030-01-01&to=2030-01-31";
   const balancePath="/api/v1/leave-balances?year=2030";
+  const leaveListPath = "/api/v1/leave-requests?from=2030-01-01&to=2030-01-31";
+  const listRequests = async (actor: string) =>
+    (await read(leaveListPath, actor)).json<{ items: LeaveRequestView[] }>().items;
   async function dashboardKpi(date: string, actor: string, id: string) {
     const response = await read(`/api/v1/dashboard-summary?date=${date}`, actor);
     const summary = response.json<Awaited<ReturnType<PgMvpService["getDashboardSummary"]>>>();
@@ -383,6 +387,9 @@ test("BSS OS #308 five approved dates across the balance, calendar, reports, sna
   const confirmed=await f.reserve.confirmCoveredDates(f.worker,request.requestId,request.revision,selected,"proof-confirm");
   await t.test("worker confirmation alone does not create a dashboard absence", async () => {
     assert.equal(await dashboardKpi("2030-01-07", "manager", "absent_today"), 0);
+    const confirmedRequest = (await listRequests("worker")).find(item => item.id === request.requestId);
+    assert.equal(confirmedRequest?.status, "pending");
+    assert.equal(Object.hasOwn(confirmedRequest!, "approvedDates"), false);
   });
   const approval=await f.reserve.approveConfirmedCoveredDates(f.manager,request.requestId,confirmed.revision,"proof-approve");
   assert.deepEqual(approval.dates,selected);
@@ -403,6 +410,22 @@ test("BSS OS #308 five approved dates across the balance, calendar, reports, sna
     for (const role of ["outside", "other"]) {
       assert.equal(await dashboardKpi("2030-01-07", role, "absent_today"), 0);
     }
+  });
+  await t.test("leave request list exposes only approved dates under the existing worker and manager scope", async () => {
+    for (const role of ["worker", "manager", "admin"]) {
+      const item = (await listRequests(role)).find(entry => entry.id === request.requestId);
+      assert.equal(item?.workerId, f.worker.selfWorkerId);
+      assert.deepEqual(item?.approvedDates, selected.map(entry => entry.date));
+      assert.equal(item?.startDate, firstRange.startDate);
+      assert.equal(item?.endDate, firstRange.endDate);
+    }
+    for (const role of ["outside", "other"]) {
+      assert.deepEqual(await listRequests(role), []);
+    }
+    const legacyList = (await read("/api/v1/leave-requests?from=2029-12-01&to=2029-12-31", "worker"))
+      .json<{ items: LeaveRequestView[] }>().items;
+    assert.equal(legacyList[0]?.id, oldLegacy.id);
+    assert.equal(Object.hasOwn(legacyList[0]!, "approvedDates"), false);
   });
   const expectedRanges = [
     ["2030-01-07","2030-01-08",2], ["2030-01-10","2030-01-11",2], ["2030-01-15","2030-01-15",1]

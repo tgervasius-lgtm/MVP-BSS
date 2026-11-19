@@ -330,13 +330,6 @@ function recordVisible(record){
   return BSS_ACCESS.canViewScopedEntity(currentRole,record.workerId,state.workers,role());
 }
 function correctionVisible(correction){ return BSS_ACCESS.canViewScopedEntity(currentRole,correction.workerId,state.workers,role()); }
-function vacationUsed(workerId, year = 2026){
-  return state.requests.filter(request=>request.workerId === Number(workerId) && request.type === 'Godišnji odmor' && request.status === 'Odobreno' && request.start.startsWith(String(year))).reduce((sum,request)=>sum+businessDays(request.start,request.end),0);
-}
-function vacationRemaining(workerId, year = 2026){
-  const worker = workerById(workerId);
-  return Math.max(0,(worker?.vacationAllowance || 0)-vacationUsed(workerId,year));
-}
 function pendingLeaveCount(){
   return state.requests.filter(request=>request.status==='Na čekanju'&&requestVisible(request)).length;
 }
@@ -768,8 +761,9 @@ function viewAdminHome(){
 }
 function viewWorkerHome(){
   const worker=currentWorker(),shift=shiftById(worker.shiftId),ownRequests=state.requests.filter(request=>request.workerId===worker.id),todayRecord=state.records.find(record=>record.workerId===worker.id&&record.date===DEMO_TODAY);
+  const vacationBalance=vacationBalanceSummary(worker.id,Number(DEMO_TODAY.slice(0,4)),state.demoMode);
   return BSS_VIEWS.homeOperational.worker({
-    worker,shift,ownRequests,todayRecord,title,pill,escapeHtml,formatMinutes,recordMinutes,vacationBalance:vacationBalanceSummary(worker.id,Number(DEMO_TODAY.slice(0,4)))
+    worker,shift,ownRequests,todayRecord,title,pill,escapeHtml,formatMinutes,recordMinutes,vacationBalance
   });
 }
 function viewManagerHome(){
@@ -1090,12 +1084,9 @@ function teamConflicts(request){
   if(!worker||!activeLeaveRequest(request))return[];
   return state.requests.filter(other=>other.id!==request.id&&other.workerId!==request.workerId&&activeLeaveRequest(other)&&intervalsOverlap(request.start,request.end,other.start,other.end)&&workerById(other.workerId)?.dept===worker.dept);
 }
-function reservedVacationDays(workerId,year=2026){
-  return state.requests.filter(request=>request.workerId===Number(workerId)&&request.type==='Godišnji odmor'&&request.status==='Na čekanju'&&request.start.startsWith(String(year))).reduce((sum,request)=>sum+businessDays(request.start,request.end),0);
-}
-function vacationBalanceSummary(workerId,year=2026){
-  const worker=workerById(workerId),allowance=Number(worker?.vacationAllowance||0),used=vacationUsed(workerId,year),reserved=reservedVacationDays(workerId,year);
-  return {allowance,used,reserved,remaining:Math.max(0,allowance-used),available:Math.max(0,allowance-used-reserved)};
+function vacationBalanceSummary(workerId,year=Number(DEMO_TODAY.slice(0,4)),allowDerived=true){
+  return BSS_USE_CASES.leave.balanceSummary({workerId,worker:workerById(workerId),year,
+    requests:state.requests,businessDays,allowDerived});
 }
 function scopedLeaveRequests(){ return state.requests.filter(requestVisible).sort((a,b)=>b.start.localeCompare(a.start)||Number(b.id)-Number(a.id)); }
 function requestStatusCounts(requests){ return Object.fromEntries(['Svi',...REQUEST_STATUSES].map(status=>[status,status==='Svi'?requests.length:requests.filter(request=>request.status===status).length])); }

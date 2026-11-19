@@ -102,6 +102,7 @@
     const isPresent=['Prisutan','Kasni'].includes(worker.status);
     const checkIn=todayRecord?.start||worker.todayStart||'—';
     const recorded=todayRecord?formatMinutes(recordMinutes(todayRecord,true)):'—';
+    const availableLeave=vacationBalance?`${escapeHtml(vacationBalance.available)} dana`:'—';
     const pending=ownRequests.filter(request=>request.status==='Na čekanju').length;
     const shiftLabel=`${escapeHtml(shift?.name||'Bez smjene')} · ${escapeHtml(shift?.start||'—')} – ${escapeHtml(shift?.end||'—')}`;
     return `${title(`Pozdrav, ${worker.name.split(' ')[0]}`,`Danas · ${shift?.name||'Bez smjene'}`,pill(worker.status)+root.BSSCore.views.approvalsOperational.newRequestButton())}
@@ -116,7 +117,7 @@
         </section>
         <aside class="card worker-summary-card">
           <div class="worker-summary-head"><span class="worker-kicker">Moj pregled</span><h2>Odsutnosti i zahtjevi</h2></div>
-          <button class="worker-summary-row" data-bss-action="navigate('vacations')"><span><b>Raspoloživi godišnji</b><small>Nakon rezerviranih zahtjeva</small></span><strong>${vacationBalance.available} dana</strong></button>
+          <button class="worker-summary-row" data-bss-action="navigate('vacations')"><span><b>Raspoloživi godišnji</b><small>Nakon rezerviranih zahtjeva</small></span><strong>${availableLeave}</strong></button>
           <button class="worker-summary-row" data-bss-action="openPendingRequests()"><span><b>Otvoreni zahtjevi</b><small>Zahtjevi koji čekaju odluku</small></span><strong>${pending}</strong></button>
           <button class="btn block" data-bss-action="navigate('requests')">Moji zahtjevi</button>
         </aside>

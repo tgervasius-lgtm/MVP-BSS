@@ -234,6 +234,7 @@ export type LeaveRequestView = {
   startDate: string;
   endDate: string;
   workingDays: number;
+  approvedDates?: string[];
   note: string;
   status: RequestStatus;
   submittedAt: string;

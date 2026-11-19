@@ -4793,6 +4793,17 @@ components:
         workingDays:
           type: integer
           minimum: 0
+        approvedDates:
+          type: array
+          uniqueItems: true
+          description: >
+            Exact approved dates in ascending order, returned on the scoped request list
+            for approved covered-date requests when that read mode is enabled.
+            When present, this list is authoritative for absence dates; startDate and endDate
+            retain the originally requested range. Legacy requests omit this field.
+          items:
+            type: string
+            format: date
         note:
           type: string
         status:
