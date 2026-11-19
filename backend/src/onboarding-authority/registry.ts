@@ -3,8 +3,9 @@ import type pg from "pg";
 import { withTransaction, type DatabaseTransaction } from "../db/transaction.js";
 import { AppError } from "../domain/errors.js";
 import { encryptDeviceCredential, decryptDeviceCredential } from "../security/device-credentials.js";
-import { assessInternalAuthority, isInternalAuthorityIntent, type ResolvedAuthorityIntent } from "./policy.js";
+import { assessInternalAuthority, isInternalAuthorityIntent, MANAGE_LEAVE_EXCEPTION_GRANT, type ResolvedAuthorityIntent } from "./policy.js";
 import { InternalOidc } from "./oidc.js";
+import { changeLeaveExceptionGrant, parseLeaveExceptionGrantChange } from "../services/annual-leave-exception-grants.js";
 
 type Session = {
   token_hash: string; csrf_hash: string; person_id: string; issuer: string; subject: string;
@@ -189,6 +190,7 @@ export class PgInternalAuthority {
     if (!isInternalAuthorityIntent(requested) || JSON.stringify(payload).length > 16_384) {
       throw new AppError("VALIDATION_FAILED", "Interni opseg ili sadržaj nisu valjani.");
     }
+    if (requested.action === MANAGE_LEAVE_EXCEPTION_GRANT) parseLeaveExceptionGrantChange(requested.scope.targetId, payload);
     return this.transaction(async db => {
       const session = await this.session(db, sha(token));
       this.csrf(session, csrf);
@@ -227,7 +229,9 @@ export class PgInternalAuthority {
       if (op.used || !op.proof_authenticated_at || Number(op.proof_expires_at) <= now()) deny("UNAUTHENTICATED");
       if (checked.grantId !== op.grant_id || checked.grantRevision !== op.grant_revision ||
           checked.target.revision !== op.target_revision || targetHash(checked.target) !== op.target_hash) deny("CONFLICT");
-      const result = await effect(db, op.intent, op.payload);
+      const result = op.intent.action === MANAGE_LEAVE_EXCEPTION_GRANT
+        ? await changeLeaveExceptionGrant(db, op.intent.scope.targetId, op.person_id, op.id, op.payload)
+        : await effect(db, op.intent, op.payload);
       await db.query("INSERT INTO bss_internal.receipts(operation_id,original_person_id,grant_revision,result) VALUES($1,$2,$3,$4)",
         [op.id, op.person_id, op.grant_revision, JSON.stringify(result)]);
       await db.query("INSERT INTO bss_internal.audit(operation_id,original_person_id,grant_revision,fingerprint,target_hash) VALUES($1,$2,$3,$4,$5)",

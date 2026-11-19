@@ -1,6 +1,8 @@
 import { PROFILES, type Profile } from "../onboarding/model.js";
 
-export const INTERNAL_ACTIONS = ["PROVISION_TENANT", "VERIFY_ONBOARDING", "APPROVE_GO_LIVE"] as const;
+export const MANAGE_LEAVE_EXCEPTION_GRANT = "MANAGE_ANNUAL_LEAVE_EXCEPTION_GRANT";
+
+export const INTERNAL_ACTIONS = ["PROVISION_TENANT", "VERIFY_ONBOARDING", "APPROVE_GO_LIVE", MANAGE_LEAVE_EXCEPTION_GRANT] as const;
 type InternalAction = typeof INTERNAL_ACTIONS[number];
 export type PrincipalBinding = Readonly<{ issuer: string; subject: string; personId: string }>;
 export type AuthorityScope = Readonly<{
@@ -14,7 +16,7 @@ export type ResolvedInternalAuthority = Readonly<{
   principal: PrincipalBinding; authenticatedAt: number; expiresAt: number; grant: InternalGrant | null;
 }>;
 export type ResolvedAuthorityIntent =
-  | Readonly<{ action: "PROVISION_TENANT" | "APPROVE_GO_LIVE"; scope: AuthorityScope }>
+  | Readonly<{ action: "PROVISION_TENANT" | "APPROVE_GO_LIVE" | typeof MANAGE_LEAVE_EXCEPTION_GRANT; scope: AuthorityScope }>
   | Readonly<{ action: "VERIFY_ONBOARDING"; scope: AuthorityScope; preparerPersonIds: readonly string[] }>;
 type Denial =
   | "AUTHORITY_UNAVAILABLE" | "INVALID_AUTHORITY_CONTEXT" | "INVALID_AUTHORITY_INTENT"
