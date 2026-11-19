@@ -1,14 +1,15 @@
 openapi: 3.1.0
 info:
   title: BSS covered annual leave decisions
-  version: 0.2.0
+  version: 0.3.0
   x-bss-status: INACTIVE_DRAFT
   description: >
     Candidate HTTP contract for submitting and deciding annual leave reservations.
     The standard server does not register these routes. In the opted-in app, the scoped
     GET /leave-requests page has coveredLeaveRequests=true and reservation-backed items
-    have coveredWorkflow=true when covered-date reads are enabled. Additional entitlement
-    and exception authority are outside this contract.
+    have coveredWorkflow=true when covered-date reads are enabled. Exception proposals
+    require a separate opt-in. Final approval of mixed proposals and additional
+    annual entitlement are outside this contract.
   license:
     name: Proprietary
     identifier: LicenseRef-Proprietary
@@ -180,6 +181,110 @@ paths:
           $ref: './bss-mvp-api-v1.yaml#/components/responses/ValidationFailed'
         '429':
           $ref: './bss-mvp-api-v1.yaml#/components/responses/RateLimited'
+  /leave-requests/{requestId}/exception-proposal:
+    parameters:
+      - $ref: '#/components/parameters/RequestId'
+    get:
+      summary: Read the current exception proposal
+      operationId: getAnnualLeaveExceptionProposal
+      x-bss-roles: [worker, manager, admin]
+      description: >
+        Returns only the current pending proposal and confirmation state. Access is
+        limited to the submitting worker, a scoped manager or an administrator within
+        the company. Internal reasons and grant evidence are omitted.
+      responses:
+        '200':
+          $ref: '#/components/responses/ExceptionProposal'
+        '401':
+          $ref: './bss-mvp-api-v1.yaml#/components/responses/Unauthenticated'
+        '403':
+          $ref: './bss-mvp-api-v1.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: './bss-mvp-api-v1.yaml#/components/responses/NotFound'
+        '422':
+          $ref: './bss-mvp-api-v1.yaml#/components/responses/ValidationFailed'
+        '429':
+          $ref: './bss-mvp-api-v1.yaml#/components/responses/RateLimited'
+    post:
+      parameters:
+        - $ref: './bss-mvp-api-v1.yaml#/components/parameters/IfMatch'
+      summary: Record an exception proposal as a named administrator
+      operationId: proposeAnnualLeaveException
+      x-bss-roles: [admin]
+      description: >
+        Requires the application origin, a current named administrator grant and a
+        reason. Send every workday as an exact date/type pair. Annual dates must match
+        that year's reservation. Remaining dates must use a type allowed by company
+        policy. Advances the request revision and leaves it pending.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [dates, reason]
+              properties:
+                dates:
+                  $ref: '#/components/schemas/ExceptionDates'
+                reason:
+                  type: string
+                  minLength: 1
+                  maxLength: 500
+      responses:
+        '201':
+          $ref: '#/components/responses/ExceptionProposal'
+        '401':
+          $ref: './bss-mvp-api-v1.yaml#/components/responses/Unauthenticated'
+        '403':
+          $ref: './bss-mvp-api-v1.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: './bss-mvp-api-v1.yaml#/components/responses/NotFound'
+        '409':
+          $ref: './bss-mvp-api-v1.yaml#/components/responses/Conflict'
+        '422':
+          $ref: './bss-mvp-api-v1.yaml#/components/responses/ValidationFailed'
+        '429':
+          $ref: './bss-mvp-api-v1.yaml#/components/responses/RateLimited'
+  /leave-requests/{requestId}/exception-proposal/confirm:
+    parameters:
+      - $ref: '#/components/parameters/RequestId'
+    post:
+      parameters:
+        - $ref: './bss-mvp-api-v1.yaml#/components/parameters/IfMatch'
+      summary: Confirm the current exception proposal as its submitting worker
+      operationId: confirmAnnualLeaveException
+      x-bss-roles: [worker]
+      description: >
+        Requires the application origin and the exact date/type pairs of the proposal
+        named by If-Match. Advances the revision and leaves the request pending.
+        A replacement proposal must be confirmed again.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [dates]
+              properties:
+                dates:
+                  $ref: '#/components/schemas/ExceptionDates'
+      responses:
+        '200':
+          $ref: '#/components/responses/ExceptionProposal'
+        '401':
+          $ref: './bss-mvp-api-v1.yaml#/components/responses/Unauthenticated'
+        '403':
+          $ref: './bss-mvp-api-v1.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: './bss-mvp-api-v1.yaml#/components/responses/NotFound'
+        '409':
+          $ref: './bss-mvp-api-v1.yaml#/components/responses/Conflict'
+        '422':
+          $ref: './bss-mvp-api-v1.yaml#/components/responses/ValidationFailed'
+        '429':
+          $ref: './bss-mvp-api-v1.yaml#/components/responses/RateLimited'
 components:
   securitySchemes:
     sessionCookie:
@@ -193,6 +298,35 @@ components:
         type: string
         format: uuid
   responses:
+    ExceptionProposal:
+      description: Exact proposed dates and confirmation state for the current pending request revision.
+      headers:
+        ETag:
+          description: Quoted current request revision.
+          schema:
+            type: string
+        Cache-Control:
+          schema:
+            type: string
+            const: no-store, private
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            required: [requestId, revision, proposalRevision, confirmed, dates]
+            properties:
+              requestId:
+                type: string
+                format: uuid
+              revision:
+                $ref: './bss-mvp-api-v1.yaml#/components/schemas/Revision'
+              proposalRevision:
+                $ref: './bss-mvp-api-v1.yaml#/components/schemas/Revision'
+              confirmed:
+                type: boolean
+              dates:
+                $ref: '#/components/schemas/ExceptionDates'
     CoveredDecision:
       description: Current covered decision for the authorized request.
       headers:
@@ -233,6 +367,22 @@ components:
                   type: string
                   format: date
   schemas:
+    ExceptionDates:
+      type: array
+      minItems: 1
+      maxItems: 366
+      uniqueItems: true
+      items:
+        type: object
+        additionalProperties: false
+        required: [date, type]
+        properties:
+          date:
+            type: string
+            format: date
+          type:
+            type: string
+            enum: [annual_leave, paid_leave, unpaid_leave, free_day]
     ReservationYears:
       type: array
       minItems: 1

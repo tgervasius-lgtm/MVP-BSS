@@ -18,6 +18,7 @@ import type { DocumentService } from "../documents/model.js";
 import type { OnboardingService } from "../onboarding/model.js";
 import { registerOnboardingRoutes } from "./routes/onboarding.js";
 import { registerCoveredLeaveDecisionRoutes, type CoveredLeaveDecisions } from "./routes/covered-leave-decisions.js";
+import { registerAnnualLeaveExceptionProposalRoutes, type AnnualLeaveExceptionProposals } from "./routes/annual-leave-exception-proposals.js";
 
 export type AppDependencies = Readonly<{
   config: AppConfig;
@@ -27,6 +28,7 @@ export type AppDependencies = Readonly<{
   imports?: WorkerImportApi;
   onboarding?: OnboardingService;
   coveredLeaveDecisions?: CoveredLeaveDecisions;
+  annualLeaveExceptionProposals?: AnnualLeaveExceptionProposals;
   logger?: boolean;
   readinessCheck?: () => Promise<void>;
 }>;
@@ -184,6 +186,9 @@ export async function buildApp(dependencies: AppDependencies): Promise<FastifyIn
   await registerMvpRoutes(app, { mvpService: phaseAService, authenticate, coveredLeaveEnabled: Boolean(dependencies.coveredLeaveDecisions) });
   if (dependencies.coveredLeaveDecisions) {
     registerCoveredLeaveDecisionRoutes(app, dependencies.coveredLeaveDecisions, authenticate);
+    if (dependencies.annualLeaveExceptionProposals) {
+      registerAnnualLeaveExceptionProposalRoutes(app, dependencies.annualLeaveExceptionProposals, authenticate);
+    }
   }
   await registerAttendancePeriodRoutes(app, { mvpService: phaseAService, authenticate });
   registerDocumentRoutes(app, { authenticate, ...(dependencies.documents ? { documents: dependencies.documents } : {}) });

@@ -19,7 +19,9 @@ type ReservationRequestRow = {
   status: RequestStatus;
   reservation_submission_hash: string;
 };
-type PendingReservationRow = ReservationRequestRow & { start_date: string; end_date: string };
+type PendingReservationRow = ReservationRequestRow & {
+  start_date: string; end_date: string; reservation_submitted_by: string;
+};
 const requestColumns = "id, worker_id, revision::text, status, reservation_submission_hash";
 
 async function requestedYears(
@@ -38,7 +40,7 @@ async function requestedYears(
   return result.rows;
 }
 
-async function recordedYears(client: TenantTransaction, requestId: string): Promise<ReservationYear[]> {
+export async function recordedYears(client: TenantTransaction, requestId: string): Promise<ReservationYear[]> {
   const result = await client.query<ReservationYear>(
     `SELECT calendar_year AS year, requested_days AS "requestedDays", reserved_days AS "reservedDays"
      FROM annual_leave_reservations WHERE request_id = $1 ORDER BY calendar_year`,
@@ -107,7 +109,7 @@ function reservationView(row: ReservationRequestRow, years: ReservationYear[]) {
   };
 }
 
-async function lockPendingReservation(
+export async function lockPendingReservation(
   client: TenantTransaction, actor: ActorContext, requestIdValue: string, revision: string
 ) {
   const found = (await client.query<{ worker_id: string; department_id: string }>(
@@ -119,7 +121,7 @@ async function lockPendingReservation(
   const worker = await lockActiveLeaveWorker(client, found.worker_id);
   requireWorkerScope(actor, found.worker_id, worker.department_id);
   const { rows: [row] } = await client.query<PendingReservationRow>(
-    `SELECT ${requestColumns}, start_date::text, end_date::text FROM leave_requests
+    `SELECT ${requestColumns}, start_date::text, end_date::text, reservation_submitted_by FROM leave_requests
      WHERE id = $1 AND worker_id = $2 AND reservation_submission_key IS NOT NULL FOR UPDATE`,
     [requestIdValue, found.worker_id]
   );
