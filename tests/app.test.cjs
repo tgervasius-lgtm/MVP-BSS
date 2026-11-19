@@ -278,6 +278,42 @@ test('API state dohvaća sve cursor stranice i ograničava paralelne RFID pozive
   assert.equal(maximumActive,3);
 });
 
+test('API mode displays approved leave by worker ID and exact dates',async()=>{
+  const apiState=loadAdapter(apiStateSource).apiState;
+  const session={user:{role:'manager'},organization:{timezone:'Europe/Zagreb'},effectiveScope:{selfWorkerId:null}};
+  const worker={id:'worker-1',name:'Isto ime',departmentId:'dept-1',status:'active',annualLeaveAllowance:5};
+  const request={id:'leave-1',workerId:worker.id,typeCode:'annual_leave',status:'approved',
+    startDate:'2030-01-07',endDate:'2030-01-15',approvedDates:['2030-01-07','2030-01-08','2030-01-10','2030-01-11','2030-01-15']};
+  const legacy={...request,id:'leave-2',workerId:'worker-3'};
+  delete legacy.approvedDates;
+  const api={
+    get:async path=>({
+      '/workers':{items:[worker,{...worker,id:'worker-2'},{...worker,id:'worker-3'}]},
+      '/leave-requests':{items:[request,legacy]},
+      '/attendance':{items:[{id:'attendance-1',workerId:worker.id,workDate:'2030-01-09',
+        status:'active',checkIn:'2030-01-09T07:00:00Z',checkOut:null}]}
+    })[path]??[],
+    getWithMeta:async()=>({data:[]})
+  };
+  const gap=await apiState.hydrate(api,session,'2030-01-09');
+  assert.deepEqual(Array.from(gap.state.workers,item=>item.status),['Prisutan','Odsutna','Godišnji']);
+  const approved=await apiState.hydrate(api,session,'2030-01-10');
+  assert.deepEqual(Array.from(approved.state.workers,item=>item.status),['Godišnji','Odsutna','Godišnji']);
+});
+
+test('worker dashboard renders the server balance including zero and missing data',()=>{
+  const app=boot('worker');
+  app.evaluate(`state.demoMode=false;
+    currentWorker().leaveBalance={year:2026,allowanceDays:5,approvedDays:0,plannedDays:5,remainingDays:5,availableDays:0};
+    render();`);
+  const available=()=>app.document.querySelector('.worker-summary-row strong').textContent.trim();
+  assert.equal(available(),'0 dana');
+  app.evaluate(`currentWorker().leaveBalance.availableDays=2; render();`);
+  assert.equal(available(),'2 dana');
+  app.evaluate(`currentWorker().leaveBalance.year=2025; render();`);
+  assert.equal(available(),'—');
+});
+
 test('svaka uloga može otvoriti samo svoje ekrane bez greške',()=>{
   for(const role of ['admin','manager','worker','accountant']){
     const {window,document} = boot(role);

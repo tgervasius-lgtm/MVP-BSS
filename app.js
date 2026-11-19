@@ -768,8 +768,10 @@ function viewAdminHome(){
 }
 function viewWorkerHome(){
   const worker=currentWorker(),shift=shiftById(worker.shiftId),ownRequests=state.requests.filter(request=>request.workerId===worker.id),todayRecord=state.records.find(record=>record.workerId===worker.id&&record.date===DEMO_TODAY);
+  const year=Number(DEMO_TODAY.slice(0,4));
+  const vacationBalance=state.demoMode?vacationBalanceSummary(worker.id,year):serverVacationBalance(worker,year);
   return BSS_VIEWS.homeOperational.worker({
-    worker,shift,ownRequests,todayRecord,title,pill,escapeHtml,formatMinutes,recordMinutes,vacationBalance:vacationBalanceSummary(worker.id,Number(DEMO_TODAY.slice(0,4)))
+    worker,shift,ownRequests,todayRecord,title,pill,escapeHtml,formatMinutes,recordMinutes,vacationBalance
   });
 }
 function viewManagerHome(){
@@ -1093,8 +1095,16 @@ function teamConflicts(request){
 function reservedVacationDays(workerId,year=2026){
   return state.requests.filter(request=>request.workerId===Number(workerId)&&request.type==='Godišnji odmor'&&request.status==='Na čekanju'&&request.start.startsWith(String(year))).reduce((sum,request)=>sum+businessDays(request.start,request.end),0);
 }
-function vacationBalanceSummary(workerId,year=2026){
-  const worker=workerById(workerId),allowance=Number(worker?.vacationAllowance||0),used=vacationUsed(workerId,year),reserved=reservedVacationDays(workerId,year);
+function serverVacationBalance(worker,year){
+  const balance=worker?.leaveBalance;
+  if(!balance||balance.year!==Number(year))return null;
+  return {allowance:balance.allowanceDays,used:balance.approvedDays,reserved:balance.plannedDays,
+    remaining:balance.remainingDays,available:balance.availableDays};
+}
+function vacationBalanceSummary(workerId,year=Number(DEMO_TODAY.slice(0,4))){
+  const worker=workerById(workerId),balance=serverVacationBalance(worker,year);
+  if(balance)return balance;
+  const allowance=Number(worker?.vacationAllowance||0),used=vacationUsed(workerId,year),reserved=reservedVacationDays(workerId,year);
   return {allowance,used,reserved,remaining:Math.max(0,allowance-used),available:Math.max(0,allowance-used-reserved)};
 }
 function scopedLeaveRequests(){ return state.requests.filter(requestVisible).sort((a,b)=>b.start.localeCompare(a.start)||Number(b.id)-Number(a.id)); }

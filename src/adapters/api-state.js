@@ -151,7 +151,8 @@
 
     const requests=(data.leaveRequests?.items||[]).map(item=>{
       const worker=ensureWorker(item.workerId);
-      if(item.status==='approved'&&today>=item.startDate&&today<=item.endDate&&worker)worker.status='Godišnji';
+      const includesToday=item.approvedDates?.includes(today)??(item.startDate<=today&&today<=item.endDate);
+      if(item.status==='approved'&&includesToday&&worker)worker.status='Godišnji';
       return {id:id(item.id),apiId:item.id,workerId:worker.id,type:leaveLabels[item.typeCode]||item.typeCode,typeCode:item.typeCode,start:item.startDate,end:item.endDate,note:item.note||'',workingDays:item.workingDays,status:requestLabels[item.status]||item.status,submittedAt:localDateTime(item.submittedAt,timeZone),decidedBy:item.decidedBy,decidedAt:localDateTime(item.decidedAt,timeZone),decisionNote:item.decisionNote||'',revision:item.revision};
     });
     const recordByApi=new Map(records.map(item=>[item.apiId,item]));
