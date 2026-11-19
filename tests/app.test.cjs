@@ -106,9 +106,10 @@ function contrastRatio(foreground,background){
 function boot(role='admin',options={}){
   const dom = new JSDOM(html,{url:'https://bss.test/',runScripts:'outside-only'});
   const NativeDate=dom.window.Date;
+  const today=options.today||'2026-07-10T08:14:00+02:00';
   dom.window.Date=class extends NativeDate{
-    constructor(...args){super(...(args.length?args:['2026-07-10T08:14:00+02:00']));}
-    static now(){return new NativeDate('2026-07-10T08:14:00+02:00').getTime();}
+    constructor(...args){super(...(args.length?args:[today]));}
+    static now(){return new NativeDate(today).getTime();}
   };
   dom.window.TextEncoder = TextEncoder;
   dom.window.Blob = Blob;
@@ -1233,6 +1234,48 @@ test('opt-in godišnji zadržava ključ slanja i potvrđuje samo odabrane radne 
     {date:eligibleDates[0],type:'annual_leave'},{date:eligibleDates[2],type:'annual_leave'}
   ]}}]);
   assert.equal(app.document.querySelector('#modal.open'),null);
+  app.window.close();
+});
+
+test('opt-in godišnji preko Nove godine koristi oba fonda i prikazuje siječanjske zahtjeve jednom',async()=>{
+  const app=boot('worker',{today:'2026-12-25T10:00:00+01:00'}),workerId='worker-year-test';
+  const session={user:{id:'worker-year-user',role:'worker'},organization:{id:'org-year-test',name:'BSS test',timezone:'Europe/Zagreb'},effectiveScope:{selfWorkerId:workerId}};
+  const cross={id:'leave-cross-year',workerId,typeCode:'annual_leave',startDate:'2026-12-28',endDate:'2027-01-05',status:'pending',coveredWorkflow:true};
+  const january={...cross,id:'leave-january',startDate:'2027-01-07',endDate:'2027-01-08'};
+  const queried=[];
+  app.window.fetch=async url=>{
+    const {pathname,searchParams}=new URL(url,app.window.location.href);
+    const year=Number(searchParams.get('year')),next=searchParams.get('from')==='2027-01-01';
+    let body={items:[]};
+    if(pathname==='/api/v1/me')body=session;
+    if(pathname==='/api/v1/workers/'+workerId)body={id:workerId,code:'R001',name:'Ogledni radnik',status:'active',annualLeaveAllowance:5};
+    if(['/api/v1/departments','/api/v1/shifts'].includes(pathname))body=[];
+    if(pathname==='/api/v1/holidays')body=year===2027?[{id:'holiday-next',date:'2027-01-01',name:'Nova godina'}]:[];
+    if(pathname==='/api/v1/leave-balances')body={items:[{workerId,year,allowanceDays:5,availableDays:year===2027?3:2}]};
+    if(pathname==='/api/v1/leave-requests'){
+      queried.push(searchParams.get('from'));
+      body={items:next?[cross,january]:[cross],coveredLeaveRequests:true};
+    }
+    return {ok:true,status:200,headers:new Headers(),json:async()=>body};
+  };
+  app.evaluate(fs.readFileSync('src/adapters/api-bindings.js','utf8'));
+  await new Promise(resolve=>setImmediate(resolve));
+  app.window.openVacationRequest();
+  const select=id=>app.document.querySelector('#'+id);
+  assert.equal(select('vacEnd').max,'2027-12-31');
+  select('vacStart').value=cross.startDate;
+  select('vacEnd').value=cross.endDate;
+  app.window.updateVacationRequestPreview();
+  assert.equal(select('vacEnd').validity.rangeOverflow,false);
+  assert.match(select('vacRequestPreview').textContent,/2026.*traženo 4.*dostupno 2.*nedostaje 2/);
+  assert.match(select('vacRequestPreview').textContent,/2027.*traženo 2.*dostupno 3/);
+  select('vacType').value='Slobodan dan';
+  app.window.updateVacationRequestPreview();
+  assert.equal(select('vacEnd').max,'2026-12-31');
+  assert.deepEqual(queried,['2026-01-01','2027-01-01']);
+  assert.equal(app.evaluate('vacationBalanceSummary(currentWorker().id,2027).available'),3);
+  assert.deepEqual(Array.from(app.state().requests,item=>item.apiId),[cross.id,january.id]);
+  assert.match(app.evaluate("rangeLabel('2026-12-28','2027-01-05')"),/2026.*2027/);
   app.window.close();
 });
 

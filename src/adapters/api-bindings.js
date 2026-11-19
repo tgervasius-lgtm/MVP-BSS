@@ -147,6 +147,7 @@
     if(currentRole!=='worker'||!form||!workerId)return;
     const type=$('#vacType').value,sameForm=()=>form===$('#modal.open .leave-form-card')&&currentWorker().apiId===workerId;
     const body={typeCode:typeCode[type]||'annual_leave',startDate:$('#vacStart')?.value,endDate:$('#vacEnd')?.value,note:$('#vacNote')?.value.trim()||undefined};
+    if(state.coveredLeaveRequests&&(!body.startDate||!body.endDate||!$('#vacStart').checkValidity()||!$('#vacEnd').checkValidity()))return BSS_VIEWS.approvalsOperational.leaveRequestError('Datumi su izvan dopuštenog razdoblja.');
     let saved,showConfirmation;
     await mutateApi(async()=>{
       saved=state.coveredLeaveRequests&&body.typeCode==='annual_leave'
@@ -348,7 +349,6 @@
     },
     navigate,refresh:()=>refreshApi()
   });
-
   root.BSSOnboarding?.configure({
     context:()=>({organizationId:sessionContext?.organization?.id,userId:sessionContext?.user?.id,role:currentRole,logged,api:root.BSS_API_ACTIVE&&!state.demoMode}),
     changed:focus=>{
