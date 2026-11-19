@@ -3,6 +3,29 @@
 
   const statuses = root.BSSCore?.contracts?.requestStatus;
 
+  function balanceSummary({workerId,worker,year,requests,businessDays,allowDerived}){
+    const balance=worker?.leaveBalance;
+    if(balance?.year===Number(year)){
+      return {
+        allowance:balance.allowanceDays,
+        used:balance.approvedDays,
+        reserved:balance.plannedDays,
+        remaining:balance.remainingDays,
+        available:balance.availableDays
+      };
+    }
+    if(!allowDerived)return null;
+
+    const annualRequests=requests.filter(request=>
+      request.workerId===Number(workerId)&&request.type==='Godišnji odmor'&&request.start.startsWith(String(year)));
+    const daysFor=status=>annualRequests.filter(request=>request.status===status)
+      .reduce((sum,request)=>sum+businessDays(request.start,request.end),0);
+    const allowance=Number(worker?.vacationAllowance||0);
+    const used=daysFor(statuses.APPROVED);
+    const reserved=daysFor(statuses.PENDING);
+    return {allowance,used,reserved,remaining:Math.max(0,allowance-used),available:Math.max(0,allowance-used-reserved)};
+  }
+
   function validateSubmission({
     workerId,type,start,end,today,year,requests,availableDays,
     businessDays,intervalsOverlap
@@ -68,7 +91,7 @@
     };
   }
 
-  const leave = Object.freeze({validateSubmission,createRequest,decide,cancel});
+  const leave = Object.freeze({balanceSummary,validateSubmission,createRequest,decide,cancel});
   const useCases = Object.freeze({...root.BSSCore?.useCases,leave});
   root.BSSCore = Object.freeze({...root.BSSCore,useCases});
 
