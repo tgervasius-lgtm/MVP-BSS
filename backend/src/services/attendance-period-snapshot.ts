@@ -119,7 +119,7 @@ export async function captureAttendancePeriodSnapshot(
   );
   const approvedAbsences = await client.query<AttendancePeriodSnapshot["approvedAbsences"][number]>(
     `SELECT absence.id, l.worker_id AS "workerId", w.code AS "workerCode", w.name AS "workerName",
-       d.id AS "departmentId", d.name AS "departmentName", l.leave_type AS "typeCode",
+       d.id AS "departmentId", d.name AS "departmentName", absence.leave_type AS "typeCode",
        absence.start_date::text AS "startDate", absence.end_date::text AS "endDate",
        absence.working_days AS "workingDays", l.status, l.decided_by AS "decidedBy",
        CASE WHEN l.decided_at IS NULL THEN NULL ELSE to_char(l.decided_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') END AS "decidedAt",

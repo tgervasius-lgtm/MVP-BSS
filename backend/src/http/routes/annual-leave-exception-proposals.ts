@@ -1,5 +1,5 @@
 import type { FastifyInstance } from "fastify";
-import { requireRevision } from "../../domain/errors.js";
+import { AppError, requireRevision } from "../../domain/errors.js";
 import { requirePermission, requireRole } from "../../security/rbac.js";
 import {
   alternateLeaveTypes, type ExceptionDate, type PgAnnualLeaveExceptionProposalService
@@ -8,6 +8,8 @@ import type { Authenticate } from "../app.js";
 import { revisionHeaderSchema, uuidSchema } from "../schema.js";
 
 export type AnnualLeaveExceptionProposals = Pick<PgAnnualLeaveExceptionProposalService, "propose" | "read" | "confirm">;
+
+export type AnnualLeaveExceptionApproval = Pick<PgAnnualLeaveExceptionProposalService, "approve">;
 
 const path = "/api/v1/leave-requests/:requestId/exception-proposal";
 const params = {
@@ -29,7 +31,8 @@ type Headers = { "if-match": string };
 type DateSelection = { dates: ExceptionDate[] };
 
 export function registerAnnualLeaveExceptionProposalRoutes(
-  app: FastifyInstance, service: AnnualLeaveExceptionProposals, authenticate: Authenticate
+  app: FastifyInstance, service: AnnualLeaveExceptionProposals, authenticate: Authenticate,
+  approval?: AnnualLeaveExceptionApproval
 ): void {
   app.get<{ Params: Params }>(path,
     { config: { rateLimit: { max: 120, timeWindow: "1 minute" } }, schema: { params } }, async (request, reply) => {
@@ -74,4 +77,21 @@ export function registerAnnualLeaveExceptionProposalRoutes(
       return result;
     }
   );
+
+  if (approval) {
+    app.post<{ Params: Params; Headers: Headers }>(
+      `${path}/approve`,
+      { config: { rateLimit: { max: 30, timeWindow: "1 minute" } }, schema: { params, headers: revisionHeaderSchema } },
+      async (request, reply) => {
+        const { actor } = await authenticate(request);
+        requirePermission(actor, "leave", "write");
+        requireRole(actor, ["admin", "manager"]);
+        if (request.body !== undefined) throw new AppError("VALIDATION_FAILED", "Odobrenje preuzima potvrđeni prijedlog.");
+        const revision = requireRevision(request.headers["if-match"]);
+        const result = await approval.approve(actor, request.params.requestId, revision, request.id);
+        reply.header("ETag", `"${result.revision}"`);
+        return result;
+      }
+    );
+  }
 }
