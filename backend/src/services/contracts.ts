@@ -235,6 +235,7 @@ export type LeaveRequestView = {
   endDate: string;
   workingDays: number;
   approvedDates?: string[];
+  coveredWorkflow?: true;
   note: string;
   status: RequestStatus;
   submittedAt: string;

@@ -181,7 +181,7 @@ export async function buildApp(dependencies: AppDependencies): Promise<FastifyIn
   await registerOnboardingRoutes(app, { authenticate, ...(dependencies.onboarding ? { onboarding: dependencies.onboarding } : {}) });
   await registerAuthRoutes(app, { config, authService, authenticate });
   await app.register(registerPhaseARoutes, { phaseAService, authenticate });
-  await registerMvpRoutes(app, { mvpService: phaseAService, authenticate });
+  await registerMvpRoutes(app, { mvpService: phaseAService, authenticate, coveredLeaveEnabled: Boolean(dependencies.coveredLeaveDecisions) });
   if (dependencies.coveredLeaveDecisions) {
     registerCoveredLeaveDecisionRoutes(app, dependencies.coveredLeaveDecisions, authenticate);
   }

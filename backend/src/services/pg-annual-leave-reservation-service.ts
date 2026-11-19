@@ -158,6 +158,7 @@ export class PgAnnualLeaveReservationService {
     return withTenant(this.pool, actor, requestId, async client => {
       const { rows: [row] } = await client.query<{
         id: string; worker_id: string; department_id: string; revision: string; status: RequestStatus; dates: CoveredDate[];
+        years: ReservationYear[]; eligible_dates: string[];
       }>(
         `SELECT l.id, l.worker_id, w.department_id, l.revision::text, l.status,
            COALESCE((SELECT jsonb_agg(jsonb_build_object('date', to_char(d.absence_date, 'YYYY-MM-DD'),
@@ -165,14 +166,29 @@ export class PgAnnualLeaveReservationService {
              FROM annual_leave_decision_dates d
              WHERE d.organization_id = l.organization_id AND d.request_id = l.id
                AND ((l.status = 'pending' AND d.confirmed_revision = l.revision AND d.approved_revision IS NULL)
-                 OR (l.status = 'approved' AND d.approved_revision = l.revision))), '[]'::jsonb) AS dates
+                 OR (l.status = 'approved' AND d.approved_revision = l.revision))), '[]'::jsonb) AS dates,
+           COALESCE((SELECT jsonb_agg(jsonb_build_object('year', r.calendar_year, 'requestedDays', r.requested_days,
+                         'reservedDays', CASE WHEN l.status = 'pending' THEN r.reserved_days ELSE 0 END)
+                         ORDER BY r.calendar_year)
+             FROM annual_leave_reservations r
+             WHERE r.organization_id = l.organization_id AND r.request_id = l.id), '[]'::jsonb) AS years,
+           ARRAY(SELECT to_char(day.value, 'YYYY-MM-DD')
+             FROM generate_series(l.start_date::timestamp, l.end_date::timestamp, interval '1 day') day(value)
+             JOIN annual_leave_reservations r ON r.organization_id = l.organization_id AND r.request_id = l.id
+               AND r.calendar_year = EXTRACT(YEAR FROM day.value) AND r.reserved_days > 0
+             WHERE $2::boolean AND l.status = 'pending' AND EXTRACT(ISODOW FROM day.value) < 6
+               AND NOT EXISTS (SELECT 1 FROM holidays h WHERE h.organization_id = l.organization_id
+                               AND h.holiday_date = day.value::date)
+             ORDER BY day.value) AS eligible_dates
          FROM leave_requests l JOIN workers w ON w.id = l.worker_id
          WHERE l.id = $1 AND l.reservation_submission_key IS NOT NULL`,
-        [requestIdValue]
+        [requestIdValue, actor.role === "worker"]
       );
       if (!row) throw new AppError("NOT_FOUND", "Zahtjev s rezervacijom nije pronađen.");
       requireWorkerScope(actor, row.worker_id, row.department_id);
-      return { requestId: row.id, revision: row.revision, status: row.status, dates: row.dates };
+      if (!row.years.length) throw new AppError("CONFLICT", "Nedostaje zapis rezervacije zahtjeva.");
+      return { requestId: row.id, revision: row.revision, status: row.status, dates: row.dates,
+        years: row.years, eligibleDates: row.eligible_dates };
     });
   }
 

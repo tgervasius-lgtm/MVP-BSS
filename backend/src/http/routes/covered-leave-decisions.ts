@@ -1,13 +1,26 @@
 import type { FastifyInstance } from "fastify";
 import { AppError, requireRevision } from "../../domain/errors.js";
 import { requirePermission, requireRole } from "../../security/rbac.js";
+import type { LeaveRequestWrite } from "../../services/contracts.js";
 import type { CoveredDate, PgAnnualLeaveReservationService } from "../../services/pg-annual-leave-reservation-service.js";
 import type { Authenticate } from "../app.js";
 import { revisionHeaderSchema, uuidSchema } from "../schema.js";
 
 export type CoveredLeaveDecisions = Pick<PgAnnualLeaveReservationService,
-  "readCoveredDecision" | "confirmCoveredDates" | "approveConfirmedCoveredDates">;
+  "submit" | "readCoveredDecision" | "confirmCoveredDates" | "approveConfirmedCoveredDates">;
 
+const submissionHeaders = {
+  type: "object", required: ["idempotency-key"],
+  properties: { "idempotency-key": { type: "string", pattern: "^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$" } }
+} as const;
+const submissionBody = {
+  type: "object", required: ["startDate", "endDate"], additionalProperties: false,
+  properties: {
+    startDate: { type: "string", format: "date" },
+    endDate: { type: "string", format: "date" },
+    note: { type: "string", maxLength: 1000 }
+  }
+} as const;
 const params = {
   type: "object", additionalProperties: false, required: ["requestId"], properties: { requestId: uuidSchema }
 } as const;
@@ -29,6 +42,18 @@ type RevisionHeaders = { "if-match": string };
 export function registerCoveredLeaveDecisionRoutes(
   app: FastifyInstance, service: CoveredLeaveDecisions, authenticate: Authenticate
 ): void {
+  app.post<{ Headers: { "idempotency-key": string }; Body: Omit<LeaveRequestWrite, "typeCode"> }>(
+    "/api/v1/leave-requests/covered-dates",
+    { config: { rateLimit: { max: 60, timeWindow: "1 minute" } },
+      schema: { headers: submissionHeaders, body: submissionBody } },
+    async (request, reply) => {
+      const { actor } = await authenticate(request);
+      requirePermission(actor, "leave", "write");
+      requireRole(actor, ["worker"]);
+      const result = await service.submit(actor, request.body, request.headers["idempotency-key"], request.id);
+      return reply.code(201).header("ETag", `"${result.revision}"`).send(result);
+    }
+  );
   app.get<{ Params: RequestParams }>(
     "/api/v1/leave-requests/:requestId/covered-dates",
     { config: { rateLimit: { max: 120, timeWindow: "1 minute" } }, schema: { params } },

@@ -19,7 +19,7 @@ import type {
 import type { Authenticate } from "../app.js";
 import { paginationSchema, revisionHeaderSchema, uuidSchema } from "../schema.js";
 
-type Dependencies = Readonly<{ mvpService: MvpService; authenticate: Authenticate }>;
+type Dependencies = Readonly<{ mvpService: MvpService; authenticate: Authenticate; coveredLeaveEnabled?: boolean }>;
 
 const uuid = uuidSchema;
 const idParams = (name: string) => ({
@@ -222,7 +222,8 @@ export async function registerMvpRoutes(app: FastifyInstance, dependencies: Depe
       const { actor } = await authenticate(request);
       requirePermission(actor, "leave", "read");
       if (request.query.departmentId && actor.role === "manager") requireDepartmentScope(actor, request.query.departmentId);
-      return service.listLeaveRequests(actor, { ...request.query, limit: request.query.limit ?? 50 });
+      const result = await service.listLeaveRequests(actor, { ...request.query, limit: request.query.limit ?? 50 });
+      return dependencies.coveredLeaveEnabled && actor.role !== "accountant" ? { ...result, coveredLeaveRequests: true } : result;
     }
   );
 

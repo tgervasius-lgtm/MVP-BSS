@@ -80,6 +80,7 @@ type LeaveRow = {
   end_date: string | Date;
   working_days: number;
   approved_dates?: string[] | null;
+  covered_workflow?: boolean;
   note: string | null;
   status: RequestStatus;
   created_at: string | Date;
@@ -164,6 +165,7 @@ function leaveView(row: LeaveRow): LeaveRequestView {
     startDate: dateOnly(row.start_date),
     endDate: dateOnly(row.end_date),
     workingDays: row.working_days,
+    ...(row.covered_workflow ? { coveredWorkflow: true } : {}),
     ...(row.approved_dates == null ? {} : { approvedDates: row.approved_dates }),
     note: row.note ?? "",
     status: row.status,
@@ -353,7 +355,7 @@ export class PgMvpService extends PgPhaseAService implements MvpService {
     filters: { from: string; to: string; departmentId?: string; leaveStatus?: RequestStatus; cursor?: string; limit: number }
   ): Promise<Page<LeaveRequestView>> {
     requireBoundedDateRange(filters.from, filters.to);
-    const approvedDatesSelect = this.coveredDateReads ? `,
+    const coveredSelect = this.coveredDateReads ? `, l.reservation_submission_key IS NOT NULL AS covered_workflow,
       CASE WHEN l.status = 'approved' AND l.reservation_submission_key IS NOT NULL THEN ARRAY(
         SELECT to_char(d.absence_date, 'YYYY-MM-DD')
         FROM annual_leave_decision_dates d
@@ -365,7 +367,7 @@ export class PgMvpService extends PgPhaseAService implements MvpService {
       const after = decodeTimelineCursor(filters.cursor);
       const params = [filters.from, filters.to, actor.role, actor.departmentIds, actor.selfWorkerId, filters.departmentId ?? null, filters.leaveStatus ?? null];
       const rows = await client.query<LeaveRow>(
-        `${leaveSelect}${approvedDatesSelect}
+        `${leaveSelect}${coveredSelect}
          FROM leave_requests l JOIN workers w ON w.id = l.worker_id
          WHERE l.end_date >= $1::date AND l.start_date <= $2::date
            AND ($3::text <> 'manager' OR w.department_id = ANY($4::uuid[]))
