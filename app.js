@@ -1079,10 +1079,15 @@ function toggleShift(id){
 const REQUEST_STATUSES=BSS_CONTRACTS.requestStatus.labels;
 function intervalsOverlap(startA,endA,startB,endB){ return BSS_TIME.intervalsOverlap(startA,endA,startB,endB); }
 function activeLeaveRequest(request){ return BSS_CONTRACTS.requestStatus.activeLabels.includes(request.status); }
+function requestsOverlap(request,other){
+  if(request.approvedDates)return request.approvedDates.some(date=>requestIncludesDate(other,date));
+  if(other.approvedDates)return other.approvedDates.some(date=>requestIncludesDate(request,date));
+  return intervalsOverlap(request.start,request.end,other.start,other.end);
+}
 function teamConflicts(request){
   const worker=workerById(request.workerId);
   if(!worker||!activeLeaveRequest(request))return[];
-  return state.requests.filter(other=>other.id!==request.id&&other.workerId!==request.workerId&&activeLeaveRequest(other)&&intervalsOverlap(request.start,request.end,other.start,other.end)&&workerById(other.workerId)?.dept===worker.dept);
+  return state.requests.filter(other=>other.id!==request.id&&other.workerId!==request.workerId&&activeLeaveRequest(other)&&requestsOverlap(request,other)&&workerById(other.workerId)?.dept===worker.dept);
 }
 function vacationBalanceSummary(workerId,year=Number(DEMO_TODAY.slice(0,4)),allowDerived=true){
   return BSS_USE_CASES.leave.balanceSummary({workerId,worker:workerById(workerId),year,
@@ -1100,18 +1105,19 @@ function filteredLeaveRequests(){
 function setRequestStatusFilter(status){ if(!['Svi',...REQUEST_STATUSES].includes(status))return;requestStatusFilter=status;render(); }
 function applyRequestSearch(){ requestSearch=$('#requestSearch')?.value.trim()||'';render(); }
 function clearRequestFilters(){ requestStatusFilter=currentRole==='worker'?'Svi':'Na čekanju';requestSearch='';render(); }
+function requestDisplayDays(request){ return request.approvedDates?.length??(request.coveredWorkflow?request.workingDays:undefined)??businessDays(request.start,request.end); }
 function requestCard(request,isApprover=false){
-  const worker=workerById(request.workerId),days=businessDays(request.start,request.end),conflicts=teamConflicts(request);
+  const worker=workerById(request.workerId),days=requestDisplayDays(request),conflicts=teamConflicts(request);
   const conflictText=currentRole==='worker'?'Postoji drugi aktivni zahtjev u odjelu.':conflicts.map(item=>escapeHtml(workerById(item.workerId)?.name||'Radnik')).join(', ');
   const conflictBlock=conflicts.length?`<div class="leave-conflict"><b>Preklapanje u odjelu</b><span>${conflictText}</span></div>`:'';
   const decisionBlock=request.decidedAt?`<div class="leave-decision"><span>${escapeHtml(request.decidedBy||'Sustav')} · ${escapeHtml(request.decidedAt)}</span><b>${escapeHtml(request.decisionNote||'Odluka bez dodatne napomene.')}</b></div>`:'';
   const approverAction=isApprover&&request.status==='Na čekanju'?`<button class="btn small" data-bss-action="openRequestDecision(${request.id})">Donesi odluku</button>`:'';
   const workerAction=currentRole==='worker'&&request.workerId===currentWorker().id&&request.status==='Na čekanju'?`<button class="btn red small" data-bss-action="openCancelRequest(${request.id})">Poništi zahtjev</button>`:'';
-  return `<article class="leave-request-card" data-request-id="${request.id}" data-status="${escapeHtml(request.status)}"><div class="leave-request-head"><div class="avatar">${escapeHtml(initials(worker?.name))}</div><div><b>${escapeHtml(worker?.name||'Nepoznat radnik')}</b><span>${escapeHtml(worker?.dept||'—')} · poslano ${escapeHtml(request.submittedAt||'nije evidentirano')}</span></div>${pill(request.status)}</div><div class="leave-request-body"><div><span>Vrsta</span><b>${escapeHtml(request.type)}</b></div><div><span>Razdoblje</span><b>${escapeHtml(rangeLabel(request.start,request.end))}</b></div><div><span>Radni dani</span><b>${days}</b></div></div><p>${escapeHtml(request.note||'Bez dodatne napomene.')}</p>${conflictBlock}${decisionBlock}${approverAction||workerAction?`<div class="leave-request-actions">${approverAction}${workerAction}</div>`:''}</article>`;
+  return `<article class="leave-request-card" data-request-id="${request.id}" data-status="${escapeHtml(request.status)}"><div class="leave-request-head"><div class="avatar">${escapeHtml(initials(worker?.name))}</div><div><b>${escapeHtml(worker?.name||'Nepoznat radnik')}</b><span>${escapeHtml(worker?.dept||'—')} · poslano ${escapeHtml(request.submittedAt||'nije evidentirano')}</span></div>${pill(request.status)}</div><div class="leave-request-body"><div><span>Vrsta</span><b>${escapeHtml(request.type)}</b></div><div><span>${request.approvedDates?'Traženo razdoblje':'Razdoblje'}</span><b>${escapeHtml(rangeLabel(request.start,request.end))}</b></div><div><span>Radni dani</span><b>${days}</b></div></div><p>${escapeHtml(request.note||'Bez dodatne napomene.')}</p>${conflictBlock}${decisionBlock}${approverAction||workerAction?`<div class="leave-request-actions">${approverAction}${workerAction}</div>`:''}</article>`;
 }
 function requestTable(requests,isApprover=false,showWorker=currentRole!=='worker'){
   const body=requests.map(request=>{
-    const worker=workerById(request.workerId),days=request.approvedDates?.length??request.workingDays??businessDays(request.start,request.end),conflicts=teamConflicts(request);
+    const worker=workerById(request.workerId),days=requestDisplayDays(request),conflicts=teamConflicts(request);
     const conflictText=conflicts.length?(currentRole==='worker'?`${conflicts.length} aktivno preklapanje`:conflicts.map(item=>escapeHtml(workerById(item.workerId)?.name||'Radnik')).join(', ')):'Nema';
     const decision=request.decidedAt?`<b>${escapeHtml(request.decidedBy||'Sustav')}</b><br><span class="small-muted">${escapeHtml(request.decisionNote||'Bez dodatne napomene.')}</span>`:'—';
     const approverAction=isApprover&&request.status==='Na čekanju'?`<button class="table-detail-btn" data-bss-action="openRequestDecision(${request.id})">Donesi odluku</button>`:'';
@@ -1233,7 +1239,8 @@ function calendarRequests(){
     .filter(request=>vacationDepartment==='Svi'||workerById(request.workerId)?.dept===vacationDepartment);
 }
 function isoDate(year,month,day){ return `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`; }
-function requestsForDay(iso,requests){ return requests.filter(request=>request.start<=iso&&request.end>=iso); }
+function requestIncludesDate(request,iso){ return request.approvedDates?.includes(iso)??(request.start<=iso&&request.end>=iso); }
+function requestsForDay(iso,requests){ return requests.filter(request=>requestIncludesDate(request,iso)); }
 function calendarMonthCard(year,month,requests,large=false,dayAction='showVacationDay',nameOnly=false){
   const first=new Date(year,month,1),dayCount=new Date(year,month+1,0).getDate(),offset=(first.getDay()+6)%7;
   const monthName=first.toLocaleDateString('hr-HR',{month:'long'});
@@ -1275,7 +1282,7 @@ function departmentLeaveSummary(requests){
   const departments=[...new Set(visibleWorkers().filter(worker=>worker.active&&(vacationDepartment==='Svi'||worker.dept===vacationDepartment)).map(worker=>worker.dept))].sort((a,b)=>a.localeCompare(b,'hr'));
   return departments.map(department=>{
     const departmentRequests=requests.filter(request=>workerById(request.workerId)?.dept===department);
-    return {department,workers:visibleWorkers().filter(worker=>worker.active&&worker.dept===department).length,pending:departmentRequests.filter(request=>request.status==='Na čekanju').length,approvedDays:departmentRequests.filter(request=>request.status==='Odobreno').reduce((sum,request)=>sum+businessDays(request.start,request.end),0),conflicts:departmentRequests.filter(request=>teamConflicts(request).length).length};
+    return {department,workers:visibleWorkers().filter(worker=>worker.active&&worker.dept===department).length,pending:departmentRequests.filter(request=>request.status==='Na čekanju').length,approvedDays:departmentRequests.filter(request=>request.status==='Odobreno').reduce((sum,request)=>sum+(request.approvedDates?.filter(date=>date.startsWith(String(calendarYear))).length??businessDays(request.start,request.end)),0),conflicts:departmentRequests.filter(request=>teamConflicts(request).length).length};
   });
 }
 function vacationBalanceVisual(balance,year){

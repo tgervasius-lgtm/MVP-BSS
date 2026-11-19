@@ -1281,6 +1281,19 @@ test('voditelj nakon zastarjele potvrde ručno učitava nove datume prije odobra
   app.window.close();
 });
 
+test('interni godišnji prikazuje samo odobrene datume umjesto cijelog raspona zahtjeva',()=>{
+  const app=boot('admin');
+  app.evaluate(`state.requests=[{id:991,workerId:1,type:'Godišnji odmor',start:'2026-07-06',end:'2026-07-14',
+    status:'Odobreno',approvedDates:['2026-07-06','2026-07-07','2026-07-09','2026-07-10','2026-07-14']}];
+    calendarYear=2026;calendarMonth=6;workerById(2).dept=workerById(1).dept;navigate('vacations');`);
+  assert.ok(app.document.querySelector("button[data-bss-action=\"showVacationDay('2026-07-09')\"]"));
+  assert.equal(app.document.querySelector("button[data-bss-action=\"showVacationDay('2026-07-08')\"]"),null);
+  assert.equal(app.evaluate('departmentLeaveSummary(calendarRequests()).find(item=>item.department===workerById(1).dept).approvedDays'),5);
+  assert.equal(app.evaluate("teamConflicts({id:992,workerId:2,start:'2026-07-08',end:'2026-07-08',status:'Na čekanju'}).length"),0);
+  assert.equal(app.evaluate("teamConflicts({id:992,workerId:2,start:'2026-07-09',end:'2026-07-09',status:'Na čekanju'}).length"),1);
+  app.window.close();
+});
+
 test('voditelj je ograničen na dodijeljene odjele',()=>{
   const {window,document} = boot('manager');
   window.navigate('workers');
