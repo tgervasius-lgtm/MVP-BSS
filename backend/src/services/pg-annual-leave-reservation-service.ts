@@ -11,7 +11,7 @@ import { insertAudit } from "./mvp-audit.js";
 import { requireBoundedDateRange } from "./validation.js";
 
 type ReservationYear = { year: number; requestedDays: number; reservedDays: number };
-type CoveredDate = { date: string; type: "annual_leave" };
+export type CoveredDate = { date: string; type: "annual_leave" };
 type ReservationRequestRow = {
   id: string;
   worker_id: string;
@@ -150,9 +150,31 @@ async function requireCoveredDates(
   if (invalid!.invalid) throw new AppError("VALIDATION_FAILED", "Odabrani dan mora biti radni dan.");
 }
 
-// Internal entry point for the later coordinated HTTP, balance and reporting change.
 export class PgAnnualLeaveReservationService {
   constructor(private readonly pool: pg.Pool) {}
+
+  async readCoveredDecision(actor: ActorContext, requestIdValue: string, requestId: string) {
+    requireRole(actor, ["worker", "manager", "admin"]);
+    return withTenant(this.pool, actor, requestId, async client => {
+      const { rows: [row] } = await client.query<{
+        id: string; worker_id: string; department_id: string; revision: string; status: RequestStatus; dates: CoveredDate[];
+      }>(
+        `SELECT l.id, l.worker_id, w.department_id, l.revision::text, l.status,
+           COALESCE((SELECT jsonb_agg(jsonb_build_object('date', to_char(d.absence_date, 'YYYY-MM-DD'),
+                      'type', d.absence_type) ORDER BY d.absence_date)
+             FROM annual_leave_decision_dates d
+             WHERE d.organization_id = l.organization_id AND d.request_id = l.id
+               AND ((l.status = 'pending' AND d.confirmed_revision = l.revision AND d.approved_revision IS NULL)
+                 OR (l.status = 'approved' AND d.approved_revision = l.revision))), '[]'::jsonb) AS dates
+         FROM leave_requests l JOIN workers w ON w.id = l.worker_id
+         WHERE l.id = $1 AND l.reservation_submission_key IS NOT NULL`,
+        [requestIdValue]
+      );
+      if (!row) throw new AppError("NOT_FOUND", "Zahtjev s rezervacijom nije pronađen.");
+      requireWorkerScope(actor, row.worker_id, row.department_id);
+      return { requestId: row.id, revision: row.revision, status: row.status, dates: row.dates };
+    });
+  }
 
   async submit(
     actor: ActorContext, input: Omit<LeaveRequestWrite, "typeCode">, submissionKey: string, requestId: string
