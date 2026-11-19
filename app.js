@@ -890,27 +890,14 @@ function progressPercent(value,total){
   if(!Number(total))return 0;
   return Math.max(0,Math.min(100,Math.round(Number(value)/Number(total)*100)));
 }
-function monthlyTimeVisual(summary,shift){
-  const review=summary.review;
-  return `<section class="card mytime-summary-card">
-    <div class="mytime-summary-head"><div><span>Mjesečni pregled</span><h2>${escapeHtml(monthDisplay(myTimeMonth))}</h2></div><label>Mjesec<input id="myTimeMonth" type="month" value="${escapeHtml(myTimeMonth)}" data-bss-change="setMyTimeMonth(this.value)"></label></div>
-    <div class="mytime-summary-grid">
-      <button data-bss-action="focusSection('myTimeRecords')"><span>Odrađeno</span><b>${formatMinutes(summary.workedMinutes)}</b></button>
-      <button data-bss-action="focusSection('myTimeRecords')"><span>Planirano</span><b>${formatMinutes(summary.plannedMinutes)}</b></button>
-      <button data-bss-action="focusSection('myTimeRecords')"><span>Saldo</span><b class="${summary.balanceMinutes<0?'negative':'positive'}">${formatSignedMinutes(summary.balanceMinutes)}</b></button>
-      <button data-bss-action="setMyTimeReview(true)" ${review?'':'disabled'}><span>Za provjeru</span><b>${review}</b></button>
-    </div>
-    <div class="mytime-shift-row"><span>Smjena</span><b>${escapeHtml(shift?.name||'Bez smjene')} · ${escapeHtml(shift?`${shift.start} – ${shift.end}`:'Nema rasporeda')}</b></div>
-  </section>`;
-}
 function viewMyTime(){
   const worker=currentWorker(),monthlyRecords=state.records.filter(record=>record.workerId===worker.id&&record.date.startsWith(myTimeMonth)).sort((a,b)=>b.date.localeCompare(a.date));
   const records=myTimeReviewOnly?monthlyRecords.filter(record=>['Kašnjenje','Nepotpun zapis'].includes(record.status)):monthlyRecords;
   const summary=attendanceSummary(monthlyRecords),shift=shiftById(worker.shiftId);
-  return `${title('Moji sati','Osobna evidencija i kontrolirani zahtjevi za korekciju.')}
-    ${monthlyTimeVisual(summary,shift)}
-    ${myTimeReviewOnly?'<button class="btn secondary compact-filter-clear" data-bss-action="setMyTimeReview(false)">Prikaži sve mjesečne zapise</button>':''}
-    ${recordTable(records,myTimeReviewOnly?'Zapisi za provjeru':'Moji zapisi',false,true,false,false,false,'myTimeRecords')}
+  return `${title('Moji sati','Osobna evidencija i zahtjevi za korekciju.')}
+    ${BSS_VIEWS.myTimeOperational.render({records,summary,shift,month:myTimeMonth,today:DEMO_TODAY,reviewOnly:myTimeReviewOnly,
+      scope:worker.apiId??worker.id,monthDisplay,isoLabel,escapeHtml,pill,recordMinutes,plannedShiftMinutes,formatMinutes,formatSignedMinutes,
+      corrections:state.corrections,pendingCorrectionFor})}
     ${correctionForm()}`;
 }
 function correctionPreviewText(date,workerId){

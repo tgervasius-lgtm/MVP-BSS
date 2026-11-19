@@ -10,7 +10,7 @@
     'openHolidayModal','openInviteModal','openJobPositionModal','openMonthlyHoursReport','openPendingRequests','openReportHistory','openRequestDecision','openResetDemoDialog','openVacationRequest',
     'openShiftModal','openShiftWorkers','openVacationRequestStatus','openWorker','openWorkerModal','openWorkerStatus','pairTerminal','refreshWorkerJobOptions','resendInvitation','revokeTerminal',
     'resetDemo','restoreTerminal','saveAccessUser','saveDepartment','saveHoliday','saveJobPosition','saveSettings',
-    'saveShift','saveWorker','sendInvitation','sendPasswordReset','setAccessStatusFilter','setAttendanceDailyFilter','setAttendanceView',
+    'saveShift','saveWorker','selectMyTimeDay','sendInvitation','sendPasswordReset','setAccessStatusFilter','setAttendanceDailyFilter','setAttendanceView',
     'setCalendarMode','setMyTimeMonth','setMyTimeReview','setReportType','setRequestStatusFilter','setSettingsTab',
     'setSharedLeaveVisibility','setVacationDepartment','setWorkerDetailTab','setWorkerTab','showSharedLeaveDay','showVacationDay','simulateTerminalOffline',
     'startCorrectionFromRecord','submitCorrection','submitVacationRequest','switchRole','toggleAccessDepartmentFields',

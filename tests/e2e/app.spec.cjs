@@ -129,6 +129,40 @@ test('radnik ima osobni mjesečni pregled i stanje godišnjeg s pripadajućim ak
   await expect(page.locator('#content')).not.toContainText('Marko Marić');
 });
 
+test('Moji sati zadržavaju odabran dan pri suženju sadržaja i otvaraju korekciju tog datuma',async({page},testInfo)=>{
+  const errors=trackErrors(page);
+  await loginAs(page,'worker');
+  await page.evaluate(()=>window.navigate('mytime'));
+  const workspace=page.locator('#myTimeRecords');
+  const picker=page.getByRole('combobox',{name:'Odaberi dan',exact:true});
+  const detail=page.locator('.mytime-day-detail');
+  const width=await workspace.evaluate(element=>element.clientWidth);
+  if(width>535){
+    await expect(picker).toBeHidden();
+    await workspace.locator('#myTimeDay-5').click();
+    await expect(workspace.locator('#myTimeDay-5')).toBeFocused();
+    await page.addStyleTag({content:'#myTimeRecords{max-inline-size:480px}'});
+    await expect(picker).toBeVisible();
+    await expect(picker).toHaveValue('5');
+  }else{
+    await expect(picker).toBeVisible();
+  }
+  const target=await picker.locator('option').evaluateAll(options=>options.find(option=>option.value!=='5').value);
+  await picker.selectOption(target);
+  await expect(picker).toBeFocused();
+  await picker.selectOption('5');
+  await expect(workspace.locator('.mytime-day-button:visible')).toHaveCount(0);
+  await expect(detail.locator('h3')).toContainText(/10[.] 07[.] 2026/);
+  await expect(detail).not.toContainText(/Marko Marić|Petra Novak/);
+  expect(await seriousAxeViolations(page)).toEqual([]);
+  await page.screenshot({path:testInfo.outputPath('moji-sati-uzi-prikaz.png')});
+  await detail.getByRole('button',{name:'Zatraži korekciju',exact:true}).click();
+  await expect(page.locator('#corrDate')).toHaveValue('2026-07-10');
+  await expect(page.locator('#corrStart')).toHaveValue('07:42');
+  await expect(page.locator('#corrReason')).toBeFocused();
+  expect(errors).toEqual([]);
+});
+
 test('četiri dashboard KPI-ja otvaraju točne filtrirane preglede',async({page})=>{
   await loginAs(page,'admin');
   await page.locator('[data-kpi="present"]').click();
