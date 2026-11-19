@@ -336,14 +336,36 @@ test("inactive covered-leave API binds the worker confirmation to the authorized
   };
   const inactive = await buildApp(deps);
   t.after(() => inactive.close());
-  const req = await f.reserve.submit(f.worker, firstRange, "covered-http-test", "seed-cover-http");
+  const app = await buildApp({ ...deps, coveredLeaveDecisions: f.reserve });
+  t.after(() => app.close());
+  const submitPath = "/api/v1/leave-requests/covered-dates";
+  const listPath = "/api/v1/leave-requests?from=2030-01-01&to=2030-01-31";
+  const submit = (instance: typeof app, actor = "worker", key?: string, payload: object = firstRange) =>
+    instance.inject({ method: "POST", url: submitPath, cookies: { bss_session: actor }, payload,
+      headers: { origin: "https://bss.test", ...(key ? { "idempotency-key": key } : {}) } });
+  const key = "covered-http-test";
+  assert.equal((await submit(inactive, "worker", key)).statusCode, 404);
+  assert.equal((await submit(app, "worker")).statusCode, 422);
+  assert.equal((await submit(app, "manager", key)).statusCode, 403);
+  const submission = await submit(app, "worker", key);
+  assert.equal(submission.statusCode, 201, submission.body);
+  assert.equal(submission.headers.etag, '"1"');
+  const req = submission.json();
+  const years = [{ year: 2030, requestedDays: 7, reservedDays: 5 }];
+  assert.deepEqual(req, { requestId: req.requestId, revision: "1", status: "pending", years });
+  assert.deepEqual((await submit(app, "worker", key)).json(), req);
+  assert.equal((await submit(app, "worker", key, { ...firstRange, note: "Changed" })).json().code, "CONFLICT");
+  const list = await app.inject({ url: listPath, cookies: { bss_session: "worker" } });
+  assert.equal(list.statusCode, 200, list.body);
+  assert.equal(list.json().coveredLeaveRequests, true);
+  assert.deepEqual(list.json().items.map((item: LeaveRequestView) => [item.id, item.coveredWorkflow]), [[req.requestId, true]]);
+  const inactiveList = await inactive.inject({ url: listPath, cookies: { bss_session: "worker" } });
+  assert.equal(inactiveList.statusCode, 200, inactiveList.body);
+  assert.equal(inactiveList.json().coveredLeaveRequests, undefined);
   const path = `/api/v1/leave-requests/${req.requestId}/covered-dates`;
   for (const [method, suffix] of [["GET", ""], ["POST", "/confirm"], ["POST", "/approve"]] as const) {
     assert.equal((await inactive.inject({ method, url: path + suffix, headers: { origin: "https://bss.test" } })).statusCode, 404);
   }
-
-  const app = await buildApp({ ...deps, coveredLeaveDecisions: f.reserve });
-  t.after(() => app.close());
   const read = (actor: string) => app.inject({ method: "GET", url: path, cookies: { bss_session: actor } });
   const post = (action: "confirm" | "approve", actor: string, revision?: string, payload?: object, origin = "https://bss.test") =>
     app.inject({ method: "POST", url: path + "/" + action, cookies: { bss_session: actor },
@@ -352,7 +374,8 @@ test("inactive covered-leave API binds the worker confirmation to the authorized
   assert.equal(initial.statusCode, 200, initial.body);
   assert.equal(initial.headers.etag, '"1"');
   assert.equal(initial.headers["cache-control"], "no-store, private");
-  assert.deepEqual(initial.json(), { requestId: req.requestId, revision: "1", status: "pending", dates: [] });
+  assert.deepEqual(initial.json(), { requestId: req.requestId, revision: "1", status: "pending", dates: [], years,
+    eligibleDates: ["2030-01-07", "2030-01-08", "2030-01-09", "2030-01-10", "2030-01-11", "2030-01-14", "2030-01-15"] });
   assert.equal((await app.inject({ method: "GET", url: path })).statusCode, 401);
   assert.equal((await read("other")).statusCode, 404);
   assert.equal((await read("outside")).statusCode, 403);
@@ -369,7 +392,7 @@ test("inactive covered-leave API binds the worker confirmation to the authorized
   const confirmation = await post("confirm", "worker", first.headers.etag as string, { dates: [...selected].reverse() });
   assert.equal(confirmation.statusCode, 200, confirmation.body);
   assert.deepEqual(confirmation.json(), { requestId: req.requestId, revision: "3", status: "pending", dates: selected });
-  assert.deepEqual((await read("manager")).json(), confirmation.json());
+  assert.deepEqual((await read("manager")).json(), { ...confirmation.json(), years, eligibleDates: [] });
   assert.equal((await post("approve", "manager", first.headers.etag as string)).json().code, "STALE_REVISION");
   assert.equal((await post("approve", "outside", '"3"')).statusCode, 403);
   assert.equal((await post("approve", "worker", '"3"')).statusCode, 403);
@@ -378,13 +401,20 @@ test("inactive covered-leave API binds the worker confirmation to the authorized
   assert.equal(final.statusCode, 200, final.body);
   assert.equal(final.headers.etag, '"4"');
   assert.deepEqual(final.json(), { requestId: req.requestId, revision: "4", status: "approved", dates: selected });
-  assert.deepEqual((await read("worker")).json(), final.json());
+  assert.deepEqual((await read("worker")).json(), { ...final.json(), years: [{ ...years[0]!, reservedDays: 0 }], eligibleDates: [] });
   assert.equal((await post("approve", "manager", '"3"')).json().code, "STALE_REVISION");
 
   const balance = await app.inject({ method: "GET", url: "/api/v1/leave-balances?year=2030", cookies: { bss_session: "worker" } });
   assert.equal(balance.statusCode, 200, balance.body);
   assert.deepEqual(balance.json().items.map((row: { approvedDays: number; plannedDays: number; availableDays: number }) =>
     [row.approvedDays, row.plannedDays, row.availableDays]), [[5, 0, 0]]);
+  const zero = await submit(app, "worker", "covered-zero-http-test", { startDate: "2030-01-21", endDate: "2030-01-21" });
+  assert.equal(zero.statusCode, 201, zero.body);
+  assert.deepEqual(zero.json().years, [{ year: 2030, requestedDays: 1, reservedDays: 0 }]);
+  const unreserved = await app.inject({ url: `/api/v1/leave-requests/${zero.json().requestId}/covered-dates`, cookies: { bss_session: "worker" } });
+  assert.equal(unreserved.statusCode, 200, unreserved.body);
+  assert.equal(unreserved.json().status, "pending");
+  assert.deepEqual(unreserved.json().eligibleDates, []);
   const audit = await f.owner.query("SELECT action FROM audit_events WHERE entity_id = $1 AND action = 'leave_request.approve_covered_dates'", [req.requestId]);
   assert.equal(audit.rowCount, 1);
 });

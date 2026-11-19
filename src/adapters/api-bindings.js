@@ -85,6 +85,7 @@
     authenticationEpoch+=1;
     root.BSSTerminalCredential?.clear();
     try{await BSS_API.post('/auth/logout');}catch{/* Lokalni prikaz se zatvara i ako je sesija već istekla. */}
+    root.BSSCoveredLeave?.clear();
     logged=false;sessionContext=null;dashboardSummary=null;state=createApiState();screen='home';apiError='';render();
   }
   async function bootstrapApi(){
@@ -148,15 +149,17 @@
     const body={typeCode:typeCode[type]||'annual_leave',startDate:$('#vacStart')?.value,endDate:$('#vacEnd')?.value,note:$('#vacNote')?.value.trim()||undefined};
     let saved,showConfirmation;
     await mutateApi(async()=>{
-      saved=await BSS_API.post('/leave-requests',body);
+      saved=state.coveredLeaveRequests&&body.typeCode==='annual_leave'
+        ?await root.BSSCoveredLeave.submit(body,workerId)
+        :await BSS_API.post('/leave-requests',body);
       showConfirmation=sameForm();
       if(showConfirmation){
-        screen='requests';requestStatusFilter=BSS_CONTRACTS.requestStatus.PENDING;requestSearch='';
+        screen='requests';requestStatusFilter=BSS_API_STATE.requestLabels[saved.status]||BSS_CONTRACTS.requestStatus.PENDING;requestSearch='';
       }
     },undefined,message=>sameForm()&&BSS_VIEWS.approvalsOperational.leaveRequestError(message));
     if(!saved||!showConfirmation||!$('#submittedLeaveRequest')||currentWorker().apiId!==workerId)return;
-    const request=state.requests.find(item=>item.apiId===saved.id)||{type,start:saved.startDate,end:saved.endDate,status:BSS_API_STATE.requestLabels[saved.status]};
-    BSS_VIEWS.approvalsOperational.showSubmittedLeaveRequest(request,rangeLabel);
+    const request=state.requests.find(item=>item.apiId===(saved.requestId||saved.id))||{type,start:body.startDate,end:body.endDate,status:BSS_API_STATE.requestLabels[saved.status]};
+    BSS_VIEWS.approvalsOperational.showSubmittedLeaveRequest(request,rangeLabel,saved.status==='pending'?saved.years:undefined);
   }
   async function apiDecideRequest(id,status,noteOverride=''){
     const request=state.requests.find(item=>item.id===Number(id));if(!request||!['admin','manager'].includes(currentRole))return;
@@ -328,10 +331,14 @@
     refreshSession:context=>refreshApi('',context),setLoading:value=>{apiLoading=value;}
   });
 
+  root.BSSCoveredLeave?.configure({
+    api:BSS_API,view:BSS_VIEWS.approvalsOperational,revisionHeaders,apiMessage,refreshApi,format:{isoLabel,rangeLabel,escapeHtml},
+    context:()=>({enabled:state.coveredLeaveRequests,role:currentRole,logged,epoch:authenticationEpoch}),
+    request:id=>state.requests.find(item=>item.id===id&&item.coveredWorkflow&&requestVisible(item)),
+    workerName:id=>workerById(id)?.name,loading:()=>apiLoading,setLoading:value=>{apiLoading=value;}
+  });
   root.BSSTerminalReconciliation?.configure({refresh:refreshApi});
-
   root.BSSTerminalCredential?.configure({refresh:refreshApi});
-
   root.BSSWorkerImports?.configure({
     context:()=>({organizationId:sessionContext?.organization?.id,userId:sessionContext?.user?.id,role:currentRole,logged,api:root.BSS_API_ACTIVE&&!state.demoMode}),
     changed:focus=>{
@@ -360,6 +367,7 @@
   function installApiBindings(){
     root.BSS_API_ACTIVE=true;
     Object.assign(root,{
+    coveredLeaveAction:root.BSSCoveredLeave?.action,
     workerImportAction:(name,value)=>name==='open'?root.BSSWorkerImports.open():root.BSSWorkerImports.action(name,value),
     onboardingAction:(name,value)=>root.BSSOnboarding.action(name,value),
     login:apiLogin,acceptInvitation:apiAcceptInvitation,logout:apiLogout,openWorkerModal:apiOpenWorkerModal,saveWorker:apiSaveWorker,toggleWorkerActive:apiToggleWorker,toggleCard:apiToggleCard,

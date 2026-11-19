@@ -13,6 +13,7 @@ const coreSources = [
   'src/adapters/runtime.js',
   'src/adapters/api.js',
   'src/adapters/api-state.js',
+  'src/adapters/api-covered-leave.js',
   'src/adapters/theme-bootstrap.js',
   'src/domain/contracts.js',
   'src/domain/time.js',
@@ -1167,6 +1168,130 @@ test('API potvrda prikazuje spremljeni zahtjev i uklanja filtre koji bi ga sakri
   assert.equal(app.document.activeElement,confirmation);
   assert.equal(app.document.querySelector('#requestSearch').value,'');
   assert.equal(app.document.querySelector('tr.leave-request-row').dataset.status,'Na čekanju');
+});
+
+test('opt-in godišnji zadržava ključ slanja i potvrđuje samo odabrane radne dane',async()=>{
+  const app=boot('worker'),workerId='worker-test',requestId='leave-test';
+  const session={user:{id:'worker-user',role:'worker'},organization:{id:'org-test',name:'BSS test',timezone:'Europe/Zagreb'},effectiveScope:{selfWorkerId:workerId}};
+  const request={id:requestId,workerId,typeCode:'annual_leave',startDate:'2026-07-13',endDate:'2026-07-16',workingDays:4,status:'pending',coveredWorkflow:true};
+  const eligibleDates=['2026-07-13','2026-07-14','2026-07-15','2026-07-16'];
+  const years=[{year:2026,requestedDays:4,reservedDays:2}];
+  const keys=[],sent=[];
+  let saved=false;
+  app.window.fetch=async(url,options={})=>{
+    const path=new URL(url,app.window.location.href).pathname;
+    const response=(body,status=200)=>({ok:status<400,status,headers:new Headers(),json:async()=>body});
+    if(options.method==='GET'){
+      const responses={
+        '/api/v1/me':session,
+        '/api/v1/holidays':[],
+        '/api/v1/departments':[],
+        '/api/v1/shifts':[],
+        ['/api/v1/workers/'+workerId]:{id:workerId,code:'R001',name:'Ogledni radnik',status:'active',annualLeaveAllowance:2},
+        '/api/v1/leave-requests':{items:saved?[request]:[],coveredLeaveRequests:true},
+        '/api/v1/leave-balances':{items:[{workerId,year:2026,allowanceDays:2,approvedDays:0,plannedDays:saved?2:0,availableDays:saved?0:2}]},
+        ['/api/v1/leave-requests/'+requestId+'/covered-dates']:{requestId,revision:'1',status:'pending',dates:[],eligibleDates,years}
+      };
+      return response(responses[path]??{items:[]});
+    }
+    if(path==='/api/v1/leave-requests/covered-dates'){
+      keys.push(options.headers['Idempotency-Key']);
+      assert.deepEqual(JSON.parse(options.body),{startDate:request.startDate,endDate:request.endDate});
+      if(keys.length===1)throw new Error('Odgovor je izgubljen.');
+      saved=true;
+      return response({requestId,revision:'1',status:'pending',years},201);
+    }
+    assert.equal(path,'/api/v1/leave-requests/'+requestId+'/covered-dates/confirm');
+    sent.push({revision:options.headers['If-Match'],body:JSON.parse(options.body)});
+    return response({requestId,revision:'2',status:'pending',dates:sent[0].body.dates});
+  };
+  app.evaluate(fs.readFileSync('src/adapters/api-bindings.js','utf8'));
+  await new Promise(resolve=>setImmediate(resolve));
+  app.window.openVacationRequest();
+  app.document.querySelector('#vacStart').value=request.startDate;
+  app.document.querySelector('#vacEnd').value=request.endDate;
+  app.window.updateVacationRequestPreview();
+  assert.match(app.document.querySelector('#vacRequestPreview').textContent,/nedostaje 2/);
+  await app.window.submitVacationRequest();
+  assert.ok(app.document.querySelector('#modal.open'));
+  await app.window.submitVacationRequest();
+  assert.equal(keys.length,2);
+  assert.ok(keys[0]);
+  assert.equal(keys[1],keys[0]);
+  assert.match(app.document.querySelector('#submittedLeaveRequest').textContent,/Na čekanju.*rezervirano 2.*nepokriveno 2/);
+  app.document.querySelector('[data-bss-action^="coveredLeaveAction"]').click();
+  await new Promise(resolve=>setImmediate(resolve));
+  const choices=[...app.document.querySelectorAll('#modal input[type="checkbox"]')];
+  assert.equal(choices.length,4);
+  choices.slice(0,3).forEach(choice=>choice.click());
+  const confirm=app.document.querySelector('[data-covered-apply]');
+  assert.equal(confirm.disabled,true);
+  choices[1].click();
+  confirm.click();
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.deepEqual(sent,[{revision:'"1"',body:{dates:[
+    {date:eligibleDates[0],type:'annual_leave'},{date:eligibleDates[2],type:'annual_leave'}
+  ]}}]);
+  assert.equal(app.document.querySelector('#modal.open'),null);
+  app.window.close();
+});
+
+test('voditelj nakon zastarjele potvrde ručno učitava nove datume prije odobravanja',async()=>{
+  const app=boot('manager'),posts=[];
+  const path='/api/v1/leave-requests/leave-test/covered-dates';
+  const years=[{year:2026,requestedDays:7,reservedDays:5}];
+  let currentRevision='2';
+  app.window.fetch=async(url,options={})=>{
+    const target=new URL(url,app.window.location.href).pathname;
+    const response=(body,status=200)=>({ok:status<400,status,headers:new Headers(),json:async()=>body});
+    if(target==='/api/v1/me')return response({code:'FORBIDDEN'},403);
+    if(target===path){
+      const date=currentRevision==='2'?'2026-07-09':'2026-07-10';
+      return response({revision:currentRevision,status:'pending',dates:[{date,type:'annual_leave'}],years,eligibleDates:[]});
+    }
+    assert.equal(target,path+'/approve');
+    assert.equal(options.body,undefined);
+    const revision=options.headers['If-Match'];
+    posts.push(revision);
+    return revision==='"2"'?response({code:'STALE_REVISION'},409):response({status:'approved'});
+  };
+  app.evaluate(fs.readFileSync('src/adapters/api-bindings.js','utf8'));
+  await new Promise(resolve=>setImmediate(resolve));
+  app.evaluate(`state=clone(DEFAULT_STATE);state.demoMode=false;state.coveredLeaveRequests=true;currentRole='manager';logged=true;
+    state.requests=[{id:991,apiId:'leave-test',workerId:1,type:'Godišnji odmor',start:'2026-07-06',end:'2026-07-14',status:'Na čekanju',coveredWorkflow:true}];navigate('requests');`);
+  app.document.querySelector('[data-bss-action^="coveredLeaveAction"]').click();
+  await new Promise(resolve=>setImmediate(resolve));
+  const content=app.document.querySelector('.covered-leave-content');
+  assert.match(content.textContent,/09\. 07\. 2026/);
+  currentRevision='3';
+  content.querySelector('[data-covered-apply]').click();
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.match(content.textContent,/Zahtjev je izmijenjen tijekom pregleda/);
+  assert.equal(content.querySelector('[data-covered-apply]'),null);
+  assert.deepEqual(posts,['"2"']);
+  content.querySelector('[data-bss-action]').click();
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.match(content.textContent,/10\. 07\. 2026/);
+  assert.doesNotMatch(content.textContent,/09\. 07\. 2026/);
+  assert.deepEqual(posts,['"2"']);
+  content.querySelector('[data-covered-apply]').click();
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.deepEqual(posts,['"2"','"3"']);
+  assert.equal(app.document.querySelector('#modal.open'),null);
+  app.window.close();
+});
+
+test('interni godišnji prikazuje samo odobrene datume umjesto cijelog raspona zahtjeva',()=>{
+  const app=boot('admin');
+  app.evaluate(`state.requests=[{id:991,workerId:1,type:'Godišnji odmor',start:'2026-07-06',end:'2026-07-14',
+    status:'Odobreno',approvedDates:['2026-07-06','2026-07-07','2026-07-09','2026-07-10','2026-07-14']}];
+    calendarYear=2026;calendarMonth=6;workerById(2).dept=workerById(1).dept;navigate('vacations');`);
+  assert.ok(app.document.querySelector("button[data-bss-action=\"showVacationDay('2026-07-09')\"]"));
+  assert.equal(app.document.querySelector("button[data-bss-action=\"showVacationDay('2026-07-08')\"]"),null);
+  assert.equal(app.evaluate('departmentLeaveSummary(calendarRequests()).find(item=>item.department===workerById(1).dept).approvedDays'),5);
+  assert.equal(app.evaluate("teamConflicts({id:992,workerId:2,start:'2026-07-08',end:'2026-07-08',status:'Na čekanju'}).length"),0);
+  assert.equal(app.evaluate("teamConflicts({id:992,workerId:2,start:'2026-07-09',end:'2026-07-09',status:'Na čekanju'}).length"),1);
+  app.window.close();
 });
 
 test('voditelj je ograničen na dodijeljene odjele',()=>{

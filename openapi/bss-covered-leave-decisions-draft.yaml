@@ -1,11 +1,13 @@
 openapi: 3.1.0
 info:
   title: BSS covered annual leave decisions
-  version: 0.1.0
+  version: 0.2.0
   x-bss-status: INACTIVE_DRAFT
   description: >
-    Candidate HTTP contract for decisions on an existing annual leave reservation.
-    The standard server does not register these routes. Submission, additional entitlement
+    Candidate HTTP contract for submitting and deciding annual leave reservations.
+    The standard server does not register these routes. In the opted-in app, the scoped
+    GET /leave-requests page has coveredLeaveRequests=true and reservation-backed items
+    have coveredWorkflow=true when covered-date reads are enabled. Additional entitlement
     and exception authority are outside this contract.
   license:
     name: Proprietary
@@ -16,6 +18,74 @@ servers:
 security:
   - sessionCookie: []
 paths:
+  /leave-requests/covered-dates:
+    post:
+      summary: Submit annual leave and reserve the available days
+      operationId: submitCoveredLeaveRequest
+      x-bss-roles: [worker]
+      description: >
+        Requires the application origin. The reservation is calculated for each calendar year.
+        An insufficient or zero reservation leaves the request pending. Repeating the key with
+        the same input returns the existing request. A different input with the same key conflicts.
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema:
+            type: string
+            pattern: '^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [startDate, endDate]
+              properties:
+                startDate:
+                  type: string
+                  format: date
+                endDate:
+                  type: string
+                  format: date
+                note:
+                  type: string
+                  maxLength: 1000
+      responses:
+        '201':
+          description: Existing or newly submitted request with the reservation by year.
+          headers:
+            ETag:
+              description: Quoted current request revision.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [requestId, revision, status, years]
+                properties:
+                  requestId:
+                    type: string
+                    format: uuid
+                  revision:
+                    $ref: './bss-mvp-api-v1.yaml#/components/schemas/Revision'
+                  status:
+                    $ref: './bss-mvp-api-v1.yaml#/components/schemas/RequestStatus'
+                  years:
+                    $ref: '#/components/schemas/ReservationYears'
+        '401':
+          $ref: './bss-mvp-api-v1.yaml#/components/responses/Unauthenticated'
+        '403':
+          $ref: './bss-mvp-api-v1.yaml#/components/responses/Forbidden'
+        '409':
+          $ref: './bss-mvp-api-v1.yaml#/components/responses/Conflict'
+        '422':
+          $ref: './bss-mvp-api-v1.yaml#/components/responses/ValidationFailed'
+        '429':
+          $ref: './bss-mvp-api-v1.yaml#/components/responses/RateLimited'
   /leave-requests/{requestId}/covered-dates:
     parameters:
       - $ref: '#/components/parameters/RequestId'
@@ -27,6 +97,8 @@ paths:
         Returns the dates on the current revision for the worker who owns the request,
         a manager assigned to the department, or an administrator in the same organization.
         Dates are empty when the current revision has no confirmation or approval.
+        The read includes years and eligibleDates. Choices are populated only for the
+        requesting worker while the request is pending and that year has a reservation.
       responses:
         '200':
           $ref: '#/components/responses/CoveredDecision'
@@ -152,7 +224,31 @@ components:
                 maxItems: 366
                 items:
                   $ref: '#/components/schemas/CoveredDate'
+              years:
+                $ref: '#/components/schemas/ReservationYears'
+              eligibleDates:
+                type: array
+                uniqueItems: true
+                items:
+                  type: string
+                  format: date
   schemas:
+    ReservationYears:
+      type: array
+      minItems: 1
+      items:
+        type: object
+        additionalProperties: false
+        required: [year, requestedDays, reservedDays]
+        properties:
+          year:
+            type: integer
+          requestedDays:
+            type: integer
+            minimum: 1
+          reservedDays:
+            type: integer
+            minimum: 0
     CoveredDate:
       type: object
       additionalProperties: false

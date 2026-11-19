@@ -49,10 +49,14 @@
     return true;
   }
 
-  function showSubmittedLeaveRequest({type,start,end,status},rangeLabel){
+  function leaveCoverage({year,requestedDays,reservedDays}){
+    return `${year}. · traženo ${requestedDays} · rezervirano ${reservedDays} · nepokriveno ${requestedDays-reservedDays}`;
+  }
+
+  function showSubmittedLeaveRequest({type,start,end,status},rangeLabel,years=[]){
     const confirmation=root.document.getElementById('submittedLeaveRequest');
     if(!confirmation)return;
-    confirmation.querySelector('span').textContent=`${type} · ${rangeLabel(start,end)} · ${status}`;
+    confirmation.querySelector('span').textContent=[type,rangeLabel(start,end),status,...years.map(leaveCoverage)].join(' · ');
     confirmation.hidden=false;
     const content=confirmation.closest('main');
     content?.scrollBy?.({
@@ -60,6 +64,43 @@
       behavior:'instant'
     });
     confirmation.focus({preventScroll:true});
+  }
+
+  function coveredLeaveFrame(){
+    return `<div class="modal-card covered-leave-card"><div class="modal-head"><h2>Pokriveni datumi godišnjeg</h2>
+      <button type="button" class="close-btn" aria-label="Zatvori" data-bss-action="closeModal()">×</button></div>
+      <div class="covered-leave-content"></div></div>`;
+  }
+
+  function coveredLeaveReload(id,message,escapeHtml){
+    return `<p class="notice" role="alert">${escapeHtml(message)}</p>
+      <button class="btn" data-bss-action="coveredLeaveAction('reload',${id})">Učitaj aktualni zahtjev</button>`;
+  }
+
+  function coveredLeaveDecision({decision,request,worker,workerName,isoLabel,rangeLabel,escapeHtml}){
+    const pending=decision.status==='pending',confirmed=new Set(decision.dates.map(item=>item.date));
+    const coverageItems=pending?decision.years.map(year=>`<li>${escapeHtml(leaveCoverage(year))}</li>`).join(''):'';
+    const coverage=coverageItems?`<ul>${coverageItems}</ul>`:'';
+    const dates=decision.dates.map(({date})=>`<li>${escapeHtml(isoLabel(date))}</li>`).join('');
+    const dateList=dates?`<ul>${dates}</ul>`:'';
+    const summary=`<p>${worker?'Tvoj zahtjev':escapeHtml(workerName||'Radnik')} · traženo razdoblje ${escapeHtml(rangeLabel(request.start,request.end))}</p>${coverage}`;
+    if(!pending){
+      const status=decision.status==='approved'?'Odobreni datumi':'Zahtjev je zatvoren';
+      return `${summary}<h3>${status}</h3>${dateList}`;
+    }
+    const error='<p class="notice danger" data-covered-error role="alert" hidden></p>';
+    if(worker){
+      const choices=decision.eligibleDates.map(date=>`<label><input type="checkbox" value="${escapeHtml(date)}"${confirmed.has(date)?' checked':''}> ${escapeHtml(isoLabel(date))}</label>`).join('');
+      if(!choices)return `${summary}<p>Zahtjev je na čekanju. Nema datuma raspoloživih za potvrdu.</p>`;
+      return `${summary}<p>${confirmed.size?'Datumi su potvrđeni. Zahtjev čeka odluku.':'Odaberi radne dane unutar rezervacije za svaku godinu.'}</p>
+        <fieldset class="form"><legend>Datumi za potvrdu</legend>${choices}</fieldset><p data-covered-count aria-live="polite"></p>${error}
+        <button type="button" class="btn" data-covered-apply>Potvrdi datume</button>`;
+    }
+    const confirmation=dates?`<h3>Radnik je potvrdio</h3>${dateList}`:'<p>Čeka se potvrda radnika.</p>';
+    return `${summary}${confirmation}
+      <label>Razlog odbijanja<textarea rows="3"></textarea></label>${error}<div class="btns">
+      ${dates?'<button type="button" class="btn green" data-covered-apply>Odobri potvrđene datume</button>':''}
+      <button type="button" class="btn red" data-covered-reject>Odbij zahtjev</button></div>`;
   }
 
   function corrections(context){
@@ -92,7 +133,7 @@
       ${isWorker?correctionForm():''}`;
   }
 
-  const approvalsOperational=Object.freeze({metricStrip,requests,newRequestButton,leaveRequestDialog,leaveRequestError,showSubmittedLeaveRequest,corrections});
+  const approvalsOperational=Object.freeze({metricStrip,requests,newRequestButton,leaveRequestDialog,leaveRequestError,showSubmittedLeaveRequest,coveredLeaveFrame,coveredLeaveReload,coveredLeaveDecision,corrections});
   const views=Object.freeze({...root.BSSCore?.views,approvalsOperational});
   root.BSSCore=Object.freeze({...root.BSSCore,views});
 

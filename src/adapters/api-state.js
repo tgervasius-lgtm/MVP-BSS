@@ -153,7 +153,7 @@
       const worker=ensureWorker(item.workerId);
       const includesToday=item.approvedDates?.includes(today)??(item.startDate<=today&&today<=item.endDate);
       if(item.status==='approved'&&includesToday&&worker)worker.status='Godišnji';
-      return {id:id(item.id),apiId:item.id,workerId:worker.id,type:leaveLabels[item.typeCode]||item.typeCode,typeCode:item.typeCode,start:item.startDate,end:item.endDate,note:item.note||'',workingDays:item.workingDays,status:requestLabels[item.status]||item.status,submittedAt:localDateTime(item.submittedAt,timeZone),decidedBy:item.decidedBy,decidedAt:localDateTime(item.decidedAt,timeZone),decisionNote:item.decisionNote||'',revision:item.revision};
+      return {id:id(item.id),apiId:item.id,workerId:worker.id,type:leaveLabels[item.typeCode]||item.typeCode,typeCode:item.typeCode,start:item.startDate,end:item.endDate,note:item.note||'',workingDays:item.workingDays,coveredWorkflow:item.coveredWorkflow===true,approvedDates:item.approvedDates,status:requestLabels[item.status]||item.status,submittedAt:localDateTime(item.submittedAt,timeZone),decidedBy:item.decidedBy,decidedAt:localDateTime(item.decidedAt,timeZone),decisionNote:item.decisionNote||'',revision:item.revision};
     });
     const recordByApi=new Map(records.map(item=>[item.apiId,item]));
     const corrections=(data.corrections?.items||[]).map(item=>{
@@ -178,7 +178,7 @@
     const organization=data.organization||session.organization;
     const company={name:organization.name,oib:organization.taxIdentifier||'',address:'',timezone:organization.timezone,workTime:'',contactEmail:'',phone:'',defaultVacationAllowance:20,revision:organization.revision};
     const holidays=(data.holidays?.data||[]).map(item=>({id:id(item.id),apiId:item.id,date:item.date,name:item.name,type:'Neradni dan',protected:false,active:true,revision:item.revision}));
-    const state={version:9,demoMode:false,sharedLeaveVisibility:data.approvedLeave?.visibility||'department',sharedLeaveEntries:data.approvedLeave?.items||[],company,departments,jobPositions:[],holidays,holidayRevision:data.holidays?.etag||'0',shifts,workers,accessUsers:users,invitations:[],security:{inviteValidityHours:72,passwordResetValidityMinutes:30,sessionMinutes:480},records,requests,corrections,audit,terminal,lastScan:null,lastReport:reportHistory[0]?`${reportHistory[0].format} · ${reportHistory[0].time}`:'Nije još generiran',reportHistory,leaveBalances:data.leaveBalances?.items||[],dashboard:data.dashboard};
+    const state={version:9,demoMode:false,coveredLeaveRequests:data.leaveRequests?.coveredLeaveRequests===true,sharedLeaveVisibility:data.approvedLeave?.visibility||'department',sharedLeaveEntries:data.approvedLeave?.items||[],company,departments,jobPositions:[],holidays,holidayRevision:data.holidays?.etag||'0',shifts,workers,accessUsers:users,invitations:[],security:{inviteValidityHours:72,passwordResetValidityMinutes:30,sessionMinutes:480},records,requests,corrections,audit,terminal,lastScan:null,lastReport:reportHistory[0]?`${reportHistory[0].format} · ${reportHistory[0].time}`:'Nije još generiran',reportHistory,leaveBalances:data.leaveBalances?.items||[],dashboard:data.dashboard};
     return {state,role,session,dashboard:data.dashboard,selfWorkerId:id(session.effectiveScope.selfWorkerId)};
   }
 
