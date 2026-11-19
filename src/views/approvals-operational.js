@@ -40,6 +40,15 @@
     </div>`;
   }
 
+  function refreshLeaveRequestFields(today,enabled,preview,workerId){
+    const type=root.document.getElementById('vacType').value;
+    const start=root.document.getElementById('vacStart');
+    const end=root.document.getElementById('vacEnd');
+    const max=root.BSSCore.useCases.leave.requestDateLimit(start.min,today,enabled&&type==='Godišnji odmor');
+    start.max=end.max=max;
+    return preview(type,start.value,end.value,workerId);
+  }
+
   function leaveRequestError(message){
     const error=root.document.querySelector('#modal.open #vacRequestError');
     if(!error)return false;
@@ -133,7 +142,7 @@
       ${isWorker?correctionForm():''}`;
   }
 
-  const approvalsOperational=Object.freeze({metricStrip,requests,newRequestButton,leaveRequestDialog,leaveRequestError,showSubmittedLeaveRequest,coveredLeaveFrame,coveredLeaveReload,coveredLeaveDecision,corrections});
+  const approvalsOperational=Object.freeze({metricStrip,requests,newRequestButton,leaveRequestDialog,refreshLeaveRequestFields,leaveRequestError,showSubmittedLeaveRequest,coveredLeaveFrame,coveredLeaveReload,coveredLeaveDecision,corrections});
   const views=Object.freeze({...root.BSSCore?.views,approvalsOperational});
   root.BSSCore=Object.freeze({...root.BSSCore,views});
 

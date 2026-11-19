@@ -285,7 +285,7 @@ function isoLabel(iso, withYear = true){
   if(!iso) return '—';
   return isoToDate(iso).toLocaleDateString('hr-HR',withYear?{day:'2-digit',month:'2-digit',year:'numeric'}:{day:'2-digit',month:'2-digit'});
 }
-function rangeLabel(start,end){ return start === end ? isoLabel(start,false) : `${isoLabel(start,false)} – ${isoLabel(end,false)}`; }
+function rangeLabel(start,end){ const crossYear=start?.slice(0,4)!==end?.slice(0,4);return start===end?isoLabel(start,false):`${isoLabel(start,crossYear)} – ${isoLabel(end,crossYear)}`; }
 function timeToMinutes(value){
   return BSS_TIME.timeToMinutes(value);
 }
@@ -1091,7 +1091,7 @@ function teamConflicts(request){
 }
 function vacationBalanceSummary(workerId,year=Number(DEMO_TODAY.slice(0,4)),allowDerived=true){
   return BSS_USE_CASES.leave.balanceSummary({workerId,worker:workerById(workerId),year,
-    requests:state.requests,businessDays,allowDerived});
+    requests:state.requests,balances:state.leaveBalances,businessDays,allowDerived});
 }
 function scopedLeaveRequests(){ return state.requests.filter(requestVisible).sort((a,b)=>b.start.localeCompare(a.start)||Number(b.id)-Number(a.id)); }
 function requestStatusCounts(requests){ return Object.fromEntries(['Svi',...REQUEST_STATUSES].map(status=>[status,status==='Svi'?requests.length:requests.filter(request=>request.status===status).length])); }
@@ -1141,21 +1141,21 @@ function openVacationRequest(){
   const balance=vacationBalanceSummary(currentWorker().id);
   const tomorrow=isoToDate(DEMO_TODAY);tomorrow.setDate(tomorrow.getDate()+1);
   const from=tomorrow.toISOString().slice(0,10),toDate=new Date(tomorrow);toDate.setDate(toDate.getDate()+4);const to=toDate.toISOString().slice(0,10);
-  const max=`${from.slice(0,4)}-12-31`,modal=$('#modal'),preview=vacationRequestPreviewText('Godišnji odmor',from,to,currentWorker().id);
+  const max=BSS_USE_CASES.leave.requestDateLimit(from,DEMO_TODAY,state.coveredLeaveRequests),modal=$('#modal'),preview=vacationRequestPreviewText('Godišnji odmor',from,to,currentWorker().id);
   modal.innerHTML=BSS_VIEWS.approvalsOperational.leaveRequestDialog({from,to,max,available:balance.available,preview});
   showModal(modal,$('#vacType'));
 }
 function vacationRequestPreviewText(type,start,end,workerId){
   if(!start||!end||end<start)return 'Odaberi valjano razdoblje.';
+  if(state.coveredLeaveRequests&&type==='Godišnji odmor')return BSS_USE_CASES.leave.coveredRequestPreview(start,end,workerById(workerId)?.apiId,state.leaveBalances,state.coveredLeaveHolidays);
   const days=businessDays(start,end),balance=vacationBalanceSummary(workerId);
   if(!days)return 'Odabrano razdoblje nema radnih dana.';
   if(type!=='Godišnji odmor')return `${pluralDays(days)} · slobodan dan ne umanjuje fond godišnjeg odmora.`;
-  if(state.coveredLeaveRequests&&days>balance.available)return `${pluralDays(days)} · dostupno ${balance.available} · nedostaje ${days-balance.available}. Zahtjev možeš poslati.`;
   return `${pluralDays(days)} · dostupno prije zahtjeva ${balance.available} · nakon slanja ${Math.max(0,balance.available-days)}.`;
 }
 function updateVacationRequestPreview(){
   const element=$('#vacRequestPreview');
-  if(element)element.textContent=vacationRequestPreviewText($('#vacType').value,$('#vacStart').value,$('#vacEnd').value,currentWorker().id);
+  if(element)element.textContent=BSS_VIEWS.approvalsOperational.refreshLeaveRequestFields(DEMO_TODAY,state.coveredLeaveRequests,vacationRequestPreviewText,currentWorker().id);
 }
 function viewRequests(){
   const isApprover=['admin','manager'].includes(currentRole),isWorker=currentRole==='worker',scoped=scopedLeaveRequests(),requests=filteredLeaveRequests();

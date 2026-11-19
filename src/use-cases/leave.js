@@ -3,8 +3,8 @@
 
   const statuses = root.BSSCore?.contracts?.requestStatus;
 
-  function balanceSummary({workerId,worker,year,requests,businessDays,allowDerived}){
-    const balance=worker?.leaveBalance;
+  function balanceSummary({workerId,worker,year,requests,balances,businessDays,allowDerived}){
+    const balance=balances?.find(item=>item.year===Number(year)&&item.workerId===worker?.apiId)??worker?.leaveBalance;
     if(balance?.year===Number(year)){
       return {
         allowance:balance.allowanceDays,
@@ -24,6 +24,37 @@
     const used=daysFor(statuses.APPROVED);
     const reserved=daysFor(statuses.PENDING);
     return {allowance,used,reserved,remaining:Math.max(0,allowance-used),available:Math.max(0,allowance-used-reserved)};
+  }
+
+  function requestDateLimit(start,today,coveredAnnual){
+    const year=coveredAnnual?Number(today.slice(0,4))+1:start.slice(0,4);
+    return `${year}-12-31`;
+  }
+
+  function coveredRequestPreview(start,end,workerId,balances,holidays){
+    const startYear=Number(start.slice(0,4)),endYear=Number(end.slice(0,4));
+    const days=(Date.parse(end)-Date.parse(start))/86400000+1;
+    if(days>366)return 'Razdoblje ne smije biti dulje od 366 dana.';
+    const parts=[];
+    let shortfall=false;
+    for(let year=startYear;year<=endYear;year+=1){
+      const firstDay=year===startYear?start:`${year}-01-01`;
+      const lastDay=year===endYear?end:`${year}-12-31`;
+      const requested=root.BSSCore.time.businessDays(firstDay,lastDay,holidays);
+      if(!requested)continue;
+      const balance=balances.find(item=>item.workerId===workerId&&item.year===year);
+      if(!balance){
+        parts.push(`${year}. · traženo ${requested} · fond se provjerava pri slanju`);
+        continue;
+      }
+      const missing=Math.max(0,requested-balance.availableDays);
+      const figures=`${year}. · traženo ${requested} · dostupno ${balance.availableDays}`;
+      parts.push(missing?`${figures} · nedostaje ${missing}`:figures);
+      shortfall||=missing>0;
+    }
+    if(!parts.length)return 'Odabrano razdoblje nema radnih dana.';
+    const summary=parts.join(' / ');
+    return shortfall?`${summary}. Zahtjev možeš poslati.`:summary;
   }
 
   function validateSubmission({
@@ -91,7 +122,7 @@
     };
   }
 
-  const leave = Object.freeze({balanceSummary,validateSubmission,createRequest,decide,cancel});
+  const leave = Object.freeze({balanceSummary,requestDateLimit,coveredRequestPreview,validateSubmission,createRequest,decide,cancel});
   const useCases = Object.freeze({...root.BSSCore?.useCases,leave});
   root.BSSCore = Object.freeze({...root.BSSCore,useCases});
 

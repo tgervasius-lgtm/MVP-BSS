@@ -77,6 +77,17 @@
     return items.map(item=>({id:id(item.id),apiId:item.id,action:item.status==='ready'?'Generiran':'Status',format:item.format.toLocaleUpperCase('hr'),type:item.reportType,period:`${item.filters.periodFrom} – ${item.filters.periodTo}`,scope:'Poslužiteljski opseg',rows:item.rowCount||0,time:localDateTime(item.createdAt,timeZone),status:item.status,downloadUrl:item.downloadUrl,checksumSha256:item.checksumSha256||null,datasetVersion:item.datasetVersion||'',datasetChecksumSha256:item.datasetChecksumSha256||null,periodVersionId:item.periodVersionId||null,calculationVersions:item.calculationVersions||[],templateVersion:item.templateVersion||'',createdAt:item.createdAt,readyAt:item.readyAt||null,downloadExpiresAt:item.downloadExpiresAt||null}));
   }
 
+  async function upcomingLeave(api,enabled,role,year){
+    if(!enabled)return null;
+    const nextYear=Number(year)+1;
+    const [requests,balances,holidays]=await Promise.all([
+      getAllPages(api,'/leave-requests',dateRange(nextYear)),
+      role==='worker'?getAllPages(api,'/leave-balances',{year:nextYear}):null,
+      role==='worker'?api.get('/holidays',{year:nextYear}):null
+    ]);
+    return {requests:requests.items,balances:balances?.items||[],holidays:holidays||[]};
+  }
+
   async function hydrate(api,session,today){
     const role=session.user.role,year=today.slice(0,4),range=dateRange(year),timeZone=session.organization.timezone;
     const clientIds=new Map();let sequence=0;
@@ -112,6 +123,7 @@
     const data=Object.fromEntries(keys.map((key,index)=>[key,settledValue(results[index],null)]));
     const failedIndex=results.findIndex(result=>result.status==='rejected');
     if(failedIndex>=0)throw results[failedIndex].reason;
+    const futureLeave=await upcomingLeave(api,data.leaveRequests?.coveredLeaveRequests===true,role,year);
 
     const departments=(data.departments||[]).map(item=>({id:id(item.id),apiId:item.id,name:item.name,code:item.name.slice(0,8).toLocaleUpperCase('hr'),managerId:null,active:item.status==='active',revision:item.revision}));
     const departmentNames=new Map(departments.map(item=>[item.apiId,item.name]));
@@ -149,7 +161,8 @@
       return record;
     });
 
-    const requests=(data.leaveRequests?.items||[]).map(item=>{
+    const leaveById=new Map([...(data.leaveRequests?.items||[]),...(futureLeave?.requests||[])].map(item=>[item.id,item]));
+    const requests=[...leaveById.values()].map(item=>{
       const worker=ensureWorker(item.workerId);
       const includesToday=item.approvedDates?.includes(today)??(item.startDate<=today&&today<=item.endDate);
       if(item.status==='approved'&&includesToday&&worker)worker.status='Godišnji';
@@ -178,7 +191,8 @@
     const organization=data.organization||session.organization;
     const company={name:organization.name,oib:organization.taxIdentifier||'',address:'',timezone:organization.timezone,workTime:'',contactEmail:'',phone:'',defaultVacationAllowance:20,revision:organization.revision};
     const holidays=(data.holidays?.data||[]).map(item=>({id:id(item.id),apiId:item.id,date:item.date,name:item.name,type:'Neradni dan',protected:false,active:true,revision:item.revision}));
-    const state={version:9,demoMode:false,coveredLeaveRequests:data.leaveRequests?.coveredLeaveRequests===true,sharedLeaveVisibility:data.approvedLeave?.visibility||'department',sharedLeaveEntries:data.approvedLeave?.items||[],company,departments,jobPositions:[],holidays,holidayRevision:data.holidays?.etag||'0',shifts,workers,accessUsers:users,invitations:[],security:{inviteValidityHours:72,passwordResetValidityMinutes:30,sessionMinutes:480},records,requests,corrections,audit,terminal,lastScan:null,lastReport:reportHistory[0]?`${reportHistory[0].format} · ${reportHistory[0].time}`:'Nije još generiran',reportHistory,leaveBalances:data.leaveBalances?.items||[],dashboard:data.dashboard};
+    const coveredLeaveHolidays=new Set([...holidays,...(futureLeave?.holidays||[])].map(item=>item.date));
+    const state={version:9,demoMode:false,coveredLeaveHolidays,coveredLeaveRequests:data.leaveRequests?.coveredLeaveRequests===true,sharedLeaveVisibility:data.approvedLeave?.visibility||'department',sharedLeaveEntries:data.approvedLeave?.items||[],company,departments,jobPositions:[],holidays,holidayRevision:data.holidays?.etag||'0',shifts,workers,accessUsers:users,invitations:[],security:{inviteValidityHours:72,passwordResetValidityMinutes:30,sessionMinutes:480},records,requests,corrections,audit,terminal,lastScan:null,lastReport:reportHistory[0]?`${reportHistory[0].format} · ${reportHistory[0].time}`:'Nije još generiran',reportHistory,leaveBalances:[...(data.leaveBalances?.items||[]),...(futureLeave?.balances||[])],dashboard:data.dashboard};
     return {state,role,session,dashboard:data.dashboard,selfWorkerId:id(session.effectiveScope.selfWorkerId)};
   }
 
