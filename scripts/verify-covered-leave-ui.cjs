@@ -1,5 +1,7 @@
 const assert=require('node:assert/strict');
 const path=require('node:path');
+const {once}=require('node:events');
+const {createServer}=require('node:net');
 const {chromium,expect}=require('@playwright/test');
 
 const database=process.env.BSS_TEST_DATABASE_URL;
@@ -10,6 +12,15 @@ if(process.env.NODE_ENV!=='test'||process.env.BSS_COVERED_LEAVE_UI_TEST!=='synth
 const range={startDate:'2030-12-26',endDate:'2031-01-03'};
 const initialDates=['2030-12-26','2030-12-31','2031-01-01','2031-01-02','2031-01-03'];
 const finalDates=['2030-12-26','2030-12-30','2031-01-01','2031-01-02','2031-01-03'];
+
+async function reserveTestPort(){
+  const listener=createServer();
+  listener.listen(0,'127.0.0.1');
+  await once(listener,'listening');
+  const {port}=listener.address();
+  await new Promise((resolve,reject)=>listener.close(error=>error?reject(error):resolve()));
+  return port;
+}
 
 async function sessionPage(browser,origin,role){
   const context=await browser.newContext({serviceWorkers:'block'});
@@ -30,10 +41,18 @@ async function setDate(page,label,iso){
   await page.getByLabel(`${label} — mjesec`,{exact:true}).selectOption(month);
   await page.getByLabel(`${label} — dan`,{exact:true}).selectOption(day);
 }
-function responseFor(page,path,status){
-  return page.waitForResponse(response=>response.request().method()==='POST'&&response.status()===status
-    && new URL(response.url()).pathname===path);
+async function clickAndRead(page,button,endpoint,status,step){
+  const [response]=await Promise.all([
+    page.waitForResponse(result=>result.request().method()==='POST'&&new URL(result.url()).pathname===endpoint,{timeout:10000})
+      .catch(error=>{throw new Error(`${step}: ${error.message}`);}),
+    page.getByRole('button',{name:button,exact:true}).click()
+  ]);
+  const body=await response.json();
+  assert.equal(response.status(),status,`${step}: HTTP ${response.status()} ${body.code||''} ${body.message||''}`);
+  console.log(`Covered leave browser: ${step} HTTP ${status}`);
+  return {response,body};
 }
+
 function coveredButton(page,note){
   return page.getByRole('row').filter({hasText:note}).getByRole('button',{name:'Pokriveni datumi'});
 }
@@ -66,12 +85,12 @@ async function run(){
       context.effectiveScope={...context.effectiveScope,departmentIds:actor.departmentIds,selfWorkerId:actor.selfWorkerId};
       return {context,actor};
     };
-    const config=loadConfig({NODE_ENV:'test',PUBLIC_ORIGIN:'http://127.0.0.1',DATABASE_URL:database,
+    const port=await reserveTestPort();
+    const origin=`http://127.0.0.1:${port}`;
+    const config=loadConfig({NODE_ENV:'test',PUBLIC_ORIGIN:origin,DATABASE_URL:database,
       LOG_LEVEL:'silent',COOKIE_SECURE:'false',FRONTEND_ROOT:path.resolve(__dirname,'../dist')});
     app=await buildApp({config,authService:auth,phaseAService:legacy,coveredLeaveDecisions:reserve,logger:false});
-    const origin=await app.listen({host:'127.0.0.1',port:0});
-    // The browser uses the exact bound synthetic loopback origin for mutations.
-    config.publicOrigin=origin;
+    assert.equal(await app.listen({host:'127.0.0.1',port}),origin);
     const workerPage=await sessionPage(browser,origin,'worker');
     const managerPage=await sessionPage(browser,origin,'manager');
     await expect(workerPage.getByRole('row').filter({hasText:'Zasebno u siječnju'})).toHaveCount(1);
@@ -84,9 +103,7 @@ async function run(){
     await expect(workerPage.locator('#vacEnd')).toHaveValue(range.endDate);
     await expect(workerPage.locator('#vacRequestPreview')).toContainText(/2030.*traženo 4.*dostupno 2.*nedostaje 2.*2031.*traženo 3.*dostupno 3/);
     await workerPage.locator('#vacNote').fill(note);
-    const submit=responseFor(workerPage,'/api/v1/leave-requests/covered-dates',201);
-    await workerPage.getByRole('button',{name:'Pošalji zahtjev',exact:true}).click();
-    const submission=await (await submit).json();
+    const {body:submission}=await clickAndRead(workerPage,'Pošalji zahtjev','/api/v1/leave-requests/covered-dates',201,'worker submission');
     assert.deepEqual(submission.years,[{year:2030,requestedDays:4,reservedDays:2},{year:2031,requestedDays:3,reservedDays:3}]);
     await expect(workerPage.locator('#submittedLeaveRequest')).toContainText(/2030.*rezervirano 2.*2031.*rezervirano 3/);
     const endpoint=`/api/v1/leave-requests/${submission.requestId}/covered-dates`;
@@ -95,9 +112,7 @@ async function run(){
     await dateChoice(workerPage,'2030-12-30').check();
     await expect(workerPage.getByRole('button',{name:'Potvrdi datume'})).toBeDisabled();
     await dateChoice(workerPage,'2030-12-30').uncheck();
-    const confirmed=responseFor(workerPage,`${endpoint}/confirm`,200);
-    await workerPage.getByRole('button',{name:'Potvrdi datume'}).click();
-    await confirmed;
+    await clickAndRead(workerPage,'Potvrdi datume',`${endpoint}/confirm`,200,'initial confirmation');
 
     await managerPage.reload();
     await expect(managerPage.locator('#content .screen')).toBeVisible();
@@ -107,20 +122,15 @@ async function run(){
     await coveredButton(workerPage,note).click();
     await dateChoice(workerPage,'2030-12-31').uncheck();
     await dateChoice(workerPage,'2030-12-30').check();
-    const updated=responseFor(workerPage,`${endpoint}/confirm`,200);
-    await workerPage.getByRole('button',{name:'Potvrdi datume'}).click();
-    const accepted=await (await updated).json();
+    const {body:accepted}=await clickAndRead(workerPage,'Potvrdi datume',`${endpoint}/confirm`,200,'changed confirmation');
 
-    const stale=responseFor(managerPage,`${endpoint}/approve`,409);
-    await managerPage.getByRole('button',{name:'Odobri potvrđene datume'}).click();
-    assert.equal((await (await stale).json()).code,'STALE_REVISION');
+    const {body:stale}=await clickAndRead(managerPage,'Odobri potvrđene datume',`${endpoint}/approve`,409,'stale manager approval');
+    assert.equal(stale.code,'STALE_REVISION');
     await expect(managerPage.getByRole('button',{name:'Odobri potvrđene datume'})).toHaveCount(0);
     await managerPage.getByRole('button',{name:'Učitaj aktualni zahtjev'}).click();
-    const approved=responseFor(managerPage,`${endpoint}/approve`,200);
-    await managerPage.getByRole('button',{name:'Odobri potvrđene datume'}).click();
-    const response=await approved;
+    const {response,body:approval}=await clickAndRead(managerPage,'Odobri potvrđene datume',`${endpoint}/approve`,200,'current manager approval');
     assert.equal((await response.request().allHeaders())['if-match'],`"${accepted.revision}"`);
-    assert.deepEqual((await response.json()).dates.map(item=>item.date),finalDates);
+    assert.deepEqual(approval.dates.map(item=>item.date),finalDates);
     const balances=await Promise.all([2030,2031].map(year=>legacy.listLeaveBalances(worker,{year,limit:10})));
     assert.deepEqual(balances.map(item=>[item.items[0].approvedDays,item.items[0].plannedDays,item.items[0].availableDays]),[[5,0,0],[3,2,0]]);
     console.log('Covered leave browser PASS: 2030/2031 reservation, scoped confirmation, stale revision, exact approval and balances.');
@@ -130,4 +140,4 @@ async function run(){
     await fixture?.dispose();
   }
 }
-void run().catch(error=>{console.error(error.message);process.exitCode=1;});
+void run().catch(error=>{console.error(error.stack||error.message);process.exitCode=1;});
