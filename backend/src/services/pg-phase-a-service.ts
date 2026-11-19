@@ -276,6 +276,13 @@ export class PgPhaseAService implements PhaseAService {
   ) {}
 
   async getDashboardSummary(actor: ActorContext, date: string): Promise<DashboardSummaryView> {
+    const year = date.slice(0, 4);
+    const coveredAbsenceFilter = this.coveredDateReads ? `
+               AND (l.reservation_submission_key IS NULL OR EXISTS (
+                 SELECT 1 FROM annual_leave_decision_dates d
+                 WHERE d.organization_id = l.organization_id AND d.request_id = l.id
+                   AND d.absence_date = $5::date AND d.approved_revision IS NOT NULL
+               ))` : "";
     return withTenant(this.pool, actor, "dashboard-summary", async (client) => {
       const result = await client.query<{
         present: string;
@@ -295,34 +302,25 @@ export class PgPhaseAService implements PhaseAService {
          )
          SELECT
            (SELECT COUNT(*)::text FROM attendance_days a JOIN scoped_workers w ON w.id = a.worker_id
-             WHERE a.work_date = $1::date AND a.check_in IS NOT NULL) AS present,
+             WHERE a.work_date = $5::date AND a.check_in IS NOT NULL) AS present,
            (SELECT COUNT(DISTINCT l.worker_id)::text FROM leave_requests l JOIN scoped_workers w ON w.id = l.worker_id
-             WHERE l.status = 'approved' AND $1::date BETWEEN l.start_date AND l.end_date) AS absent_today,
+             WHERE l.status = 'approved' AND $5::date BETWEEN l.start_date AND l.end_date${coveredAbsenceFilter}) AS absent_today,
            (SELECT COUNT(*)::text FROM attendance_days a JOIN scoped_workers w ON w.id = a.worker_id
-             WHERE a.work_date = $1::date AND a.status IN ('late', 'incomplete')) AS review_required,
+             WHERE a.work_date = $5::date AND a.status IN ('late', 'incomplete')) AS review_required,
            ((SELECT COUNT(*) FROM leave_requests l JOIN scoped_workers w ON w.id = l.worker_id WHERE l.status = 'pending') +
             (SELECT COUNT(*) FROM correction_requests c JOIN attendance_days a ON a.id = c.attendance_day_id
                JOIN scoped_workers w ON w.id = a.worker_id WHERE c.status = 'pending'))::text AS pending_decision,
            COALESCE((SELECT SUM(a.worked_minutes) FROM attendance_days a JOIN scoped_workers w ON w.id = a.worker_id
-             WHERE a.work_date = $1::date), 0)::text AS worked_minutes,
+             WHERE a.work_date = $5::date), 0)::text AS worked_minutes,
            COALESCE((SELECT SUM(a.worked_minutes - a.planned_minutes) FROM attendance_days a JOIN scoped_workers w ON w.id = a.worker_id
-             WHERE a.work_date = $1::date), 0)::text AS balance_minutes,
+             WHERE a.work_date = $5::date), 0)::text AS balance_minutes,
            COALESCE((SELECT MAX(w.annual_leave_allowance) - COALESCE(SUM(days.working_days), 0)
              FROM workers w
              LEFT JOIN leave_requests l ON l.worker_id = w.id
                AND l.leave_type = 'annual_leave' AND l.status IN ('approved', 'pending')
-               AND l.end_date >= date_trunc('year', $1::date)::date
-               AND l.start_date <= (date_trunc('year', $1::date) + interval '1 year - 1 day')::date
-             LEFT JOIN LATERAL (
-               SELECT COUNT(*)::integer AS working_days
-               FROM generate_series(
-                 GREATEST(l.start_date, date_trunc('year', $1::date)::date)::timestamp,
-                 LEAST(l.end_date, (date_trunc('year', $1::date) + interval '1 year - 1 day')::date)::timestamp,
-                 interval '1 day'
-               ) AS day(value)
-               WHERE EXTRACT(ISODOW FROM day.value) < 6
-                 AND NOT EXISTS (SELECT 1 FROM holidays h WHERE h.holiday_date = day.value::date)
-             ) days ON l.id IS NOT NULL
+               AND l.end_date >= make_date($1, 1, 1)
+               AND l.start_date <= make_date($1, 12, 31)
+             LEFT JOIN LATERAL (${leaveBalanceWorkingDaysSql(this.coveredDateReads)}) days ON l.id IS NOT NULL
              WHERE w.id = $4::uuid), 0)::text AS available_leave,
            GREATEST(
              COALESCE((SELECT MAX(a.revision) FROM attendance_days a JOIN scoped_workers w ON w.id = a.worker_id), 0),
@@ -330,7 +328,7 @@ export class PgPhaseAService implements PhaseAService {
              COALESCE((SELECT MAX(c.revision) FROM correction_requests c JOIN attendance_days a ON a.id = c.attendance_day_id
                JOIN scoped_workers w ON w.id = a.worker_id), 0)
            )::text AS data_revision`,
-        [date, actor.role, actor.departmentIds, actor.selfWorkerId]
+        [year, actor.role, actor.departmentIds, actor.selfWorkerId, date]
       );
       const row = result.rows[0];
       if (!row) throw new Error("Dashboard query returned no row");
@@ -339,7 +337,7 @@ export class PgPhaseAService implements PhaseAService {
         ? [
             { id: "worked_minutes", value: Number(row.worked_minutes), targetScreen: "mytime", filters },
             { id: "balance_minutes", value: Number(row.balance_minutes), targetScreen: "mytime", filters },
-            { id: "available_leave", value: Number(row.available_leave), targetScreen: "vacations", filters: { year: date.slice(0, 4) } },
+            { id: "available_leave", value: Number(row.available_leave), targetScreen: "vacations", filters: { year } },
             { id: "pending_decision", value: Number(row.pending_decision), targetScreen: "requests", filters: { status: "pending" } }
           ]
         : [
