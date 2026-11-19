@@ -23,6 +23,7 @@ const coreSources = [
   'src/views/registry.js',
   'src/views/events.js',
   'src/views/attendance-operational.js',
+  'src/views/my-time-operational.js',
   'src/views/workers-operational.js',
   'src/views/navigation-operational.js',
   'src/views/approvals-operational.js',
@@ -413,7 +414,7 @@ test('UX/UI Cleanup v1.1 koristi tablice i kompaktne informacijske sažetke bez 
   reviewButton=worker.document.querySelector('[data-bss-action="setMyTimeReview(true)"]');
   assert.equal(reviewButton.disabled,false);
   assert.match(reviewButton.textContent,/Za provjeru/);
-  assert.equal(worker.document.querySelector('.personal-attendance-table thead').textContent.includes('Radnik'),false);
+  assert.doesNotMatch(worker.document.querySelector('#myTimeRecords').textContent,/Marko Marić|Petra Novak/);
 });
 
 test('svaki KPI i kompaktni brojčani sažetak ima drill-down bez slijepih kartica',()=>{
@@ -864,15 +865,22 @@ test('radnikova evidencija ostaje privatna i korekcija kreće iz odabranog zapis
   const {window,document,state}=boot('worker');
   window.navigate('mytime');
   assert.equal(document.querySelector('#myTimeMonth').value,'2026-07');
-  assert.equal(document.querySelectorAll('.attendance-table .table-detail-btn').length,5);
+  assert.equal(document.querySelectorAll('.mytime-day-list .mytime-day-button').length,5);
   const summary=window.attendanceSummary(state().records.filter(record=>record.workerId===1&&record.date.startsWith('2026-07')));
   assert.equal(summary.workedMinutes,1837);
   assert.equal(summary.plannedMinutes,1800);
   assert.equal(summary.balanceMinutes,37);
   assert.doesNotMatch(document.querySelector('#content').textContent,/Marko Marić|Petra Novak/);
 
-  window.openAttendanceRecord(5);
-  window.startCorrectionFromRecord(5);
+  const picker=document.querySelector('#myTimeDay');
+  picker.value='5';
+  picker.dispatchEvent(new window.Event('change',{bubbles:true}));
+  assert.equal(document.activeElement.id,'myTimeDay');
+  assert.equal(document.querySelector('#myTimeDay-5').getAttribute('aria-pressed'),'true');
+  window.render();
+  assert.equal(document.querySelector('#myTimeDay').value,'5');
+  assert.match(document.querySelector('#myTimeDayTitle').textContent,/10/);
+  document.querySelector('.mytime-day-detail button').click();
   assert.equal(document.querySelector('#corrDate').value,'2026-07-10');
   assert.equal(document.querySelector('#corrStart').value,'07:42');
   assert.equal(document.querySelector('#corrEnd').value,'');
@@ -884,6 +892,17 @@ test('radnikova evidencija ostaje privatna i korekcija kreće iz odabranog zapis
   assert.equal(state().corrections[0].workerId,1);
   assert.equal(state().corrections[0].status,'Na čekanju');
   assert.match(state().audit[0].action,/Poslana korekcija/);
+  window.switchRole('admin');
+  window.updateCorrection(state().corrections[0].id,'Odobreno');
+  window.switchRole('worker');
+  window.navigate('mytime');
+  window.selectMyTimeDay(5);
+  assert.match(document.querySelector('.mytime-day-detail').textContent,/16:00/);
+  assert.match(document.querySelector('.mytime-day-detail').textContent,/Korekcija: Odobreno/);
+  window.setMyTimeMonth('2032-06');
+  assert.equal(document.querySelector('#myTimeDay'),null);
+  assert.equal(document.querySelector('.mytime-day-detail'),null);
+  assert.match(document.querySelector('#myTimeRecords').textContent,/Nema zapisa u ovom mjesecu/);
 });
 
 test('voditelj u Sprintu 2 ne može otvoriti zapis izvan svojih odjela',()=>{
@@ -2029,7 +2048,7 @@ test('aplikacija povezuje vodič i offline predmemorira cijeli Design System',()
   for(const asset of ['design-system/index.html','design-system/tokens.css','design-system/guide.css','design-system/guide.js']){
     assert.match(serviceWorker,new RegExp(asset.replaceAll('.','\\.')));
   }
-  assert.match(serviceWorker,/bss-backend-mvp-v1-r16/);
+  assert.match(serviceWorker,/bss-backend-mvp-v1-r17/);
 });
 
 test('Brand Book v1.0 pokriva svih devet dogovorenih područja',()=>{
@@ -2093,7 +2112,7 @@ test('aplikacija povezuje Brand Book i cijeli paket radi offline',()=>{
     'bss-presentation-cover.svg','bss-terminal-label.svg',
     'BSS_BRAND-BOOK_v1.0_11.07.2026.pdf'
   ]) assert.match(serviceWorker,new RegExp(asset.replaceAll('.','\\.')));
-  assert.match(serviceWorker,/bss-backend-mvp-v1-r16/);
+  assert.match(serviceWorker,/bss-backend-mvp-v1-r17/);
   assert.match(serviceWorker,/path\.includes\('\/brand-book'\)/);
 });
 
@@ -2195,11 +2214,11 @@ test('Backend MVP učitava API adaptere prije aplikacije i sprema shell za offli
   ]){
     assert.match(serviceWorker,new RegExp(asset.replaceAll('.','\\.')));
   }
-  assert.match(serviceWorker,/bss-backend-mvp-v1-r16/);
+  assert.match(serviceWorker,/bss-backend-mvp-v1-r17/);
 });
 
 test('cache invalidation hotfix osvježava app shell i odmah preuzima otvorene klijente',()=>{
-  assert.match(serviceWorker,/const CACHE_NAME = 'bss-backend-mvp-v1-r16'/);
+  assert.match(serviceWorker,/const CACHE_NAME = 'bss-backend-mvp-v1-r17'/);
   assert.match(serviceWorker,/new Request\(asset,\{cache:'reload'\}\)/);
   assert.match(serviceWorker,/new Request\(request,\{cache:'no-store'\}\)/);
   assert.match(serviceWorker,/new Request\(request,\{cache:'no-cache'\}\)/);
