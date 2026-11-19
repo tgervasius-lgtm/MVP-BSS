@@ -8,6 +8,7 @@ import { withTenant } from "../../src/db/tenant.js";
 import type { ActorContext } from "../../src/domain/types.js";
 import { PgAnnualLeaveReservationService } from "../../src/services/pg-annual-leave-reservation-service.js";
 import { PgMvpService } from "../../src/services/pg-mvp-service.js";
+import { PgPhaseAService } from "../../src/services/pg-phase-a-service.js";
 import { createPostgresFixture } from "../helpers/postgres-fixture.js";
 import { createHash } from "node:crypto";
 import { loadConfig } from "../../src/config.js";
@@ -354,6 +355,13 @@ test("BSS OS #308 five approved dates across the balance, calendar, reports, sna
   const exportsPath="/api/v1/report-exports";
   const calendarPath="/api/v1/approved-leave-calendar?from=2030-01-01&to=2030-01-31";
   const balancePath="/api/v1/leave-balances?year=2030";
+  async function dashboardKpi(date: string, actor: string, id: string) {
+    const response = await read(`/api/v1/dashboard-summary?date=${date}`, actor);
+    const summary = response.json<Awaited<ReturnType<PgMvpService["getDashboardSummary"]>>>();
+    const kpi = summary.kpis.find(item => item.id === id);
+    assert.ok(kpi, `Expected dashboard KPI ${id} for ${actor}`);
+    return kpi.value;
+  }
   const oldLegacy=await f.legacy.createLeaveRequest(f.worker,
     { typeCode:"annual_leave",startDate:"2029-12-17",endDate:"2029-12-18" },"legacy-december");
   await f.legacy.approveLeaveRequest(f.manager,oldLegacy.id,oldLegacy.revision,undefined,"legacy-approve");
@@ -368,8 +376,14 @@ test("BSS OS #308 five approved dates across the balance, calendar, reports, sna
   const pending=(await read(balancePath,"worker")).json().items[0];
   assert.deepEqual(request.years,[{year:2030,requestedDays:7,reservedDays:5}]);
   assert.equal(pending.plannedDays,5);
+  await t.test("dashboard charges only reserved days while the request is pending", async () => {
+    assert.equal(await dashboardKpi("2030-01-07", "worker", "available_leave"), pending.availableDays);
+  });
   const selected=covered("2030-01-07","2030-01-08","2030-01-10","2030-01-11","2030-01-15");
   const confirmed=await f.reserve.confirmCoveredDates(f.worker,request.requestId,request.revision,selected,"proof-confirm");
+  await t.test("worker confirmation alone does not create a dashboard absence", async () => {
+    assert.equal(await dashboardKpi("2030-01-07", "manager", "absent_today"), 0);
+  });
   const approval=await f.reserve.approveConfirmedCoveredDates(f.manager,request.requestId,confirmed.revision,"proof-approve");
   assert.deepEqual(approval.dates,selected);
   const stored=(await f.owner.query("SELECT absence_date::text AS day FROM annual_leave_decision_dates WHERE request_id=$1 AND approved_revision IS NOT NULL ORDER BY absence_date",[request.requestId])).rows;
@@ -378,6 +392,18 @@ test("BSS OS #308 five approved dates across the balance, calendar, reports, sna
   const expectedSaldo={approved:5,planned:0,remaining:0,available:0};
   const actualSaldo={approved:balance.approvedDays,planned:balance.plannedDays,remaining:balance.remainingDays,available:balance.availableDays};
   assert.deepEqual(actualSaldo,expectedSaldo);
+  await t.test("dashboard charges only approved dates after the decision", async () => {
+    assert.equal(await dashboardKpi("2030-01-07", "worker", "available_leave"), balance.availableDays);
+  });
+  await t.test("dashboard counts approved dates within the actor's scope and excludes gaps", async () => {
+    for (const role of ["admin", "manager"]) {
+      assert.equal(await dashboardKpi("2030-01-07", role, "absent_today"), 1);
+      assert.equal(await dashboardKpi("2030-01-09", role, "absent_today"), 0);
+    }
+    for (const role of ["outside", "other"]) {
+      assert.equal(await dashboardKpi("2030-01-07", role, "absent_today"), 0);
+    }
+  });
   const expectedRanges = [
     ["2030-01-07","2030-01-08",2], ["2030-01-10","2030-01-11",2], ["2030-01-15","2030-01-15",1]
   ];
@@ -420,6 +446,14 @@ test("BSS OS #308 five approved dates across the balance, calendar, reports, sna
   assert.deepEqual(oldAgain,old);
   assert.equal(sha(oldAgain),earlier.checksumSha256);
   assert.equal((await read(exportsPath+"/"+earlier.id+"/verification")).json().verified,true);
+  await t.test("default dashboard retains legacy dates and needs no covered-table grants", async () => {
+    await f.owner.query(`REVOKE SELECT ON annual_leave_reservations, annual_leave_decision_dates FROM ${f.role}`);
+    const dashboard = new PgPhaseAService(f.appPool, "synthetic-dashboard-pepper");
+    const worker = await dashboard.getDashboardSummary(f.worker, "2029-12-17");
+    assert.equal(worker.kpis.find(item => item.id === "available_leave")?.value, 3);
+    const manager = await dashboard.getDashboardSummary(f.manager, "2029-12-17");
+    assert.equal(manager.kpis.find(item => item.id === "absent_today")?.value, 1);
+  });
   console.log("BSS308_CANDIDATE_PASS "+JSON.stringify({actualSaldo,expectedSaldo,pendingPlanned:pending.plannedDays,
     stored:stored.map(i=>i.day),calendar:rows.map((i:any)=>[i.startDate,i.endDate]),snapshotRows:snapshot.approvedAbsences.length,
     V2WorkingDays:snapshot.approvedAbsences.map((i:any)=>i.workingDays),oldExportSha256:sha(oldAgain)}));
