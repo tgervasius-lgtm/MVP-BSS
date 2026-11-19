@@ -38,6 +38,7 @@
       renderBody(view.coveredLeaveDecision({decision,request,worker:role==='worker',workerName:callbacks.workerName(request.workerId),...callbacks.format}));
       const limits=new Map(decision.years.map(year=>[String(year.year),year.reservedDays]));
       const apply=card.querySelector('[data-covered-apply]'),reject=card.querySelector('[data-covered-reject]');
+      const decisionButtons=[apply,reject].filter(Boolean);
       const selected=()=>[...card.querySelectorAll('input:checked')].map(input=>({date:input.value,type:'annual_leave'}));
       function updateSelection(){
         if(!apply||role!=='worker')return;
@@ -58,32 +59,33 @@
         callbacks.setLoading(true);
         const errorMessage=card.querySelector('[data-covered-error]');
         errorMessage.hidden=true;
-        if(apply)apply.disabled=true;
-        if(reject)reject.disabled=true;
+        decisionButtons.forEach(button=>{button.disabled=true;});
         try{
           const target=action==='reject'?`/leave-requests/${request.apiId}/reject`:`${path}/${action}`;
           await callbacks.api.post(target,body,callbacks.revisionHeaders(decision.revision));
-          if(sessionActive()){
-            if(active())root.closeModal();
-            await callbacks.refreshApi({confirm:'Datumi su potvrđeni. Zahtjev čeka odluku.',approve:'Potvrđeni datumi su odobreni.',reject:'Zahtjev je odbijen.'}[action]);
-          }
+          if(!sessionActive())return;
+          if(active())root.closeModal();
+          await callbacks.refreshApi({confirm:'Datumi su potvrđeni. Zahtjev čeka odluku.',approve:'Potvrđeni datumi su odobreni.',reject:'Zahtjev je odbijen.'}[action]);
         }catch(error){
-          if(active()&&error?.code==='STALE_REVISION'){
+          if(!active())return;
+          if(error?.code==='STALE_REVISION'){
             renderBody(view.coveredLeaveReload(id,'Zahtjev je izmijenjen tijekom pregleda.',callbacks.format.escapeHtml));
             card.querySelector('[data-bss-action^="coveredLeaveAction"]').focus();
-          }else if(active()){
-            errorMessage.textContent=callbacks.apiMessage(error);
-            errorMessage.hidden=false;
-            if(reject)reject.disabled=false;
-            if(apply)apply.disabled=false;
-            updateSelection();
+            return;
           }
+          errorMessage.textContent=callbacks.apiMessage(error);
+          errorMessage.hidden=false;
+          decisionButtons.forEach(button=>{button.disabled=false;});
+          updateSelection();
         }finally{callbacks.setLoading(false);}
       }
-      if(apply)apply.onclick=()=>role==='worker'?save('confirm',{dates:selected()}):save('approve');
+      if(apply)apply.onclick=()=>{
+        if(role==='worker')void save('confirm',{dates:selected()});
+        else void save('approve');
+      };
       if(reject)reject.onclick=()=>{
         const note=card.querySelector('textarea').value.trim();
-        if(note)save('reject',{note});
+        if(note)void save('reject',{note});
         else{
           const error=card.querySelector('[data-covered-error]');
           error.textContent='Upiši razlog odbijanja.';error.hidden=false;

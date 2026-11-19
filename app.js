@@ -1113,7 +1113,8 @@ function requestCard(request,isApprover=false){
   const decisionBlock=request.decidedAt?`<div class="leave-decision"><span>${escapeHtml(request.decidedBy||'Sustav')} · ${escapeHtml(request.decidedAt)}</span><b>${escapeHtml(request.decisionNote||'Odluka bez dodatne napomene.')}</b></div>`:'';
   const approverAction=isApprover&&request.status==='Na čekanju'?`<button class="btn small" data-bss-action="openRequestDecision(${request.id})">Donesi odluku</button>`:'';
   const workerAction=currentRole==='worker'&&request.workerId===currentWorker().id&&request.status==='Na čekanju'?`<button class="btn red small" data-bss-action="openCancelRequest(${request.id})">Poništi zahtjev</button>`:'';
-  return `<article class="leave-request-card" data-request-id="${request.id}" data-status="${escapeHtml(request.status)}"><div class="leave-request-head"><div class="avatar">${escapeHtml(initials(worker?.name))}</div><div><b>${escapeHtml(worker?.name||'Nepoznat radnik')}</b><span>${escapeHtml(worker?.dept||'—')} · poslano ${escapeHtml(request.submittedAt||'nije evidentirano')}</span></div>${pill(request.status)}</div><div class="leave-request-body"><div><span>Vrsta</span><b>${escapeHtml(request.type)}</b></div><div><span>${request.approvedDates?'Traženo razdoblje':'Razdoblje'}</span><b>${escapeHtml(rangeLabel(request.start,request.end))}</b></div><div><span>Radni dani</span><b>${days}</b></div></div><p>${escapeHtml(request.note||'Bez dodatne napomene.')}</p>${conflictBlock}${decisionBlock}${approverAction||workerAction?`<div class="leave-request-actions">${approverAction}${workerAction}</div>`:''}</article>`;
+  const actions=approverAction||workerAction?`<div class="leave-request-actions">${approverAction}${workerAction}</div>`:'';
+  return `<article class="leave-request-card" data-request-id="${request.id}" data-status="${escapeHtml(request.status)}"><div class="leave-request-head"><div class="avatar">${escapeHtml(initials(worker?.name))}</div><div><b>${escapeHtml(worker?.name||'Nepoznat radnik')}</b><span>${escapeHtml(worker?.dept||'—')} · poslano ${escapeHtml(request.submittedAt||'nije evidentirano')}</span></div>${pill(request.status)}</div><div class="leave-request-body"><div><span>Vrsta</span><b>${escapeHtml(request.type)}</b></div><div><span>${request.approvedDates?'Traženo razdoblje':'Razdoblje'}</span><b>${escapeHtml(rangeLabel(request.start,request.end))}</b></div><div><span>Radni dani</span><b>${days}</b></div></div><p>${escapeHtml(request.note||'Bez dodatne napomene.')}</p>${conflictBlock}${decisionBlock}${actions}</article>`;
 }
 function requestTable(requests,isApprover=false,showWorker=currentRole!=='worker'){
   const body=requests.map(request=>{
@@ -1232,7 +1233,6 @@ function cancelVacationRequest(id){
   audit('Radnik',`Poništen zahtjev: ${currentWorker().name} · ${rangeLabel(request.start,request.end)}.`,'Zahtjevi');
   closeModal();saveAndRender('Zahtjev je poništen, a rezervirani dani su vraćeni.');
 }
-
 function calendarRequests(){
   return state.requests.filter(request=>request.start&&request.end&&activeLeaveRequest(request)&&requestVisible(request))
     .filter(request=>currentRole!=='accountant'||request.status==='Odobreno')

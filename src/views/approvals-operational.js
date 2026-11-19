@@ -56,7 +56,7 @@
   function showSubmittedLeaveRequest({type,start,end,status},rangeLabel,years=[]){
     const confirmation=root.document.getElementById('submittedLeaveRequest');
     if(!confirmation)return;
-    confirmation.querySelector('span').textContent=`${type} · ${rangeLabel(start,end)} · ${status}${years.map(year=>` · ${leaveCoverage(year)}`).join('')}`;
+    confirmation.querySelector('span').textContent=[type,rangeLabel(start,end),status,...years.map(leaveCoverage)].join(' · ');
     confirmation.hidden=false;
     const content=confirmation.closest('main');
     content?.scrollBy?.({
@@ -79,12 +79,14 @@
 
   function coveredLeaveDecision({decision,request,worker,workerName,isoLabel,rangeLabel,escapeHtml}){
     const pending=decision.status==='pending',confirmed=new Set(decision.dates.map(item=>item.date));
-    const coverage=pending?`<ul>${decision.years.map(year=>`<li>${escapeHtml(leaveCoverage(year))}</li>`).join('')}</ul>`:'';
+    const coverageItems=pending?decision.years.map(year=>`<li>${escapeHtml(leaveCoverage(year))}</li>`).join(''):'';
+    const coverage=coverageItems?`<ul>${coverageItems}</ul>`:'';
     const dates=decision.dates.map(({date})=>`<li>${escapeHtml(isoLabel(date))}</li>`).join('');
+    const dateList=dates?`<ul>${dates}</ul>`:'';
     const summary=`<p>${worker?'Tvoj zahtjev':escapeHtml(workerName||'Radnik')} · traženo razdoblje ${escapeHtml(rangeLabel(request.start,request.end))}</p>${coverage}`;
     if(!pending){
       const status=decision.status==='approved'?'Odobreni datumi':'Zahtjev je zatvoren';
-      return `${summary}<h3>${status}</h3>${dates?`<ul>${dates}</ul>`:''}`;
+      return `${summary}<h3>${status}</h3>${dateList}`;
     }
     const error='<p class="notice danger" data-covered-error role="alert" hidden></p>';
     if(worker){
@@ -94,7 +96,8 @@
         <fieldset class="form"><legend>Datumi za potvrdu</legend>${choices}</fieldset><p data-covered-count aria-live="polite"></p>${error}
         <button type="button" class="btn" data-covered-apply>Potvrdi datume</button>`;
     }
-    return `${summary}${dates?`<h3>Radnik je potvrdio</h3><ul>${dates}</ul>`:'<p>Čeka se potvrda radnika.</p>'}
+    const confirmation=dates?`<h3>Radnik je potvrdio</h3>${dateList}`:'<p>Čeka se potvrda radnika.</p>';
+    return `${summary}${confirmation}
       <label>Razlog odbijanja<textarea rows="3"></textarea></label>${error}<div class="btns">
       ${dates?'<button type="button" class="btn green" data-covered-apply>Odobri potvrđene datume</button>':''}
       <button type="button" class="btn red" data-covered-reject>Odbij zahtjev</button></div>`;
