@@ -44,8 +44,13 @@
   function contractualAttendanceTime(item,eventType){
     const utcInstant=eventType==='check_in'?item?.checkIn:item?.checkOut;
     if(!utcInstant)return'';
-    const interpretation=(item?.provenance?.eventTimeInterpretations||[]).find(candidate=>candidate.eventType===eventType&&candidate.utcInstant===utcInstant);
-    return interpretation?.localTimestamp?.slice(11,16)||'Nepoznato';
+    const provenance=item?.provenance;
+    const interpretation=(provenance?.eventTimeInterpretations||[]).find(candidate=>candidate.eventType===eventType&&candidate.utcInstant===utcInstant);
+    if(interpretation?.localTimestamp)return interpretation.localTimestamp.slice(11,16);
+    if(item.source==='approved_correction'&&provenance?.status==='complete'&&provenance.timezone){
+      return localTime(utcInstant,provenance.timezone);
+    }
+    return 'Nepoznato';
   }
   function dateRange(year){return{from:`${year}-01-01`,to:`${year}-12-31`};}
   function settledValue(result,fallback){return result?.status==='fulfilled'?result.value:fallback;}

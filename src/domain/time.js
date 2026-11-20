@@ -10,6 +10,7 @@
   }
 
   function recordMinutes(record,{includeActive=false,today='',now=''}={}){
+    if(record?.end&&Number.isFinite(record.workedMinutes))return record.workedMinutes;
     const start = timeToMinutes(record?.start);
     let end = timeToMinutes(record?.end);
     if(start === null) return 0;
