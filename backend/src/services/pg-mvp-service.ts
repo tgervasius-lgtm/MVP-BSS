@@ -303,7 +303,7 @@ export class PgMvpService extends PgPhaseAService implements MvpService {
            to_char(absence.end_date, 'YYYY-MM-DD') AS end_date
          FROM leave_requests l JOIN LATERAL (${approvedLeaveRangesSql(this.coveredDateReads)}) absence ON true
          JOIN workers w ON w.id = l.worker_id
-         WHERE l.status = 'approved' AND l.leave_type = 'annual_leave'
+         WHERE l.status = 'approved' AND l.leave_type = 'annual_leave' AND absence.leave_type = 'annual_leave'
            AND l.end_date >= $1::date AND l.start_date <= $2::date
            AND ($3::boolean OR w.department_id = ANY($4::uuid[]))
          ORDER BY absence.start_date, w.name, absence.id`,

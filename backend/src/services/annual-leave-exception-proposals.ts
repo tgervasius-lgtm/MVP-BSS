@@ -4,14 +4,14 @@ import { AppError } from "../domain/errors.js";
 import type { ActorContext } from "../domain/types.js";
 import { requireRole, requireWorkerScope } from "../security/rbac.js";
 import { requireAnnualLeaveExceptionGrant } from "./annual-leave-exception-grants.js";
-import type { LeaveType } from "./contracts.js";
+import type { LeaveDecisionDate, LeaveType } from "./contracts.js";
 import { insertAudit } from "./mvp-audit.js";
-import { lockPendingReservation, recordedYears } from "./pg-annual-leave-reservation-service.js";
+import { allocateAnnualLeaveReservations, lockPendingReservation, recordedYears, requireReservationApprovalPeriods } from "./pg-annual-leave-reservation-service.js";
 import { requireBoundedDateRange } from "./validation.js";
 
 export const alternateLeaveTypes = ["paid_leave", "unpaid_leave", "free_day"] as const;
 type AlternateLeaveType = typeof alternateLeaveTypes[number];
-export type ExceptionDate = { date: string; type: LeaveType };
+export type ExceptionDate = LeaveDecisionDate;
 type CompanyPolicy = (organizationId: string) => readonly AlternateLeaveType[];
 
 type ProposalView = {
@@ -73,6 +73,7 @@ async function requireProposalTerms(
   if (years.every(year => year.reservedDays === year.requestedDays)) {
     throw new AppError("CONFLICT", "Zahtjev nema nepokrivenih dana.");
   }
+  return years;
 }
 
 export class PgAnnualLeaveExceptionProposalService {
@@ -159,6 +160,45 @@ export class PgAnnualLeaveExceptionProposalService {
       );
       const result = { requestId: id, revision: confirmationRevision, proposalRevision: revision, confirmed: true, dates: selected };
       await insertAudit(db, actor, requestId, "leave_request.confirm_exception", "leave_request", id, { revision }, result, "leave");
+      return result;
+    });
+  }
+
+  async approve(actor: ActorContext, id: string, revision: string, requestId: string) {
+    requireRole(actor, ["admin", "manager"]);
+    return withTenant(this.pool, actor, requestId, async db => {
+      const { row, worker } = await lockPendingReservation(db, actor, id, revision);
+      const { rows: [proposal] } = await db.query<{
+        proposal_revision: string; worker_user_id: string; dates: ExceptionDate[];
+      }>(
+        `SELECT p.proposal_revision::text, c.worker_user_id, p.dates
+         FROM annual_leave_exception_proposals p
+         JOIN annual_leave_exception_confirmations c
+           ON (c.organization_id, c.request_id, c.proposal_revision) = (p.organization_id, p.request_id, p.proposal_revision)
+         WHERE p.request_id = $1 AND p.organization_id = $2 AND c.confirmation_revision = $3
+           AND c.worker_user_id = $4`,
+        [id, actor.organizationId, revision, row.reservation_submitted_by]
+      );
+      if (!proposal) throw new AppError("CONFLICT", "Radnik mora potvrditi prijedlog iznimke na aktualnoj reviziji.");
+
+      await requireReservationApprovalPeriods(db, actor.organizationId, row);
+      const years = await requireProposalTerms(db, row, proposal.dates, this.companyPolicy(actor.organizationId));
+      await allocateAnnualLeaveReservations(db, row.worker_id, worker.annual_leave_allowance, years, row.id);
+      const { rows: [next] } = await db.query<{ revision: string }>(
+        `UPDATE leave_requests SET status = 'approved', decided_by = $2, decided_at = clock_timestamp(),
+           revision = revision + 1 WHERE id = $1 RETURNING revision::text`, [id, actor.userId]
+      );
+      await db.query(
+        `INSERT INTO annual_leave_decision_dates
+           (organization_id, request_id, confirmed_revision, absence_date, absence_type, confirmed_by, approved_revision)
+         SELECT $1, $2, $3, selection.day, selection.type, $4, $5
+         FROM unnest($6::date[], $7::text[]) AS selection(day, type)`,
+        [actor.organizationId, id, revision, proposal.worker_user_id, next!.revision,
+          proposal.dates.map(item => item.date), proposal.dates.map(item => item.type)]
+      );
+      const result = { requestId: id, revision: next!.revision, status: "approved" as const, dates: proposal.dates };
+      await insertAudit(db, actor, requestId, "leave_request.approve_exception", "leave_request", id,
+        { revision, status: "pending", proposalRevision: proposal.proposal_revision }, result, "leave");
       return result;
     });
   }

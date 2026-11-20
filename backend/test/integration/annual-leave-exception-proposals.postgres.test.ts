@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { loadConfig } from "../../src/config.js";
@@ -22,7 +22,7 @@ const dates: ExceptionDate[] = ["07", "08", "09", "10", "11", "14", "15"].map((d
 }));
 const proposal = { reason: "Ogledna osnova prema politici tvrtke", dates: [...dates].reverse() };
 
-async function fixture(t: test.TestContext) {
+async function fixture(t: test.TestContext, approvalEnabled = false) {
   assert.ok(url, "Explicit disposable BSS_TEST_DATABASE_URL required");
   const f = await coveredLeaveFixture(url, true);
   t.after(f.dispose);
@@ -40,6 +40,16 @@ async function fixture(t: test.TestContext) {
     assert.equal((await f.owner.query(
       "SELECT has_table_privilege($1, $2, 'SELECT,INSERT,UPDATE') AS permitted", [f.role, name]
     )).rows[0].permitted, false);
+  }
+
+  if (approvalEnabled) {
+    const upApproval = await migration("025_annual_leave_exception_approval.up");
+    const downApproval = await migration("025_annual_leave_exception_approval.down");
+    await f.owner.query("BEGIN;" + upApproval + "COMMIT;");
+    await f.owner.query("BEGIN;" + downApproval + "COMMIT;");
+    await f.owner.query("BEGIN;" + upApproval + "COMMIT;");
+    await f.owner.query(`GRANT SELECT (worker_user_id) ON annual_leave_exception_confirmations TO ${f.role}`);
+    await f.owner.query(`GRANT INSERT ON report_exports TO ${f.role}`);
   }
 
   // Provision only the isolated fixture privileges and an already executed authority operation.
@@ -228,4 +238,142 @@ test("exception terms obey company policy and each year's reservation, and audit
     [f.worker.organizationId]);
   await assert.rejects(f.service.confirm(f.worker, created.requestId, "2", mixed, "calendar-changed"), { code: "VALIDATION_FAILED" });
   assert.equal((await f.service.read(f.worker, created.requestId, "pending")).confirmed, false);
+});
+
+test("final mixed approval is atomic across years and preserves the earlier snapshot and CSV", options, async t => {
+  const f = await fixture(t, true);
+  await f.provisionGrant();
+  const prior = await f.legacy.createLeaveRequest(f.worker,
+    { typeCode: "annual_leave", startDate: "2030-12-23", endDate: "2030-12-25" }, "prior");
+  await f.legacy.approveLeaveRequest(f.admin, prior.id, prior.revision, undefined, "approve-prior");
+  await f.legacy.createLeaveRequest(f.worker,
+    { typeCode: "annual_leave", startDate: "2031-01-06", endDate: "2031-01-07" }, "planned-january");
+  const created = await f.reserve.submit(f.worker,
+    { startDate: "2030-12-26", endDate: "2031-01-03" }, "mixed-approval-years", "submit");
+  assert.deepEqual(created.years, [
+    { year: 2030, requestedDays: 4, reservedDays: 2 }, { year: 2031, requestedDays: 3, reservedDays: 3 }
+  ]);
+  const mixed: ExceptionDate[] = ["2030-12-26", "2030-12-27", "2030-12-30", "2030-12-31", "2031-01-01", "2031-01-02", "2031-01-03"]
+    .map((date, i) => ({ date, type: i === 1 || i === 2 ? "unpaid_leave" : "annual_leave" }));
+
+  const users = new Map([["worker", f.worker], ["admin", f.admin], ["manager", f.manager],
+    ["outside", { ...f.manager, departmentIds: [] }], ["foreign", f.other.admin]]);
+  class Auth extends FakeAuthService {
+    override async resolveAccessToken(token: string) {
+      const actor = users.get(token);
+      if (!actor) throw new AppError("UNAUTHENTICATED", "Synthetic session required.");
+      const { context } = await super.resolveAccessToken(actor.role);
+      return { actor, context };
+    }
+  }
+  const deps = {
+    config: loadConfig({ NODE_ENV: "test", PUBLIC_ORIGIN: "https://bss.test", DATABASE_URL: url, LOG_LEVEL: "silent" }),
+    authService: new Auth(), phaseAService: f.legacy, logger: false,
+    coveredLeaveDecisions: f.reserve, annualLeaveExceptionProposals: f.service
+  };
+  const proposalsOnly = await buildApp(deps);
+  const app = await buildApp({ ...deps, annualLeaveExceptionApproval: f.service });
+  t.after(async () => { await app.close(); await proposalsOnly.close(); });
+  const requestPath = `/api/v1/leave-requests/${created.requestId}`;
+  const approvalPath = requestPath + "/exception-proposal/approve";
+  const approve = (seat: string, revision: string, instance = app, payload?: object) =>
+    instance.inject({ method: "POST", url: approvalPath, cookies: { bss_session: seat },
+      headers: { origin: "https://bss.test", "if-match": `"${revision}"` }, ...(payload ? { payload } : {}) });
+
+  assert.equal((await approve("manager", created.revision, proposalsOnly)).statusCode, 404);
+  assert.equal((await approve("manager", created.revision)).json().code, "CONFLICT");
+  const saved = await f.service.propose(f.admin, created.requestId, created.revision,
+    { reason: proposal.reason, dates: mixed }, "propose-mixed");
+  assert.equal((await approve("admin", saved.revision)).json().code, "CONFLICT");
+  const confirmed = await f.service.confirm(f.worker, created.requestId, saved.revision, mixed, "confirm-mixed");
+  assert.equal((await approve("worker", confirmed.revision)).statusCode, 403);
+  assert.equal((await approve("outside", confirmed.revision)).statusCode, 403);
+  assert.equal((await approve("foreign", confirmed.revision)).statusCode, 404);
+  assert.equal((await approve("manager", saved.revision)).json().code, "STALE_REVISION");
+  assert.equal((await approve("manager", confirmed.revision, app, { dates: mixed })).statusCode, 422);
+
+  async function finalizeDecember(revision: string) {
+    const review = await f.legacy.startAttendancePeriodReview(f.admin, 2030, 12, { reason: "Fixture review" },
+      revision, randomUUID(), "review");
+    return f.legacy.finalizeAttendancePeriod(f.admin, 2030, 12, { reason: "Fixture finalization" },
+      review.revision, randomUUID(), randomUUID());
+  }
+  const first = await finalizeDecember("0");
+  const snapshot = async (id: string | null) => (await f.owner.query(
+    "SELECT dataset_checksum_sha256, dataset_snapshot FROM attendance_period_versions WHERE id=$1", [id]
+  )).rows[0]!;
+  const originalSnapshot = await snapshot(first.datasetVersion);
+  const report = { reportType: "approved_absences" as const, periodFrom: "2030-12-01", periodTo: "2030-12-31" };
+  const originalExport = await f.legacy.createReportExport(f.admin,
+    { ...report, format: "csv", periodVersionId: first.datasetVersion }, "original-export");
+  const originalFile = await f.legacy.downloadReportExport(f.admin, originalExport.id);
+  const countDays = async () => (await f.owner.query(
+    "SELECT count(*)::integer AS n FROM annual_leave_decision_dates WHERE request_id=$1", [created.requestId]
+  )).rows[0].n;
+  const balance = async (year: number) => {
+    const item = (await f.legacy.listLeaveBalances(f.worker, { year, limit: 10 })).items[0]!;
+    return [item.approvedDays, item.plannedDays, item.availableDays];
+  };
+  const locked = await approve("manager", confirmed.revision);
+  assert.equal(locked.statusCode, 409, locked.body);
+  assert.match(locked.json().message, /2030-12/);
+  assert.equal(await countDays(), 0);
+  assert.deepEqual(await balance(2030), [3, 2, 0]);
+  assert.deepEqual(await balance(2031), [0, 5, 0]);
+  assert.equal((await f.reserve.readCoveredDecision(f.worker, created.requestId, "pending")).status, "pending");
+  const opened = await f.legacy.reopenAttendancePeriod(f.admin, 2030, 12, { reason: "Fixture reopening" },
+    first.revision, "reopen-mixed-month", "reopen");
+
+  const noPolicy = new PgAnnualLeaveExceptionProposalService(f.appPool, () => []);
+  await assert.rejects(noPolicy.approve(f.manager, created.requestId, confirmed.revision, "policy-removed"), { code: "VALIDATION_FAILED" });
+  await f.owner.query("ALTER TABLE audit_events ADD CONSTRAINT fixture_approval_audit_failure CHECK (action <> 'leave_request.approve_exception') NOT VALID");
+  await assert.rejects(f.service.approve(f.manager, created.requestId, confirmed.revision, "audit-fails"), { code: "23514" });
+  assert.equal(await countDays(), 0);
+  assert.equal((await f.reserve.readCoveredDecision(f.worker, created.requestId, "unchanged")).revision, confirmed.revision);
+  await f.owner.query("ALTER TABLE audit_events DROP CONSTRAINT fixture_approval_audit_failure");
+  const decisions = await Promise.all([approve("manager", confirmed.revision), approve("admin", confirmed.revision)]);
+  assert.deepEqual(decisions.map(item => item.statusCode).sort(), [200, 409]);
+  const approved = decisions.find(item => item.statusCode === 200)!;
+  assert.deepEqual(approved.json(), { requestId: created.requestId, revision: "4", status: "approved", dates: mixed });
+  assert.equal(approved.headers.etag, '"4"');
+  const worker = await app.inject({ url: requestPath + "/covered-dates", cookies: { bss_session: "worker" } });
+  assert.equal(worker.statusCode, 200, worker.body);
+  assert.deepEqual(worker.json().dates, mixed);
+  assert.equal(await countDays(), 7);
+  assert.deepEqual(await balance(2030), [5, 0, 0]);
+  assert.deepEqual(await balance(2031), [3, 2, 0]);
+
+  const calendar = await f.legacy.listApprovedLeaveCalendar(f.worker, { from: "2030-12-26", to: "2031-01-03" });
+  assert.deepEqual(calendar.items.map(item => [item.startDate, item.endDate]),
+    [["2030-12-26", "2030-12-26"], ["2030-12-31", "2031-01-03"]]);
+  const preview = await app.inject({ method: "POST", url: "/api/v1/report-previews", cookies: { bss_session: "admin" },
+    headers: { origin: "https://bss.test" }, payload: {
+      ...report, periodFrom: "2030-12-26", periodTo: "2031-01-03", limit: 10
+    } });
+  assert.equal(preview.statusCode, 200, preview.body);
+  assert.deepEqual(preview.json().rows.map((row: Record<string, unknown>) => [row.typeCode, row.startDate, row.endDate, row.workingDays]), [
+    ["annual_leave", "2030-12-26", "2030-12-26", 1], ["unpaid_leave", "2030-12-27", "2030-12-27", 1],
+    ["unpaid_leave", "2030-12-30", "2030-12-30", 1], ["annual_leave", "2030-12-31", "2031-01-03", 4]
+  ]);
+  const next = await finalizeDecember(opened.revision);
+  const updatedSnapshot = await snapshot(next.datasetVersion);
+  const unpaid = updatedSnapshot.dataset_snapshot.approvedAbsences.filter((row: Record<string, unknown>) => row.typeCode === "unpaid_leave");
+  assert.deepEqual(unpaid.map((row: Record<string, unknown>) => row.startDate), ["2030-12-27", "2030-12-30"]);
+  const newExport = await f.legacy.createReportExport(f.admin, { ...report, format: "csv", periodVersionId: next.datasetVersion }, "new-export");
+  const newFile = await f.legacy.downloadReportExport(f.admin, newExport.id);
+  assert.match(newFile.content.toString("utf8"), /unpaid_leave/);
+  assert.deepEqual(await snapshot(first.datasetVersion), originalSnapshot);
+  const previousDownload = await f.legacy.downloadReportExport(f.admin, originalExport.id);
+  assert.deepEqual(previousDownload.content, originalFile.content);
+  assert.equal(createHash("sha256").update(previousDownload.content).digest("hex"), originalExport.checksumSha256);
+
+  const audit = (await f.owner.query(
+    "SELECT before_json, after_json FROM audit_events WHERE action='leave_request.approve_exception' AND entity_id=$1", [created.requestId]
+  )).rows;
+  assert.equal(audit.length, 1);
+  assert.equal(audit[0].before_json.proposalRevision, saved.revision);
+  assert.deepEqual(audit[0].after_json.dates, mixed);
+  await assert.rejects(f.owner.query("BEGIN;" + await migration("025_annual_leave_exception_approval.down") + "COMMIT;"),
+    /Preserve approved mixed leave dates/);
+  await f.owner.query("ROLLBACK");
 });

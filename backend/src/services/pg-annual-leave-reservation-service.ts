@@ -4,7 +4,7 @@ import { withTenant, type TenantTransaction } from "../db/tenant.js";
 import { AppError } from "../domain/errors.js";
 import type { ActorContext } from "../domain/types.js";
 import { requireRole, requireWorkerScope } from "../security/rbac.js";
-import type { LeaveRequestWrite, RequestStatus } from "./contracts.js";
+import type { LeaveDecisionDate, LeaveRequestWrite, RequestStatus } from "./contracts.js";
 import { requireLeaveApprovalPeriods } from "./attendance-period-lock.js";
 import { lockActiveLeaveWorker, requireNonOverlappingLeave } from "./leave-calendar-days.js";
 import { insertAudit } from "./mvp-audit.js";
@@ -51,7 +51,7 @@ export async function recordedYears(client: TenantTransaction, requestId: string
 }
 
 // Call after taking the same worker row lock as legacy submissions and allowance edits.
-async function allocate(
+export async function allocateAnnualLeaveReservations(
   client: TenantTransaction, workerId: string, allowance: number,
   years: ReservationYear[], excludedRequestId: string | null
 ): Promise<ReservationYear[]> {
@@ -152,6 +152,17 @@ async function requireCoveredDates(
   if (invalid!.invalid) throw new AppError("VALIDATION_FAILED", "Odabrani dan mora biti radni dan.");
 }
 
+export async function requireReservationApprovalPeriods(
+  client: TenantTransaction, organizationId: string, row: Pick<PendingReservationRow, "start_date" | "end_date">
+): Promise<void> {
+  const { rows: [org] } = await client.query<{ today: string }>(
+    "SELECT (transaction_timestamp() AT TIME ZONE timezone)::date::text AS today FROM organizations WHERE id = $1",
+    [organizationId]
+  );
+  if (!org) throw new AppError("NOT_FOUND", "Organizacija nije pronađena.");
+  await requireLeaveApprovalPeriods(client, organizationId, row.start_date, row.end_date, org.today);
+}
+
 export class PgAnnualLeaveReservationService {
   constructor(private readonly pool: pg.Pool) {}
 
@@ -159,7 +170,7 @@ export class PgAnnualLeaveReservationService {
     requireRole(actor, ["worker", "manager", "admin"]);
     return withTenant(this.pool, actor, requestId, async client => {
       const { rows: [row] } = await client.query<{
-        id: string; worker_id: string; department_id: string; revision: string; status: RequestStatus; dates: CoveredDate[];
+        id: string; worker_id: string; department_id: string; revision: string; status: RequestStatus; dates: LeaveDecisionDate[];
         years: ReservationYear[]; eligible_dates: string[];
       }>(
         `SELECT l.id, l.worker_id, w.department_id, l.revision::text, l.status,
@@ -223,7 +234,7 @@ export class PgAnnualLeaveReservationService {
       }
       await requireNonOverlappingLeave(client, workerId, input.startDate, input.endDate, true);
       const requested = await requestedYears(client, input.startDate, input.endDate);
-      const years = await allocate(client, workerId, worker.annual_leave_allowance, requested, null);
+      const years = await allocateAnnualLeaveReservations(client, workerId, worker.annual_leave_allowance, requested, null);
       const days = years.reduce((sum, year) => sum + year.requestedDays, 0);
       const { rows: [row] } = await client.query<ReservationRequestRow>(
         `INSERT INTO leave_requests (organization_id, worker_id, leave_type, start_date, end_date, working_days, note,
@@ -251,7 +262,7 @@ export class PgAnnualLeaveReservationService {
     return withTenant(this.pool, actor, requestId, async client => {
       const { row, worker } = await lockPendingReservation(client, actor, requestIdValue, revision);
       const prior = await recordedYears(client, row.id);
-      const next = await allocate(client, row.worker_id, worker.annual_leave_allowance, prior, row.id);
+      const next = await allocateAnnualLeaveReservations(client, row.worker_id, worker.annual_leave_allowance, prior, row.id);
       if (next.every((year, index) => year.reservedDays === prior[index]!.reservedDays)) {
         return reservationView(row, prior);
       }
@@ -307,14 +318,9 @@ export class PgAnnualLeaveReservationService {
         [row.id, revision]
       );
       if (!dates.length) throw new AppError("CONFLICT", "Radnik mora potvrditi datume za aktualnu reviziju.");
-      const { rows: [org] } = await client.query<{ today: string }>(
-        "SELECT (transaction_timestamp() AT TIME ZONE timezone)::date::text AS today FROM organizations WHERE id = $1",
-        [actor.organizationId]
-      );
-      if (!org) throw new AppError("NOT_FOUND", "Organizacija nije pronađena.");
-      await requireLeaveApprovalPeriods(client, actor.organizationId, row.start_date, row.end_date, org.today);
+      await requireReservationApprovalPeriods(client, actor.organizationId, row);
       const years = await recordedYears(client, row.id);
-      await allocate(client, row.worker_id, worker.annual_leave_allowance, years, row.id);
+      await allocateAnnualLeaveReservations(client, row.worker_id, worker.annual_leave_allowance, years, row.id);
       await requireCoveredDates(client, row, dates, years);
       const { rows: [updated] } = await client.query<{ revision: string }>(
         `UPDATE leave_requests SET status = 'approved', decided_by = $2, decided_at = clock_timestamp(),

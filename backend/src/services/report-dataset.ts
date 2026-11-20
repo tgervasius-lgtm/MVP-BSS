@@ -161,7 +161,7 @@ export async function createLiveReportPreview(
   } else if (input.reportType === "approved_absences") {
     rows = (await client.query<PreviewRow>(
       `WITH rows AS (
-         SELECT w.code AS "workerCode", w.name AS "workerName", l.leave_type AS "typeCode",
+         SELECT w.code AS "workerCode", w.name AS "workerName", absence.leave_type AS "typeCode",
            to_char(absence.start_date, 'YYYY-MM-DD') AS "startDate", to_char(absence.end_date, 'YYYY-MM-DD') AS "endDate",
            absence.working_days AS "workingDays", l.status, l.revision
          FROM leave_requests l JOIN workers w ON w.id = l.worker_id

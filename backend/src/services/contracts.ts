@@ -227,6 +227,7 @@ export type AttendancePageView = Page<AttendanceDayView> & {
 };
 export type RequestStatus = "pending" | "approved" | "rejected" | "cancelled";
 export type LeaveType = "annual_leave" | "paid_leave" | "unpaid_leave" | "free_day";
+export type LeaveDecisionDate = { date: string; type: LeaveType };
 export type LeaveRequestView = {
   id: string;
   workerId: string;
