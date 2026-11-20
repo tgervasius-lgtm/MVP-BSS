@@ -1634,3 +1634,28 @@ button.day:hover{outline:2px solid var(--bss-color-accent-text);outline-offset:1
 .time-picker select{flex:1;width:100%;min-width:0!important;min-height:44px}
 .time-field input[hidden]{display:none!important}
 .time-error{display:block;font-size:12px;color:var(--bss-color-text)}
+
+/* Moji sati: the compact picker follows the available content width. */
+.mytime-records{container-type:inline-size;margin-bottom:var(--bss-space-4,16px)}
+.mytime-workspace{display:grid;gap:12px;align-items:start}
+.mytime-day-list,.mytime-day-detail{min-width:0;margin:0;padding:12px 14px;box-shadow:none}
+.mytime-day-list h2,.mytime-day-detail h3{margin:0;font-size:var(--bss-font-size-lg,18px)}
+.mytime-day-list ul{display:none;margin:8px 0 0;padding:0;list-style:none}
+.mytime-day-picker{display:grid;gap:5px;margin-top:8px}
+.mytime-day-picker select{min-height:40px;max-width:100%}
+.mytime-day-button{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:5px 10px;width:100%;padding:9px;background:var(--bss-color-bg-surface);color:var(--bss-color-text);border:1px solid var(--bss-color-border);border-radius:6px;text-align:start}
+.mytime-day-list li+li{margin-top:5px}
+.mytime-day-button .pending-note{display:block}
+.mytime-day-button[aria-pressed=true]{border-color:currentColor;font-weight:700}
+.mytime-day-button:hover{background:var(--bss-color-bg-hover)}
+.mytime-day-head{display:flex;flex-wrap:wrap;align-items:start;justify-content:space-between;gap:8px}
+.mytime-day-head p,.mytime-day-detail .notice p{margin:4px 0 0;overflow-wrap:anywhere}
+.mytime-day-detail dl{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:12px 0}
+.mytime-day-detail dt{color:var(--bss-color-text-muted)}
+.mytime-day-detail dd{margin:3px 0 0;font-weight:650;font-variant-numeric:tabular-nums}
+.mytime-day-detail .notice{margin-bottom:10px}
+@container (width > 535px){
+  .mytime-workspace{grid-template-columns:minmax(0,2fr) minmax(0,3fr)}
+  .mytime-day-list ul{display:block}
+  .mytime-day-picker{display:none}
+}
