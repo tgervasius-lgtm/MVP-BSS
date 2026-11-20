@@ -257,6 +257,11 @@ test('API state dohvaća sve cursor stranice i ograničava paralelne RFID pozive
   }]}};
   assert.equal(apiState.contractualAttendanceTime(contractual,'check_in'),'02:30');
   assert.equal(apiState.contractualAttendanceTime({...contractual,provenance:{eventTimeInterpretations:[]}},'check_in'),'Nepoznato');
+  const corrected={...contractual,source:'approved_correction',checkIn:'2026-10-25T07:00:00.000Z',checkOut:'2026-10-25T15:00:00.000Z',
+    provenance:{...contractual.provenance,status:'complete',timezone:'Europe/Zagreb'}};
+  assert.equal(apiState.contractualAttendanceTime(corrected,'check_in'),'08:00');
+  assert.equal(apiState.contractualAttendanceTime(corrected,'check_out'),'16:00');
+  assert.equal(apiState.contractualAttendanceTime({...corrected,provenance:{status:'legacy_unavailable'}},'check_in'),'Nepoznato');
   assert.match(apiStateSource,/start:contractualAttendanceTime\(item,'check_in'\),end:contractualAttendanceTime\(item,'check_out'\)/);
   const calls=[];
   const api={get:async(_path,params)=>{
@@ -1884,7 +1889,7 @@ test('contract gap #227 veže attendance lifecycle i recalculation na postojeći
   assert.match(lifecycle,/\/attendance-periods\/\$\{year\}\/\$\{monthNumber\}/);
   assert.match(lifecycle,/\/attendance-periods\/\$\{year\}\/\$\{monthNumber\}\/\$\{action\}/);
   assert.match(lifecycle,/Idempotency-Key/);
-  assert.match(lifecycle,/callbacks\.revisionHeaders\(period\?\.revision/);
+  assert.match(lifecycle,/callbacks\.revisionHeaders\(revision\)/);
   assert.match(lifecycle,/currentRole!=='admin'\|\|!period/);
   assert.match(lifecycle,/\/attendance\/\$\{record\.apiId\}\/recalculations/);
   assert.match(lifecycle,/calculationVersion:'attendance-v1'/);
@@ -2651,6 +2656,7 @@ test('izdvojena vremenska domena čuva noćne smjene, pauzu i aktivni demo zapis
   const {evaluate}=boot('admin');
   assert.equal(evaluate("BSS_CORE.time.plannedShiftMinutes({start:'22:00',end:'06:00',breakMinutes:30})"),450);
   assert.equal(evaluate("BSS_CORE.time.recordMinutes({date:'2026-07-09',start:'22:00',end:'06:00',breakMinutes:30})"),450);
+  assert.equal(evaluate("BSS_CORE.time.recordMinutes({start:'02:30',end:'02:30',workedMinutes:60})"),60);
   assert.equal(evaluate("BSS_CORE.time.recordMinutes({date:'2026-07-10',start:'08:00',end:'',breakMinutes:0},{includeActive:true,today:'2026-07-10',now:'10:00'})"),120);
   assert.equal(evaluate("BSS_CORE.time.formatMinutes(450)"),'7:30 h');
 });
@@ -2846,6 +2852,68 @@ test('event registry parsira samo dopuštene akcije bez evala',()=>{
   assert.equal(evaluate("BSS_CORE.views.events.parse(\"constructor.constructor('return 1')()\",{})"),null);
   assert.equal(evaluate("BSS_CORE.views.events.parse(\"unknownAction()\",{})"),null);
   assert.doesNotMatch(fs.readFileSync('src/views/events.js','utf8'),/\beval\s*\(|new Function|Function\s*\(/);
+});
+
+test('mjesečni period registrira odabir mjeseca i potvrdu prijelaza',()=>{
+  const {window}=boot('admin');
+  const events=window.BSSCore.views.events;
+  assert.equal(events.parse('loadAttendancePeriod(this.value)',{value:'2026-11'}).args[0],'2026-11');
+  assert.equal(events.parse("openPeriodTransition('review')").args[0],'review');
+  assert.equal(events.parse("submitPeriodTransition('close')").args[0],'close');
+});
+
+test('mjesečni period ignorira zakašnjeli odgovor i ne potvrđuje drugi mjesec iz otvorenog dijaloga',async()=>{
+  const {window}=new JSDOM('<div id="modal"></div>');
+  const {document}=window;
+  const reads=new Map(),writes=[],notices=[];
+  const BSS_API={
+    getWithMeta:path=>new Promise(resolve=>reads.set(path,resolve)),
+    post:async(path,body,headers)=>{writes.push({path,body,headers});return{revision:'4',status:'review'};}
+  };
+  const context=vm.createContext({
+    BSS_API,currentRole:'admin',render:()=>{},toast:message=>notices.push(message),
+    $:selector=>document.querySelector(selector),escapeHtml:String,monthDisplay:String,
+    showModal:modal=>modal.classList.add('open'),closeModal:()=>document.querySelector('#modal').classList.remove('open')
+  });
+  vm.runInContext(fs.readFileSync('src/adapters/api-attendance-lifecycle.js','utf8'),context);
+  const lifecycle=context.BSSAttendanceLifecycle;
+  lifecycle.configure({
+    baseViewReports:()=>'',revisionHeaders:revision=>({'If-Match':revision}),
+    mutateApi:action=>action(),apiMessage:error=>error.message
+  });
+  const respond=(month,revision)=>reads.get(`/attendance-periods/2026/${month}`)({data:{revision,status:'open'}});
+  const october=lifecycle.load('2026-10');
+  const november=lifecycle.load('2026-11');
+  respond(11,'2');
+  await november;
+  respond(10,'1');
+  await october;
+  assert.match(lifecycle.viewReports(),/value="2026-11"/);
+
+  const december=lifecycle.load('2026-12');
+  lifecycle.openTransition('review');
+  assert.match(document.querySelector('#modal').textContent,/2026-11/);
+  document.querySelector('#periodTransitionReason').value='Provjera mjeseca';
+  respond(12,'3');
+  await december;
+  await lifecycle.submitTransition('review');
+  assert.equal(writes.length,0);
+  assert.match(notices.at(-1),/ponovno/i);
+
+  lifecycle.openTransition('review');
+  document.querySelector('#periodTransitionReason').value='Provjera stare revizije';
+  const refreshedDecember=lifecycle.load('2026-12');
+  respond(12,'4');
+  await refreshedDecember;
+  await lifecycle.submitTransition('review');
+  assert.equal(writes.length,0);
+
+  lifecycle.openTransition('review');
+  document.querySelector('#periodTransitionReason').value='Provjera prosinca';
+  await lifecycle.submitTransition('review');
+  assert.equal(writes.length,1);
+  assert.equal(writes[0].path,'/attendance-periods/2026/12/review');
+  assert.equal(writes[0].headers['If-Match'],'4');
 });
 
 test('delegirani click i change zadržavaju navigaciju i promjenu uloge',()=>{

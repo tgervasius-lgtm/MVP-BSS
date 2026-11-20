@@ -1,4 +1,4 @@
-/* global CURRENT_MONTH, currentRole, BSS_API, render, toast, escapeHtml, monthDisplay, reportFilters, $, showModal, state, isoLabel */
+/* global CURRENT_MONTH, currentRole, BSS_API, render, toast, escapeHtml, monthDisplay, reportFilters, $, showModal, closeModal, state, isoLabel */
 (function registerAttendanceLifecycleApi(root){
   'use strict';
 
@@ -6,6 +6,7 @@
   let period=null;
   let periodEtag='';
   let periodMonth='';
+  let periodReadSequence=0;
   let idempotencySequence=0;
 
   function configure(value){callbacks=value;}
@@ -20,13 +21,18 @@
     const unique=root.crypto?.randomUUID?.()||`${Date.now()}-${++idempotencySequence}`;
     return `bss-period-${action}-${unique}`;
   }
-  function transitionHeaders(action){
-    return {...callbacks.revisionHeaders(period?.revision||periodEtag||'0'),'Idempotency-Key':idempotencyKey(action)};
+  function periodRevision(){return period?.revision||periodEtag||'0';}
+  function transitionHeaders(action,revision){
+    return {...callbacks.revisionHeaders(revision),'Idempotency-Key':idempotencyKey(action)};
   }
   async function fetchPeriod(month=periodMonth||CURRENT_MONTH,{renderAfter=true}={}){
     if(!['admin','manager','accountant'].includes(currentRole)||!/^[0-9]{4}-[0-9]{2}$/.test(month||''))return false;
+    const read=++periodReadSequence;
     const [year,monthNumber]=month.split('-').map(Number);
-    const result=await BSS_API.getWithMeta(`/attendance-periods/${year}/${monthNumber}`);
+    let result;
+    try{result=await BSS_API.getWithMeta(`/attendance-periods/${year}/${monthNumber}`);}
+    catch(error){if(read!==periodReadSequence)return false;throw error;}
+    if(read!==periodReadSequence)return false;
     period=result.data;periodEtag=result.etag||result.data.revision;periodMonth=month;
     if(renderAfter)render();
     return true;
@@ -35,6 +41,7 @@
     if(['admin','manager','accountant'].includes(currentRole)){
       await fetchPeriod(periodMonth||CURRENT_MONTH,{renderAfter:false});
     }else{
+      periodReadSequence+=1;
       period=null;periodEtag='';periodMonth='';
     }
   }
@@ -82,16 +89,23 @@
     if(action==='finalize'&&Number(period.unresolved?.total||0)>0)return toast('Finalizacija je blokirana neriješenim stavkama.');
     const modal=$('#modal');
     modal.innerHTML=`<div class="modal-card"><div class="modal-head"><div><div class="eyebrow">Attendance period</div><h2>${escapeHtml(actionLabel(action))}</h2><div class="small-muted">${escapeHtml(monthDisplay(periodMonth))} · ${escapeHtml(statusLabel(period.status))} · revizija ${escapeHtml(period.revision)}</div></div><button class="close-btn" aria-label="Zatvori" data-bss-action="closeModal()">×</button></div><div class="notice info">Ranije finalizirani datasetovi i artefakti ostaju nepromijenjeni. Server provjerava lifecycle, blockere, ovlasti i reviziju.</div><label>Razlog<textarea id="periodTransitionReason" rows="3" minlength="3" maxlength="1000" placeholder="Zašto se stanje mijenja?"></textarea></label><div class="btns"><button class="btn" data-bss-action="submitPeriodTransition('${action}')">Potvrdi</button><button class="btn secondary" data-bss-action="closeModal()">Odustani</button></div></div>`;
+    Object.assign(modal.querySelector('#periodTransitionReason').dataset,{action,month:periodMonth,revision:periodRevision()});
     showModal(modal);
   }
   async function submitTransition(action){
     if(currentRole!=='admin'||!period)return;
-    const reason=$('#periodTransitionReason')?.value.trim()||'';
+    const field=$('#modal.open #periodTransitionReason');
+    if(!field||field.dataset.action!==action)return;
+    const {month,revision}=field.dataset;
+    if(month!==periodMonth||revision!==periodRevision()){
+      closeModal();return toast('Razdoblje ili revizija se promijenila. Otvori potvrdu ponovno.');
+    }
+    const reason=field.value.trim();
     if(reason.length<3)return toast('Upiši razlog od najmanje 3 znaka.');
-    const [year,monthNumber]=periodMonth.split('-').map(Number);
+    const [year,monthNumber]=month.split('-').map(Number);
     await callbacks.mutateApi(async()=>{
-      period=await BSS_API.post(`/attendance-periods/${year}/${monthNumber}/${action}`,{reason},transitionHeaders(action));
-      periodEtag=period.revision;
+      const updated=await BSS_API.post(`/attendance-periods/${year}/${monthNumber}/${action}`,{reason},transitionHeaders(action,revision));
+      if(periodMonth===month&&periodRevision()===revision){period=updated;periodEtag=updated.revision;}
     },`${actionLabel(action)} — spremljeno.`);
   }
   async function openRecalculation(recordId){
