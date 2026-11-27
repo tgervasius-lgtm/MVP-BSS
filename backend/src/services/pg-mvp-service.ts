@@ -438,7 +438,7 @@ export class PgMvpService extends PgPhaseAService implements MvpService {
           `INSERT INTO leave_requests (
              organization_id, worker_id, leave_type, start_date, end_date, working_days, note
            ) VALUES ($1, $2, $3, $4, $5, $6, $7)
-           RETURNING id, worker_id, leave_type, start_date, end_date, working_days, note, status,
+           RETURNING id, worker_id, leave_type, start_date::text, end_date::text, working_days, note, status,
              created_at, decided_at, decided_by, decision_note, revision`,
           [actor.organizationId, workerId, input.typeCode, input.startDate, input.endDate, days, input.note ?? null]
         );
@@ -476,7 +476,7 @@ export class PgMvpService extends PgPhaseAService implements MvpService {
       const updated = await client.query<LeaveRow>(
         `UPDATE leave_requests SET status = 'cancelled', decided_by = $2, decided_at = clock_timestamp(),
            decision_note = 'Poništio radnik.', revision = revision + 1
-         WHERE id = $1 RETURNING id, worker_id, leave_type, start_date, end_date, working_days, note,
+         WHERE id = $1 RETURNING id, worker_id, leave_type, start_date::text, end_date::text, working_days, note,
            status, created_at, decided_at, decided_by, decision_note, revision`,
         [requestIdValue, actor.userId]
       );
@@ -534,14 +534,14 @@ export class PgMvpService extends PgPhaseAService implements MvpService {
     const { checkIn, checkOut } = correctionTimes(input.newCheckIn, input.newCheckOut);
     try {
       return await withTenant(this.mvpPool, actor, requestId, async (client) => {
-        const periodResult = await client.query<{ work_date: string | Date; worker_id: string; department_id: string }>(
-          `SELECT a.work_date, a.worker_id, w.department_id FROM attendance_days a
+        const periodResult = await client.query<{ work_date: string; worker_id: string; department_id: string }>(
+          `SELECT a.work_date::text, a.worker_id, w.department_id FROM attendance_days a
            JOIN workers w ON w.id = a.worker_id WHERE a.id = $1`, [input.attendanceDayId]
         );
         const periodDay = periodResult.rows[0];
         if (!periodDay) throw new AppError("NOT_FOUND", "Evidencijski zapis nije pronađen.");
         requireWorkerScope(actor, periodDay.worker_id, periodDay.department_id);
-        const period = attendancePeriodParts(dateOnly(periodDay.work_date));
+        const period = attendancePeriodParts(periodDay.work_date);
         await lockAttendancePeriod(client, actor.organizationId, period.year, period.month);
         if (isAttendancePeriodLocked(await attendancePeriodState(client, period.year, period.month))) {
           throw new AppError("CONFLICT", "Mjesec je zaključan za izmjene.");
@@ -590,15 +590,15 @@ export class PgMvpService extends PgPhaseAService implements MvpService {
   ): Promise<CorrectionDecisionView> {
     requireRole(actor, ["admin", "manager"]);
     return withTenant(this.mvpPool, actor, requestId, async (client) => {
-      const periodResult = await client.query<{ work_date: string | Date; worker_id: string; department_id: string }>(
-        `SELECT a.work_date, a.worker_id, w.department_id FROM correction_requests c
+      const periodResult = await client.query<{ work_date: string; worker_id: string; department_id: string }>(
+        `SELECT a.work_date::text, a.worker_id, w.department_id FROM correction_requests c
          JOIN attendance_days a ON a.id = c.attendance_day_id
          JOIN workers w ON w.id = a.worker_id WHERE c.id = $1`, [requestIdValue]
       );
       const periodDay = periodResult.rows[0];
       if (!periodDay) throw new AppError("NOT_FOUND", "Zahtjev za korekciju nije pronađen.");
       requireWorkerScope(actor, periodDay.worker_id, periodDay.department_id);
-      const period = attendancePeriodParts(dateOnly(periodDay.work_date));
+      const period = attendancePeriodParts(periodDay.work_date);
       await lockAttendancePeriod(client, actor.organizationId, period.year, period.month);
       if (isAttendancePeriodLocked(await attendancePeriodState(client, period.year, period.month))) {
         throw new AppError("CONFLICT", "Mjesec je zaključan za izmjene.");
@@ -1024,7 +1024,7 @@ export class PgMvpService extends PgPhaseAService implements MvpService {
       const result = await client.query<LeaveRow>(
         `UPDATE leave_requests SET status = $2, decided_by = $3, decided_at = clock_timestamp(),
            decision_note = $4, revision = revision + 1 WHERE id = $1
-         RETURNING id, worker_id, leave_type, start_date, end_date, working_days, note,
+         RETURNING id, worker_id, leave_type, start_date::text, end_date::text, working_days, note,
            status, created_at, decided_at, decided_by, decision_note, revision`,
         [requestIdValue, status, actor.userId, note]
       );

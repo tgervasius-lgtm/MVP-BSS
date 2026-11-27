@@ -48,7 +48,7 @@ export type AttendanceRow = {
   revision: string | number;
 };
 
-export const attendanceSelect = `SELECT a.id, a.worker_id, a.work_date, a.shift_snapshot, a.check_in, a.check_out,
+export const attendanceSelect = `SELECT a.id, a.worker_id, a.work_date::text, a.shift_snapshot, a.check_in, a.check_out,
   a.break_minutes, a.worked_minutes, a.planned_minutes, a.status, a.calculation_version,
   a.configuration_snapshot, a.current_calculation_id, a.revision,
   COALESCE((SELECT c.source_event_ids FROM attendance_calculations c
