@@ -42,7 +42,7 @@
     "brace-expansion@^2.0.1": "2.1.7"
   },
   "devDependencies": {
-    "@redocly/cli": "2.55.0",
+    "@redocly/cli": "2.82.0",
     "@types/node": "24.10.1",
     "@types/pdfkit": "^0.17.6",
     "@types/pg": "8.16.0",
