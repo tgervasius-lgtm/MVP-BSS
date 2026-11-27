@@ -203,7 +203,7 @@ button.day:hover{outline:2px solid var(--bss-color-accent-text);outline-offset:1
 }
 .attendance-operational-table td:nth-child(9) .pill.green{color:#356859}
 .attendance-operational-table td:nth-child(9) .pill.blue{color:#496a92}
-.attendance-operational-table td:nth-child(9) .pill.gray{color:#667085}
+:root[data-theme="light"] .attendance-operational-table td:nth-child(9) .pill.gray{color:#667085}
 .attendance-operational-table td:nth-child(10) .pill{
   padding:4px 7px;
   border-radius:6px;
