@@ -21,7 +21,7 @@
 .pill.orange{background:var(--bss-color-warning-soft);border-color:#fde68a;color:var(--bss-color-warning)}
 .pill.red{background:var(--bss-color-danger-soft);border-color:#fecaca;color:var(--bss-color-danger)}
 .pill.blue{background:var(--bss-color-info-soft);border-color:#bfdbfe;color:var(--bss-color-info)}
-.pill.gray{background:#f1f5f9;border-color:#cbd5e1;color:#64748b}
+.pill.gray{background:#f1f5f9;border-color:#cbd5e1;color:#465461}
 .btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
 .btn{border-radius:13px;padding:11px 13px;background:var(--bss-color-action-primary);color:var(--bss-color-action-primary-text);font-weight:850;font-size:12px;box-shadow:0 8px 22px rgba(15,118,110,.14)}
 .btn:hover{background:var(--bss-color-action-primary-hover)}

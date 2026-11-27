@@ -218,6 +218,26 @@ test('tema i svih sedam CSS slojeva rade nakon ponovnog učitavanja',async({page
 });
 
 for(const theme of ['light','dark']){
+  test(`statusi dnevne evidencije imaju čitljiv kontrast (${theme})`,async({page})=>{
+    await page.addInitScript(value=>localStorage.setItem('bss-theme-v1',value),theme);
+    await loginAs(page,'admin');
+    await expect(page.locator('html')).toHaveAttribute('data-theme',theme);
+    await page.evaluate(()=>window.navigate('attendance'));
+    await expect(page.getByRole('heading',{name:'Dnevna evidencija',exact:true})).toBeVisible();
+    const selector='#attendanceDaily td:nth-child(9) .pill.gray';
+    const statuses=page.locator(selector);
+    for(const text of ['Bez dolaska','Odsutan']){
+      const status=statuses.and(page.getByText(text,{exact:true})).first();
+      await status.scrollIntoViewIfNeeded();
+      await expect(status).toBeInViewport();
+    }
+    const result=await new AxeBuilder({page}).include(selector).withRules(['color-contrast']).analyze();
+    expect(result.violations).toEqual([]);
+    expect(result.passes.flatMap(rule=>rule.nodes)).toHaveLength(await statuses.count());
+  });
+}
+
+for(const theme of ['light','dark']){
 test(`ključne aplikacijske stranice nemaju ozbiljne axe povrede (${theme})`,async({page})=>{
   await page.addInitScript(value=>localStorage.setItem('bss-theme-v1',value),theme);
   await page.goto('/');
