@@ -4,7 +4,8 @@ import { readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
-import ts from "typescript";
+// TypeScript 7.0 supplies tsc. The route inspection below still needs the TypeScript 6 AST API.
+import ts from "@typescript/typescript6";
 import YAML from "yaml";
 import { loadConfig } from "../../src/config.js";
 import { buildApp } from "../../src/http/app.js";

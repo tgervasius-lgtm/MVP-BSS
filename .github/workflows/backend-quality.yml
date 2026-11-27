@@ -201,6 +201,9 @@ jobs:
         run: npm ci --ignore-scripts
       - name: Rebuild required esbuild binary explicitly
         run: npm rebuild esbuild --foreground-scripts
+      - name: Typecheck with the native TypeScript compiler on Windows
+        if: runner.os == 'Windows'
+        run: npm run lint
       - name: Verify static file security and native filesystem compatibility
         run: npm run test:static
         env:
