@@ -1501,8 +1501,10 @@ test("PostgreSQL migrations, RLS isolation, auth and manager scope", { skip: !da
     note: "Planirani godišnji"
   }, "integration-leave-create");
   assert.equal(leave.workingDays, 5);
+  assert.deepEqual([leave.startDate, leave.endDate], ["2026-08-03", "2026-08-07"]);
   const approvedLeave = await service.approveLeaveRequest(manager.actor, leave.id, leave.revision, "Odobreno u planu", "integration-leave-approve");
   assert.equal(approvedLeave.status, "approved");
+  assert.deepEqual([approvedLeave.startDate, approvedLeave.endDate], ["2026-08-03", "2026-08-07"]);
 
   // The yearly allowance is evaluated separately for each calendar year. Seven
   // days are already reserved in 2026, so this request fits a 12-day allowance
@@ -1515,6 +1517,7 @@ test("PostgreSQL migrations, RLS isolation, auth and manager scope", { skip: !da
     note: "Prijelaz godine"
   }, "integration-leave-cross-year");
   assert.equal(crossYearLeave.workingDays, 10);
+  assert.deepEqual([crossYearLeave.startDate, crossYearLeave.endDate], ["2026-12-28", "2027-01-08"]);
 
   const workerWithLeave = await service.getWorker(admin.actor, ids.worker1);
   await assert.rejects(

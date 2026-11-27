@@ -375,12 +375,12 @@ export class PgAttendanceCalculationService {
       throw new AppError("VALIDATION_FAILED", "Razlog ponovnog izračuna mora imati najmanje tri znaka.");
     }
     return withTenant(this.pool, actor, requestId, async (client) => {
-      const periodResult = await client.query<{ work_date: string | Date }>(
-        "SELECT work_date FROM attendance_days WHERE id = $1", [attendanceDayId]
+      const periodResult = await client.query<{ work_date: string }>(
+        "SELECT work_date::text FROM attendance_days WHERE id = $1", [attendanceDayId]
       );
       const periodDay = periodResult.rows[0];
       if (!periodDay) throw new AppError("NOT_FOUND", "Evidencija rada nije pronađena.");
-      const lockedWorkDate = dateOnly(periodDay.work_date);
+      const lockedWorkDate = periodDay.work_date;
       const period = attendancePeriodParts(lockedWorkDate);
       await lockAttendancePeriod(client, actor.organizationId, period.year, period.month);
       if (isAttendancePeriodLocked(await attendancePeriodState(client, period.year, period.month))) {
